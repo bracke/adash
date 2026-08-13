@@ -65,6 +65,7 @@ below.
 | A construct written across several typed lines | **complete** |
 | Reading a program's output as a value: `Output_Of` | **complete** |
 | Taking a String apart: indexing, slicing, `'Length` | **complete** |
+| Writing a part back: `S (2) := 'x'`, `S (2 .. 4) := "xyz"` | **complete** |
 | The block statement: `declare ... begin ... end;` | **complete** |
 | Names below the presentation boundary said in words | **complete** |
 | Suspending and resuming a job: `suspend`, `resume` | **complete** |
@@ -2921,10 +2922,10 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   Ada is telling two interpretations apart, and the two places this language
   resolves from -- the expected type, and the other operand -- are what it
   offers instead.
-- **A slice is read and not written.** `S (2 .. 4)` answers the three
-  characters; `S (2 .. 4) := "xyz"` is refused. Reading one copies out of a
-  run of slots, which the machine does; writing one copies into the middle of
-  a run that a check has to bound first, which it does not.
+- **A slice of a function's result is not read.** `S (2 .. 4)` and
+  `S (2 .. 4) := "xyz"` are both written on a String a name denotes; `F (2 .. 4)`
+  is read as a call with one argument and reported as one. The prefix has to be
+  a name for the shape to be told apart from a call at all.
 - **A parameter's default is a literal**, possibly signed, or `True`/`False`.
   An arbitrary expression would have to be evaluated at each call in the scope
   of the declaration, and a name resolved at the call site cannot do that.

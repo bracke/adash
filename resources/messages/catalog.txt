@@ -71,6 +71,7 @@ en.error.machine.no_return_to = a return with nothing to return to
 en.error.machine.no_shell = a command with no shell to run it
 en.error.machine.index_outside = position {position} is outside a String of {length}
 en.error.machine.slice_outside = the slice {first} .. {last} is outside a String of {length}
+en.error.machine.slice_lengths = a slice of {wanted} cannot be assigned a String of {given}
 en.error.machine.bad_value_text = {text} does not hold a value of that type
 en.error.machine.too_many_handlers = too many handlers at once
 en.error.machine.no_return_value = a function ended without returning a value

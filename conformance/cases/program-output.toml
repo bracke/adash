@@ -296,6 +296,58 @@ output = ["[]"]
 diagnostics = []
 
 [[case]]
+id = "string.a-part-is-assigned-to"
+requirement = """
+`S (2 .. 4) := "xyz"` and `S (2) := 'x'` are Ada, and are how a script fixes a
+field of a fixed-width line without rebuilding the whole of it by hand. A String
+is one cell here rather than a run of slots, so there is no place inside one to
+store to: the machine builds the whole text changed and the assignment stores
+that. What a reader sees is Ada's statement; what runs is the same assignment
+written the long way, with the checks in the instruction rather than in the
+program.
+"""
+script = "S : String := \"abcdef\"; S (2 .. 4) := \"XYZ\"; put_line (S); S (1) := 'Q'; put_line (S); I : Integer := 5; S (I .. I + 1) := \"..\"; put_line (S); S (3 .. 2) := \"\"; put_line (S); quit (0);"
+exit_status = 0
+output = ["aXYZef", "QXYZef", "QXYZ..", "QXYZ.."]
+diagnostics = []
+
+[[case]]
+id = "string.a-part-assigned-must-be-the-length-it-covers"
+requirement = """
+Ada's rule: the value has to be as long as the slice it goes into. A shorter one
+would leave the rest of the target holding what it held, which no reading of the
+assignment expects, and the honest answer is Constraint_Error rather than a
+String that is quietly the wrong length.
+
+A position or a bound outside the String raises where the read of one does, and
+says the same thing.
+"""
+script = "S : String := \"abcdef\"; S (2 .. 4) := \"XY\";\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.slice_lengths{wanted=3,given=2}!}!",
+]
+
+[[case]]
+id = "string.a-part-is-assigned-only-where-the-whole-may-be"
+requirement = """
+What a part of a String may be assigned to is what the String may be. A constant
+and an `in` parameter are refused, and refused by name -- the name of the
+String, because that is what is not assignable rather than the position inside
+it.
+
+This is the check the other composites already had. It was missing here because
+a String part carried no symbol for the assignment to ask about, so a constant's
+slice was quietly written.
+"""
+script = "S : constant String := \"abcdef\"; S (2 .. 3) := \"XY\";\nprocedure P (T : String) is begin T (1) := 'Z'; end P;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_assignable{name=S}!",
+  "!error.not_assignable{name=T}!",
+]
+
+[[case]]
 id = "string.knows-its-own-length"
 requirement = """
 `'Length`, `'First` and `'Last`, which is what a loop over a String's characters

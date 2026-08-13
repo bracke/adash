@@ -73,6 +73,8 @@ package body Adash.Messages is
             return "error.machine.index_outside";
          when Msg_Machine_Slice_Outside      =>
             return "error.machine.slice_outside";
+         when Msg_Machine_Slice_Lengths      =>
+            return "error.machine.slice_lengths";
          when Msg_Machine_Bad_Value_Text     =>
             return "error.machine.bad_value_text";
          when Msg_Machine_Too_Many_Handlers  =>
@@ -946,6 +948,9 @@ package body Adash.Messages is
 
          when Msg_Machine_Slice_Outside =>
             return [N ("first"), N ("last"), N ("length")];
+
+         when Msg_Machine_Slice_Lengths =>
+            return [N ("wanted"), N ("given")];
 
          when Msg_Machine_Bad_Value_Text =>
             return [1 => N ("text")];

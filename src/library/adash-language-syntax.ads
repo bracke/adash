@@ -113,9 +113,11 @@ package Adash.Language.Syntax is
       --  the two bounds -- because that is what it is; the operator says which
       --  way round the answer goes.
       --
-      --  Only a range. Ada also writes `V in Integer`, a subtype mark, and
-      --  this language has no subtypes to name yet: accepting the spelling
-      --  would promise something the type model cannot answer.
+      --  Two children is the other form Ada writes, `V in Small`: the value
+      --  and a type mark, whose bounds are the type's own. Which was written
+      --  is a question about what the name denotes, so the parser records the
+      --  shape and semantics decides -- the division a `for` loop over a named
+      --  type makes, for the same reason.
       Node_Membership,
 
       Node_While_Loop,

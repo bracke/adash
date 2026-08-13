@@ -277,6 +277,24 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **A part of a String is assigned to**: `S (2 .. 4) := "xyz"` and
+  `S (2) := 'x'`, which is how a script fixes a field of a fixed-width line
+  without rebuilding the line around it. Two instructions, `Text_Set_Element`
+  and `Text_Set_Slice`, because a String is one cell rather than a run of slots
+  and there is no place inside one to store to: the machine builds the whole
+  text changed and the assignment stores that. What the checks catch is Ada's:
+  a position or a bound outside the String raises where a read of one does, and
+  a value that is not as long as the slice it goes into is `Constraint_Error`
+  rather than a String that is quietly the wrong length --
+  `error.machine.slice_lengths`, the one message this added.
+
+  It also closed a hole that had been open since slices were readable. What a
+  part of a String may be assigned to is what the String may be, and the check
+  the other composites had was missing here because a String part carried no
+  symbol for the assignment to ask about -- so `S : constant String := …;
+  S (2 .. 3) := "XY";` was quietly written, as was an `in` parameter's. The
+  part carries the prefix's symbol now, as an array element already did, and
+  both are refused by the name of the String.
 - **Membership against a type mark**: `X in Small`, `X not in Colour`, and a
   mark that may carry dots. The bounds are the type's own, so this emits the
   two comparisons the range form emits with constants from the declaration

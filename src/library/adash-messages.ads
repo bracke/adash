@@ -94,6 +94,7 @@ package Adash.Messages is
       Msg_Machine_No_Shell,
       Msg_Machine_Index_Outside,
       Msg_Machine_Slice_Outside,
+      Msg_Machine_Slice_Lengths,
       Msg_Machine_Bad_Value_Text,
       Msg_Machine_Too_Many_Handlers,
       Msg_Machine_No_Return_Value,

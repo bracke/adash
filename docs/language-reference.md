@@ -60,8 +60,10 @@ through an explicit conversion or an attribute.
 
 `Integer` is 64-bit. `String` is the one array type the language predefines; it
 begins at one, so `S'First` is 1 and `S'Last` is `S'Length`. `S (2 .. 4)` reads
-a slice; a slice is not assigned to, so a substring is replaced by building the
-new value with `&`.
+a slice and `S (2 .. 4) := "xyz"` writes one, as `S (2) := 'x'` writes one
+position. What goes into a slice must be as long as the slice, which is Ada's
+rule; a length that does not match is `Constraint_Error` where the assignment
+stands.
 
 ### Declared types
 

@@ -3616,16 +3616,20 @@ package body Adash.Language.Semantics is
                            end if;
                         end Require_Position;
                      begin
+                        --  The prefix's symbol travels with the part, as it
+                        --  does for an array element: what a part of a String
+                        --  may be assigned to is what the String may be, and
+                        --  the assignment asks the node it was given.
                         if Whole then
                            Require_Position (S.First (Tree, Only));
                            Require_Position (S.Second (Tree, Only));
                            Note (Only, Types.Type_Integer);
-                           Note (Node, Types.Type_String);
+                           Note (Node, Types.Type_String, Prefixed);
                            return Types.Type_String;
                         end if;
 
                         Require_Position (Only);
-                        Note (Node, Types.Type_Character);
+                        Note (Node, Types.Type_Character, Prefixed);
                         return Types.Type_Character;
                      end;
                   end if;

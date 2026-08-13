@@ -46,3 +46,21 @@ Same_Again : Boolean := Walked = Greeting;
 --  A range whose first position is past its last yields nothing, as Ada says,
 --  rather than failing.
 Nothing_At_All : String := Greeting (3 .. 2);
+
+--  Written to as well as read from. A field of a fixed-width line is replaced
+--  where it sits, rather than by rebuilding the line around it.
+Record_Line : String := "0001 pending  ";
+
+Record_Line (6 .. 12) := "shipped";
+Record_Line (1) := '9';
+
+Fixed : Boolean := Record_Line = "9001 shipped  ";
+
+--  The value has to be as long as the slice it goes into, which is Ada's rule:
+--  a shorter one would leave the rest of the target holding what it held. That
+--  is Constraint_Error at the assignment, not a String that is quietly wrong.
+--
+--  What is deliberately not here: a place inside a String. A String is one
+--  value rather than a run of slots, so what this statement does is build the
+--  whole text changed and store it -- the same assignment written the long
+--  way, with the checks in the machine rather than in the program.

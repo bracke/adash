@@ -2269,6 +2269,85 @@ package body Adash.Machine is
                   end if;
                end;
 
+            when Text_Set_Element =>
+               declare
+                  Letter : constant Cell := Pop;
+                  Where  : constant Cell := Pop;
+                  Whole  : constant Cell := Pop;
+               begin
+                  if Where.Whole < 1
+                    or else Natural (Where.Whole) > Length (Whole.Text)
+                  then
+                     Fail (Raised, "Index_Error", M.Msg_Machine_Index_Outside,
+                           [Counted (Where.Whole),
+                            Counted (Length (Whole.Text)),
+                            Null_Unbounded_String],
+                           2);
+                  else
+                     declare
+                        Changed : Unbounded_String := Whole.Text;
+                     begin
+                        Replace_Element
+                          (Changed, Natural (Where.Whole), Letter.Letter);
+                        Push ((Cell_Text, Changed));
+                     end;
+                  end if;
+               end;
+
+            when Text_Set_Slice =>
+               declare
+                  Given : constant Cell := Pop;
+                  Last  : constant Cell := Pop;
+                  First : constant Cell := Pop;
+                  Whole : constant Cell := Pop;
+
+                  --  How many the slice covers. A range that runs backwards
+                  --  covers none, which is Ada's rule and is why this is not
+                  --  simply Last - First + 1.
+                  Covered : constant Whole_Number :=
+                    (if First.Whole > Last.Whole then 0
+                     else Last.Whole - First.Whole + 1);
+               begin
+                  if First.Whole < 1
+                    or else (Covered > 0
+                             and then Natural (Last.Whole)
+                                        > Length (Whole.Text))
+                  then
+                     Fail (Raised, "Index_Error", M.Msg_Machine_Slice_Outside,
+                           [Counted (First.Whole),
+                            Counted (Last.Whole),
+                            Counted (Length (Whole.Text))],
+                           3);
+
+                  elsif Covered /= Whole_Number (Length (Given.Text)) then
+                     --  Ada's rule, and the reason a slice is assigned rather
+                     --  than spliced: the target is a String of a known length
+                     --  and what goes in has to be that length. A shorter one
+                     --  would leave the rest of the target holding what it
+                     --  held, which no reading of the assignment expects.
+                     Fail (Raised, "Constraint_Error",
+                           M.Msg_Machine_Slice_Lengths,
+                           [Counted (Covered),
+                            Counted (Length (Given.Text)),
+                            Null_Unbounded_String],
+                           2);
+
+                  elsif Covered = 0 then
+                     --  An empty slice assigned an empty String changes
+                     --  nothing, and is legal in Ada. Nothing to write.
+                     Push (Whole);
+
+                  else
+                     Push ((Cell_Text,
+                            To_Unbounded_String
+                              (Slice (Whole.Text, 1, Natural (First.Whole) - 1)
+                               & To_String (Given.Text)
+                               & Slice (Whole.Text,
+                                        Natural (Last.Whole) + 1,
+                                        Length (Whole.Text)))));
+                  end if;
+               end;
+
             when Text_Index =>
                declare
                   Left, Right : Cell;

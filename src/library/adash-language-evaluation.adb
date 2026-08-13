@@ -619,6 +619,15 @@ package body Adash.Language.Evaluation is
       --  to a question already answered.
       function Is_Element (Node : S.Node_Id) return Boolean;
 
+      --  Whether this is a part of a String rather than a call: `S (2)` or
+      --  `S (2 .. 4)`, written where a target may stand.
+      --
+      --  The same question Is_Element asks and answered the same way, from
+      --  the type semantics gave the prefix. What it is for is the assignment,
+      --  which cannot ask for a place inside a String because there is none:
+      --  the whole text is one cell.
+      function Is_Text_Part (Node : S.Node_Id) return Boolean;
+
       --  Leave every block that stands between here and the loop being left.
       --
       --  A block is a master, and an `exit` completes however many of them it
@@ -2163,6 +2172,27 @@ package body Adash.Language.Evaluation is
                        = Ty.Shape_Array;
          end;
       end Is_Element;
+
+      ------------------
+      -- Is_Text_Part --
+      ------------------
+
+      function Is_Text_Part (Node : S.Node_Id) return Boolean is
+      begin
+         if S.Kind (Tree, Node) /= S.Node_Call then
+            return False;
+         end if;
+
+         declare
+            Prefix : constant S.Node_Id := S.First (Tree, Node);
+         begin
+            return S.Kind (Tree, Prefix) = S.Node_Name
+              and then Ty.Shape (Sem.Type_Of (Analysis, Prefix))
+                       = Ty.Shape_String
+              and then not Symbols.Is_Callable
+                             (Sem.Symbol_Of (Analysis, Prefix));
+         end;
+      end Is_Text_Part;
 
       ------------------
       -- Emit_Place --
@@ -5804,6 +5834,44 @@ package body Adash.Language.Evaluation is
                      else
                         Emit_Copy (Target, Value, Of_Type);
                      end if;
+
+                     return;
+                  end if;
+
+                  --  `S (2) := 'x';` and `S (2 .. 4) := "xyz";`. A String is
+                  --  one cell rather than a run of slots, so there is no place
+                  --  inside it to store to: the machine builds the whole text
+                  --  changed and this stores that, which is the same
+                  --  assignment written the long way and is where the checks
+                  --  on the position live.
+                  if Is_Text_Part (Target) then
+                     declare
+                        Named : constant S.Node_Id := S.First (Tree, Target);
+                        Only  : constant S.Node_Id :=
+                          S.First (Tree, S.Second (Tree, Target));
+                        Into  : Boolean;
+                     begin
+                        Emit_Place (Named, Into);
+
+                        if not Into then
+                           return;
+                        end if;
+
+                        Emit_Expression (Named);
+
+                        if S.Kind (Tree, Only) = S.Node_Range then
+                           Emit_Expression (S.First (Tree, Only));
+                           Emit_Expression (S.Second (Tree, Only));
+                           Emit_Expression (Value);
+                           Emit (VM.Text_Set_Slice);
+                        else
+                           Emit_Expression (Only);
+                           Emit_Expression (Value);
+                           Emit (VM.Text_Set_Element);
+                        end if;
+
+                        Emit_Store (Ty.Type_String);
+                     end;
 
                      return;
                   end if;

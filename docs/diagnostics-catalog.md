@@ -16,7 +16,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 409 messages in 22 groups.
+There are 410 messages in 22 groups.
 
 ## Errors — what a program or a session did wrong
 
@@ -43,6 +43,7 @@ There are 409 messages in 22 groups.
 | `error.machine.no_shell` | a command with no shell to run it |
 | `error.machine.index_outside` | position {position} is outside a String of {length} |
 | `error.machine.slice_outside` | the slice {first} .. {last} is outside a String of {length} |
+| `error.machine.slice_lengths` | a slice of {wanted} cannot be assigned a String of {given} |
 | `error.machine.bad_value_text` | {text} does not hold a value of that type |
 | `error.machine.too_many_handlers` | too many handlers at once |
 | `error.machine.no_return_value` | a function ended without returning a value |

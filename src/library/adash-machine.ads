@@ -645,6 +645,14 @@ package Adash.Machine is
       Text_Element,         --  text, position
       Text_Slice,           --  text, first, last
 
+      --  Writing into a String rather than reading out of one. Each takes the
+      --  whole text and yields the whole text changed, because a String is one
+      --  cell here rather than a run of slots: what a program calls assigning
+      --  to a part of one is building the new whole and storing it, and the
+      --  instruction is where the checks live.
+      Text_Set_Element,     --  text, position, letter
+      Text_Set_Slice,       --  text, first, last, replacement
+
       --  Searching and shaping. Ada spells these in packages --
       --  Ada.Strings.Fixed.Index, Ada.Characters.Handling.To_Upper -- and this
       --  language has no packages to spell, so they are named directly. The

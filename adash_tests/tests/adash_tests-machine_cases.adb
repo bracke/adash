@@ -78,6 +78,8 @@ package body Adash_Tests.Machine_Cases is
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Text_Is_Taken_Apart_And_Bounds_Raise
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Text_Is_Written_Into_And_Lengths_Must_Match
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure The_Shell_Is_Called_And_Can_Stop_It
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
 
@@ -276,6 +278,103 @@ package body Adash_Tests.Machine_Cases is
               "it raised the wrong thing: " & To_String (Answer.Raised_Name));
    end Text_Is_Taken_Apart_And_Bounds_Raise;
 
+   ---------------------------------------------------
+   -- Text_Is_Written_Into_And_Lengths_Must_Match --
+   ---------------------------------------------------
+
+   procedure Text_Is_Written_Into_And_Lengths_Must_Match
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Program : M.Program;
+      Answer  : M.Result;
+      Line    : Natural;
+      Given   : Natural;
+   begin
+      --  A slice replaced in place: the instruction takes the whole text and
+      --  yields the whole text changed, because a String is one cell and there
+      --  is no place inside it to store to.
+      Program.Set_Frame (1);
+      Line  := Program.Text_Literal ("abcdef");
+      Given := Program.Text_Literal ("XYZ");
+
+      Program.Add (M.Address, 0, M.Whole_Number (0));
+      Program.Add (M.Push_Text, 0, M.Whole_Number (Line));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (2));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (4));
+      Program.Add (M.Push_Text, 0, M.Whole_Number (Given));
+      Program.Add (M.Text_Set_Slice);
+      Program.Add (M.Store);
+      Program.Add (M.Halt);
+
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Ran, "the program did not run");
+      Assert (To_String (Program.Slot_Value (0).Text) = "aXYZef",
+              "the slice was written wrong: "
+              & To_String (Program.Slot_Value (0).Text));
+
+      --  One position, which is the same statement with a Character in it.
+      Program.Reset;
+      Program.Set_Frame (1);
+      Line := Program.Text_Literal ("abc");
+
+      Program.Add (M.Address, 0, M.Whole_Number (0));
+      Program.Add (M.Push_Text, 0, M.Whole_Number (Line));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (2));
+      Program.Add (M.Push_Letter, 0, M.Whole_Number (Character'Pos ('x')));
+      Program.Add (M.Text_Set_Element);
+      Program.Add (M.Store);
+      Program.Add (M.Halt);
+
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Ran, "the program did not run");
+      Assert (To_String (Program.Slot_Value (0).Text) = "axc",
+              "the position was written wrong: "
+              & To_String (Program.Slot_Value (0).Text));
+
+      --  Ada's rule: what goes into a slice has to be as long as the slice.
+      --  A shorter one would leave the rest of the target holding what it
+      --  held, so this raises rather than writing a String of another length.
+      Program.Reset;
+      Program.Set_Frame (0);
+      Line  := Program.Text_Literal ("abcdef");
+      Given := Program.Text_Literal ("XY");
+
+      Program.Add (M.Push_Text, 0, M.Whole_Number (Line));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (2));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (4));
+      Program.Add (M.Push_Text, 0, M.Whole_Number (Given));
+      Program.Add (M.Text_Set_Slice);
+      Program.Add (M.Halt);
+
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Raised, "a length that did not match ran");
+      Assert (To_String (Answer.Raised_Name) = "Constraint_Error",
+              "it raised the wrong thing: " & To_String (Answer.Raised_Name));
+
+      --  And a bound past the end raises where the read of one does.
+      Program.Reset;
+      Program.Set_Frame (0);
+      Line  := Program.Text_Literal ("abc");
+      Given := Program.Text_Literal ("XY");
+
+      Program.Add (M.Push_Text, 0, M.Whole_Number (Line));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (3));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (4));
+      Program.Add (M.Push_Text, 0, M.Whole_Number (Given));
+      Program.Add (M.Text_Set_Slice);
+      Program.Add (M.Halt);
+
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Raised, "a bound past the end ran");
+      Assert (To_String (Answer.Raised_Name) = "Index_Error",
+              "it raised the wrong thing: " & To_String (Answer.Raised_Name));
+   end Text_Is_Written_Into_And_Lengths_Must_Match;
+
    -------------------------------------------
    -- The_Shell_Is_Called_And_Can_Stop_It --
    -------------------------------------------
@@ -433,6 +532,10 @@ package body Adash_Tests.Machine_Cases is
       Register_Routine
         (T, Text_Is_Taken_Apart_And_Bounds_Raise'Access,
          "machine : text is taken apart, and a bound past the end raises");
+      Register_Routine
+        (T, Text_Is_Written_Into_And_Lengths_Must_Match'Access,
+         "machine : text is written into, and a length that does not match "
+         & "raises");
       Register_Routine
         (T, A_Handler_Catches_And_Unwinds'Access,
          "machine : a handler catches what a call raised, and unwinds to it");
