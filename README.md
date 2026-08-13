@@ -163,6 +163,9 @@ first.
 Overloading is resolved by what a context expects and, where both ends of a
 comparison or a call are open, by the one type they could share.
 
+`docs/language-reference.md` is the reference for all of it: what is in the
+subset, what each construct means, and where it ends.
+
 What the subset leaves out, deliberately: access types, composites inside
 composites, derived types, generic packages and generic formals that are not
 types, child packages and `private` parts, a message attached to a raise,

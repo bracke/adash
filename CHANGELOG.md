@@ -268,6 +268,13 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **`docs/language-reference.md`**, the first of the fourteen reference
+  documents the index has owed since the phases finished. It says what is in the
+  Ada subset, what each construct means here, and where the subset ends --
+  written from the conformance cases rather than from memory, because those are
+  the only description of the subset that is verified. Every claim in it was run
+  before it was written down, which caught one: a literal brace in an
+  interpolated string is escaped, not doubled.
 - **Nine internal commands had no conformance case**: `unset`, `env`,
   `run_into`, `run_from`, `run_append`, `run_new`, `pipe`, `pipe_run` and
   `save_settings`. Some were covered by AUnit cases, but none was exercised

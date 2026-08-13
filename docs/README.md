@@ -20,7 +20,6 @@ the code it would describe is in the tree today.
 | `user-guide.md` | Using the shell | 14 |
 | `interactive-guide.md` | Prompt, editing, completion, history, jobs | 14 |
 | `scripting-guide.md` | Writing and running scripts | 13 |
-| `language-reference.md` | The Adash language: the Ada subset and its semantics | 6–7 |
 | `grammar-reference.md` | The grammar, formally | 5 |
 | `internal-commands.md` | Every internal command | 9 |
 | `predefined-functions.md` | Every predefined function, procedure and constructor | 8 |
@@ -43,6 +42,8 @@ source it is derived from are.
 
 ## Available now
 
+- [`language-reference.md`](language-reference.md) — what is in the Ada subset,
+  what each construct means here, and where the subset ends.
 - [`package-map.md`](package-map.md) — every package that exists, its
   subsystem, and which crate it reaches outside Adash for.
 - [`test-guide.md`](test-guide.md) — how to run and extend the suites.
