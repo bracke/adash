@@ -597,18 +597,32 @@ output = ["carried across submissions"]
 diagnostics = []
 
 [[case]]
-id = "params.a-call-to-a-predefined-entity-is-positional"
+id = "params.a-call-may-name-its-arguments-whoever-answers-it"
 requirement = """
-A subprogram the program declared may have its arguments named; a predefined
-entity or an internal command may not, and the refusal comes from the lowering
-rather than the analyser. Written down because the registry carries parameter
-names -- they are what a diagnostic quotes and what completion offers -- so the
-names look usable and are not.
+A subprogram the program declared, a predefined entity and an internal command
+are three different things underneath -- a routine in the machine, a question
+put to the shell, a command stub -- and a call to each may name its arguments.
+What pushes them travels by position, so the lowering asks the callee's own
+parameter names and puts each where the callee expects it.
 """
-script = "function F (Left : Integer; Right : Integer) return Integer is begin return Left - Right; end F; put_line (F (Right => 1, Left => 9)'Image);\nput_line (Index (Whole => \"abc\", Piece => \"b\")'Image);\ncd (Directory => \"/tmp\");\nquit (0);"
+script = "function F (Left : Integer; Right : Integer) return Integer is begin return Left - Right; end F; put_line (F (Right => 1, Left => 9)'Image); put_line (Index (Piece => \"b\", Whole => \"abc\")'Image); put_line (Output_Of (Program => \"echo\", Argument_1 => \"through\")); Put_Line (Item => \"and a procedure\"); cd (Directory => \"/tmp\"); pwd;\nquit (0);"
 exit_status = 0
-output = [" 8"]
+output = [" 8", " 2", "through", "and a procedure", "!line.directory{path=/tmp}!"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "params.and-a-name-that-is-not-a-parameter-is-said-so"
+requirement = """
+A name nothing declares, and a name given twice, are reported as what they are
+-- for a predefined entity and a command as much as for a program's own
+subprogram. They used to reach the lowering and be reported as an expression
+this build cannot run, which is a true sentence about the wrong thing.
+"""
+script = "put_line (Index (Whole => \"abc\", Nope => \"b\")'Image);\nput_line (Index (Whole => \"a\", Whole => \"b\")'Image);\ncd (Folder => \"/tmp\");\nquit (0);"
+exit_status = 0
 diagnostics = [
-  "!error.not_lowerable{construct=!lower.this_expression!}!",
-  "!error.not_lowerable{construct=!lower.this_expression!}!",
+  "!error.no_such_parameter{name=Index,parameter=Nope}!",
+  "!error.parameter_given_twice{name=Index,parameter=Whole}!",
+  "!error.no_such_parameter{name=cd,parameter=Folder}!",
 ]

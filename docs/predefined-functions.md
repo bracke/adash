@@ -18,12 +18,9 @@ which is Ada's rule and this one's:
 The table below is the registry in `Adash.Predefined`, which is also what the
 completion and the analyser read.
 
-**A call to one of these is positional.** Each entity carries its parameter
-names — they are what a diagnostic quotes and what completion offers — but
-`Index (Whole => Line, Piece => ",")` is refused when it is lowered, and so is a
-named argument to an internal command. A call to a subprogram the *program*
-declared may name its arguments; a call to a predefined one may not. The names
-in this document are therefore for reading rather than for writing.
+**A call may name its arguments**: `Index (Whole => Line, Piece => ",")`, and
+`Put_Line (Item => Text)`. The names below are the ones to use, and a name that
+is not a parameter — or one given twice — is reported as that.
 
 ## Types and constants
 

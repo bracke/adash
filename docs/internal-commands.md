@@ -5,6 +5,7 @@ parentheses if it takes anything, and a semicolon.
 
     pwd;
     cd ("/tmp");
+    cd (Directory => "/tmp");
     quit (Total);
 
 Not a bare word. There is one grammar here and commands live inside it, so a

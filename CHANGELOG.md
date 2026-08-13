@@ -268,6 +268,15 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **A call to a predefined entity or an internal command may name its
+  arguments**, as a call to a program's own subprogram always could:
+  `Index (Piece => "b", Whole => Line)`, `Put_Line (Item => Text)`,
+  `cd (Directory => "/tmp")`. What pushes an argument travels by position, so
+  the lowering asks the callee's own parameter names -- through
+  `Adash.Predefined`, which answers for a command as well, because the language
+  may not reach up to `Adash.Commands`. A name that is not a parameter, or one
+  given twice, is now reported as that rather than reaching the lowering and
+  being called an expression this build cannot run.
 - **`docs/predefined-functions.md`** — the twenty-eight names a program has
   before it declares anything: six types, two constants, three procedures and
   seventeen functions, read out of the registry in `Adash.Predefined`. Writing

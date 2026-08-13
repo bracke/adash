@@ -836,6 +836,32 @@ package body Adash.Language.Evaluation is
 
          return True;
       end Computed_Here;
+      --  The argument written for one parameter position.
+      --
+      --  A call may name its arguments, and a named one is not in the position
+      --  it is written in. The analyser settles which parameter each names --
+      --  that is what lets it type-check the call -- and the lowering has to
+      --  reach the same answer, because what it pushes travels by position.
+      --
+      --  Positional arguments answer for themselves. A named one is found by
+      --  asking the callee's own parameter names, which is what the registries
+      --  in `Adash.Predefined` and `Adash.Commands` carry them for.
+      --
+      --  What a callee calls each of its parameters, by position. Long enough
+      --  for either registry: a predefined entity takes at most four and a
+      --  command at most as many as its own list holds.
+      type Parameter_Names is
+        array (Positive range <>) of Ada.Strings.Unbounded.Unbounded_String;
+
+      --  @param Arguments The list as written.
+      --  @param Position Which parameter is wanted, from one.
+      --  @param Names What the callee calls each parameter, by position.
+      --  @return The argument for that parameter, or No_Node.
+      function Argument_For
+        (Arguments : S.Node_Id;
+         Position  : Positive;
+         Names     : Parameter_Names) return S.Node_Id;
+
       procedure Emit_Argument (Node : S.Node_Id; Item : S.Node_Id);
       procedure Emit_Ask
         (Node      : S.Node_Id;
@@ -4069,13 +4095,23 @@ package body Adash.Language.Evaluation is
                            declare
                               Given : constant S.Node_Id :=
                                 S.Second (Tree, Node);
+                              Names : Parameter_Names
+                                (1 .. Adash.Predefined.Max_Parameters);
                            begin
+                              for Index in Names'Range loop
+                                 Names (Index) :=
+                                   Ada.Strings.Unbounded.To_Unbounded_String
+                                     (Adash.Messages.Value
+                                        (Adash.Predefined.Describe (Known)
+                                           .Parameters (Index).Name));
+                              end loop;
+
                               for Position in 1 ..
                                 S.Child_Count (Tree, Given)
                               loop
                                  exit when not Lowerable;
                                  Emit_Expression
-                                   (S.Child (Tree, Given, Position));
+                                   (Argument_For (Given, Position, Names));
                               end loop;
 
                               Emit (Op);
@@ -4444,10 +4480,30 @@ package body Adash.Language.Evaluation is
          --  which slot it travels in and no absent ones to pad with.
          Emit_Text (Name);
 
-         for Position in 1 .. Given loop
-            exit when not Lowerable;
-            Emit_Argument (Node, S.Child (Tree, Arguments, Position));
-         end loop;
+         declare
+            --  A command's parameter names, asked of the one package the
+            --  language may ask: `Adash.Commands` is above this one, and
+            --  `Adash.Predefined` answers for a command as well as for its
+            --  own entities precisely so that nothing here has to reach up.
+            About : constant Adash.Predefined.Profile :=
+              Adash.Predefined.Profile_Of (Name);
+            Names : Parameter_Names (1 .. Adash.Predefined.Max_Parameters) :=
+              [others => Ada.Strings.Unbounded.Null_Unbounded_String];
+         begin
+            if About.Known then
+               for Index in Names'Range loop
+                  Names (Index) :=
+                    Ada.Strings.Unbounded.To_Unbounded_String
+                      (Adash.Messages.Value (About.Types_Of (Index).Name));
+               end loop;
+            end if;
+
+            for Position in 1 .. Given loop
+               exit when not Lowerable;
+               Emit_Argument
+                 (Node, Argument_For (Arguments, Position, Names));
+            end loop;
+         end;
 
          if not Lowerable then
             return;
@@ -4498,10 +4554,28 @@ package body Adash.Language.Evaluation is
          Emit_Text (Ask_Marker);
          Emit_Text (Named);
 
-         for Position in 1 .. Given loop
-            exit when not Lowerable;
-            Emit_Argument (Node, S.Child (Tree, Arguments, Position));
-         end loop;
+         declare
+            Which : Adash.Predefined.Entity_Id;
+            Found : constant Boolean := Adash.Predefined.Find (Named, Which);
+            Names : Parameter_Names (1 .. Adash.Predefined.Max_Parameters) :=
+              [others => Ada.Strings.Unbounded.Null_Unbounded_String];
+         begin
+            if Found then
+               for Index in Names'Range loop
+                  Names (Index) :=
+                    Ada.Strings.Unbounded.To_Unbounded_String
+                      (Adash.Messages.Value
+                         (Adash.Predefined.Describe (Which)
+                            .Parameters (Index).Name));
+               end loop;
+            end if;
+
+            for Position in 1 .. Given loop
+               exit when not Lowerable;
+               Emit_Argument
+                 (Node, Argument_For (Arguments, Position, Names));
+            end loop;
+         end;
 
          if not Lowerable then
             return;
@@ -4513,6 +4587,45 @@ package body Adash.Language.Evaluation is
       --------------------
       -- Emit_Argument --
       --------------------
+
+      function Argument_For
+        (Arguments : S.Node_Id;
+         Position  : Positive;
+         Names     : Parameter_Names) return S.Node_Id
+      is
+         Given : constant Natural :=
+           (if S.Is_Present (Arguments) then S.Child_Count (Tree, Arguments)
+            else 0);
+      begin
+         --  Named first: a list may mix the two, and Ada's rule is that
+         --  everything after the first named one is named as well -- so a
+         --  position that some argument names is that argument's, whatever
+         --  stands at that index.
+         for Index in 1 .. Given loop
+            declare
+               One : constant S.Node_Id := S.Child (Tree, Arguments, Index);
+            begin
+               if S.Kind (Tree, One) = S.Node_Named_Argument
+                 and then Position <= Names'Last
+                 and then Symbols.Fold (S.Text (Tree, S.First (Tree, One)))
+                          = Symbols.Fold
+                              (Ada.Strings.Unbounded.To_String
+                                 (Names (Position)))
+               then
+                  return S.Second (Tree, One);
+               end if;
+            end;
+         end loop;
+
+         if Position <= Given
+           and then S.Kind (Tree, S.Child (Tree, Arguments, Position))
+                    /= S.Node_Named_Argument
+         then
+            return S.Child (Tree, Arguments, Position);
+         end if;
+
+         return S.No_Node;
+      end Argument_For;
 
       procedure Emit_Argument (Node : S.Node_Id; Item : S.Node_Id) is
          Of_Type : constant Ty.Type_Kind := Sem.Type_Of (Analysis, Item);
@@ -4860,8 +4973,13 @@ package body Adash.Language.Evaluation is
             when Adash.Predefined.Entity_Put
                | Adash.Predefined.Entity_Put_Line =>
                declare
+                  Named : constant Parameter_Names (1 .. 1) :=
+                    [1 => Ada.Strings.Unbounded.To_Unbounded_String
+                            (Adash.Messages.Value
+                               (Adash.Predefined.Describe (Which)
+                                  .Parameters (1).Name))];
                   Item    : constant S.Node_Id :=
-                    S.Child (Tree, Arguments, 1);
+                    Argument_For (Arguments, 1, Named);
                   Of_Type : constant Ty.Type_Kind :=
                     Sem.Type_Of (Analysis, Item);
                begin

@@ -3736,6 +3736,82 @@ package body Adash.Language.Semantics is
                                           ("parameter", Called)]);
                               end case;
 
+                              --  A named argument to a predefined entity or a
+                              --  command. Those are not symbols with profiles,
+                              --  so the check above skipped them entirely and
+                              --  what a wrong name got was the lowering's
+                              --  "cannot run this expression" -- a true
+                              --  sentence about the wrong thing.
+                              if not Symbols.Has_Profile (Found) then
+                                 declare
+                                    About_Names : constant
+                                      Adash.Predefined.Profile :=
+                                        Adash.Predefined.Profile_Of (Name);
+                                    Taken : array (1 .. Symbols.Max_Parameters)
+                                              of Boolean := [others => False];
+                                 begin
+                                    for Index in 1 .. Given loop
+                                       declare
+                                          One : constant S.Node_Id :=
+                                            S.Child (Tree, Arguments, Index);
+                                          Where : Natural := 0;
+                                       begin
+                                          if S.Kind (Tree, One)
+                                             = S.Node_Named_Argument
+                                          then
+                                             for Position in
+                                               1 .. Natural'Min
+                                                 (About_Names.Types_Of'Last,
+                                                  Symbols.Max_Parameters)
+                                             loop
+                                                if Symbols.Fold
+                                                     (Adash.Messages.Value
+                                                        (About_Names.Types_Of
+                                                           (Position).Name))
+                                                   = Symbols.Fold
+                                                       (S.Text
+                                                          (Tree,
+                                                           S.First (Tree,
+                                                                    One)))
+                                                then
+                                                   Where := Position;
+                                                end if;
+                                             end loop;
+
+                                             if Where = 0 then
+                                                Complain
+                                                  (Adash.Errors.Error_No_Such_Parameter,
+                                                   One,
+                                                   [Adash.Messages.Named
+                                                      ("name", Name),
+                                                    Adash.Messages.Named
+                                                      ("parameter",
+                                                       S.Text
+                                                         (Tree,
+                                                          S.First (Tree,
+                                                                   One)))]);
+
+                                             elsif Taken (Where) then
+                                                Complain
+                                                  (Adash.Errors.Error_Parameter_Given_Twice,
+                                                   One,
+                                                   [Adash.Messages.Named
+                                                      ("name", Name),
+                                                    Adash.Messages.Named
+                                                      ("parameter",
+                                                       S.Text
+                                                         (Tree,
+                                                          S.First (Tree,
+                                                                   One)))]);
+                                             else
+                                                Taken (Where) := True;
+                                             end if;
+                                          end if;
+                                       end;
+                                    end loop;
+                                 end;
+                              end if;
+
                               --  A parameter typed Type_None accepts anything --
                               --  the output procedures image whatever they are
                               --  given -- so only a stated type is checked.
