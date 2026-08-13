@@ -957,12 +957,45 @@ package body Adash.Language.Evaluation is
          --  arguments, so position in the text is not position in the value.
          Filled : array (1 .. Sem.Part_Count (Analysis, Of_Type))
                     of S.Node_Id := [others => S.No_Node];
+
+         --  What `others` gives to every part nothing else named. Filled in
+         --  after the rest, because that is what it answers for.
+         Rest : S.Node_Id := S.No_Node;
       begin
          for Index in 1 .. Given loop
             declare
                One : constant S.Node_Id := S.Child (Tree, Values, Index);
             begin
-               if S.Kind (Tree, One) = S.Node_Named_Argument then
+               if S.Kind (Tree, One) = S.Node_Named_Argument
+                 and then S.Kind (Tree, S.First (Tree, One)) = S.Node_Others
+               then
+                  Rest := S.Second (Tree, One);
+
+               elsif S.Kind (Tree, One) = S.Node_Named_Argument
+                 and then Ty.Shape (Of_Type) = Ty.Shape_Array
+               then
+                  --  An array names a part by its index. Semantics settled
+                  --  that the index is a value known before the program runs
+                  --  and that it is one of this array's; what is left is
+                  --  turning it into which slot.
+                  declare
+                     Where : Long_Long_Integer;
+                  begin
+                     if Sem.Static_Choice
+                          (Analysis, Tree, S.First (Tree, One), Where)
+                     then
+                        declare
+                           Slot : constant Long_Long_Integer :=
+                             Where - Sem.First_Index (Analysis, Of_Type) + 1;
+                        begin
+                           if Slot in 1 .. Long_Long_Integer (Filled'Last) then
+                              Filled (Natural (Slot)) := S.Second (Tree, One);
+                           end if;
+                        end;
+                     end if;
+                  end;
+
+               elsif S.Kind (Tree, One) = S.Node_Named_Argument then
                   declare
                      Slot : constant Natural :=
                        Sem.Part_At
@@ -979,6 +1012,14 @@ package body Adash.Language.Evaluation is
                end if;
             end;
          end loop;
+
+         if S.Is_Present (Rest) then
+            for Index in Filled'Range loop
+               if not S.Is_Present (Filled (Index)) then
+                  Filled (Index) := Rest;
+               end if;
+            end loop;
+         end if;
 
          for Index in Filled'Range loop
             exit when not Lowerable;

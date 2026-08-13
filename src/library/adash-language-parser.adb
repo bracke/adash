@@ -499,10 +499,61 @@ package body Adash.Language.Parser is
                         Aggregate := True;
                      end if;
 
+                     --  `(others => 0)` is an aggregate from its first word,
+                     --  and nothing else may begin with it.
+                     if Is_Word (T.Word_Others) then
+                        Aggregate := True;
+                     end if;
+
                      loop
                         exit when Count = Collected'Last;
                         Count := Count + 1;
-                        Collected (Count) := Parse_Argument;
+
+                        --  An array names its parts by index rather than by
+                        --  name -- `(1 => 7)` -- and `others` names the rest
+                        --  of them. Both are read as a choice and an arrow,
+                        --  which is the shape a record's named part already
+                        --  has, so what they build is the same node.
+                        if Is_Word (T.Word_Others) then
+                           declare
+                              Where : constant Adash.Source.Span := Here;
+                              Which : S.Node_Id;
+                           begin
+                              Advance;
+                              Which := S.Add_Leaf (Into, S.Node_Others, Where);
+
+                              if not Expect_Symbol (T.Delim_Arrow) then
+                                 Recover;
+                                 return Error_Node
+                                   (Adash.Source.Join (Start, Here));
+                              end if;
+
+                              Aggregate := True;
+                              Collected (Count) :=
+                                S.Add_Node
+                                  (Into, S.Node_Named_Argument,
+                                   Adash.Source.Join (Where, Just_Consumed),
+                                   [Which, Parse_Expression_Rule]);
+                           end;
+
+                        else
+                           Collected (Count) := Parse_Argument;
+
+                           --  A choice this parser read as an expression, and
+                           --  an arrow after it: `1 => 7`. Rebuilt as the
+                           --  named element it is.
+                           if Is_Symbol (T.Delim_Arrow) then
+                              Advance;
+                              Aggregate := True;
+                              Collected (Count) :=
+                                S.Add_Node
+                                  (Into, S.Node_Named_Argument,
+                                   S.Extent (Into, Collected (Count)),
+                                   [Collected (Count),
+                                    Parse_Expression_Rule]);
+                           end if;
+                        end if;
+
                         exit when not Is_Symbol (T.Delim_Comma);
                         Advance;
                         Aggregate := True;

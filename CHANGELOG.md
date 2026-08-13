@@ -268,6 +268,16 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **An aggregate names its parts by index, and `others` answers for the rest.**
+  `(1 => 7, 2 => 8)`, `(1 => 1, others => 0)` and `(others => 5)` build an
+  array; `others` fills a record too. Every part still gets exactly one value:
+  a missing part, a repeated one, an index the array does not have, and an
+  `others` that answers for nothing are each refused by name, and the count
+  check now runs over what was covered rather than over what was written.
+  Indices are known before the program runs, and an array that begins at zero
+  names its first part zero.
+- `examples/types.adash` said records and arrays were deliberately absent. They
+  are in `examples/records.adash`, which now shows the new forms as well.
 - **`abort T, U, V;`** names several tasks and stops all of them. They travel
   as one instruction rather than as several statements, because being handed
   `Tasking_Error` resumes a caller: telling one between two aborts would let it

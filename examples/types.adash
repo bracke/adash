@@ -95,7 +95,10 @@ for What in Ran loop
    put_line ("a program that ran: " & Verdict'Image (What));
 end loop;
 
---  What is deliberately not here: records, arrays and access types. A record
---  would need aggregates to build one, component selection to reach into it,
---  and a type model open at both ends -- which is a compiler, and this is a
---  shell. `ROADMAP.md` says so under "Where the subset ends".
+--  Records and arrays are in `records.adash`, which is where the aggregates
+--  that build them are shown as well.
+--
+--  What is deliberately not here: access types. A shell script has nothing to
+--  point at that outlives the statement that made it, and a language with
+--  pointers has an aliasing question in every assignment. `ROADMAP.md` says so
+--  under "Where the subset ends".

@@ -341,6 +341,9 @@ package Adash.Errors is
       --  `raise;` where nothing was caught to raise again.
       Error_Raise_Outside_A_Handler,
 
+      --  `others` in an aggregate where every part was already named.
+      Error_Aggregate_Others_Covers_Nothing,
+
       --  A range of priorities that runs backwards, so names none.
       Error_Empty_Priority_Range,
 

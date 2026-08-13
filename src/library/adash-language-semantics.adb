@@ -2441,18 +2441,33 @@ package body Adash.Language.Semantics is
                      return Types.Type_None;
                   end if;
 
-                  if Given /= Wanted then
-                     Complain
-                       (Adash.Errors.Error_Aggregate_Wrong_Count, Node,
-                        [Adash.Messages.Named
-                           ("name", Types.Name (Expected)),
-                         Adash.Messages.Named
-                           ("expected", Natural'Image (Wanted)),
-                         Adash.Messages.Named
-                           ("found", Natural'Image (Given))]);
-                     Note (Node, Types.Type_None);
-                     return Types.Type_None;
-                  end if;
+                  --  A positional aggregate says how many it has by how many
+                  --  it writes. One that names its parts does not, so the
+                  --  counting is done afterwards, over what was covered.
+                  declare
+                     Names_Any : Boolean := False;
+                  begin
+                     for Index in 1 .. Given loop
+                        if S.Kind (Tree, S.Child (Tree, Values, Index))
+                           = S.Node_Named_Argument
+                        then
+                           Names_Any := True;
+                        end if;
+                     end loop;
+
+                     if not Names_Any and then Given /= Wanted then
+                        Complain
+                          (Adash.Errors.Error_Aggregate_Wrong_Count, Node,
+                           [Adash.Messages.Named
+                              ("name", Types.Name (Expected)),
+                            Adash.Messages.Named
+                              ("expected", Natural'Image (Wanted)),
+                            Adash.Messages.Named
+                              ("found", Natural'Image (Given))]);
+                        Note (Node, Types.Type_None);
+                        return Types.Type_None;
+                     end if;
+                  end;
 
                   --  Positional, or named against the record's components.
                   --  The same shape a call takes, and told apart the same way.
@@ -2461,6 +2476,9 @@ package body Adash.Language.Semantics is
                        [others => False];
                      Naming : Boolean := False;
                      Sound  : Boolean := True;
+
+                     --  What `others` gives to every part nothing else named.
+                     Rest : S.Node_Id := S.No_Node;
                   begin
                      for Index in 1 .. Given loop
                         declare
@@ -2469,7 +2487,82 @@ package body Adash.Language.Semantics is
                            Slot : Natural := Index;
                            Value : S.Node_Id := One;
                         begin
-                           if S.Kind (Tree, One) = S.Node_Named_Argument then
+                           if S.Kind (Tree, One) = S.Node_Named_Argument
+                             and then S.Kind (Tree, S.First (Tree, One))
+                                      = S.Node_Others
+                           then
+                              --  The rest of them, whatever is left. Last,
+                              --  because it says what nothing else said.
+                              Naming := True;
+                              Value  := S.Second (Tree, One);
+                              Slot   := 0;
+                              Rest   := Value;
+
+                              if Index /= Given then
+                                 Complain
+                                   (Adash.Errors.Error_Case_Others_Not_Last,
+                                    One, Adash.Messages.No_Arguments);
+                                 Sound := False;
+                              end if;
+
+                           elsif S.Kind (Tree, One) = S.Node_Named_Argument
+                             and then Types.Shape (Expected)
+                                      = Types.Shape_Array
+                           then
+                              --  An array names a part by its index, which is
+                              --  a value this build has to know before it
+                              --  runs: the slot it fills is decided here.
+                              declare
+                                 Choice : constant S.Node_Id :=
+                                   S.First (Tree, One);
+                                 Where  : Long_Long_Integer;
+                              begin
+                                 Naming := True;
+                                 Value  := S.Second (Tree, One);
+                                 Slot   := 0;
+
+                                 if not Static_Choice (Into, Tree, Choice,
+                                                       Where)
+                                 then
+                                    Complain
+                                      (Adash.Errors.Error_Case_Choice_Not_Static,
+                                       Choice, Adash.Messages.No_Arguments);
+                                    Sound := False;
+
+                                 elsif Where < First_Index (Into, Expected)
+                                   or else Where
+                                           > First_Index (Into, Expected)
+                                             + Long_Long_Integer (Wanted) - 1
+                                 then
+                                    Complain
+                                      (Adash.Errors.Error_No_Such_Component,
+                                       One,
+                                       [Adash.Messages.Named
+                                          ("name",
+                                           Long_Long_Integer'Image (Where)),
+                                        Adash.Messages.Named
+                                          ("found", Types.Name (Expected))]);
+                                    Sound := False;
+                                 else
+                                    Slot :=
+                                      Natural (Where
+                                               - First_Index (Into, Expected))
+                                      + 1;
+
+                                    if Filled (Slot) then
+                                       Complain
+                                         (Adash.Errors.Error_Part_Given_Twice,
+                                          One,
+                                          [1 => Adash.Messages.Named
+                                                  ("name",
+                                                   Long_Long_Integer'Image (Where))]);
+                                       Sound := False;
+                                    end if;
+                                 end if;
+                              end;
+
+                           elsif S.Kind (Tree, One) = S.Node_Named_Argument
+                           then
                               Naming := True;
                               Value  := S.Second (Tree, One);
                               Slot   :=
@@ -2530,6 +2623,73 @@ package body Adash.Language.Semantics is
                            end if;
                         end;
                      end loop;
+
+                     --  What `others` covers, and what nothing covers. A part
+                     --  with no value would be read as whatever its slot
+                     --  happened to hold, which is the defect an aggregate
+                     --  exists to prevent.
+                     if S.Is_Present (Rest) then
+                        declare
+                           Left : Natural := 0;
+                        begin
+                           for Index in Filled'Range loop
+                              if not Filled (Index) then
+                                 Left := Left + 1;
+                                 Filled (Index) := True;
+                              end if;
+                           end loop;
+
+                           if Left = 0 then
+                              --  Every part was named, so `others` answers for
+                              --  nothing and its value would never be read.
+                              Complain
+                                (Adash.Errors.Error_Aggregate_Others_Covers_Nothing,
+                                 Rest, Adash.Messages.No_Arguments);
+                           end if;
+                        end;
+
+                        declare
+                           Holds : constant Types.Type_Kind :=
+                             Part_Type (Into, Expected, 1);
+                           Found : constant Types.Type_Kind :=
+                             Analyse_Expression (Rest, Holds);
+                        begin
+                           if Found /= Types.Type_None
+                             and then not Types.Is_Acceptable (Found, Holds)
+                           then
+                              Complain
+                                (Adash.Errors.Error_Type_Mismatch, Rest,
+                                 [Adash.Messages.Named
+                                    ("found", Types.Name (Found)),
+                                  Adash.Messages.Named
+                                    ("expected", Types.Name (Holds))]);
+                           end if;
+                        end;
+                     end if;
+
+                     if Sound and then Naming then
+                        declare
+                           Covered : Natural := 0;
+                        begin
+                           for Index in Filled'Range loop
+                              if Filled (Index) then
+                                 Covered := Covered + 1;
+                              end if;
+                           end loop;
+
+                           if Covered /= Wanted then
+                              Complain
+                                (Adash.Errors.Error_Aggregate_Wrong_Count,
+                                 Node,
+                                 [Adash.Messages.Named
+                                    ("name", Types.Name (Expected)),
+                                  Adash.Messages.Named
+                                    ("expected", Natural'Image (Wanted)),
+                                  Adash.Messages.Named
+                                    ("found", Natural'Image (Covered))]);
+                           end if;
+                        end;
+                     end if;
                   end;
 
                   Note (Node, Expected);

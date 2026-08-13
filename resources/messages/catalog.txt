@@ -200,6 +200,7 @@ en.error.not_assignable = {name} cannot be assigned to
 en.error.not_a_type = {name} is not a type
 en.error.requeue_not_an_entry = {name} is not an entry of this task or protected object, and a requeue moves a caller to one of its own
 en.error.family_index_not_discrete = an entry family is indexed by a discrete type of at most 256 values, and {found} is not one
+en.error.aggregate.others_covers_nothing = others answers for the parts nothing else named, and every part here was named
 en.error.raise_outside_a_handler = raise on its own raises again what was caught, so it belongs inside a handler that caught something
 en.error.terminate_outside_select = terminate says a task may end instead of waiting for a caller, so it belongs to a select that is waiting for one
 en.error.queuing_twice = {name} says how callers are taken off a queue and this program already said otherwise, and a program has one queuing policy

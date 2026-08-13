@@ -137,6 +137,7 @@ package body Adash.Errors is
             | Error_Unknown_Profile | Error_Dispatching_Twice
             | Error_Queuing_Twice | Error_Terminate_Outside_Select
             | Error_Ambiguous_Literal | Error_Raise_Outside_A_Handler
+            | Error_Aggregate_Others_Covers_Nothing
             | Error_Empty_Priority_Range
             | Error_Restriction_Broken
             | Error_Priority_Not_Static =>
@@ -359,6 +360,8 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Ambiguous_Literal;
          when Error_Raise_Outside_A_Handler =>
             return Adash.Messages.Msg_Raise_Outside_A_Handler;
+         when Error_Aggregate_Others_Covers_Nothing =>
+            return Adash.Messages.Msg_Aggregate_Others_Covers_Nothing;
          when Error_Empty_Priority_Range =>
             return Adash.Messages.Msg_Empty_Priority_Range;
          when Error_Restriction_Broken =>

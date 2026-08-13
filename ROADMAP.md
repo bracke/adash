@@ -1312,6 +1312,28 @@ in the loop variable: a `Character` loop counts 0 .. 255 and the variable holds
 a Character, and writing the position into it would hand the body a number
 wearing a Character's name.
 
+**An aggregate names its parts, and `others` answers for the rest.** `(1 => 7,
+2 => 8)` fills an array by index the way `(A => 1)` fills a record by
+component, and `(1 => 1, others => 0)` gives every part nothing else named.
+
+The rule underneath is one sentence: every part gets exactly one value. A part
+left out would be read as whatever its slot happened to hold, which is what an
+aggregate exists to prevent -- so a missing part, a repeated one, an index the
+array does not have, and an `others` that answers for nothing are each refused
+by name. The count check that used to do this work only for positional
+aggregates now runs over what was *covered*, which is the same question asked
+where the answer is.
+
+Which slot a named part fills is decided where it is written, so an index is a
+value this build knows before it runs: the rule a subtype's bounds and a case's
+choices already follow. An array may begin anywhere, so the slot is the index
+less the array's first, and a zero-based array names its first part zero.
+
+The parser reads a choice and an arrow rather than a name and an arrow, which
+is what lets an index stand where a component's name does. `others` is a word
+it already knew from case choices, and it builds the same node either way, so
+the analyser and the lowering each learned one shape rather than two.
+
 **A range counts over any discrete type too.** `for What in Failed .. Killed
 loop` walks part of an enumeration, and `for C in 'a' .. 'z' loop` part of the
 Characters; the range form used to insist on Integers, which was this build
@@ -2805,12 +2827,12 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   loop it belongs to is.
 - **No user-defined operators**, no `for ... of`, no attributes beyond the
   seventeen listed below, and no representation clauses.
-- **An aggregate is positional, or named for a record.** `(7, 8, 9)` builds an
-  array and `(A => 1, B => 2)` a record; `(1 => 7, 2 => 8)` and `(others => 0)`
-  are not written, and an aggregate is a value in a declaration or an
-  assignment rather than an argument at a call. One component is `(A => 1)` and
-  not `(1)`, which is Ada's rule as well: a parenthesised expression is what
-  the second one is.
+- **An aggregate is a value in a declaration or an assignment**, not an
+  argument at a call: a composite is a run of slots rather than a value, and
+  what a declaration and an assignment have in common is a run to fill. One
+  component is `(A => 1)` and not `(1)`, which is Ada's rule as well: a
+  parenthesised expression is what the second one is. A choice is one index --
+  `(1 .. 3 => 0)` is not written, where `(others => 0)` is.
 - **Membership is against a range**, `X in L .. H`, and not against a subtype
   mark -- there are no subtypes to name.
 - **A parameter's default is a literal**, possibly signed, or `True`/`False`.

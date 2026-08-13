@@ -97,9 +97,10 @@ Integer; Text : String; end record;` and `type Counts is array (1 .. 4) of
 Integer;`. An enumeration gets Ada's ordering, all eight discrete attributes,
 `case` coverage that names the type, and `for What in Verdict loop`; a
 subtype's range is checked wherever a value arrives, including on the way back
-out of an `out` parameter; a record gets aggregates positional and named and an
-array positional ones, with component selection, indexing with a bounds check,
-whole-value assignment and component-by-component equality.
+out of an `out` parameter; a record and an array both get aggregates positional
+and named — by component and by index — with `others` for the rest, component
+selection, indexing with a bounds check, whole-value assignment and
+component-by-component equality.
 
 `package Report is ... end Report;` groups declarations under a name, with its
 body as a separate unit and `use Report;` to drop the prefix; `generic type
