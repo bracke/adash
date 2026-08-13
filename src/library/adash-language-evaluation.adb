@@ -3972,11 +3972,30 @@ package body Adash.Language.Evaluation is
                   --  Character for one position, a String for a range. Asking
                   --  the shape again here would be a second answer to a
                   --  question already answered.
+                  --  A range where an argument would stand: no call takes
+                  --  one, so what follows can only be a part.
+                  Ranged : constant Boolean :=
+                    S.Child_Count (Tree, S.Second (Tree, Node)) = 1
+                      and then S.Kind
+                                 (Tree,
+                                  S.First (Tree, S.Second (Tree, Node)))
+                               = S.Node_Range;
+
+                  --  The two shapes semantics decided between, read back the
+                  --  same way it decided them: a prefix that is itself a call
+                  --  yields a value and cannot be one, a range cannot be an
+                  --  argument, and a name that denotes something not callable
+                  --  is a String being taken apart. Anything else -- a package
+                  --  member among them -- is a call.
                   Sliced : constant Boolean :=
-                    S.Kind (Tree, Prefix) = S.Node_Name
-                      and then Ty.Shape (Sem.Type_Of (Analysis, Prefix)) = Ty.Shape_String
-                      and then not Symbols.Is_Callable
-                                     (Sem.Symbol_Of (Analysis, Prefix));
+                    Ty.Shape (Sem.Type_Of (Analysis, Prefix)) = Ty.Shape_String
+                      and then (S.Kind (Tree, Prefix) = S.Node_Call
+                                or else Ranged
+                                or else (S.Kind (Tree, Prefix) = S.Node_Name
+                                         and then not Symbols.Is_Callable
+                                                        (Sem.Symbol_Of
+                                                           (Analysis,
+                                                            Prefix))));
 
                   Which  : constant Natural :=
                     Find_Routine (Sem.Symbol_Of (Analysis, Prefix));

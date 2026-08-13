@@ -132,6 +132,7 @@ package Adash.Errors is
       Error_Statement_Among_Declarations,
 
       Error_String_Index_Malformed,
+      Error_Not_Taken_Apart,
 
       Error_Case_Not_Discrete,
       Error_Case_Choice_Not_Static,

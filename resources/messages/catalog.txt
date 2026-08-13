@@ -240,6 +240,7 @@ en.error.condition_not_boolean = a condition must be Boolean, not {found}
 en.error.operator_not_defined = operator {operator} is not defined for {left} and {right}
 en.error.statement_among_declarations = only declarations may appear before begin
 en.error.string_index_malformed = a String is taken apart by one position or one range of them
+en.error.not_taken_apart = a {found} is not taken apart that way; a String takes a position or a range, an array a position
 en.error.case.not_discrete = a case examines a discrete value; {found} is not one
 en.error.case.choice_not_static = a case choice must be a literal value, a range of them, or others
 en.error.case.choice_covered_twice = this choice covers a value an earlier one already covers

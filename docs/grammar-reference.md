@@ -211,8 +211,10 @@ Ada settles it too.
                 | 'others' '=>' expression
 
 `Node_Call` is what `name '(' arguments ')'` builds in an expression — whether it
-denotes a call or an array index is a question about what the name means, and
-the parser records the shape rather than guessing. `Node_Sequence` holds every
+denotes a call, an array index or a part of a String is a question about what the
+name means, and the parser records the shape rather than guessing. A `Node_Call`
+whose prefix is itself a `Node_Call` can only be the last of those: what a call
+yields is a value, and a value is not called. `Node_Sequence` holds every
 list of statements or declarations. `Node_None` and `Node_Error` are not written
 by any program: the first is the absence of a node, the second is what a failed
 parse leaves so that the rest of a submission can still be read.

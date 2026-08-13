@@ -2922,10 +2922,14 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   Ada is telling two interpretations apart, and the two places this language
   resolves from -- the expected type, and the other operand -- are what it
   offers instead.
-- **A slice of a function's result is not read.** `S (2 .. 4)` and
-  `S (2 .. 4) := "xyz"` are both written on a String a name denotes; `F (2 .. 4)`
-  is read as a call with one argument and reported as one. The prefix has to be
-  a name for the shape to be told apart from a call at all.
+- **A part of a part is not assigned to.** `S (2 .. 5) (1 .. 2)` is read, and
+  Ada assigns to it as well -- a slice of a variable is a variable there.
+  Writing one here would mean writing back through a part that has no place of
+  its own, and the refusal names no name, because S is assignable and the slice
+  of it is what is not.
+- **An array is reached by one position and not sliced.** Ada writes
+  `A (1 .. 2)`; this refuses it. A String is the one thing here with parts that
+  are values rather than a run of slots.
 - **A parameter's default is a literal**, possibly signed, or `True`/`False`.
   An arbitrary expression would have to be evaluated at each call in the scope
   of the declaration, and a name resolved at the call site cannot do that.

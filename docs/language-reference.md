@@ -63,7 +63,9 @@ begins at one, so `S'First` is 1 and `S'Last` is `S'Length`. `S (2 .. 4)` reads
 a slice and `S (2 .. 4) := "xyz"` writes one, as `S (2) := 'x'` writes one
 position. What goes into a slice must be as long as the slice, which is Ada's
 rule; a length that does not match is `Constraint_Error` where the assignment
-stands.
+stands. A part is taken of what a call yields too — `F (2 .. 4)`,
+`F (1) (2 .. 4)`, `S (2 .. 5) (1 .. 2)` — and that one is read and not
+assigned to, a value having nowhere to put anything.
 
 ### Declared types
 

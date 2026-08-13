@@ -277,6 +277,21 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **A part of what a call yields**: `F (2 .. 4)`, `F (1) (2 .. 4)` and
+  `S (2 .. 5) (1 .. 2)`, which Ada writes and this had reported as a call with
+  one argument -- or, for a prefix that was itself a call, as an undeclared
+  name with nothing in it. What tells the two apart is the range, which no call
+  could take, and the prefix being a call already, which means it yields a
+  value rather than being one. Read only: a value has nowhere to put anything,
+  and assigning to one is refused by name.
+
+  Two things came out of it. `A (1 .. 2)` on an array had been read as the
+  position at the low end -- a wrong answer given confidently -- and is refused
+  now, since Ada slices an array and this does not. And a call to a package
+  member returning a String was briefly lowered as a slice while this was being
+  written, which the packages example caught: the rule that tells the shapes
+  apart is stated in the analyser and read back in the lowering, so both had to
+  say the same thing. One message added, `error.not_taken_apart`.
 - **A part of a String is assigned to**: `S (2 .. 4) := "xyz"` and
   `S (2) := 'x'`, which is how a script fixes a field of a fixed-width line
   without rebuilding the line around it. Two instructions, `Text_Set_Element`

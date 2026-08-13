@@ -3239,6 +3239,31 @@ package body Adash.Language.Semantics is
                       and then Types.Shape (Symbols.Of_Type (Prefixed))
                                = Types.Shape_Array;
 
+                  --  A range where an argument would stand. A range is not an
+                  --  expression and cannot be one, so a call cannot be meant.
+                  Ranged : constant Boolean :=
+                    Given = 1
+                      and then S.Kind (Tree, S.Child (Tree, Arguments, 1))
+                               = S.Node_Range;
+
+                  --  A part of what an expression *yields*, rather than of
+                  --  what a name denotes: `F (2 .. 4)` slices what a function
+                  --  returned, and `S (2 .. 5) (1 .. 2)` slices a slice. Ada
+                  --  takes both, and writes them the way it writes everything
+                  --  else here.
+                  --
+                  --  Two shapes say so. A prefix that is itself a call has
+                  --  already been decided -- whatever it yields is a value,
+                  --  and a value is not called. A prefix that is a name for
+                  --  something callable is a call *unless* what follows is a
+                  --  range, which no call could take.
+                  Yields_Part : constant Boolean :=
+                    Given = 1
+                      and then (S.Kind (Tree, Prefix) = S.Node_Call
+                                or else (Ranged
+                                         and then Symbols.Is_Callable
+                                                    (Prefixed)));
+
                   Offered : Natural;
                   Fitting : Natural;
                   Found   : Symbols.Symbol;
@@ -3538,6 +3563,20 @@ package body Adash.Language.Semantics is
                      begin
                         Note (Prefix, Of_Array, Prefixed);
 
+                        --  An array is reached by one position and not by a
+                        --  range: Ada slices one, this does not, and a range
+                        --  written here had been read as a position -- which
+                        --  answered with the element at the low end rather
+                        --  than saying no.
+                        if Ranged then
+                           Complain
+                             (Adash.Errors.Error_Not_Taken_Apart, Node,
+                              [1 => Adash.Messages.Named
+                                      ("found", Types.Name (Of_Array))]);
+                           Note (Node, Types.Type_None);
+                           return Types.Type_None;
+                        end if;
+
                         if Given /= 1 then
                            Complain
                              (Adash.Errors.Error_Wrong_Argument_Count, Node,
@@ -3573,6 +3612,86 @@ package body Adash.Language.Semantics is
                         Note (Node, Part_Type (Into, Of_Array, 1),
                               Prefixed);
                         return Part_Type (Into, Of_Array, 1);
+                     end;
+                  end if;
+
+                  --  A part of what an expression yields. The prefix is
+                  --  analysed as the expression it is -- which is what calls
+                  --  the function -- and what comes back has to be a String,
+                  --  because a String is the only value here that has parts
+                  --  and is not a run of slots a name has to own.
+                  if Yields_Part then
+                     declare
+                        Of_Prefix : constant Types.Type_Kind :=
+                          Analyse_Expression (Prefix);
+                        Only : constant S.Node_Id :=
+                          S.Child (Tree, Arguments, 1);
+                     begin
+                        if Of_Prefix = Types.Type_None then
+                           Note (Node, Types.Type_None);
+                           return Types.Type_None;
+                        end if;
+
+                        if Of_Prefix /= Types.Type_String then
+                           Complain
+                             (Adash.Errors.Error_Not_Taken_Apart, Node,
+                              [1 => Adash.Messages.Named
+                                      ("found", Types.Name (Of_Prefix))]);
+                           Note (Node, Types.Type_None);
+                           return Types.Type_None;
+                        end if;
+
+                        --  No symbol travels with this one, unlike a part of a
+                        --  variable: what it is a part of has no name to
+                        --  assign to, which is what the assignment asks about.
+                        if Ranged then
+                           declare
+                              Low : constant Types.Type_Kind :=
+                                Analyse_Expression
+                                  (S.First (Tree, Only), Types.Type_Integer);
+                              High : constant Types.Type_Kind :=
+                                Analyse_Expression
+                                  (S.Second (Tree, Only), Types.Type_Integer);
+                           begin
+                              if (Low /= Types.Type_None
+                                  and then not Types.Is_Acceptable
+                                                 (Low, Types.Type_Integer))
+                                or else (High /= Types.Type_None
+                                         and then not Types.Is_Acceptable
+                                                        (High,
+                                                         Types.Type_Integer))
+                              then
+                                 Complain
+                                   (Adash.Errors.Error_String_Index_Malformed,
+                                    Only, Adash.Messages.No_Arguments);
+                              end if;
+                           end;
+
+                           Note (Only, Types.Type_Integer);
+                           Note (Node, Types.Type_String);
+                           return Types.Type_String;
+                        end if;
+
+                        declare
+                           Where : constant Types.Type_Kind :=
+                             Analyse_Expression (Only, Types.Type_Integer);
+                        begin
+                           if Where /= Types.Type_None
+                             and then not Types.Is_Acceptable
+                                            (Where, Types.Type_Integer)
+                           then
+                              Complain
+                                (Adash.Errors.Error_Type_Mismatch, Only,
+                                 [Adash.Messages.Named
+                                    ("found", Types.Name (Where)),
+                                  Adash.Messages.Named
+                                    ("expected",
+                                     Types.Name (Types.Type_Integer))]);
+                           end if;
+                        end;
+
+                        Note (Node, Types.Type_Character);
+                        return Types.Type_Character;
                      end;
                   end if;
 
@@ -6757,6 +6876,30 @@ package body Adash.Language.Semantics is
                               ("expected", Types.Name (Types.Type_Integer))]);
                      end if;
 
+                     Note (Node, Types.Type_None);
+                     return;
+                  end if;
+
+                  --  `F (1 .. 2) := "XY";` -- a part of what a call yielded,
+                  --  which is a value and has nowhere to put anything. Said
+                  --  here rather than left to the lowering, which can only
+                  --  report that it has no place to store to.
+                  --  Only where there is a name to report. A part of a part
+                  --  -- `S (2 .. 5) (1 .. 2) := "XY"` -- has none that is
+                  --  true: S is assignable and the slice of it is what is
+                  --  not, so naming S would be a wrong answer given
+                  --  confidently. That one is refused by the lowering, which
+                  --  says it has no place to store to.
+                  if S.Kind (Tree, Target) = S.Node_Call
+                    and then Symbols.Is_Nothing (Denoted)
+                    and then Left in Types.Type_String | Types.Type_Character
+                    and then Name_For_Call (S.First (Tree, Target)) /= ""
+                  then
+                     Complain
+                       (Adash.Errors.Error_Not_Assignable, Target,
+                        [1 => Adash.Messages.Named
+                                ("name",
+                                 Name_For_Call (S.First (Tree, Target)))]);
                      Note (Node, Types.Type_None);
                      return;
                   end if;

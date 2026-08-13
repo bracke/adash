@@ -261,6 +261,7 @@ package Adash.Messages is
       Msg_Operator_Not_Defined,
       Msg_Statement_Among_Declarations,
       Msg_String_Index_Malformed,
+      Msg_Not_Taken_Apart,
       Msg_Case_Not_Discrete,
       Msg_Case_Choice_Not_Static,
       Msg_Case_Choice_Covered_Twice,

@@ -296,6 +296,45 @@ output = ["[]"]
 diagnostics = []
 
 [[case]]
+id = "string.a-part-of-what-a-call-yielded"
+requirement = """
+Ada slices a function's result, and this does: `F (2 .. 4)` calls F and takes
+the three characters. What tells it from a call is the range -- a range is not
+an expression and cannot be an argument, so nothing but a part can be meant.
+A prefix that is itself a call has already been decided: whatever it yields is
+a value, and a value is not called, so `F (1) (2 .. 4)` and a slice of a slice
+read the same way.
+
+Nothing about an ordinary call changes. `F (7)` with an Integer parameter is a
+call, because the argument is not a range and the name denotes something
+callable.
+"""
+script = "function Whole return String is begin return \"abcdef\"; end Whole; function Sized (N : Integer) return String is begin return \"abcdef\"; end Sized; function Numbered (N : Integer) return String is begin return \"got\" & N'Image; end Numbered; S : String := \"abcdef\"; put_line (Whole (2 .. 4)); put_line (Sized (1) (2 .. 4)); put_line (S (2 .. 5) (1 .. 2)); put_line (Sized (1) (3)'Image); put_line (Numbered (7)); put_line (Trim (\"  hello  \") (1 .. 3)); quit (0);"
+exit_status = 0
+output = ["bcd", "bcd", "bc", "'c'", "got 7", "hel"]
+diagnostics = []
+
+[[case]]
+id = "string.only-a-string-is-taken-apart"
+requirement = """
+What a call yields has to be a String for a part of it to mean anything, and an
+array is reached by one position rather than by a range -- Ada slices an array
+and this does not. The range on an array had been read as a position, which
+answered with the element at the low end rather than saying no; a wrong answer
+given confidently is worse than a refusal.
+
+A part of what a call yielded is not assigned to, because a value has nowhere
+to put anything.
+"""
+script = "function Counted (N : Integer) return Integer is begin return 5; end Counted; put_line (Counted (1) (2)'Image);\ntype Row is array (1 .. 3) of Integer; A : Row := (1, 2, 3); put_line (A (1 .. 2)'Image);\nfunction Whole return String is begin return \"abcdef\"; end Whole; Whole (1 .. 2) := \"XY\";\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_taken_apart{found=Integer}!",
+  "!error.not_taken_apart{found=Row}!",
+  "!error.not_assignable{name=Whole}!",
+]
+
+[[case]]
 id = "string.a-part-is-assigned-to"
 requirement = """
 `S (2 .. 4) := "xyz"` and `S (2) := 'x'` are Ada, and are how a script fixes a

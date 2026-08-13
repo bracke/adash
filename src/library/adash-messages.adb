@@ -350,6 +350,8 @@ package body Adash.Messages is
             return "error.statement_among_declarations";
          when Msg_String_Index_Malformed   =>
             return "error.string_index_malformed";
+         when Msg_Not_Taken_Apart          =>
+            return "error.not_taken_apart";
          when Msg_Case_Not_Discrete        =>
             return "error.case.not_discrete";
          when Msg_Case_Choice_Not_Static   =>
@@ -700,6 +702,7 @@ package body Adash.Messages is
 
          when Msg_Condition_Not_Boolean
             | Msg_Case_Not_Discrete
+            | Msg_Not_Taken_Apart
             | Msg_Case_Incomplete =>
             return [1 => N ("found")];
 
