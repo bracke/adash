@@ -63,9 +63,11 @@ put_line ("and at different positions:"
 --  between them either, and `'Image` is how a value becomes text. `put_line`
 --  takes one directly, which is why the loop above needs no attribute.
 --
---  Every attribute a discrete type has: `'Pos` and `'Val` between a value and
---  its position, `'Succ` and `'Pred` for the next and the one before,
+--  The eight a discrete type has to itself: `'Pos` and `'Val` between a value
+--  and its position, `'Succ` and `'Pred` for the next and the one before,
 --  `'First` and `'Last` for the ends, and `'Image` and `'Value` for the name.
+--  `'Size` answers for any type, in this machine's own unit -- see
+--  `ROADMAP.md`, which lists all seventeen.
 put_line ("Failed sits at " & Trim (Verdict'Pos (Failed)'Image));
 put_line ("and position 3 is " & Verdict'Image (Verdict'Val (3)));
 put_line ("after Worked comes " & Verdict'Image (Verdict'Succ (Worked)));

@@ -32,3 +32,6 @@ BOTH
 BOTH
   two spaces in
       six spaces in
+== results
+as a whole: 42
+and as a part: 5.00000000000000000E-01

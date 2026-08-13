@@ -268,6 +268,15 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **The stale-claim sweep reached the examples.** Their code is run by the
+  conformance suite; their prose is not, and three claims had drifted:
+  `subprograms.adash` said this language does not overload on what a function
+  returns (it does, and the example now shows two functions differing only in
+  that); `types.adash` called eight attributes every one a discrete type has
+  (seventeen exist, and `'Size` answers for any type); and `case.adash` said
+  `'Image` was the only attribute this build has, where what actually keeps
+  `Integer'Last` out of a case choice is that an attribute is not read as
+  static. Everything else the examples claim was probed and holds.
 - **An aggregate names its parts by index, and `others` answers for the rest.**
   `(1 => 7, 2 => 8)`, `(1 => 1, others => 0)` and `(others => 5)` build an
   array; `others` fills a record too. Every part still gets exactly one value:

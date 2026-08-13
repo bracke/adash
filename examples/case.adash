@@ -89,6 +89,9 @@ put_line (Sign_Of (3));
 put_line (Sign_Of (0));
 put_line (Sign_Of (0 - 3));
 
---  `Integer'Last` would say what the last alternative means, and `'Image` is
---  the only attribute this build has -- so `others` says it instead. That is a
---  limitation of the attributes rather than of the case statement.
+--  `when 1 .. Integer'Last =>` would say what the last alternative means, and
+--  it is refused: a choice has to be a value this build knows before it runs,
+--  and what it reads as one is a literal, a name it declared, or a range of
+--  those -- an attribute is worked out later, however fixed its answer looks.
+--  So `others` says it instead. That is a limitation of what counts as static
+--  rather than of the case statement.

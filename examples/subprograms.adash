@@ -103,9 +103,11 @@ put_line (Left);
 put_line (Right);
 
 --  One name can denote several subprograms. Which one a call means is decided
---  by its arguments -- their number and their types -- and by nothing else.
---  Ada also overloads on what a function returns; this does not, so two
---  differing only in that are refused rather than guessed between.
+--  by its arguments -- their number and their types -- and, for a function, by
+--  what the context expects of its result: two functions differing only in
+--  what they return are two subprograms, and a call to one is settled by what
+--  is being built from it. Where nothing expects anything, such a call is
+--  ambiguous and is refused rather than guessed at, which is Ada's answer too.
 procedure Describe (Value : Integer) is
 begin
    put_line (f"an integer:{Value'Image}");
@@ -230,3 +232,22 @@ end Indent;
 
 Indent (Text => "two spaces in");
 Indent (6, "six spaces in");
+
+--  Two functions differing only in what they return, and a call to each
+--  settled by what is being built from it.
+function Reading return Integer is
+begin
+   return 42;
+end Reading;
+
+function Reading return Float is
+begin
+   return 0.5;
+end Reading;
+
+Whole : Integer := Reading;
+Part  : Float   := Reading;
+
+Banner ("results");
+put_line (f"as a whole:{Whole'Image}");
+put_line (f"and as a part:{Part'Image}");
