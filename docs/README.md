@@ -9,34 +9,25 @@ subsystem is built, and that readers then disbelieve for the rest of the
 project's life -- so each was to arrive with the phase that implemented the
 thing it documents.
 
-**All sixteen phases are complete.** The table below is therefore a list of
-what is *owed* rather than what is scheduled, and the phase column says when
-the subject existed rather than when the document will. What is written is
-listed under "Available now"; everything else in the table is outstanding, and
-the code it would describe is in the tree today.
+**All sixteen phases are complete, and so is this index.** Everything it once
+listed as owed is written. Two entries turned out not to be owed at all:
+`release-guide.md` is `RELEASE.md` under another name, and `ai-package-map.md`
+would be a third copy of what `AI.md` and `package-map.md` already carry -- the
+kind of duplication this project keeps finding as drift.
 
-Three remain. `ai-package-map.md` is not among them: `AI.md` names the
-authoritative documents in order and `package-map.md` carries the map, so a
-third copy for assistants would be the drift this project keeps finding.
- All three — the user, interactive and scripting guides — are about
-what a person *does* with the shell rather than what it is, and the interactive
-half of that cannot be checked by running a script: editing keys, completion and
-the prompt need a terminal. They are owed, and they will be written from a
-session rather than from the sources.
-
-| Document | Describes | Subject existed since phase |
-|---|---|---|
-| `user-guide.md` | Using the shell | 14 |
-| `interactive-guide.md` | Prompt, editing, completion, history, jobs | 14 |
-| `scripting-guide.md` | Writing and running scripts | 13 |
-
-Documents marked *continuous* are generated or maintained as the code changes
-rather than arriving in one phase. Generated documentation goes under
-`generated/` and is never authoritative — the schema, the inventory and the
-source it is derived from are.
+What kept the last three waiting was that the user, interactive and scripting
+guides are about what a person *does* with the shell, and the interactive half
+cannot be checked by running a script. They were written from a session
+instead: a pseudo-terminal, the real binary, and every claim typed at it.
 
 ## Available now
 
+- [`user-guide.md`](user-guide.md) — starting here: what a submission is, how
+  a command is called, and what a session remembers.
+- [`interactive-guide.md`](interactive-guide.md) — the prompt, editing,
+  completion, history, and the interrupt.
+- [`scripting-guide.md`](scripting-guide.md) — writing scripts, their arguments
+  and input, and splitting them up.
 - [`language-reference.md`](language-reference.md) — what is in the Ada subset,
   what each construct means here, and where the subset ends.
 - [`internal-commands.md`](internal-commands.md) — every internal command, what

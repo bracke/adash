@@ -268,6 +268,15 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **The last three guides**: `user-guide.md`, `interactive-guide.md` and
+  `scripting-guide.md`. The interactive one is why they waited: editing,
+  completion, the prompt and the interrupt cannot be checked by running a
+  script. They were written from a session driven through a pseudo-terminal, so
+  what they say is what the shell did -- the `!` failure marker that comes
+  before the directory so a narrow terminal keeps it, the `...` continuation
+  prompt with no directory on it, Tab completing `ver` to `version` and listing
+  the matches when there are several, Up recalling a whole multi-line
+  submission, Ctrl-D exiting 0. `docs/README.md` owes nothing now.
 - **`docs/grammar-reference.md`**, and a repository check that keeps it true.
   Every production names the syntax node it builds, and `adash_check` compares
   the document against `Adash.Language.Syntax`'s enumeration in both
