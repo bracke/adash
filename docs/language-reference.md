@@ -146,7 +146,9 @@ declares is gone after it, and it waits for what it started.
 
 Modes `in`, `out` and `in out`. Named arguments and defaults: `Report (Text =>
 S, Loud => True)`, `procedure P (A : Integer := 1)`, where a default is a
-literal, possibly signed, or `True`/`False`.
+literal, possibly signed, or `True`/`False`. Naming arguments works for a
+subprogram the program declared; a call to a predefined entity or an internal
+command is positional.
 
 Subprograms nest, see what encloses them, and recurse. Nineteen levels deep is
 the limit, and deeper is refused by name.

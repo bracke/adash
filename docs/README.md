@@ -21,7 +21,6 @@ the code it would describe is in the tree today.
 | `interactive-guide.md` | Prompt, editing, completion, history, jobs | 14 |
 | `scripting-guide.md` | Writing and running scripts | 13 |
 | `grammar-reference.md` | The grammar, formally | 5 |
-| `predefined-functions.md` | Every predefined function, procedure and constructor | 8 |
 | `configuration-reference.md` | Every setting, generated from the schema metadata | 15 |
 | `persistence-formats.md` | On-disk formats and their migrations | 15 |
 | `execution-model.md` | Commands, pipelines, redirection, exit status | 11 |
@@ -45,6 +44,8 @@ source it is derived from are.
   what each construct means here, and where the subset ends.
 - [`internal-commands.md`](internal-commands.md) — every internal command, what
   it takes, what it does and what it reports.
+- [`predefined-functions.md`](predefined-functions.md) — the twenty-eight names
+  a program has before it declares anything.
 - [`package-map.md`](package-map.md) — every package that exists, its
   subsystem, and which crate it reaches outside Adash for.
 - [`test-guide.md`](test-guide.md) — how to run and extend the suites.

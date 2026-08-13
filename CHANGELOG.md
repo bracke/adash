@@ -268,6 +268,13 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **`docs/predefined-functions.md`** — the twenty-eight names a program has
+  before it declares anything: six types, two constants, three procedures and
+  seventeen functions, read out of the registry in `Adash.Predefined`. Writing
+  it found that **a call to a predefined entity or an internal command cannot
+  name its arguments**, though a call to a program's own subprogram can, and the
+  refusal arrives from the lowering rather than the analyser. That is now a
+  conformance case as well as a sentence.
 - **`docs/internal-commands.md`** — every internal command, what it takes, what
   it does and what it reports, with the arity and parameter names read out of
   the registry in `Adash.Commands` rather than from the help text. Written after

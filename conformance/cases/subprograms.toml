@@ -595,3 +595,20 @@ script = "Boom : exception;\nbegin raise Boom; exception when Boom => put_line (
 exit_status = 0
 output = ["carried across submissions"]
 diagnostics = []
+
+[[case]]
+id = "params.a-call-to-a-predefined-entity-is-positional"
+requirement = """
+A subprogram the program declared may have its arguments named; a predefined
+entity or an internal command may not, and the refusal comes from the lowering
+rather than the analyser. Written down because the registry carries parameter
+names -- they are what a diagnostic quotes and what completion offers -- so the
+names look usable and are not.
+"""
+script = "function F (Left : Integer; Right : Integer) return Integer is begin return Left - Right; end F; put_line (F (Right => 1, Left => 9)'Image);\nput_line (Index (Whole => \"abc\", Piece => \"b\")'Image);\ncd (Directory => \"/tmp\");\nquit (0);"
+exit_status = 0
+output = [" 8"]
+diagnostics = [
+  "!error.not_lowerable{construct=!lower.this_expression!}!",
+  "!error.not_lowerable{construct=!lower.this_expression!}!",
+]
