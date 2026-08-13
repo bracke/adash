@@ -5,8 +5,22 @@
 --  and it is deliberate -- there is one grammar here, and commands live inside
 --  it rather than beside it.
 --
---  A submission is either commands or program statements, never both. Joining
---  the two is the largest thing this language still owes its users; see
---  ROADMAP.md.
+--  A command is a call, so a submission mixes them with everything else: a
+--  declaration before one is still in scope after it, a command may stand
+--  inside a loop or an `if`, and `quit (Total);` ends a script with a value it
+--  computed. `command-in-control-flow.adash` and `compute-and-exit.adash` are
+--  those two, and this one is the smallest form there is.
 
 version;
+
+--  What a command answers with is its status, in the same way a program's is.
+--  A command that failed does not stop what follows it -- Ada does not end a
+--  sequence because a procedure reported a failure, and neither does `sh -c`.
+--  A caller that wants a sequence to stop writes the test.
+Before : Integer := Status;
+
+version;
+
+if Status = Before then
+   put_line ("and both said the same about how they went");
+end if;

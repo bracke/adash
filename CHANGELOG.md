@@ -268,6 +268,16 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- The sweep reached the shell-facing examples. Every claim in them was run:
+  standard error is not collected, only the trailing newline is dropped, an
+  argument with a space in it is one argument, an unset variable reads empty, an
+  unreachable path answers False rather than failing, appending makes the file,
+  an empty line is told apart from the end of the input, and 126, 127 and
+  128 + n are what they say. One had drifted:
+  `examples/internal-command.adash` still said a submission is either commands
+  or program statements and called joining them "the largest thing this
+  language still owes its users", two files away from the example that shows it
+  done. It now shows a command mixed with statements instead of denying it.
 - `docs/command-calls.md` read as current design for work that landed long ago,
   and described HAC's p-code -- a dependency that ended. It says at the top what
   it is now: history, kept for the reasoning rather than the mechanism, because
