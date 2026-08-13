@@ -268,6 +268,14 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **`docs/grammar-reference.md`**, and a repository check that keeps it true.
+  Every production names the syntax node it builds, and `adash_check` compares
+  the document against `Adash.Language.Syntax`'s enumeration in both
+  directions: a construct the parser can build with no production fails, and so
+  does a production for a node that no longer exists. The check was proved by
+  removing one name and watching it fail. This is the answer to a grammar
+  written beside a parser drifting the day the parser changes -- the prose is
+  still written by hand, but what it must *cover* is not a matter of memory.
 - **Six more reference documents**: `execution-model.md`, `job-control.md`,
   `configuration-reference.md`, `persistence-formats.md`,
   `conformance-guide.md`, and `diagnostics-catalog.md` -- the last generated

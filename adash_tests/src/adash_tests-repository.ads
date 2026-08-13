@@ -163,4 +163,17 @@ package Adash_Tests.Repository is
 
    procedure Check_No_Forbidden_Units (Root : String; Into : in out Report);
 
+   --  The grammar reference names every syntax node, and no others.
+   --
+   --  A grammar written beside a parser drifts the day the parser changes.
+   --  This holds `docs/grammar-reference.md` to `Adash.Language.Syntax`'s own
+   --  enumeration in both directions: a construct the parser can build with no
+   --  production is what the check exists for, and a production for a node
+   --  that no longer exists is the other half.
+   --
+   --  @param Root Repository root.
+   --  @param Into Report to add to.
+   procedure Check_Grammar_Covers_The_Syntax
+     (Root : String; Into : in out Report);
+
 end Adash_Tests.Repository;

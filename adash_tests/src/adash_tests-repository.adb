@@ -27,6 +27,10 @@ package body Adash_Tests.Repository is
    Key_Forbidden_Dependency : constant String := "tooling.check.forbidden_dependency";
    Key_Inventory_Missing    : constant String := "tooling.check.inventory_missing";
    Key_Inventory_Unlisted   : constant String := "tooling.check.inventory_unlisted";
+   Key_Grammar_Missing      : constant String :=
+     "tooling.check.grammar_missing";
+   Key_Grammar_Unknown      : constant String :=
+     "tooling.check.grammar_unknown";
 
    --  Units no Adash source may name. Each has one legitimate provider, and
    --  naming it directly is how a second one starts.
@@ -711,6 +715,125 @@ package body Adash_Tests.Repository is
    -- Check_No_Forbidden_Units --
    ------------------------------
 
+   --  The names one text mentions, in the order they first appear.
+   package Name_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => US.Unbounded_String,
+      "=" => US."=");
+
+   --  Whether a list already holds a name.
+   function Holds (Within : Name_Vectors.Vector; Name : String)
+      return Boolean
+   is (for some Item of Within => US.To_String (Item) = Name);
+
+   procedure Check_Grammar_Covers_The_Syntax
+     (Root : String; Into : in out Report)
+   is
+      Syntax : constant String :=
+        Read_If_Present
+          (Project_Tools.Files.Join
+             (Root, "src/library/adash-language-syntax.ads"));
+      Grammar : constant String :=
+        Read_If_Present
+          (Project_Tools.Files.Join (Root, "docs/grammar-reference.md"));
+
+      --  Every `Node_X` written in one of the two, as a set of names. Read out
+      --  of the text rather than out of the compiler, because what this
+      --  compares is two documents: the enumeration is the parser's own list
+      --  of what it can build, and the grammar is the account of it.
+      procedure Each_Node_Kind
+        (Within  : String;
+         Listed  : Boolean;
+         Found   : in out Name_Vectors.Vector);
+
+      procedure Each_Node_Kind
+        (Within  : String;
+         Listed  : Boolean;
+         Found   : in out Name_Vectors.Vector)
+      is
+         Position : Natural := Within'First;
+      begin
+         while Position < Within'Last loop
+            declare
+               At_Node : constant Natural :=
+                 Project_Tools.Text.Index_From (Within, "Node_", Position);
+            begin
+               exit when At_Node = 0;
+
+               declare
+                  Stop : Natural := At_Node + 5;
+
+                  --  An enumeration literal, told from a type named after the
+                  --  enumeration by where it sits: the literals are the only
+                  --  `Node_` names written six spaces in, which is how this
+                  --  file lays a list of them out. A file laid out differently
+                  --  fails this check loudly rather than passing it quietly.
+                  Is_Literal : constant Boolean :=
+                    At_Node > Within'First + 6
+                    and then Within (At_Node - 7) = Ada.Characters.Latin_1.LF
+                    and then (for all Blank in At_Node - 6 .. At_Node - 1 =>
+                                Within (Blank) = ' ');
+               begin
+                  while Stop <= Within'Last
+                    and then (Within (Stop) in 'A' .. 'Z' | 'a' .. 'z' | '_'
+                              or else Within (Stop) in '0' .. '9')
+                  loop
+                     Stop := Stop + 1;
+                  end loop;
+
+                  declare
+                     Name : constant String := Within (At_Node .. Stop - 1);
+                  begin
+                     if Name'Length > 5
+                       and then (not Listed or else Is_Literal)
+                       and then not Holds (Found, Name)
+                     then
+                        Found.Append (US.To_Unbounded_String (Name));
+                     end if;
+                  end;
+
+                  Position := Stop;
+               end;
+            end;
+         end loop;
+      end Each_Node_Kind;
+
+      In_Syntax  : Name_Vectors.Vector;
+      In_Grammar : Name_Vectors.Vector;
+
+   begin
+      if Syntax = "" or else Grammar = "" then
+         return;
+      end if;
+
+      --  The enumeration's own literals on one side -- `Node_Id` and
+      --  `Node_List` are types named after it rather than kinds a parser can
+      --  build -- and every mention on the other.
+      Each_Node_Kind (Syntax, Listed => True, Found => In_Syntax);
+      Each_Node_Kind (Grammar, Listed => False, Found => In_Grammar);
+
+      --  Both directions. A construct the parser can build and the grammar
+      --  does not mention is the drift this check exists for; a name the
+      --  grammar mentions and the parser cannot build is a production for
+      --  something that is gone.
+      for Name of In_Syntax loop
+         Into.Checks_Run := Into.Checks_Run + 1;
+
+         if not Holds (In_Grammar, US.To_String (Name)) then
+            Add (Into, Key_Grammar_Missing,
+                 [1 => Msg.Named ("name", US.To_String (Name))]);
+         end if;
+      end loop;
+
+      for Name of In_Grammar loop
+         Into.Checks_Run := Into.Checks_Run + 1;
+
+         if not Holds (In_Syntax, US.To_String (Name)) then
+            Add (Into, Key_Grammar_Unknown,
+                 [1 => Msg.Named ("name", US.To_String (Name))]);
+         end if;
+      end loop;
+   end Check_Grammar_Covers_The_Syntax;
+
    procedure Check_No_Forbidden_Units (Root : String; Into : in out Report) is
    begin
       for Path of Source_Files (Root) loop
@@ -738,6 +861,7 @@ package body Adash_Tests.Repository is
 
    procedure Check (Root : String; Into : in out Report) is
    begin
+      Check_Grammar_Covers_The_Syntax (Root, Into);
       Check_Required_Files (Root, Into);
       Check_Required_Directories (Root, Into);
       Check_Version_Consistency (Root, Into);

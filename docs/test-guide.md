@@ -97,7 +97,10 @@ compares message **identifiers** rather than English, so a case says which
 diagnostic was produced and not how it happened to be worded. The examples in
 `examples/` are cases too, each against its recorded output.
 
-`adash_check` covers structure: required files and directories, version
+`adash_check` covers structure, including one document: the grammar reference
+is held to `Adash.Language.Syntax`'s own enumeration in both directions, so a
+construct the parser gains without a production fails the checks. It also
+covers: required files and directories, version
 agreement between `alire.toml` and `repository.toml`, the package inventory in
 both directions, catalog completeness for every message identifier, absence of
 hand-written terminal escapes, and absence of direct operating-system

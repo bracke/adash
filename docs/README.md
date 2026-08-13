@@ -15,23 +15,20 @@ the subject existed rather than when the document will. What is written is
 listed under "Available now"; everything else in the table is outstanding, and
 the code it would describe is in the tree today.
 
-Four remain. `ai-package-map.md` is not among them: `AI.md` names the
+Three remain. `ai-package-map.md` is not among them: `AI.md` names the
 authoritative documents in order and `package-map.md` carries the map, so a
 third copy for assistants would be the drift this project keeps finding.
- Three of them — the user, interactive and scripting guides — are
-about what a person *does* with the shell rather than what it is, and the
-interactive half of that cannot be checked by running a script: editing keys,
-completion and the prompt need a terminal. They are owed, and they will be
-written from a session rather than from the sources. `grammar-reference.md` is
-owed too, and is the one document here that should be *derived* from the parser
-rather than written beside it.
+ All three — the user, interactive and scripting guides — are about
+what a person *does* with the shell rather than what it is, and the interactive
+half of that cannot be checked by running a script: editing keys, completion and
+the prompt need a terminal. They are owed, and they will be written from a
+session rather than from the sources.
 
 | Document | Describes | Subject existed since phase |
 |---|---|---|
 | `user-guide.md` | Using the shell | 14 |
 | `interactive-guide.md` | Prompt, editing, completion, history, jobs | 14 |
 | `scripting-guide.md` | Writing and running scripts | 13 |
-| `grammar-reference.md` | The grammar, formally | 5 |
 
 Documents marked *continuous* are generated or maintained as the code changes
 rather than arriving in one phase. Generated documentation goes under
@@ -58,6 +55,9 @@ source it is derived from are.
   keeps, and how both are written.
 - [`diagnostics-catalog.md`](diagnostics-catalog.md) — every message this build
   can produce, by identifier.
+- [`grammar-reference.md`](grammar-reference.md) — what the parser accepts, as
+  productions, each naming the node it builds. `adash_check` holds it to the
+  syntax enumeration in both directions.
 - [`RELEASE.md`](RELEASE.md) — the release gates, in order, and what each is
   for. This is the document the table called `release-guide.md`.
 - [`package-map.md`](package-map.md) — every package that exists, its
