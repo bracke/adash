@@ -115,6 +115,7 @@ package Adash.Messages is
       Msg_Expected_Literal_Name,
       Msg_Expected_Component_Name,
       Msg_Expected_Package_Name,
+      Msg_Expected_Task_Name,
       Msg_Subtype_Not_Discrete,
       Msg_Subtype_Bound_Not_Static,
       Msg_Subtype_Range_Is_Empty,

@@ -573,6 +573,10 @@ package Adash.Machine is
       --  It takes effect where the strand next would have run, which is the
       --  next switch point: this machine interleaves rather than pre-empts, so
       --  there is no moment between two instructions at which to intervene.
+      --  Stop the tasks on the stack, however many the operand says. All of
+      --  them are stopped before any of their callers is told, because Ada
+      --  aborts what one statement names as one action -- and telling a
+      --  caller resumes it, which would let it run between two of them.
       Abort_Task,
 
       --  Pop two places and push whether the runs at them hold the same

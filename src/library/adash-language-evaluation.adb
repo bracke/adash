@@ -5103,15 +5103,30 @@ package body Adash.Language.Evaluation is
                --  what is stopped has to be named by the object rather than by
                --  the work.
                declare
-                  Named : constant S.Node_Id := S.First (Tree, Node);
-                  Sym   : constant Symbols.Symbol :=
-                    Sem.Symbol_Of (Analysis, Named);
+                  Count : constant Natural := S.Child_Count (Tree, Node);
+                  Ready : Boolean := True;
                begin
-                  if Symbols.Is_Nothing (Sym) then
-                     Refuse (Node, Adash.Messages.Msg_Lower_Unresolved_Name);
-                  else
-                     Emit_Value (Place_Of (Sym));
-                     Emit (VM.Abort_Task);
+                  for Index in 1 .. Count loop
+                     declare
+                        Named : constant S.Node_Id :=
+                          S.Child (Tree, Node, Index);
+                        Sym   : constant Symbols.Symbol :=
+                          Sem.Symbol_Of (Analysis, Named);
+                     begin
+                        if Symbols.Is_Nothing (Sym) then
+                           Refuse (Node,
+                                   Adash.Messages.Msg_Lower_Unresolved_Name);
+                           Ready := False;
+                        else
+                           Emit_Value (Place_Of (Sym));
+                        end if;
+                     end;
+                  end loop;
+
+                  --  One instruction for all of them, so that no caller of one
+                  --  runs before the last is stopped.
+                  if Ready then
+                     Emit_1 (VM.Abort_Task, VM.Whole_Number (Count));
                   end if;
                end;
 

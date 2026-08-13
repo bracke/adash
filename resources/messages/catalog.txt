@@ -94,6 +94,7 @@ en.expected.type_name = a type name
 en.expected.literal_name = the name of a value
 en.expected.component_name = the name of a component
 en.expected.package_name = the name of a package
+en.expected.task_name = the name of a task
 en.error.subtype.not_discrete = a range can only narrow a discrete type; {found} is not one
 en.error.subtype.bound_not_static = a subtype bound must be a value this build knows before it runs
 en.error.subtype.range_is_empty = this range runs backwards, so the subtype admits nothing

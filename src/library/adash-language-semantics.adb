@@ -4447,26 +4447,30 @@ package body Adash.Language.Semantics is
             when S.Node_Abort =>
                Refuse_If_Restricted (No_Abort_Statements, Node);
 
-               declare
-                  Named : constant S.Node_Id := S.First (Tree, Node);
-                  Name  : constant String := S.Text (Tree, Named);
-                  Found : constant Symbols.Symbol := Visible (Name);
-               begin
-                  if Symbols.Is_Nothing (Found) then
-                     Complain (Adash.Errors.Error_Name_Undeclared, Named,
-                               [1 => Adash.Messages.Named ("name", Name)]);
-                  elsif not Types.Is_Task (Symbols.Of_Type (Found))
-                    or else Symbols.Kind (Found) = Symbols.Symbol_Type
-                  then
-                     --  A task *object*, not a task type: what an abort stops
-                     --  is something running, and a type is not running.
-                     Complain (Adash.Errors.Error_Not_A_Task, Named,
-                               [1 => Adash.Messages.Named ("name", Name)]);
-                  end if;
+               for Index in 1 .. S.Child_Count (Tree, Node) loop
+                  declare
+                     Named : constant S.Node_Id := S.Child (Tree, Node, Index);
+                     Name  : constant String := S.Text (Tree, Named);
+                     Found : constant Symbols.Symbol := Visible (Name);
+                  begin
+                     if Symbols.Is_Nothing (Found) then
+                        Complain (Adash.Errors.Error_Name_Undeclared, Named,
+                                  [1 => Adash.Messages.Named ("name", Name)]);
+                     elsif not Types.Is_Task (Symbols.Of_Type (Found))
+                       or else Symbols.Kind (Found) = Symbols.Symbol_Type
+                     then
+                        --  A task *object*, not a task type: what an abort
+                        --  stops is something running, and a type is not
+                        --  running.
+                        Complain (Adash.Errors.Error_Not_A_Task, Named,
+                                  [1 => Adash.Messages.Named ("name", Name)]);
+                     end if;
 
-                  Note (Named, Types.Type_None, Found);
-                  Note (Node, Types.Type_None);
-               end;
+                     Note (Named, Types.Type_None, Found);
+                  end;
+               end loop;
+
+               Note (Node, Types.Type_None);
 
             when S.Node_Select =>
                Refuse_If_Restricted (No_Select_Statements, Node);

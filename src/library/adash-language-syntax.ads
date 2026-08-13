@@ -344,7 +344,11 @@ package Adash.Language.Syntax is
       --  point of view it is still waiting for the call it made.
       Node_Requeue,
 
-      --  `abort T;`. One child: the task's name.
+      --  `abort T;` and `abort T, U;`. One child per task named.
+      --
+      --  Ada aborts every task a statement names as one action, so the names
+      --  travel together rather than as several statements: what one abort
+      --  does to a caller must not happen between two of them.
       Node_Abort,
 
       --  A conditional or timed entry call:

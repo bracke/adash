@@ -2791,3 +2791,38 @@ script = "protected Gate is entry Pass; procedure Say_Who_Waits; end Gate; prote
 exit_status = 0
 output = ["gave up, and rightly", "waiting at the gate: 0"]
 diagnostics = []
+
+[[case]]
+id = "abort.several-tasks-stop-together"
+requirement = """
+`abort T, U, V;` names several tasks and stops all of them. Ada aborts what one
+statement names as one action, so they travel as one instruction rather than as
+several statements.
+"""
+script = "task type Runner is end Runner; task body Runner is begin for Step in 1 .. 100000 loop null; end loop; put_line (\"a runner finished, which should not happen\"); end Runner; One : Runner; Two : Runner; Three : Runner; abort One, Two, Three; put_line (\"all three stopped: \" & One'Terminated'Image & Two'Terminated'Image & Three'Terminated'Image);\nquit (0);"
+exit_status = 0
+output = ["all three stopped: TRUETRUETRUE"]
+diagnostics = []
+
+[[case]]
+id = "abort.and-no-caller-hears-of-one-before-the-last-is-stopped"
+requirement = """
+Being handed Tasking_Error resumes a caller, so telling one between two aborts
+would let it run while a task the same statement names is still going. Every
+task named is stopped first, and the callers are told after.
+"""
+script = "task First_Server is entry Wait_Here; end First_Server; task Second_Server is entry Wait_Here; end Second_Server; task body First_Server is begin delay 5.0; accept Wait_Here; end First_Server; task body Second_Server is begin delay 5.0; accept Wait_Here; end Second_Server; task First_Caller; task body First_Caller is begin begin First_Server.Wait_Here; exception when Tasking_Error => put_line (\"first caller was told\"); end; end First_Caller; task Second_Caller; task body Second_Caller is begin begin Second_Server.Wait_Here; exception when Tasking_Error => put_line (\"second caller was told\"); end; end Second_Caller; delay 0.1; abort First_Server, Second_Server; put_line (\"both stopped in one statement\");\nquit (0);"
+exit_status = 0
+output = ["second caller was told", "both stopped in one statement", "first caller was told"]
+diagnostics = []
+
+[[case]]
+id = "abort.and-every-name-must-be-a-task"
+requirement = "Each name in the list answers for itself: what is not a task cannot be stopped, a name nothing declared is reported as that, and an abort with no name at all is not a statement."
+script = "task T; task body T is begin null; end T; X : Integer := 1; abort T, X;\ntask U; task body U is begin null; end U; abort U, Never_Declared;\nabort;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_a_task{name=X}!",
+  "!error.name_undeclared{name=Never_Declared}!",
+  "!error.syntax.unexpected{found=;,expected=!expected.task_name!}!",
+]

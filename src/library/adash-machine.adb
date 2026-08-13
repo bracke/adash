@@ -3724,36 +3724,60 @@ package body Adash.Machine is
 
             when Abort_Task =>
                declare
-                  Whom   : constant Cell := Pop;
-                  Target : constant Natural :=
-                    (if Whom.Kind = Cell_Task then Whom.Strand else 0);
+                  --  However many the statement named, in the order they were
+                  --  pushed reversed -- which does not matter, because they
+                  --  are all stopped before any caller hears of it.
+                  How_Many : constant Natural :=
+                    Natural'Max (Natural (Here.Operand), 1);
+                  Targets  : array (1 .. How_Many) of Natural :=
+                    [others => 0];
+                  Wrong    : Boolean := False;
                begin
-                  if Whom.Kind /= Cell_Task then
+                  for Index in reverse 1 .. How_Many loop
+                     declare
+                        Whom : constant Cell := Pop;
+                     begin
+                        if Whom.Kind /= Cell_Task then
+                           Wrong := True;
+                        else
+                           Targets (Index) := Whom.Strand;
+                        end if;
+                     end;
+                  end loop;
+
+                  if Wrong then
                      Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
                   else
-                     if Target /= 0 and then Target /= Me
-                       and then Strands (Target).State /= Idle
-                     then
-                        --  Stopped where it would next have run. This machine
-                        --  interleaves rather than pre-empts, so there is no
-                        --  moment between two instructions at which to
-                        --  intervene -- and none is needed, because a strand
-                        --  that is not running cannot be in the middle of
-                        --  anything.
-                        Strands (Target).State := Done;
-                     end if;
+                     for Target of Targets loop
+                        if Target /= 0 and then Target /= Me
+                          and then Strands (Target).State /= Idle
+                        then
+                           --  Stopped where it would next have run. This
+                           --  machine interleaves rather than pre-empts, so
+                           --  there is no moment between two instructions at
+                           --  which to intervene -- and none is needed,
+                           --  because a strand that is not running cannot be
+                           --  in the middle of anything.
+                           Strands (Target).State := Done;
+                        end if;
+                     end loop;
 
-                     --  A caller queued at one of its entries is waiting for
+                     --  A caller queued at one of their entries is waiting for
                      --  something that will now never happen, exactly as it
                      --  would be had the task run to its end. Handed the same
-                     --  answer, and after the abort has taken effect rather
-                     --  than before.
-                     declare
-                        Handed : constant Boolean := Strand_A_Caller (Target);
-                        pragma Unreferenced (Handed);
-                     begin
-                        null;
-                     end;
+                     --  answer, and after every abort has taken effect rather
+                     --  than between two of them: being handed it resumes the
+                     --  caller, and a caller that ran in between could see
+                     --  half a statement's work.
+                     for Target of Targets loop
+                        declare
+                           Handed : constant Boolean :=
+                             Strand_A_Caller (Target);
+                           pragma Unreferenced (Handed);
+                        begin
+                           null;
+                        end;
+                     end loop;
                   end if;
                end;
 

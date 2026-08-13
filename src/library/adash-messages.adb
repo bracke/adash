@@ -100,6 +100,8 @@ package body Adash.Messages is
             return "expected.literal_name";
          when Msg_Expected_Component_Name    =>
             return "expected.component_name";
+         when Msg_Expected_Task_Name         =>
+            return "expected.task_name";
          when Msg_Expected_Package_Name      =>
             return "expected.package_name";
          when Msg_Subtype_Not_Discrete       =>
@@ -902,6 +904,7 @@ package body Adash.Messages is
             | Msg_Expected_Expression | Msg_Expected_Statement
             | Msg_Expected_Type_Name | Msg_Expected_Literal_Name
             | Msg_Expected_Component_Name | Msg_Expected_Package_Name
+            | Msg_Expected_Task_Name
             | Msg_Expected_Parameter_Name
             | Msg_Expected_Loop_Variable | Msg_Expected_Subprogram_Name
             | Msg_Expected_Exception_Name | Msg_Expected_Attribute_Name

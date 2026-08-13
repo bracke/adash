@@ -268,6 +268,12 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **`abort T, U, V;`** names several tasks and stops all of them. They travel
+  as one instruction rather than as several statements, because being handed
+  `Tasking_Error` resumes a caller: telling one between two aborts would let it
+  run while a task the same statement names is still going. Every name answers
+  for itself, and a non-identifier after `abort` is now told it wanted the name
+  of a task rather than the name of a package.
 - **A program declares its own exceptions and raises them.** `Wrong_Kind :
   exception;` declares a name, `raise Wrong_Kind;` raises it, a handler naming
   it catches it, and `raise;` inside a handler passes on what that handler

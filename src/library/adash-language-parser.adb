@@ -1570,16 +1570,32 @@ package body Adash.Language.Parser is
             Advance;
 
             if T.Kind (Current) /= T.Token_Identifier then
-               Complain (Adash.Messages.Msg_Expected_Package_Name);
+               Complain (Adash.Messages.Msg_Expected_Task_Name);
                Recover;
                return Error_Node (Adash.Source.Join (Start, Just_Consumed));
             end if;
 
             declare
-               Named : constant S.Node_Id :=
-                 S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
+               Names : S.Node_List (1 .. 16);
+               Count : Natural := 0;
             begin
-               Advance;
+               loop
+                  exit when Count = Names'Last;
+                  Count := Count + 1;
+                  Names (Count) :=
+                    S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
+                  Advance;
+
+                  exit when not Is_Symbol (T.Delim_Comma);
+                  Advance;
+
+                  if T.Kind (Current) /= T.Token_Identifier then
+                     Complain (Adash.Messages.Msg_Expected_Task_Name);
+                     Recover;
+                     return Error_Node
+                       (Adash.Source.Join (Start, Just_Consumed));
+                  end if;
+               end loop;
 
                declare
                   Ignored : constant Boolean :=
@@ -1591,7 +1607,8 @@ package body Adash.Language.Parser is
 
                return S.Add_Node
                  (Into, S.Node_Abort,
-                  Adash.Source.Join (Start, Just_Consumed), [1 => Named]);
+                  Adash.Source.Join (Start, Just_Consumed),
+                  Names (1 .. Count));
             end;
          end if;
 

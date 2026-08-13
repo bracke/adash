@@ -1427,8 +1427,8 @@ The conditional form still asks the barrier under the lock, because that is
 exact: nothing changes strand while a lock is held, so the barrier cannot close
 between being asked and being acted on.
 
-`abort T;` stops a task where the strand would next have run, which is the next
-switch point. This machine interleaves rather than pre-empts, so there is no
+`abort T;` and `abort T, U;` stop a task, or several, where the strand would
+next have run, which is the next switch point. This machine interleaves rather than pre-empts, so there is no
 moment between two instructions at which to intervene -- and none is needed,
 because a strand that is not running cannot be in the middle of anything. An
 aborted task does not run its handlers, which is Ada's rule too, and the master

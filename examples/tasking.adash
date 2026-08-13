@@ -698,6 +698,12 @@ put_line ("a tally sheet takes " & Trim (Morning'Size'Image)
 --  instructions at which to intervene -- and none is needed, because a strand
 --  that is not running cannot be in the middle of anything. An aborted task
 --  does not run its handlers, which is Ada's rule too.
+--
+--  `abort T, U;` names several, and they stop together rather than one after
+--  another. What makes that more than tidiness is who is watching: a caller
+--  queued at an aborted task is handed Tasking_Error, and being handed it
+--  *resumes* the caller -- so telling one between two aborts would let it run
+--  while a task the same statement names is still going.
 
 --  `or terminate;` is how a server task ends. It serves callers for as long
 --  as there are any, and when the master it depends on has finished and
