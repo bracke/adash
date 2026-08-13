@@ -1,13 +1,29 @@
 # Making commands callable from the language
 
-This records a spike, and what it proved. It is the design for closing the
-largest gap in `ROADMAP.md`: that a submission is either internal commands or
-program statements, never both, so `quit (Total);` after a loop cannot be
-written.
+**This is history. The gap it set out to close is closed, and the mechanism it
+describes is not the one in the build.** Commands are callable entities whose
+arguments the machine evaluates: `quit (Total);` after a loop exits with the
+total, a declaration survives a command written between two others, and a
+command inside a loop runs each turn. `examples/command-in-control-flow.adash`
+shows it and the conformance suite pins it.
 
-Written down for the same reason `hac-assessment.md` was: the expensive part of
-this work was finding out whether the mechanism exists and what it needs, and
-that knowledge is worth more on paper than in somebody's memory.
+What has changed underneath is the machine. This was written while Adash ran on
+HAC's p-code interpreter, so every mechanism below -- `HAC_Sys.Interfacing`,
+`Exported_Procedure`, `k_Push_Value`, `Do_Exchange_with_External` -- belongs to
+that build. `Adash.Machine` is the virtual machine now; see `hac-assessment.md`
+for why the dependency ended, and `ROADMAP.md` for how a command call is
+lowered today.
+
+It is kept for the reasoning rather than the mechanism, which is why it was
+written down in the first place: the expensive part of this work was finding
+out that there were *two* gaps and that one mechanism had to close both, and
+that is as true of the machine that replaced HAC as it was of HAC. The design
+this describes is the design the current one follows.
+
+The original opening said: *this records a spike, and what it proved -- the
+design for closing the largest gap in `ROADMAP.md`, that a submission is either
+internal commands or program statements, never both, so `quit (Total);` after a
+loop cannot be written.*
 
 ## There are two gaps, not one
 
@@ -248,7 +264,9 @@ missing directory fails and does not. The engine's bridge answers it from
 `Exit_Requested` rather than by naming `quit`, so a second command that ended a
 session would need no change here.
 
-## What this will make possible
+## What this made possible
+
+All of it, and it behaves as predicted. Run today:
 
     Total : Integer := 0;
 
@@ -264,6 +282,13 @@ design can express at all:
     for Index in 1 .. 3 loop
        pwd;
     end loop;
+
+and a declaration that survives a command between two others, which is the
+thing splitting a submission into segments could never have given:
+
+    X : Integer := 1;
+    pwd;
+    Y : Integer := X;      --  X is still in scope
 
 ## What lowering `put_line` for String exposed
 

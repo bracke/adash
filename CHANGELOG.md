@@ -268,6 +268,21 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- `docs/command-calls.md` read as current design for work that landed long ago,
+  and described HAC's p-code -- a dependency that ended. It says at the top what
+  it is now: history, kept for the reasoning rather than the mechanism, because
+  the expensive finding was that there were *two* gaps and that one mechanism
+  had to close both. Its "what this will make possible" is written as what it
+  made possible, with each claim in it run before saying so.
+  `docs/README.md` lists it as history.
+- **`X'Range`** stands wherever a range stands -- a loop, forwards or
+  backwards, a membership, a case choice, an aggregate's index -- built where it
+  is read as the two ends Ada defines it to be, so nothing downstream learned a
+  new shape. The one attribute whose name is a reserved word needed the
+  attribute reader to accept a word where it wanted an identifier.
+- **A run of parts may be named at once**: `(1 .. 2 => 7, others => 0)`, and
+  `(X'Range => 0)` for all of them. Every part still gets exactly one value, so
+  overlapping runs and a run reaching past the end are refused by name.
 - **Overload resolution reaches both open ends.** `F = G` where each name
   belongs to two subprograms sharing one result, `Red = Amber` where two
   enumerations name a `Red` but only one an `Amber`, and `Show (F)` where the

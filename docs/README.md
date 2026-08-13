@@ -43,6 +43,10 @@ source it is derived from are.
   what its numbers are and are not, and what to make of one that moves.
 - [`hac-assessment.md`](hac-assessment.md) — what the HAC dependency gave the
   language subsystem while it lasted, why it ended, and what replaced it.
+- [`command-calls.md`](command-calls.md) — history: the spike that found there
+  were two gaps between commands and the language, not one, and that a single
+  mechanism had to close both. The reasoning still holds; the p-code it
+  describes is HAC's, not `Adash.Machine`'s.
 
 Everything else in the table above is not written yet, and `ROADMAP.md` says
 when it will be.
