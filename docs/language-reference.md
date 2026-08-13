@@ -59,7 +59,9 @@ conversion between any of them: `1 + 1.0` is refused, and a value crosses only
 through an explicit conversion or an attribute.
 
 `Integer` is 64-bit. `String` is the one array type the language predefines; it
-begins at one, so `S'First` is 1 and `S'Last` is `S'Length`.
+begins at one, so `S'First` is 1 and `S'Last` is `S'Length`. `S (2 .. 4)` reads
+a slice; a slice is not assigned to, so a substring is replaced by building the
+new value with `&`.
 
 ### Declared types
 
@@ -97,10 +99,12 @@ is a value in a declaration or an assignment, not an argument at a call.
 
 ## Attributes
 
-Seventeen. On a value or a type: `'Image`, `'Value`, `'Pos`, `'Val`, `'Succ`,
-`'Pred`, `'Length`, `'First`, `'Last`, `'Range`, `'Size`. On a task, an entry or
-a protected object: `'Priority`, `'Count`, `'Identity`, `'Terminated`,
-`'Callable`, `'Storage_Size`, `'Execution_Time`.
+Seventeen, and `'Range` beside them. On a value or a type: `'Image`, `'Value`,
+`'Pos`, `'Val`, `'Succ`, `'Pred`, `'Length`, `'First`, `'Last`, `'Size`. On a
+task, an entry or a protected object: `'Priority`, `'Count`, `'Identity`,
+`'Terminated`, `'Callable`, `'Storage_Size`, `'Execution_Time`. `'Range` is
+counted apart because it stands where a range stands rather than where a value
+does.
 
 `'Image` and `'Value` are refused for a `String`: Ada 2022 defines a String's
 image as the text in quotes with non-graphic characters bracketed, which is not

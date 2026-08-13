@@ -2364,9 +2364,13 @@ the two comparisons out, which is longer, easy to get backwards, and evaluates
 the value twice. Membership keeps the value in a slot and compares that, so a
 call inside it happens once, as Ada says.
 
-Only the range form of membership. Ada also writes `X in Integer` -- a subtype
-mark -- and this language has no subtypes to name, so accepting the spelling
-would promise something the type model cannot answer.
+Only the range form of membership. Ada also writes `X in Integer` and `X in
+Small` -- a type or subtype mark -- and that is refused where it is written.
+The reason first given for it was that the language had no subtypes to name;
+it has had them since, and the sentence outlived its truth. What is true now is
+narrower and less flattering: a subtype's bounds are two constants the build
+already knows, and a membership against them is the same instruction the range
+form emits, so this is a gap rather than a boundary.
 
 Writing the example for those found a defect underneath them: **an `if` with
 two or more `elsif` branches had never parsed.** An `elsif` hands the rest of
@@ -2892,8 +2896,21 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   what a declaration and an assignment have in common is a run to fill. One
   component is `(A => 1)` and not `(1)`, which is Ada's rule as well: a
   parenthesised expression is what the second one is.
-- **Membership is against a range**, `X in L .. H`, and not against a subtype
-  mark -- there are no subtypes to name.
+- **Membership is against a range**, `X in L .. H`, and not against a type or
+  subtype mark. This one is a gap rather than a boundary: the bounds are known
+  and the instruction is the same one. See the section above.
+- **An object declaration names a type**, so `A : array (1 .. 3) of Integer;`
+  is refused and the array type is declared first. Ada's anonymous array type
+  would be a type with no name for a symbol to carry, and every symbol carries
+  one.
+- **No qualified expression.** `Small'(Red)` is not written. What it is for in
+  Ada is telling two interpretations apart, and the two places this language
+  resolves from -- the expected type, and the other operand -- are what it
+  offers instead.
+- **A slice is read and not written.** `S (2 .. 4)` answers the three
+  characters; `S (2 .. 4) := "xyz"` is refused. Reading one copies out of a
+  run of slots, which the machine does; writing one copies into the middle of
+  a run that a check has to bound first, which it does not.
 - **A parameter's default is a literal**, possibly signed, or `True`/`False`.
   An arbitrary expression would have to be evaluated at each call in the scope
   of the declaration, and a name resolved at the call site cannot do that.
@@ -2946,8 +2963,10 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   slots and stack -- rather than in bits or bytes. That is not Ada's meaning
   and the number is not comparable with a compiler's, but it is the only
   honest one available: this build has no layout to report, so what it reports
-  is what it does have. There is still no `'Range` and no representation
-  attribute.
+  is what it does have. There is no representation attribute. `'Range` is
+  written and answered, but it is not in this list of seventeen: it stands
+  where a range stands rather than where a value does, so the parser reads it
+  as the two ends it gives and no attribute is evaluated.
 - **Display width covers the ranges named in `Adash.Display_Width`**; a code
   point in none of them is one cell, which is an assumption rather than
   knowledge.
