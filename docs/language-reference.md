@@ -230,7 +230,8 @@ At most fifteen tasks at once. A select offers at most thirty-two alternatives.
 
 ## The shell inside the language
 
-Internal commands are procedures: `pwd;`, `cd ("/tmp");`, `quit (Total);`. Their
+Internal commands are procedures: `pwd;`, `cd ("/tmp");`, `quit (Total);`.
+`internal-commands.md` describes all twenty-seven. Their
 arguments are values the machine evaluates, so a command may stand inside an
 `if` or a loop and take what the program computed. A command that failed does
 not stop what follows it — Ada does not end a sequence because a procedure

@@ -1,0 +1,142 @@
+# Internal commands
+
+An internal command is a **procedure**, called the way Ada calls one: a name,
+parentheses if it takes anything, and a semicolon.
+
+    pwd;
+    cd ("/tmp");
+    quit (Total);
+
+Not a bare word. There is one grammar here and commands live inside it, so a
+command may stand wherever a procedure call may — inside an `if`, inside a loop,
+between two declarations — and its arguments are values the machine evaluates
+rather than the text they were written with.
+
+A command that fails does not stop what follows it. Ada does not end a sequence
+because a procedure reported a failure, and neither does `sh -c`. What it
+reports is `Status`; a script that wants a sequence to stop writes the test.
+
+There are twenty-seven, listed here with the arity and parameter names the
+registry in `Adash.Commands` declares. `help;` lists them at the prompt and
+`help ("cd");` describes one.
+
+## The session
+
+| Command | Takes | Does |
+|---|---|---|
+| `cd (Directory : String)` | 0 .. 1 | changes the directory; with no argument, goes to the home directory |
+| `pwd` | 0 | reports the directory the shell is in |
+| `quit (Status : Integer)` | 0 .. 1 | ends the session, with a status if one is given |
+| `version` | 0 | reports which build this is |
+| `help (Topic : String)` | 0 .. 1 | lists the commands, or describes one |
+| `history (Count : Integer)` | 0 .. any | lists what has been typed this session |
+| `source (Path : String)` | 1 | reads and runs a script in this session |
+
+`quit` is spelled that way because `exit` is a keyword of the language.
+
+`source` runs a file **in this session**, so what it declares is carried the way
+any submission's declarations are: visible to the *next* submission, not to the
+rest of the one that sourced it. A bare name is searched for — beside the script
+doing the loading first, then the user's own module directory — so a set of
+scripts that ship together find each other without knowing where they were
+installed.
+
+`history` in a session with no log — a script — reports that it has nothing,
+which is a different thing from a missing feature and is worded differently.
+
+## The environment children inherit
+
+| Command | Takes | Does |
+|---|---|---|
+| `set (Assignment : String)` | 1 | sets a variable, written `NAME=VALUE` |
+| `unset (Name : String)` | 1 | removes one |
+| `env` | 0 | lists them |
+
+`Env_Value ("NAME")` reads one from the language side. A name that was never set
+reads as the empty string rather than failing.
+
+## Running programs
+
+| Command | Takes | Does |
+|---|---|---|
+| `run (Program : String; Argument : String…)` | 1 .. any | runs a program and waits |
+| `run_into (File : String; Program : String…)` | 2 .. any | runs it with its output written to a file, replacing what was there |
+| `run_append (File : String; Program : String…)` | 2 .. any | the same, added to the end |
+| `run_new (File : String; Program : String…)` | 2 .. any | the same, to a file that must not already exist |
+| `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
+| `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
+| `pipe_run` | 0 | runs what `pipe` built, and waits |
+
+The redirection file comes **first**, because it is what distinguishes these
+four from `run` — there is no `>` here, and no word-splitting anywhere: an
+argument with a space in it is one argument.
+
+A pipeline is assembled by statements and reports what its **last stage**
+reported. `run_new` on a file that is there fails with a status and says which
+path it would not open, leaving the file alone.
+
+`Output_Of ("program", "argument")` is the language-side form that answers with
+what a program wrote to standard output, with the trailing newline dropped.
+Standard error is not collected: a program explaining why it failed should be
+heard rather than swallowed into a value.
+
+## Jobs
+
+| Command | Takes | Does |
+|---|---|---|
+| `start (Program : String; Argument : String…)` | 1 .. any | starts a program in the background and records it as a job |
+| `jobs` | 0 | lists what the shell is running |
+| `wait (Job : Integer)` | 1 | waits for one and reports how it ended |
+| `stop (Job : Integer)` | 1 | asks one to stop |
+| `suspend (Job : Integer)` | 1 | suspends one, leaving it able to be resumed |
+| `resume (Job : Integer)` | 1 | resumes a suspended one, in the background |
+
+Jobs are numbered from one as they are started. On Windows there are no process
+groups and no pseudo-terminals; what that host *can* do is report Ctrl-C, and
+the commands that cannot be honoured decline rather than pretending.
+
+## Files and settings
+
+| Command | Takes | Does |
+|---|---|---|
+| `write_file (Text : String; File : String)` | 2 | writes text to a file, replacing what was there |
+| `append_file (Text : String; File : String)` | 2 | adds text to the end |
+| `settings (Setting : String; Value : String)` | 0, or 2 | lists the settings, or changes one |
+| `save_settings` | 0 | writes the current settings to the configuration file |
+
+`write_file` and `append_file` take the **text first and the file second**,
+which is the order `run_into` does not use — those two are named after what runs
+and these after what is written. Appending to a file that is not there makes it,
+because the first turn of a loop that collects lines is not an error. A write
+that worked says nothing; `Status` says what became of it.
+
+`settings` takes nothing or two arguments — a query form taking one is not
+written. The setting names are `color`, `history.enabled`, `history.limit`,
+`prompt.directory`, `prompt.failure` and `editing.enabled`.
+
+Every command checks its own count and says what it wanted: `write_file` with
+three arguments is told it takes 2, `run_into` with one is told it takes *2 or
+more*, `pipe_run` with nothing built reports an empty pipeline, and `help` on a
+name nothing declares reports that command as unavailable.
+
+## What a command reports
+
+Every command reports through `Status`, on the one exit-status model the shell
+itself exits with: 0 for success, what an external program chose, 126 for
+something found and not executable, 127 for something not found, 128 + n for a
+program a signal killed.
+
+Commands write **structured lines**, not text: what you see at the prompt is a
+message identifier rendered through the catalog. That is why a conformance case
+can assert `!line.job_started{id=1,what=true}!` and why the same session can be
+read in another language. A program's own `put_line` is different — that is the
+program's bytes, and they are not routed through the catalog.
+
+## What the registry knows
+
+`Adash.Commands` holds one metadata record per command: its name, its minimum
+and maximum arguments, the type and name of each parameter, whether it reports
+only, changes state or ends the session, and the message identifiers for its
+description and its help. Nothing in that package holds prose — the text lives
+in the catalog, which is what makes `help` translatable and this table
+generated rather than remembered.

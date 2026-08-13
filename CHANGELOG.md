@@ -268,6 +268,11 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **`docs/internal-commands.md`** — every internal command, what it takes, what
+  it does and what it reports, with the arity and parameter names read out of
+  the registry in `Adash.Commands` rather than from the help text. Written after
+  reading `help` like a stranger to answer a question about this shell, which is
+  what an absent reference costs.
 - **`docs/language-reference.md`**, the first of the fourteen reference
   documents the index has owed since the phases finished. It says what is in the
   Ada subset, what each construct means here, and where the subset ends --
