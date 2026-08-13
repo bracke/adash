@@ -2648,19 +2648,135 @@ package body Adash.Language.Semantics is
                                    S.First (Tree, One);
                                  Where  : Long_Long_Integer;
 
+                                 --  A run of them, `1 .. 3 => 0`, which fills
+                                 --  every slot between its ends. `X'Range` is
+                                 --  written as one of these by the parser,
+                                 --  because that is what it stands for.
+                                 Spread : constant Boolean :=
+                                   S.Kind (Tree, Choice) = S.Node_Range;
+
                                  --  Looked at before it is asked about: an
                                  --  index may be written as an attribute --
                                  --  `Counts'First` -- and what makes that a
                                  --  value known before the program runs is
                                  --  what it denotes.
                                  Of_Choice : constant Types.Type_Kind :=
-                                   Analyse_Expression (Choice);
+                                   (if Spread then Types.Type_Integer
+                                    else Analyse_Expression (Choice));
                               begin
+                                 if Spread then
+                                    declare
+                                       Ignored : constant Types.Type_Kind :=
+                                         Analyse_Expression
+                                           (S.First (Tree, Choice));
+                                       Second  : constant Types.Type_Kind :=
+                                         Analyse_Expression
+                                           (S.Second (Tree, Choice));
+                                       pragma Unreferenced (Ignored, Second);
+                                    begin
+                                       null;
+                                    end;
+                                 end if;
+
                                  Naming := True;
                                  Value  := S.Second (Tree, One);
                                  Slot   := 0;
 
-                                 if Of_Choice = Types.Type_None then
+                                 if Spread then
+                                    --  Every slot the run covers. Each is
+                                    --  filled once, so a run that overlaps
+                                    --  another is caught the same way a
+                                    --  repeated index is.
+                                    declare
+                                       Low, High : Long_Long_Integer;
+                                       Base : constant Long_Long_Integer :=
+                                         First_Index (Into, Expected);
+                                    begin
+                                       if not Static_Choice
+                                                (Into, Tree,
+                                                 S.First (Tree, Choice), Low)
+                                         or else not Static_Choice
+                                                       (Into, Tree,
+                                                        S.Second (Tree,
+                                                                  Choice),
+                                                        High)
+                                       then
+                                          Complain
+                                            (Adash.Errors.Error_Case_Choice_Not_Static,
+                                             Choice,
+                                             Adash.Messages.No_Arguments);
+                                          Sound := False;
+
+                                       elsif Low < Base
+                                         or else High > Base
+                                                 + Long_Long_Integer (Wanted)
+                                                 - 1
+                                       then
+                                          Complain
+                                            (Adash.Errors.Error_No_Such_Component,
+                                             One,
+                                             [Adash.Messages.Named
+                                                ("name",
+                                                 Long_Long_Integer'Image
+                                                   (if Low < Base then Low
+                                                    else High)),
+                                              Adash.Messages.Named
+                                                ("found",
+                                                 Types.Name (Expected))]);
+                                          Sound := False;
+
+                                       else
+                                          for Each in Low .. High loop
+                                             declare
+                                                Here : constant Natural :=
+                                                  Natural (Each - Base) + 1;
+                                             begin
+                                                if Filled (Here) then
+                                                   Complain
+                                                     (Adash.Errors.Error_Part_Given_Twice,
+                                                      One,
+                                                      [1 => Adash.Messages.Named
+                                                              ("name",
+                                                               Long_Long_Integer'Image
+                                                                 (Each))]);
+                                                   Sound := False;
+                                                else
+                                                   Filled (Here) := True;
+                                                end if;
+                                             end;
+                                          end loop;
+
+                                          --  Analysed once, against what the
+                                          --  parts hold: one value goes into
+                                          --  every slot the run covers.
+                                          declare
+                                             Holds : constant Types.Type_Kind :=
+                                               Part_Type (Into, Expected, 1);
+                                             Found : constant Types.Type_Kind :=
+                                               Analyse_Expression (Value,
+                                                                   Holds);
+                                          begin
+                                             if Found /= Types.Type_None
+                                               and then not Types.Is_Acceptable
+                                                              (Found, Holds)
+                                             then
+                                                Complain
+                                                  (Adash.Errors.Error_Type_Mismatch,
+                                                   Value,
+                                                   [Adash.Messages.Named
+                                                      ("found",
+                                                       Types.Name (Found)),
+                                                    Adash.Messages.Named
+                                                      ("expected",
+                                                       Types.Name (Holds))]);
+                                             end if;
+                                          end;
+                                       end if;
+                                    end;
+
+                                    Slot := 0;
+
+                                 elsif Of_Choice = Types.Type_None then
                                     --  Already reported as whatever it is.
                                     Sound := False;
 

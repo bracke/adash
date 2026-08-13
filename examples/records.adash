@@ -52,10 +52,21 @@ put_line ("there are " & Trim (Samples'Length'Image) & " samples");
 --  an `others` that answers for nothing are all refused.
 Empty   : Window := (others => 0);
 Ordered : Window := (4 => 40, 1 => 10, others => 0);
+Paired  : Window := (1 .. 2 => 5, 3 .. 4 => 9);
 
 put_line ("emptied to " & Trim (Empty (1)'Image)
           & ", and ordered to " & Trim (Ordered (1)'Image)
           & Ordered (2)'Image & Ordered (4)'Image);
+put_line ("paired to" & Paired (1)'Image & Paired (2)'Image
+          & Paired (3)'Image & Paired (4)'Image);
+
+--  `Samples'Range` is what Ada defines it as -- `Samples'First ..
+--  Samples'Last` -- so it stands wherever a range stands.
+for Index in Samples'Range loop
+   Put (Samples (Index)'Image);
+end loop;
+
+New_Line;
 
 --  Indexing is written the way a call is written. Which one was meant is
 --  settled by what the name denotes, not by the shape of the text.

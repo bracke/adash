@@ -972,6 +972,36 @@ package body Adash.Language.Evaluation is
                   Rest := S.Second (Tree, One);
 
                elsif S.Kind (Tree, One) = S.Node_Named_Argument
+                 and then S.Kind (Tree, S.First (Tree, One)) = S.Node_Range
+               then
+                  --  A run of slots, `1 .. 3 => 0`, and what `X'Range` stands
+                  --  for. One value goes into every slot between the ends.
+                  declare
+                     Choice : constant S.Node_Id := S.First (Tree, One);
+                     Low, High : Long_Long_Integer;
+                  begin
+                     if Sem.Static_Choice
+                          (Analysis, Tree, S.First (Tree, Choice), Low)
+                       and then Sem.Static_Choice
+                                  (Analysis, Tree, S.Second (Tree, Choice),
+                                   High)
+                     then
+                        for Each in Low .. High loop
+                           declare
+                              Slot : constant Long_Long_Integer :=
+                                Each - Sem.First_Index (Analysis, Of_Type) + 1;
+                           begin
+                              if Slot in 1 .. Long_Long_Integer (Filled'Last)
+                              then
+                                 Filled (Natural (Slot)) :=
+                                   S.Second (Tree, One);
+                              end if;
+                           end;
+                        end loop;
+                     end if;
+                  end;
+
+               elsif S.Kind (Tree, One) = S.Node_Named_Argument
                  and then Ty.Shape (Of_Type) = Ty.Shape_Array
                then
                   --  An array names a part by its index. Semantics settled

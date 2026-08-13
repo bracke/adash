@@ -406,3 +406,33 @@ script = "subtype Small is Integer range 1 .. 3; put_line (Small'First'Image & S
 exit_status = 0
 output = [" 1 3", "A B", " 1", " 2", " 3"]
 diagnostics = []
+
+[[case]]
+id = "loops.a-range-attribute-says-both-ends-at-once"
+requirement = """
+`X'Range` is what Ada defines it as -- `X'First .. X'Last` -- so it stands
+wherever a range stands: a loop, backwards or forwards, a membership, a case
+choice, and an aggregate's index. It is built as those two ends where it is
+read, so everything downstream sees the range it already knows.
+"""
+script = "type C is array (1 .. 3) of Integer; F : C := (1, 2, 3); Total : Integer := 0; for I in F'Range loop Total := Total + F (I); end loop; put_line (\"summed\" & Total'Image); for I in reverse F'Range loop Put (F (I)'Image); end loop; New_Line; X : Integer := 2; if X in F'Range then put_line (\"inside\"); end if; case X is when F'Range => put_line (\"a slot\"); when others => put_line (\"not one\"); end case; S : String := \"abc\"; for I in S'Range loop Put (S (I)); end loop; New_Line;\nquit (0);"
+exit_status = 0
+output = ["summed 6", " 3 2 1", "inside", "a slot", "abc"]
+diagnostics = []
+
+[[case]]
+id = "aggregates.a-run-of-parts-may-be-named-at-once"
+requirement = """
+`(1 .. 2 => 7, others => 0)` fills every part between the ends, and `X'Range =>`
+fills all of them. Each part still gets exactly one value, so two runs that
+overlap are caught the way a repeated index is, and a run reaching past the end
+is the index that does it.
+"""
+script = "type C is array (1 .. 4) of Integer; F : C := (1 .. 2 => 7, others => 0); put_line (\"run:\" & F (1)'Image & F (2)'Image & F (3)'Image); type D is array (1 .. 3) of Integer; G : D := (others => 0); H : D := (G'Range => 5); put_line (\"whole:\" & H (1)'Image & H (3)'Image);\ntype E is array (1 .. 4) of Integer; V : E := (1 .. 3 => 7, 2 .. 4 => 8);\ntype K is array (1 .. 3) of Integer; W : K := (1 .. 5 => 7);\nquit (0);"
+exit_status = 0
+output = ["run: 7 7 0", "whole: 5 5"]
+diagnostics = [
+  "!error.part_given_twice{name= 2}!",
+  "!error.part_given_twice{name= 3}!",
+  "!error.no_such_component{name= 5,found=K}!",
+]

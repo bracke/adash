@@ -1312,6 +1312,22 @@ in the loop variable: a `Character` loop counts 0 .. 255 and the variable holds
 a Character, and writing the position into it would hand the body a number
 wearing a Character's name.
 
+**`X'Range`, and a run of parts named at once.** `for I in Samples'Range
+loop`, `X in Samples'Range`, `when Samples'Range =>`, and `(1 .. 2 => 7,
+others => 0)`.
+
+Ada defines `X'Range` as `X'First .. X'Last`, and that is what the parser builds
+where a range is read -- so a loop, a membership, a case choice and an
+aggregate's index each see the range they already knew how to read, and nothing
+downstream learned a new shape. The one attribute whose name is a reserved word
+needed the attribute reader to accept a word where it wanted an identifier;
+everything else followed from the expansion.
+
+A run of parts is the choice form the aggregate work left out. Each part still
+gets exactly one value, so two runs that overlap are caught the way a repeated
+index is, and a run reaching past the end is reported as the index that does it.
+`X'Range => 0` fills all of them, which is the same sentence twice.
+
 **Two open ends, and the one type between them.** `F = G` where each name
 belongs to two subprograms and they share one result; `Red = Amber` where two
 enumerations name a `Red` and only one of them names an `Amber`; `Show (F)`
@@ -2875,8 +2891,7 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   argument at a call: a composite is a run of slots rather than a value, and
   what a declaration and an assignment have in common is a run to fill. One
   component is `(A => 1)` and not `(1)`, which is Ada's rule as well: a
-  parenthesised expression is what the second one is. A choice is one index --
-  `(1 .. 3 => 0)` is not written, where `(others => 0)` is.
+  parenthesised expression is what the second one is.
 - **Membership is against a range**, `X in L .. H`, and not against a subtype
   mark -- there are no subtypes to name.
 - **A parameter's default is a literal**, possibly signed, or `True`/`False`.

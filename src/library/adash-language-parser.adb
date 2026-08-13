@@ -56,6 +56,11 @@ package body Adash.Language.Parser is
       function Parse_Term return S.Node_Id;
       function Parse_Factor return S.Node_Id;
       function Parse_Primary return S.Node_Id;
+
+      --  `X'Range` written where a range is expected, as the two ends it
+      --  stands for. Declared here because the expression parser reads a
+      --  membership's bounds before the body below is reached.
+      function Expanded_Range (Node : S.Node_Id) return S.Node_Id;
       function Parse_Interpolation return S.Node_Id;
       function Parse_Statement return S.Node_Id;
       function Parse_Sequence (Stop_Words : T.Reserved_Word) return S.Node_Id;
@@ -455,14 +460,22 @@ package body Adash.Language.Parser is
                      elsif Is_Symbol (T.Delim_Apostrophe) then
                         Advance;
 
-                        if T.Kind (Current) /= T.Token_Identifier then
+                        --  `X'Range` is the one attribute whose name is a
+                        --  reserved word, so the token is a word where every
+                        --  other is an identifier. Read as the name it is.
+                        if T.Kind (Current) /= T.Token_Identifier
+                          and then not Is_Word (T.Word_Range)
+                        then
                            Complain (Adash.Messages.Msg_Expected_Attribute_Name);
                            return Error_Node (Adash.Source.Join (Start, Here));
                         end if;
 
                         declare
                            Attribute : constant S.Node_Id :=
-                             S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
+                             S.Add_Leaf
+                               (Into, S.Node_Name, Here,
+                                (if Is_Word (T.Word_Range) then "Range"
+                                 else T.Text (Current)));
                         begin
                            Node := S.Add_Node
                              (Into, S.Node_Attribute,
@@ -771,6 +784,22 @@ package body Adash.Language.Parser is
 
                Low := Parse_Simple_Expression;
 
+               --  `X in A'Range` says the two ends at once, so there is no
+               --  `..` to find and the ends come out of what it stands for.
+               declare
+                  Spread : constant S.Node_Id := Expanded_Range (Low);
+               begin
+                  if S."=" (S.Kind (Into, Spread), S.Node_Range) then
+                     return S.Add_Node
+                       (Into, S.Node_Membership,
+                        Adash.Source.Join (Start, Just_Consumed),
+                        [Left, S.First (Into, Spread),
+                         S.Second (Into, Spread)],
+                        Operator =>
+                          (if Negated then S.Op_Not_In else S.Op_In));
+                  end if;
+               end;
+
                if not Expect_Symbol (T.Delim_Double_Dot) then
                   return Error_Node
                     (Adash.Source.Join (Start, Just_Consumed));
@@ -891,6 +920,40 @@ package body Adash.Language.Parser is
       ------------------------------------------------------------------
       --  Statements
       ------------------------------------------------------------------
+
+      --  `X'Range` written where a range is expected, as the two ends it
+      --  stands for.
+      --
+      --  Ada defines it as `X'First .. X'Last` and this builds exactly that,
+      --  so everything downstream -- a loop, a membership, a case choice, an
+      --  aggregate's index -- sees the range it already knows how to read.
+      --  Anything else is handed back untouched.
+      --
+      --  @param Node What was just parsed.
+      --  @return The range it stands for, or Node itself.
+      function Expanded_Range (Node : S.Node_Id) return S.Node_Id is
+      begin
+         if not S.Is_Present (Node)
+           or else not S."=" (S.Kind (Into, Node), S.Node_Attribute)
+           or else S.Text (Into, S.Second (Into, Node)) /= "Range"
+         then
+            return Node;
+         end if;
+
+         declare
+            Where  : constant Adash.Source.Span := S.Extent (Into, Node);
+            Prefix : constant S.Node_Id := S.First (Into, Node);
+         begin
+            return S.Add_Node
+              (Into, S.Node_Range, Where,
+               [S.Add_Node
+                  (Into, S.Node_Attribute, Where,
+                   [Prefix, S.Add_Leaf (Into, S.Node_Name, Where, "First")]),
+                S.Add_Node
+                  (Into, S.Node_Attribute, Where,
+                   [Prefix, S.Add_Leaf (Into, S.Node_Name, Where, "Last")])]);
+         end;
+      end Expanded_Range;
 
       function Parse_Statement return S.Node_Id is
          Start : constant Adash.Source.Span := Here;
@@ -1339,6 +1402,10 @@ package body Adash.Language.Parser is
                Variable : S.Node_Id;
                Low, High, Body_Part : S.Node_Id;
                Backwards : Boolean := False;
+
+               --  Whether the bounds are already both known, which is what
+               --  `X'Range` gives without a `..` being written.
+               Ranged : Boolean := False;
             begin
                if T.Kind (Current) /= T.Token_Identifier then
                   Complain (Adash.Messages.Msg_Expected_Loop_Variable);
@@ -1362,6 +1429,20 @@ package body Adash.Language.Parser is
 
                Low := Parse_Simple_Expression;
 
+               --  `for I in F'Range loop` says both ends at once, so there is
+               --  no `..` to find and the ends come out of what it stands
+               --  for. Done here rather than left to the type-name path,
+               --  which would look up a type named by an attribute.
+               declare
+                  Spread : constant S.Node_Id := Expanded_Range (Low);
+               begin
+                  if S."=" (S.Kind (Into, Spread), S.Node_Range) then
+                     Low  := S.First (Into, Spread);
+                     High := S.Second (Into, Spread);
+                     Ranged := True;
+                  end if;
+               end;
+
                --  `for C in Colour loop`: a type name instead of a range. Ada
                --  writes it, and for an enumeration it is the only readable
                --  way to walk the whole type -- `Colour'First .. Colour'Last`
@@ -1371,7 +1452,7 @@ package body Adash.Language.Parser is
                --  name denotes, so the parser records the shape and semantics
                --  decides. A missing `..` after something that turns out not
                --  to be a type is reported there, against the name.
-               if not Is_Symbol (T.Delim_Double_Dot) then
+               if not Ranged and then not Is_Symbol (T.Delim_Double_Dot) then
                   if not Expect_Word (T.Word_Loop) then
                      Recover;
                      return Error_Node
@@ -1406,9 +1487,10 @@ package body Adash.Language.Parser is
                      [Variable, Low, Body_Part]);
                end if;
 
-               Advance;
-
-               High := Parse_Simple_Expression;
+               if not Ranged then
+                  Advance;
+                  High := Parse_Simple_Expression;
+               end if;
 
                if not Expect_Word (T.Word_Loop) then
                   Recover;
@@ -3230,7 +3312,7 @@ package body Adash.Language.Parser is
             Low : constant S.Node_Id := Parse_Expression_Rule;
          begin
             if not Is_Symbol (T.Delim_Double_Dot) then
-               return Low;
+               return Expanded_Range (Low);
             end if;
 
             Advance;
@@ -3516,7 +3598,7 @@ package body Adash.Language.Parser is
             --  expression above stops at it and this is where a range is
             --  recognised -- the same shape a for loop's bounds have.
             if not Is_Symbol (T.Delim_Double_Dot) then
-               return Low;
+               return Expanded_Range (Low);
             end if;
 
             Advance;
