@@ -1,0 +1,4 @@
+This directory is deliberately empty of everything a repository needs.
+Adash_Tests.Repository_Cases checks it to prove the repository checks can
+fail. A checker that reports success on anything is worse than no checker,
+because it is believed.

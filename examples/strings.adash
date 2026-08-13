@@ -1,0 +1,48 @@
+--  Strings are values.
+--
+--  A String variable holds text, copies keep it, assignment replaces it,
+--  comparison is by text and `&` joins. All of that is Ada's, not a shell
+--  convention layered on top: there is no word-splitting, no globbing and no
+--  re-scanning of what a variable holds, because a String here is a value
+--  rather than a piece of source waiting to be interpreted again.
+
+Greeting : String := "hello";
+Copy     : String := Greeting;
+
+Matched : Boolean := Copy = "hello";
+Ordered : Boolean := "abc" < "abd";
+
+--  Built up from nothing, which is what a script does when it assembles a
+--  path or a message.
+Built : String := "";
+
+for Index in 1 .. 3 loop
+   Built := Built & "ab";
+end loop;
+
+Correct : Boolean := Built = "ababab";
+
+--  A String must be given a value. `X : String;` is refused here, as it is in
+--  Ada: String is unconstrained, so a declaration needs an initial value.
+Empty : String := "";
+
+--  Taken apart. One position yields the Character there; a range yields the
+--  String between. Both are written the way Ada writes them, which is also the
+--  way a call is written -- what tells them apart is what the name denotes.
+Greeting_Start : Character := Greeting (1);
+Greeting_Rest  : String := Greeting (2 .. Greeting'Length);
+
+--  Every String here begins at one, so 'First is one and 'Last is the length.
+--  There are no other index ranges to have, which is why neither needs to be
+--  computed.
+Walked : String := "";
+
+for Position in Greeting'First .. Greeting'Last loop
+   Walked := Walked & Greeting (Position);
+end loop;
+
+Same_Again : Boolean := Walked = Greeting;
+
+--  A range whose first position is past its last yields nothing, as Ada says,
+--  rather than failing.
+Nothing_At_All : String := Greeting (3 .. 2);

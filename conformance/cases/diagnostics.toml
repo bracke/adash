@@ -1,0 +1,124 @@
+# Diagnostics, compared as identifiers and arguments rather than as sentences.
+#
+# This is the file that would silently stop testing anything if the suite
+# compared English: every one of these lines is a stable identifier that other
+# tools, and translations, depend on.
+
+suite = "diagnostics"
+
+[[case]]
+id = "diagnostics.undeclared-name"
+requirement = "A name that was never declared is reported by name, so the reader does not have to find it."
+script = """
+zzz;
+quit (0);"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.name_undeclared{name=zzz}!",
+]
+
+[[case]]
+id = "diagnostics.stay-off-standard-output"
+requirement = "Diagnostics go to standard error and never to standard output, so a pipeline reading a shell's output is not fed them."
+script = """
+zzz;
+quit (0);"""
+exit_status = 0
+output = []
+
+[[case]]
+id = "diagnostics.function-call-as-a-statement"
+requirement = """
+Ada has no expression statement, and neither does this: a call that yields a
+value is an expression. Written on its own it computed something and discarded
+it, which is more often a forgotten assignment than an intention. A user's
+function did exactly that, silently; a predefined one reached the lowering and
+was reported as a call this build cannot run, which named a limitation that
+does not exist.
+"""
+script = """
+function F (N : Integer) return Integer is begin return N; end F;
+F (2);
+quit (0);"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.function_as_statement{name=F}!",
+]
+
+[[case]]
+id = "diagnostics.value-called-as-a-statement"
+requirement = "A name that yields a value without being callable at all is the older complaint, and still the right one."
+script = """
+X : Integer := 1;
+X;
+quit (0);"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.not_callable{name=X}!",
+]
+
+[[case]]
+id = "diagnostics.bare-name-short-of-arguments"
+requirement = """
+A subprogram named without the arguments it requires is short of them wherever
+the name stands. The statement form, `source;`, said so; the expression form,
+`S : String := Env_Value;`, answered with the result type and left the omission
+to be discovered by the lowering.
+"""
+script = """
+S : String := Env_Value;
+quit (0);"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.wrong_argument_count{name=Env_Value,expected= 1,found= 0}!",
+]
+
+[[case]]
+id = "diagnostics.redeclaring-a-name-the-shell-provides"
+requirement = """
+A name the shell puts in scope is refused as what it is. Nothing declared it, so
+there is no position to report: saying "already declared, on line 1" named a
+line that had nothing to do with the collision and, in a one-line submission,
+was the line being complained about. The message for this case existed and was
+reached only for a subprogram named after a predefined subprogram -- never for a
+variable, a type name or a command.
+"""
+script = """
+Status : Integer := 1;
+quit (0);"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.name_is_predefined{name=Status}!",
+]
+
+[[case]]
+id = "diagnostics.redeclaring-a-command"
+requirement = "A command is in scope the same way and is refused the same way."
+script = """
+pwd : Integer := 1;
+quit (0);"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.name_is_predefined{name=pwd}!",
+]
+
+[[case]]
+id = "diagnostics.a-real-redeclaration-still-names-the-line"
+requirement = """
+Where there is a first declaration to point at, it is still pointed at: this did
+not become one message for two situations. Written on one line because a name
+declared by an earlier submission may be redeclared by a later one -- that is
+what makes a session a session -- so a collision needs both in the same one.
+"""
+script = "Total : Integer := 1; Total : Integer := 2; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.name_already_declared{name=Total,line= 1}!",
+]

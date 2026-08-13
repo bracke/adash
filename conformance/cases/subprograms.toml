@@ -1,0 +1,522 @@
+# Subprograms a program declares for itself, and calls.
+#
+# Until these were lowered, every name a program could call belonged to
+# somebody else: the language's own output procedures, or the shell's internal
+# commands. A program could compute and report, and could not give a name to
+# anything it did twice.
+#
+# The cases that matter here are the ones about frames. A call is easy to make
+# look right for one argument and one level; what is hard, and what these pin
+# down, is that each call has storage of its own -- so recursion computes
+# rather than corrupting, and a subprogram's locals do not land on top of the
+# caller's variables.
+
+suite = "subprograms"
+
+[[case]]
+id = "sub.procedure"
+requirement = "A declared procedure is called and runs its body."
+script = "procedure Greet is begin put_line (\"hello\"); end Greet; Greet;"
+exit_status = 0
+output = ["hello"]
+diagnostics = []
+
+[[case]]
+id = "sub.parameter"
+requirement = "An argument reaches the body with the value it was called with."
+script = "procedure Show (N : Integer) is begin put_line (N); end Show; Show (7);"
+exit_status = 0
+output = ["7"]
+diagnostics = []
+
+[[case]]
+id = "sub.positional-order"
+requirement = """
+Arguments arrive in the order they were written. Subtraction, not addition: a
+commutative operation cannot tell swapped positions apart.
+"""
+script = "function Less (A : Integer; B : Integer) return Integer is begin return A - B; end Less; put_line (Less (10, 3));"
+exit_status = 0
+output = ["7"]
+diagnostics = []
+
+[[case]]
+id = "sub.function-result"
+requirement = "A function's result reaches the expression that called it."
+script = "function Twice (N : Integer) return Integer is begin return N * 2; end Twice; put_line (Twice (21));"
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "sub.recursion"
+requirement = """
+Recursion computes, which requires each call to have a frame of its own. One
+shared frame gives a wrong answer rather than failing, so the value is what is
+asserted.
+"""
+script = "function Fact (N : Integer) return Integer is begin if N <= 1 then return 1; end if; return N * Fact (N - 1); end Fact; put_line (Fact (5));"
+exit_status = 0
+output = ["120"]
+diagnostics = []
+
+[[case]]
+id = "sub.locals-are-private"
+requirement = """
+A subprogram's locals live in its own frame. Allocated at the submission's
+level they would land on whatever it declared at the same offset.
+"""
+script = "X : Integer := 5; procedure P is Y : Integer := 99; begin Y := Y + 1; end P; P; put_line (X);"
+exit_status = 0
+output = ["5"]
+diagnostics = []
+
+[[case]]
+id = "sub.call-within-body"
+requirement = """
+A call made inside another body returns to a frame that still works: the
+parameter is read after the inner call, which is what would break if the
+machine's display were left pointing at the frame just popped.
+"""
+script = "function Five return Integer is begin return 5; end Five; function Sum (N : Integer) return Integer is begin return Five + N; end Sum; put_line (Sum (3));"
+exit_status = 0
+output = ["8"]
+diagnostics = []
+
+[[case]]
+id = "sub.string-round-trip"
+requirement = "A String survives being passed to a subprogram and returned."
+script = "function Same (S : String) return String is begin return S; end Same; put_line (Same (\"text\"));"
+exit_status = 0
+output = ["text"]
+diagnostics = []
+
+[[case]]
+id = "sub.command-inside"
+requirement = "A subprogram body can call an internal command."
+script = "procedure Go is begin cd (\"/\"); end Go; Go; pwd;"
+exit_status = 0
+output = ["!line.directory{path=/}!"]
+diagnostics = []
+
+[[case]]
+id = "sub.wrong-argument-count"
+requirement = "A call with the wrong number of arguments is reported, not run."
+script = "procedure P (N : Integer) is begin put_line (N); end P; P;"
+exit_status = 0
+output = []
+diagnostics = ["!error.wrong_argument_count{name=P,expected= 1,found= 0}!"]
+
+[[case]]
+id = "sub.nested-declaration"
+requirement = """
+A subprogram declared inside another runs, and its body reads the frame of the
+body it was declared in. Addressing everything at one level would read whatever
+the submission happened to have at the same offset.
+"""
+script = "procedure O is X : Integer := 7; procedure I is begin put_line (X); end I; begin I; end O; O;"
+exit_status = 0
+output = ["7"]
+diagnostics = []
+
+[[case]]
+id = "sub.nested-three-deep"
+requirement = "Three levels, reading a local from each of the two frames above."
+script = "procedure A is X : Integer := 1; procedure B is Y : Integer := 2; procedure C is begin put_line (X + Y); end C; begin C; end B; begin B; end A; A;"
+exit_status = 0
+output = ["3"]
+diagnostics = []
+
+[[case]]
+id = "sub.nested-same-name"
+requirement = """
+A name declared inside two different bodies is two subprograms. A call is
+matched to the declaration the scope chain resolved to, not to the spelling.
+"""
+script = "procedure P is procedure Step is begin put_line (\"p\"); end Step; begin Step; end P; procedure Q is procedure Step is begin put_line (\"q\"); end Step; begin Step; end Q; P; Q;"
+exit_status = 0
+output = ["p", "q"]
+diagnostics = []
+
+[[case]]
+id = "sub.nested-per-call-frame"
+requirement = "An inner body sees the frame of the call it came from, not the first or the last."
+script = "procedure O (N : Integer) is X : Integer := N * 10; procedure I is begin put_line (X); end I; begin I; end O; O (1); O (2);"
+exit_status = 0
+output = ["10", "20"]
+diagnostics = []
+
+[[case]]
+id = "sub.function-without-return"
+requirement = """
+A function whose end is reached has no value to give back, and says so rather
+than handing over whatever its frame held.
+"""
+script = "function F return Integer is begin null; end F; X : Integer := F;"
+exit_status = 0
+output = []
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.no_return_value!}!"]
+
+[[case]]
+id = "sub.out-parameter"
+requirement = """
+A write to an out parameter reaches the caller's own variable. Passed by value
+this program runs, prints the old value, and loses the write.
+"""
+script = "procedure Assign (N : out Integer) is begin N := 5; end Assign; X : Integer := 0; Assign (X); put_line (X);"
+exit_status = 0
+output = ["5"]
+diagnostics = []
+
+[[case]]
+id = "sub.in-out-parameter"
+requirement = "An in out parameter is read on the way in and written on the way out."
+script = "procedure Bump (N : in out Integer) is begin N := N + 1; end Bump; X : Integer := 41; Bump (X); put_line (X);"
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "sub.two-write-backs"
+requirement = """
+Two write-back parameters reach two separate variables. A single shared address
+would leave both holding the same value.
+"""
+script = "procedure Swap (A : in out Integer; B : in out Integer) is T : Integer := A; begin A := B; B := T; end Swap; X : Integer := 1; Y : Integer := 2; Swap (X, Y); put_line (X); put_line (Y);"
+exit_status = 0
+output = ["2", "1"]
+diagnostics = []
+
+[[case]]
+id = "sub.out-passed-on"
+requirement = """
+An out parameter handed to another subprogram still reaches the original
+variable. The address of a by-reference parameter is its value rather than its
+slot, so this is where getting the two the wrong way round shows.
+"""
+script = "procedure Inner (N : out Integer) is begin N := 9; end Inner; procedure Outer (M : out Integer) is begin Inner (M); end Outer; X : Integer := 0; Outer (X); put_line (X);"
+exit_status = 0
+output = ["9"]
+diagnostics = []
+
+[[case]]
+id = "sub.assign-to-in-parameter"
+requirement = "An in parameter is a value the body was given, not a place it may write."
+script = "procedure P (N : in Integer) is begin N := 1; end P; X : Integer := 0; P (X);"
+exit_status = 0
+output = []
+diagnostics = ["!error.not_assignable{name=N}!"]
+
+[[case]]
+id = "sub.out-needs-a-variable"
+requirement = "An expression passed where the body writes back has nowhere for the write to go."
+script = "procedure P (N : out Integer) is begin N := 1; end P; P (1 + 2);"
+exit_status = 0
+output = []
+diagnostics = ["!error.actual_not_variable{position= 1,mode=out}!"]
+
+[[case]]
+id = "sub.declaration-survives-a-line"
+requirement = """
+A subprogram declared on one line is callable on the next. Each line is its own
+submission, so this only works if the session carries the definition forward and
+puts it in front of what comes after.
+"""
+script = "procedure Greet is begin put_line (\"hello\"); end Greet;\nGreet;\nGreet;"
+exit_status = 0
+output = ["hello", "hello"]
+diagnostics = []
+
+[[case]]
+id = "sub.redefinition-replaces"
+requirement = """
+Redefining a name replaces what was carried rather than colliding with it. The
+old definition is left out of the submission that redefines it, or the two would
+be one program declaring the same thing twice.
+"""
+script = "procedure P is begin put_line (\"one\"); end P;\nprocedure P is begin put_line (\"two\"); end P;\nP;"
+exit_status = 0
+output = ["two"]
+diagnostics = []
+
+[[case]]
+id = "sub.overloads-accumulate"
+requirement = "A declaration of a different profile is an overload, so both stay callable."
+script = "procedure P (N : Integer) is begin put_line (\"int\"); end P;\nprocedure P (S : String) is begin put_line (\"str\"); end P;\nP (1);\nP (\"x\");"
+exit_status = 0
+output = ["int", "str"]
+diagnostics = []
+
+[[case]]
+id = "sub.objects-survive-with-their-value"
+requirement = """
+An object survives with the value it ended with, not the one it was declared
+with. The program hands its variables back as it ends -- the only way a value
+crosses out of the machine, whose frame is gone once the interpreter returns.
+"""
+script = "Kept : Integer := 5;\nKept := 9;\nput_line (Kept);"
+exit_status = 0
+output = ["9"]
+diagnostics = []
+
+[[case]]
+id = "sub.objects-of-a-stopped-program-are-not-carried"
+requirement = """
+A program stopped before it ends hands nothing back, so what it left in a
+variable is not carried forward. What a half-run program left there is not a
+value anyone chose.  stops the program without ending the session, so
+the next line still runs and finds nothing.
+"""
+script = "Gone : Integer := 1; return;\nput_line (Gone);"
+exit_status = 0
+output = []
+diagnostics = ["!error.name_undeclared{name=Gone}!"]
+
+[[case]]
+id = "block.declares-and-does"
+requirement = """
+A block is a scope of its own: what it declares lasts as long as it does, and
+the statements after `begin` are what it does. The node kind existed and was
+handled in both later passes for a long time, and nothing produced one -- so a
+block could not be written at all.
+"""
+script = "declare X : Integer := 5; begin put_line (X); end; quit (0);"
+exit_status = 0
+output = ["5"]
+diagnostics = []
+
+[[case]]
+id = "block.needs-no-declarations"
+requirement = "The `declare` is optional, as in Ada: a block that declares nothing is written begin ... end."
+script = "begin put_line (\"plain\"); end; quit (0);"
+exit_status = 0
+output = ["plain"]
+diagnostics = []
+
+[[case]]
+id = "block.hides-and-then-restores"
+requirement = "What a block declares may hide a name from around it, and the outer one is back at its end."
+script = "N : String := \"outer\"; declare N : String := \"inner\"; begin put_line (N); end; put_line (N); quit (0);"
+exit_status = 0
+output = ["inner", "outer"]
+diagnostics = []
+
+[[case]]
+id = "block.declarations-do-not-outlive-it"
+requirement = """
+A name a block declares is gone at its `end`, so it is not carried into the next
+submission the way a top-level declaration is. Level and frame do not say so --
+a block is in the same frame at the same level as the code around it -- so the
+lowering counts the blocks it is inside.
+"""
+script = """
+declare Y : Integer := 3; begin put_line (Y); end;
+put_line (Y);
+quit (0);"""
+exit_status = 0
+output = ["3"]
+diagnostics = [
+  "!error.name_undeclared{name=Y}!",
+]
+
+[[case]]
+id = "block.holds-only-declarations-before-begin"
+requirement = """
+Ada draws the line at `begin` and so does this, even though a declaration is
+parsed as a statement here. A subset that accepted what Ada rejects would be
+teaching the wrong language.
+"""
+script = "declare put_line (\"x\"); begin null; end; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.statement_among_declarations!",
+]
+
+[[case]]
+id = "block.does-not-stop-a-return"
+requirement = "A block is an ordinary statement, so a return inside one leaves the subprogram it is in."
+script = "function F return Integer is begin declare N : Integer := 7; begin return N; end; end F; put_line (F); quit (0);"
+exit_status = 0
+output = ["7"]
+diagnostics = []
+
+[[case]]
+id = "handler.catches-what-was-raised"
+requirement = """
+A block can say what to do about what went wrong. Until this, anything raised
+ended the submission: a division by zero, a text that held no number, an index
+past the end of a String -- each of them stopped the program with no way to
+answer for it.
+"""
+script = "begin N : Integer := 1 / 0; exception when Constraint_Error => put_line (\"caught\"); end; put_line (\"carried on\"); quit (0);"
+exit_status = 0
+output = ["caught", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "handler.chooses-by-name"
+requirement = "A handler answers for the exceptions it names and no others, so the one that runs is the one that matches."
+script = "begin S : String := \"abc\"; C : Character := S (9); exception when Constraint_Error => put_line (\"wrong\"); when Index_Error => put_line (\"right\"); end; quit (0);"
+exit_status = 0
+output = ["right"]
+diagnostics = []
+
+[[case]]
+id = "handler.others-catches-the-rest"
+requirement = "`others` answers for what is left, exactly as it does among a case's choices."
+script = "begin N : Integer := 1 / 0; exception when Index_Error => put_line (\"wrong\"); when others => put_line (\"right\"); end; quit (0);"
+exit_status = 0
+output = ["right"]
+diagnostics = []
+
+[[case]]
+id = "handler.catches-across-a-call"
+requirement = """
+A handler catches what a call raised, however deep. That is what the frames are
+unwound for: by the time the handler runs, everything between it and the raise
+is gone.
+"""
+script = "function Bad (N : Integer) return Integer is begin return N / 0; end Bad; begin M : Integer := Bad (3); exception when Constraint_Error => put_line (\"caught\"); end; quit (0);"
+exit_status = 0
+output = ["caught"]
+diagnostics = []
+
+[[case]]
+id = "handler.passes-on-what-it-does-not-name"
+requirement = """
+An exception a block does not answer for goes outwards to one that does. A
+handler that looked at it and matched nothing must not swallow it.
+"""
+script = "begin begin N : Integer := 1 / 0; exception when Index_Error => put_line (\"wrong\"); end; exception when Constraint_Error => put_line (\"outer\"); end; quit (0);"
+exit_status = 0
+output = ["outer"]
+diagnostics = []
+
+[[case]]
+id = "handler.does-not-run-when-nothing-went-wrong"
+requirement = "A block that finishes leaves its handlers alone, and stops waiting for them."
+script = "begin put_line (\"fine\"); exception when others => put_line (\"wrong\"); end; quit (0);"
+exit_status = 0
+output = ["fine"]
+diagnostics = []
+
+[[case]]
+id = "handler.names-something-that-is-raised"
+requirement = """
+A handler for something nothing raises is almost always a misremembered name,
+and one accepted silently would never run. The four are the three Ada defines
+plus the one Ada.Strings defines for an index outside a string.
+"""
+script = "begin null; exception when Nonsense_Error => null; end; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.not_an_exception{name=Nonsense_Error}!",
+]
+
+[[case]]
+id = "params.an-argument-can-name-its-parameter"
+requirement = """
+`F (Text => S)` is Ada, and it is what makes a call with several arguments of
+the same type readable: `Report ("x", True, 3)` says nothing about what the
+three mean, and `Report ("x", Loud => True, Times => 3)` says all of it.
+"""
+script = "procedure Show (Text : String; Loud : Boolean) is begin if Loud then put_line (To_Upper (Text)); else put_line (Text); end if; end Show; Show (Text => \"quiet\", Loud => False); Show (Loud => True, Text => \"shout\"); quit (0);"
+exit_status = 0
+output = ["quiet", "SHOUT"]
+diagnostics = []
+
+[[case]]
+id = "params.a-parameter-can-have-a-default"
+requirement = "A parameter with a default may be left out. The default is evaluated at the call, as Ada says, and it is a literal so it reaches the machine by the same path a literal written at the call site takes."
+script = "procedure Times (Text : String; Count : Integer := 2) is begin for Turn in 1 .. Count loop put_line (Text); end loop; end Times; Times (\"twice\"); Times (\"once\", 1); quit (0);"
+exit_status = 0
+output = ["twice", "twice", "once"]
+diagnostics = []
+
+[[case]]
+id = "params.a-default-after-a-required-one"
+requirement = "Ada allows a parameter without a default after one with a default; it can then only be given by name. Accepted here for the same reason, and the count check is a bound rather than the rule -- what establishes that every parameter has a value is the matching."
+script = "procedure Odd (A : Integer := 1; B : Integer) is begin put_line (Trim (A'Image) & \" \" & Trim (B'Image)); end Odd; Odd (B => 9); quit (0);"
+exit_status = 0
+output = ["1 9"]
+diagnostics = []
+
+[[case]]
+id = "params.naming-settles-which-subprogram"
+requirement = """
+Overload resolution reads the names. A named argument is not in the position it
+is written in, so a resolver comparing types by position rejects the candidate
+that fits and accepts the one that does not.
+"""
+script = "procedure P (A : Integer; B : String) is begin put_line (\"integer first\"); end P; procedure P (A : String; B : Integer) is begin put_line (\"string first\"); end P; P (B => \"x\", A => 1); P (B => 1, A => \"x\"); quit (0);"
+exit_status = 0
+output = ["integer first", "string first"]
+diagnostics = []
+
+[[case]]
+id = "params.a-name-the-subprogram-has-not-got"
+requirement = "Named by name, because `wrong arguments` sends the reader back to count them."
+script = "procedure P (A : Integer) is begin null; end P; P (B => 1); quit (0);"
+exit_status = 0
+diagnostics = ["!error.no_such_parameter{name=P,parameter=B}!"]
+
+[[case]]
+id = "params.a-parameter-given-twice"
+requirement = "Positionally and then by name is the same parameter twice, and the second is not a second argument."
+script = "procedure P (A : Integer; B : Integer) is begin null; end P; P (1, A => 2); quit (0);"
+exit_status = 0
+diagnostics = ["!error.parameter_given_twice{name=P,parameter=A}!"]
+
+[[case]]
+id = "params.positional-after-named"
+requirement = "Ada's rule, and it exists because otherwise the position of the plain argument would depend on the names written around it."
+script = "procedure P (A : Integer; B : Integer) is begin null; end P; P (A => 1, 2); quit (0);"
+exit_status = 0
+diagnostics = ["!error.positional_after_named{name=P}!"]
+
+[[case]]
+id = "params.a-parameter-with-no-value-and-no-default"
+requirement = "Reported once and by name. The count check is left to say nothing here, because saying both would be two complaints about one mistake."
+script = "procedure P (A : Integer; B : Integer) is begin null; end P; P (A => 1); quit (0);"
+exit_status = 0
+diagnostics = ["!error.parameter_not_given{name=P,parameter=B}!"]
+
+[[case]]
+id = "params.a-default-must-be-a-literal"
+requirement = """
+An arbitrary expression would have to be evaluated at each call in the scope of
+the *declaration*, and a name resolved at the call site is exactly what cannot
+do that. Refused rather than half-supported.
+"""
+script = "N : Integer := 3; procedure P (A : Integer := N) is begin null; end P; quit (0);"
+exit_status = 0
+diagnostics = ["!error.default_not_literal{name=A}!"]
+
+[[case]]
+id = "params.a-written-back-parameter-has-no-default"
+requirement = "Ada's rule and a sensible one: a default is a value, and an `out` parameter is somewhere to put one rather than something to be given."
+script = "procedure P (A : out Integer := 1) is begin A := 2; end P; quit (0);"
+exit_status = 0
+diagnostics = ["!error.default_not_in_mode{name=A}!"]
+
+[[case]]
+id = "params.a-call-with-no-parentheses-takes-its-defaults"
+requirement = """
+`S;` is a call with every argument left out, and it works when every parameter
+has a default. Written without parentheses it is a *name* rather than a call
+node, so the lowering has no prefix to ask what it resolved to -- which is why
+the callee is handed to it rather than found from the node.
+"""
+script = "procedure Note (Text : String := \"nothing to report\"; Times : Integer := 1) is begin for Turn in 1 .. Times loop put_line (Text); end loop; end Note; Note; Note (Times => 2); quit (0);"
+exit_status = 0
+output = ["nothing to report", "nothing to report", "nothing to report"]
+diagnostics = []
+
+[[case]]
+id = "params.a-call-with-no-parentheses-still-needs-what-has-no-default"
+requirement = "Leaving out a parameter with no default is a wrong call however it is written, and the count is what there is to say about a call with nothing in it."
+script = "procedure Note (Text : String) is begin put_line (Text); end Note; Note; quit (0);"
+exit_status = 0
+diagnostics = ["!error.wrong_argument_count{name=Note,expected= 1,found= 0}!"]

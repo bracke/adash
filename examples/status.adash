@@ -1,0 +1,40 @@
+--  Acting on whether something worked.
+--
+--  A command is a procedure: `run ("false");` produces no value. Without a way
+--  to ask afterwards, a program could run something and never learn whether it
+--  worked -- which is most of what a shell script does. `Status` is that ask,
+--  and it is `$?` under an Ada name.
+--
+--  The number is the one exit-status model `Adash.Execution` documents and the
+--  shell itself exits with: 0 for success, what an external program chose,
+--  126 for something found and not executable, 127 for something not found,
+--  128 + n for a program a signal killed. A script forwarding a status does not
+--  have to translate it.
+
+run ("true");
+put_line (Status);
+
+run ("false");
+put_line (Status);
+
+--  Which makes a subprogram that answers the question directly, in the
+--  language rather than by a convention of the shell.
+function Ran (What : String) return Boolean is
+begin
+   run (What);
+   return Status = 0;
+end Ran;
+
+if Ran ("true") then
+   put_line ("that one worked");
+end if;
+
+if not Ran ("false") then
+   put_line ("that one did not");
+end if;
+
+--  It is an ordinary Integer: it compares, it goes into a variable, and it does
+--  arithmetic.
+Last : Integer := Status;
+
+put_line (f"the last one exited {Last'Image}");

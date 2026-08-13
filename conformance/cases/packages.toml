@@ -1,0 +1,146 @@
+# Packages and generics.
+#
+# A submission is a unit, and until packages existed the only way to group
+# declarations was to keep them in a file and `source` it -- which shares the
+# text and not the name. A package gives a name to a group, and a generic gives
+# one body to several types.
+
+suite = "packages"
+
+[[case]]
+id = "packages.a-package-groups-declarations"
+requirement = """
+`package P is ... end P;` names a group of declarations, and `P.X` reaches one.
+What a package holds is declared beside it under a dotted name, so a member is
+an ordinary symbol and nothing below the analyser has to know a package exists.
+"""
+script = "package Config is Limit : Integer := 10; Label : String := \"adash\"; end Config; put_line (Trim (Config.Limit'Image)); put_line (Config.Label); quit (0);"
+exit_status = 0
+output = ["10", "adash"]
+diagnostics = []
+
+[[case]]
+id = "packages.a-body-completes-a-specification"
+requirement = """
+Ada puts the bodies of what a specification promised in the package body, and
+so does this. A subset that let a body stand in the specification would accept
+what Ada rejects, which is the one thing a subset must not do.
+"""
+script = "package Tools is function Doubled (N : Integer) return Integer; end Tools; package body Tools is function Doubled (N : Integer) return Integer is begin return N * 2; end Doubled; end Tools; put_line (Trim (Tools.Doubled (21)'Image)); quit (0);"
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "packages.a-package-holds-types"
+requirement = "A type is a declaration like any other, so a package holds one -- and a type mark may then carry dots, which is what makes `P.Colour` a name rather than a reach into something."
+script = "package Paint is type Colour is (Red, Green); end Paint; C : Paint.Colour := Paint.Green; put_line (C); quit (0);"
+exit_status = 0
+output = ["Green"]
+diagnostics = []
+
+[[case]]
+id = "packages.use-drops-the-prefix"
+requirement = """
+`use P;` makes what a package holds visible without its prefix, which is what a
+`use` is for. Remembered rather than copied: declaring a second symbol per
+member would make a later declaration of the same name collide with something
+the user never wrote.
+"""
+script = "package Config is Limit : Integer := 5; function Doubled (N : Integer) return Integer; end Config; package body Config is function Doubled (N : Integer) return Integer is begin return N * 2; end Doubled; end Config; use Config; put_line (Trim (Limit'Image)); put_line (Trim (Doubled (7)'Image)); quit (0);"
+exit_status = 0
+output = ["5", "14"]
+diagnostics = []
+
+[[case]]
+id = "packages.a-member-sees-its-siblings"
+requirement = "A name inside a package means that package's member first: a sibling is nearer than anything outside, which is Ada's order and the one a reader expects."
+script = "package Counter is Start : Integer := 100; function From_Start (N : Integer) return Integer; end Counter; package body Counter is function From_Start (N : Integer) return Integer is begin return Start + N; end From_Start; end Counter; put_line (Trim (Counter.From_Start (5)'Image)); quit (0);"
+exit_status = 0
+output = ["105"]
+diagnostics = []
+
+[[case]]
+id = "packages.a-body-without-a-specification-is-refused"
+requirement = "Ada requires the specification, and so does this: it is what a caller reads and what a name resolves against."
+script = "package body Nowhere is X : Integer := 1; end Nowhere; quit (0);"
+exit_status = 0
+diagnostics = ["!error.package_not_declared{name=Nowhere}!"]
+
+[[case]]
+id = "packages.use-needs-a-package"
+requirement = "Named by what it is, because `X is not declared` would be wrong and `wrong argument` would be baffling."
+script = "X : Integer := 1; use X; quit (0);"
+exit_status = 0
+diagnostics = ["!error.not_a_package{name=X}!"]
+
+[[case]]
+id = "generics.one-body-serves-several-types"
+requirement = """
+This is what a generic is for. `Swap` is written once and instantiated for
+Integer and for String, and each instantiation is a subprogram of its own --
+because conclusions are recorded per node, and two instantiations sharing nodes
+would overwrite each other's answers about every name in the generic.
+"""
+script = "generic type Element is private; procedure Swap (Left : in out Element; Right : in out Element); procedure Swap (Left : in out Element; Right : in out Element) is Held : Element := Left; begin Left := Right; Right := Held; end Swap; procedure Swap_Numbers is new Swap (Integer); procedure Swap_Words is new Swap (String); A : Integer := 1; B : Integer := 2; S : String := \"first\"; T : String := \"second\"; Swap_Numbers (A, B); put_line (Trim (A'Image) & \" \" & Trim (B'Image)); Swap_Words (S, T); put_line (S & \" \" & T); quit (0);"
+exit_status = 0
+output = ["2 1", "second first"]
+diagnostics = []
+
+[[case]]
+id = "generics.two-instantiations-of-one-type-are-two-subprograms"
+requirement = "Each instantiation declares its own subprogram, told apart by where its name was written. A copy carrying the generic's span would make the second instantiation call the first."
+script = "generic type Element is private; procedure Note (X : Element); procedure Note (X : Element) is begin put_line (X); end Note; procedure First is new Note (Integer); procedure Second is new Note (Integer); First (1); Second (2); quit (0);"
+exit_status = 0
+output = ["1", "2"]
+diagnostics = []
+
+[[case]]
+id = "generics.a-generic-function-works-too"
+requirement = "A generic is a template for a subprogram, and a function is one."
+script = "generic type Element is private; function Twice (X : Element) return String; function Twice (X : Element) return String is begin return X'Image & X'Image; end Twice; function Twice_Number is new Twice (Integer); put_line (Twice_Number (3)); quit (0);"
+exit_status = 0
+output = [" 3 3"]
+diagnostics = []
+
+[[case]]
+id = "generics.a-package-can-hold-one"
+requirement = "A generic is a declaration, so a package holds one -- and an instantiation then names it with dots like anything else a package holds."
+script = "package Tools is generic type Element is private; procedure Show (X : Element); end Tools; package body Tools is procedure Show (X : Element) is begin put_line (X); end Show; end Tools; procedure Show_Number is new Tools.Show (Integer); Show_Number (9); quit (0);"
+exit_status = 0
+output = ["9"]
+diagnostics = []
+
+[[case]]
+id = "generics.a-generic-needs-a-body-to-copy"
+requirement = "Said where the instantiation is written, rather than left to produce a subprogram that does nothing."
+script = "generic type Element is private; procedure P (X : Element); procedure Q is new P (Integer); quit (0);"
+exit_status = 0
+diagnostics = ["!error.body_missing{name=P}!"]
+
+[[case]]
+id = "generics.the-actuals-must-match-the-formals"
+requirement = "One type per formal. A generic instantiated with too few has a name in its body that nothing binds."
+script = "generic type Element is private; procedure P (X : Element); procedure P (X : Element) is begin null; end P; procedure Q is new P; quit (0);"
+exit_status = 0
+diagnostics = ["!error.generic_wrong_actuals{name=P,expected= 1,found= 0}!"]
+
+[[case]]
+id = "generics.only-a-generic-can-be-instantiated"
+requirement = "Named by what it is: an ordinary subprogram has nothing to make a new one from."
+script = "procedure P is begin null; end P; procedure Q is new P (Integer); quit (0);"
+exit_status = 0
+diagnostics = ["!error.not_a_generic{name=P}!"]
+
+[[case]]
+id = "packages.a-package-survives-the-line-that-made-it"
+requirement = """
+An interactive session builds up a vocabulary, and a package is part of one.
+The specification and the body are separate submissions, exactly as Ada makes
+them separate units, so a body arriving later completes a specification the
+session is still holding.
+"""
+script = "package Config is L : Integer := 7; function F (N : Integer) return Integer; end Config;\npackage body Config is function F (N : Integer) return Integer is begin return N + L; end F; end Config;\nput_line (Trim (Config.F (3)'Image));\nuse Config;\nput_line (Trim (F (10)'Image));\nquit (0);"
+exit_status = 0
+output = ["10", "17"]
+diagnostics = []

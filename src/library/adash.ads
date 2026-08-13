@@ -1,0 +1,40 @@
+--  Adash: a shell whose command language is Ada.
+--
+--  Adash is not a POSIX shell with Ada-looking syntax bolted on, and it is not
+--  a Bash clone. Its command language is a defined subset of Ada, and a
+--  feature earns its place by fitting that language -- not by existing in
+--  another shell. The distinction matters most when it is inconvenient: the
+--  temptation is always to add one small piece of familiar shell syntax
+--  because a user expects it, and every such piece is a second grammar that
+--  the lexer, the parser, the completer and the highlighter then have to
+--  agree about for ever.
+--
+--  One pipeline, one engine. Input typed at the prompt, a script file, a
+--  startup file, a command substitution and a prompt expression all take the
+--  same route: source acquisition, UTF-8 validation, lexing, parsing,
+--  semantic analysis, evaluation. There is no separate interactive
+--  interpreter and no separate script interpreter. A shell that has two of
+--  them eventually has two dialects, and the difference between them is
+--  discovered by users rather than by tests.
+--
+--  What Adash does not own. Anything that exists only because operating
+--  systems differ belongs to hostkit; JSON to jsonlib, TOML to tomllib, the
+--  text a user reads to message catalogs, terminal styling to
+--  terminal_styles. These are not preferences. Each names one crate as the
+--  single place a capability lives, so that a second, subtly different copy
+--  cannot grow inside Adash -- which is how a shell ends up with two ideas
+--  of what an executable is, or two spellings of the same error.
+--
+--  When one of those crates lacks something Adash needs, the answer is to
+--  extend that crate, not to write a private version here. A private version
+--  is always faster to write and always the more expensive of the two.
+--
+--  This package is the root of the hierarchy and deliberately holds no state
+--  and no behaviour: it exists to name the project and to give every other
+--  package a parent. Subsystem roots are its children -- Adash.Language,
+--  Adash.Execution, Adash.Engine, Adash.Interactive and the rest -- and each
+--  of those owns exactly one responsibility. See ARCHITECTURE.md for the
+--  dependency direction they are required to respect.
+package Adash is
+   pragma Pure;
+end Adash;

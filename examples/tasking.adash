@@ -1,0 +1,733 @@
+--  Tasks and protected objects: doing two things at once, and sharing what
+--  they touch.
+--
+--  Read the design note first, because it decides what these mean here.
+--
+--  Adash already had a concurrency model: *processes*. `start`, `pipe` and the
+--  job commands run programs beside the shell, and that is what a shell is
+--  for. Ada's tasks are a second model, and two models answering one question
+--  is a cost this language pays deliberately -- the reason to pay it is that a
+--  submission is a *program*, and a program that wants to overlap two pieces
+--  of its own work had no way to say so.
+--
+--  Tasks here are interleaved, not parallel. The machine runs one strand at a
+--  time and changes strand at defined points. Ada does not require parallelism
+--  -- a single-processor implementation is conforming -- and what a program
+--  may rely on is that its tasks make progress and that its synchronisation
+--  holds. Interleaving is also the only answer this repository can give:
+--  anything platform-specific belongs to hostkit, and a machine reaching for
+--  threads of its own would be a second provider of them.
+
+--  `pragma Detect_Blocking;` asks for an operation that may wait, run inside a
+--  protected operation, to be caught. A strand set aside while it holds a lock
+--  is holding it against everybody, which is deadlock waiting to be written --
+--  and Ada makes it a pragma rather than a rule because the check costs
+--  something on every instruction.
+--
+--  Everything below is written to pass it: what a protected object waits on
+--  here is its own barriers, which give the lock up to wait.
+pragma Detect_Blocking;
+
+--  A dispatching policy says what a strand's turn is. Two are accepted, and
+--  each is a claim about how the program runs rather than a switch that might
+--  mean nothing: `FIFO_Within_Priorities`, which is Ravenscar's and means a
+--  strand keeps its turn until it waits for something, and
+--  `Round_Robin_Within_Priorities`, which is what the machine does when
+--  nobody says -- a turn of a fixed number of instructions, shared out
+--  between strands of the same priority. Anything else is refused rather than
+--  accepted and ignored.
+--
+--  This file names the second, and the reason is worth the space. Further
+--  down it writes a long computation that waits for nothing, to show a
+--  timeout abandoning work. Under Ravenscar's policy that computation would
+--  keep the machine until it finished and the timeout would never fire --
+--  which is not a defect in either but Ada's own cost, on one processor, for
+--  an interleaving nobody slices. A program written for Ravenscar does not
+--  contain that loop. This one does, deliberately, so it says so.
+pragma Task_Dispatching_Policy (Round_Robin_Within_Priorities);
+
+--  `pragma Priority_Specific_Dispatching (P, First, Last);` gives a policy to
+--  a range of priorities instead of to the whole program -- a program can
+--  leave the strands doing its important work alone and share the rest out.
+--  It is not written here because the pragma above already answers for every
+--  priority, and a priority that two pragmas answer for is one the reader has
+--  to guess about, so the second is refused rather than quietly winning.
+
+--  `pragma Queuing_Policy (Priority_Queuing);` takes the highest-priority
+--  caller off an entry queue first rather than the one that arrived first,
+--  and among callers of equal priority still the one that arrived first --
+--  which is what makes it an ordering rather than a lottery. It reaches into
+--  a selective accept too: the alternative served is the one whose queue holds
+--  that caller, rather than the one written first. `FIFO_Queuing` is the
+--  other, and is what the machine does when nobody says -- and there the
+--  alternative written first is the one served, which Ada leaves arbitrary.
+--  Not written here, because what this file shows about queues is that
+--  callers are taken in the order they arrived.
+--
+--  `Ceiling_Locking` is what the machine already does, and saying so costs
+--  nothing: a caller above an object's ceiling is refused, and no strand is
+--  set aside inside a protected operation. It is the only locking policy
+--  here, because it is the only one this machine could be told about and mean
+--  it.
+pragma Locking_Policy (Ceiling_Locking);
+
+--  `pragma Restrictions (No_Abort_Statements);` is a program saying what it
+--  will not do, so that a reader can rely on it -- worth more than a comment,
+--  because the analyser holds the program to it wherever the pragma stands.
+--  The rest are most of Ada's Ravenscar profile: `No_Delay`,
+--  `No_Relative_Delay`, `No_Select_Statements`, `No_Requeue_Statements`,
+--  `No_Dynamic_Priorities`, `No_Task_Hierarchy` and
+--  `No_Local_Protected_Objects` -- every task and object declared where the
+--  program begins -- `Simple_Barriers`, `No_Task_Termination`, and the counted
+--  ones: `Max_Tasks`, `Max_Task_Entries`, `Max_Protected_Entries` and
+--  `Max_Entry_Queue_Length`.
+--
+--  Ravenscar's point is that a program which gives all of this up can be
+--  reasoned about: what runs, what it waits for and how much of it there is
+--  are settled where the program begins.
+--
+--  `pragma Profile (Ravenscar);` is the name for all of it at once -- the
+--  restrictions above, the blocking check, and both policies. A program that
+--  names it and a program that writes them out run the same way, which is the
+--  only thing a profile can honestly be.
+--
+--  `pragma Profile (Jorvik);` is Ada's other one: Ravenscar with four things
+--  given back -- a barrier worked out rather than read, more than one entry
+--  on a protected object, more than one caller queued at one, and a delay for
+--  a length. Each of the four was given up for a reason about *analysis*
+--  rather than about safety, and Jorvik is Ada saying that a program willing
+--  to pay for the analysis may have them back.
+--
+--  What it costs is worth knowing before writing it: `No_Task_Termination`
+--  means a task that ends is an error, and Ravenscar means that because its
+--  programs do not end. A submission does. So a Ravenscar submission finishes
+--  by reporting the task that ran out, and the profile is written here for
+--  the language it is, not because a shell is where such a program belongs.
+--
+--  This file writes one of each of the things Ravenscar gives up, which is
+--  what it is for, so it names none of them and could not name the profile.
+
+--  A protected object is how two tasks share something. Its operations run
+--  with mutual exclusion, which on an interleaving machine is not an
+--  optimisation on top of something else: the machine simply does not change
+--  strand while one is running.
+--  What a family of entries is indexed by: a discrete type, because a family
+--  is a run of entries and a run is counted.
+type Milestone is (Half_Way, All_Of_It);
+
+protected Tally is
+   --  What a task may be and still call it: its ceiling. The watcher below
+   --  runs at 20, and an object it calls has to admit callers that high --
+   --  which is the whole of what a ceiling is for, and what a program that
+   --  gets it wrong is told about rather than left to assume.
+   pragma Priority (25);
+
+   procedure Add (This_Many : Integer);
+   function Total return Integer;
+
+   --  An entry is a barrier and a body -- a way to wait until something
+   --  holds. A caller that finds the barrier closed is set aside, and the
+   --  barrier is asked again when the object is next left.
+   entry Wait_For_Enough;
+
+   --  A family of them: one entry per value, each with a queue of its own.
+   --  Its body is one body for all of them and says what to call the member it
+   --  is running for -- a barrier that could not ask which member it was would
+   --  make a family no different from one entry.
+   entry Wait_For (Milestone);
+end Tally;
+
+protected body Tally is
+   Running : Integer := 0;
+
+   procedure Add (This_Many : Integer) is
+   begin
+      Running := Running + This_Many;
+   end Add;
+
+   function Total return Integer is
+   begin
+      return Running;
+   end Total;
+
+   entry Wait_For_Enough when Running >= 100 is
+   begin
+      put_line ("enough: " & Trim (Running'Image));
+   end Wait_For_Enough;
+
+   entry Wait_For (for Which in Milestone)
+     when Running >= Milestone'Pos (Which) * 50 is
+   begin
+      put_line ("reached " & Milestone'Image (Which));
+   end Wait_For;
+end Tally;
+
+--  A protected *type* is a protected object worth having more than one of.
+--  Each object has state and a lock of its own, and an object of one is made
+--  by copying the type's declaration and body with the type's name replaced by
+--  the object's -- which is what a generic instantiation here already does.
+--  What it costs is a copy of the code per object; what it buys is that
+--  everything below the analyser sees what it has always seen.
+--  And it takes what it needs at elaboration. A discriminant of a protected
+--  type arrives as a constant at the head of the object's own body, which is
+--  what a discriminant is: something the type is written against and the
+--  object fixes.
+protected type Tally_Sheet (Called : String := "a tally sheet") is
+   procedure Add (This_Many : Integer);
+   function Total return Integer;
+   procedure Say_It;
+end Tally_Sheet;
+
+protected body Tally_Sheet is
+   Running : Integer := 0;
+
+   procedure Say_It is
+   begin
+      put_line (Called & " has " & Trim (Running'Image));
+   end Say_It;
+
+   procedure Add (This_Many : Integer) is
+   begin
+      Running := Running + This_Many;
+   end Add;
+
+   function Total return Integer is
+   begin
+      return Running;
+   end Total;
+end Tally_Sheet;
+
+--  A type whose discriminants all default is one an object may stand without
+--  a constraint on. All of them or none of them: a constraint constrains the
+--  whole of a type, and a partial one would leave a program saying which ones
+--  it meant to leave out by counting.
+Morning   : Tally_Sheet ("the morning");
+Afternoon : Tally_Sheet;
+
+Morning.Add (3);
+Morning.Add (4);
+Afternoon.Add (10);
+
+Morning.Say_It;
+Afternoon.Say_It;
+
+--  A task runs beside what declared it. `task T;` declares one with no
+--  entries, which is the commonest shape a script wants: something that gets
+--  on with a piece of work.
+--  What a task runs at. A strand of higher priority is preferred whenever the
+--  machine chooses which runs next -- chosen, not pre-empted: this machine
+--  changes strand at defined points, so a priority decides who goes next
+--  rather than interrupting who is going.
+--
+--  `X'Priority := N;` changes it while the program runs, and reading it back
+--  asks the machine rather than the declaration: either a task's priority or a
+--  protected object's ceiling may have moved since.
+task Watcher is
+   pragma Priority (20);
+end Watcher;
+
+task Counter_One;
+task Counter_Two;
+
+task body Counter_One is
+begin
+   for Step in 1 .. 40 loop
+      Tally.Add (1);
+   end loop;
+end Counter_One;
+
+task body Counter_Two is
+begin
+   for Step in 1 .. 60 loop
+      Tally.Add (1);
+   end loop;
+end Counter_Two;
+
+--  This one blocks until the others have done enough between them. Which of
+--  the three gets there first is the scheduler's business; that this one does
+--  not pass until the barrier holds is the language's.
+task body Watcher is
+begin
+   Tally.Wait_For (Half_Way);
+   Tally.Wait_For_Enough;
+end Watcher;
+
+--  `delay` waits in real time, from Ada's own monotonic clock -- monotonic
+--  rather than calendar, so a script that waits half a second waits half a
+--  second whatever somebody does to the system time. The other strands run
+--  while one waits, and when none can the machine sleeps rather than spins.
+--
+--  `Clock` reads that clock, and `delay until` waits for a time on it rather
+--  than for a length. Ada has both because a loop that delays *for* a tenth of
+--  a second drifts by however long its own body takes, and one that delays
+--  *until* the next tenth does not.
+task Slow_Starter;
+task body Slow_Starter is
+begin
+   delay 0.05;
+   Tally.Add (0);
+end Slow_Starter;
+
+--  `select ... else ...` is Ada's conditional entry call: take the entry if its
+--  barrier is open *now*, and do something else if it is not. The lock is taken
+--  before the barrier is asked and nothing changes strand while it is held, so
+--  the barrier cannot close between being asked and being acted on -- which is
+--  the whole difficulty of writing one.
+select
+   Tally.Wait_For_Enough;
+   put_line ("already enough");
+else
+   put_line ("not yet");
+end select;
+
+--  `or delay D` bounds how long the call waits, and the call waits the way an
+--  ordinary one does: a caller of a protected entry queues by being inside the
+--  entry's own body, parked at its barrier, so what the deadline reaches is
+--  that parking. A barrier that opens during the wait is taken when it opens,
+--  and one that does not is given up on -- the caller leaves the queue, and
+--  what it was going to be given is not given.
+select
+   Tally.Wait_For_Enough;
+   put_line ("got there");
+or delay 0.4;
+   put_line ("still not enough");
+end select;
+
+
+--  A rendezvous is how two tasks meet. An entry of a *task* is not a barrier
+--  and a body -- that is a protected object's -- but a place two strands come
+--  to: `Ledger.Record_It (7);` on one side and `accept Record_It ... do` on the
+--  other are one event, and neither side passes it until both have arrived.
+--
+--  That is what a rendezvous gives that leaving a value somewhere does not:
+--  the caller knows the body ran, and the body knows the caller is still there
+--  to be handed something back.
+--  An entry *family* is a run of entries rather than one: `entry E (T)`
+--  declares one per value of T, and a caller says which by writing `E (V)`.
+--  What it is worth is that an acceptor can serve one member and leave the
+--  rest queued, so a task can decide what to serve rather than only when.
+type Urgency is (Whenever, Right_Now);
+
+task Ledger is
+   entry Take_It (Urgency);
+   entry Record_It (Amount : Integer);
+   entry Total (So_Far : out Integer);
+
+   --  Where a caller is put when the ledger is not ready for it yet.
+   entry Wait_For_Room;
+end Ledger;
+
+task body Ledger is
+   Running : Integer := 0;
+
+   --  What a caller gave before it was moved to another queue, kept because
+   --  the queue it was moved to takes nothing.
+   Pending : Integer := 0;
+begin
+   --  Written again as Ada writes it, and held to the profile it was declared
+   --  with: the caller writes its arguments by the entry's profile and this
+   --  body reads them by this one, so two that disagreed would have one side
+   --  writing a number where the other reads text.
+   --  An accept body is a master too: what it starts is finished with before
+   --  the caller is let go, which is what a caller is entitled to assume of a
+   --  rendezvous. This language accepts a declaration wherever a statement may
+   --  stand, so there is something for that rule to be about -- and the total
+   --  the next caller reads is right because of it.
+   --  Served in the order the task chooses, not the order they arrived:
+   --  the urgent one first, whichever queued first.
+   accept Take_It (Right_Now) do
+      put_line ("took the urgent one first");
+   end Take_It;
+
+   --  `requeue` says "not this one, that one": the caller being served is put
+   --  on another entry's queue and this body is left. The caller does not
+   --  resume and is not told -- from its own point of view it is still waiting
+   --  for the call it made, which is what makes a requeue different from
+   --  returning and being called again.
+   --
+   --  What the target takes is nothing, so a body that needs the caller's
+   --  argument takes it before moving the caller on. Nothing after the requeue
+   --  in this body runs: leaving it is what a requeue does.
+   --
+   --  `requeue E with abort;` is the other spelling, and it decides whether
+   --  the caller keeps its way out: without it the call becomes uncancellable,
+   --  so a deadline a timed call was made with stops applying and an abandoned
+   --  trigger can no longer pull it out of the queue. The caller never asked to
+   --  be where it now is, which is why the body doing the moving is the one
+   --  that says. Written without it here, because these callers have no way
+   --  out to keep -- both made plain calls and neither is bounded.
+   --  Either end of a requeue may be a member of a family: which member is
+   --  something the body works out, on the side it was taken from as much as
+   --  on the side it goes to.
+   accept Take_It (Whenever) do
+      requeue Take_It (Right_Now);
+   end Take_It;
+
+   accept Take_It (Right_Now) do
+      put_line ("the patient one was moved up and served");
+   end Take_It;
+
+   accept Record_It (Amount : Integer) do
+      Pending := Amount;
+      requeue Wait_For_Room;
+   end Record_It;
+
+   accept Wait_For_Room do
+      put_line ("the first one waited for room");
+      Running := Running + Pending;
+   end Wait_For_Room;
+
+   accept Record_It (Amount : Integer) do
+      task Adding;
+      task body Adding is
+      begin
+         Running := Running + Amount;
+      end Adding;
+   end Record_It;
+
+   --  An `out` parameter is how a task hands something back. The arguments
+   --  live in a run of the *caller's* slots and these formals are references
+   --  into it, so writing here writes where the caller is reading from --
+   --  which is the only arrangement that works when the two sides are separate
+   --  strands with frames of their own.
+   --  `E'Count` is how many callers are queued at an entry. Asked inside the
+   --  body that declares it, which is Ada's rule and not fussiness: a count is
+   --  a queue's length at an instant, and a caller reading it from outside
+   --  would be told something that had already changed by the time it acted.
+   accept Total (So_Far : out Integer) do
+      put_line ("still waiting to record: " & Trim (Record_It'Count'Image));
+      So_Far := Running;
+   end Total;
+end Ledger;
+
+--  Two callers, the patient one first. Which is served first is the task's
+--  choice, and it chooses by naming a member.
+task Patient_One;
+task body Patient_One is
+begin
+   Ledger.Take_It (Whenever);
+end Patient_One;
+
+for Step in 1 .. 3000 loop null; end loop;
+Ledger.Take_It (Right_Now);
+
+Ledger.Record_It (30);
+Ledger.Record_It (12);
+
+Counted : Integer := 0;
+Ledger.Total (Counted);
+
+put_line ("the ledger says " & Trim (Counted'Image));
+
+--  `or delay D` bounds a call to a *task* entry too, and underneath it is a
+--  different thing. A protected entry has a barrier to look at, and the timed
+--  call above looks at it; a task entry has nobody to ask, so the call joins
+--  the queue carrying a deadline and leaves it again if no rendezvous has
+--  begun by then. Ada cancels a call that has not *started*, which is why one
+--  begun in time runs to its end however long the body takes -- and why the
+--  acceptor that arrives late finds the queue empty.
+--
+--  `else` instead of `or delay D` does not wait at all: the call is made only
+--  if a rendezvous can start at once, and otherwise the else part runs. What
+--  answers is the task called -- one waiting at an accept has written down
+--  what it would take, and one doing anything else is waiting for nobody. Its
+--  guards count, so a closed alternative is nobody waiting.
+--
+--  The doorman below is still asleep when the second knock comes, so the
+--  second knock does not wait. Had it been at the accept, the call would have
+--  been made and the rendezvous run to its end.
+task Doorman is
+   entry Knock;
+end Doorman;
+
+task body Doorman is
+begin
+   --  Late on purpose, so that the caller below runs out of patience first.
+   delay 0.15;
+
+   select
+      accept Knock do
+         put_line ("the doorman answered");
+      end Knock;
+   or delay 0.15;
+      put_line ("the doorman found nobody, and the queue holds"
+                & Knock'Count'Image);
+   end select;
+end Doorman;
+
+select
+   Doorman.Knock;
+   put_line ("knocked and was let in");
+or delay 0.04;
+   put_line ("knocked and gave up");
+end select;
+
+select
+   Doorman.Knock;
+   put_line ("knocked again and was let in");
+else
+   put_line ("knocked again, and nobody was at the door");
+end select;
+
+--  A task type takes what it needs at elaboration. Discriminants are to a task
+--  what parameters are to a subprogram -- given where the object is declared,
+--  constant inside the body -- and they are what makes two objects of one type
+--  different rather than merely separate.
+task type Timer (Seconds : Float; Called : String) is
+   entry Stand_Down;
+end Timer;
+
+task body Timer is
+begin
+   select
+      accept Stand_Down;
+   or delay Seconds;
+      put_line (Called & " fired");
+   end select;
+end Timer;
+
+Impatient : Timer (0.05, "the impatient one");
+Patient   : Timer (30.0, "the patient one");
+
+Patient.Stand_Down;
+
+--  A task *type* is a task worth having more than one of. Its objects are each
+--  a task of their own -- their own strand, their own local state, their own
+--  entry queues -- and that is why a task is a type at all: several tasks share
+--  one body, so what a rendezvous names has to be the object rather than the
+--  work. A task object holds which strand runs it, and that is the whole of it.
+task type Adder is
+   entry Take (Amount : Integer);
+   entry Total (So_Far : out Integer);
+end Adder;
+
+task body Adder is
+   Running : Integer := 0;
+begin
+   --  `select` with several alternatives is a task saying "whichever of these
+   --  happens first". Its alternatives are accepts, where the other `select`
+   --  has an entry call: one is a task deciding what to serve and the other is
+   --  a caller deciding how long to wait.
+   --
+   --  A guard -- `when <condition> =>` -- says what this task is ready for.
+   --  Guards are asked once, when the select is reached, which is Ada's rule:
+   --  an alternative that was closed then stays closed for this execution
+   --  however the world changes while it waits.
+   --
+   --  `or delay D;` beside these alternatives bounds the waiting rather than
+   --  replacing it: such a select waits for a caller *or* the clock, and a
+   --  caller arriving is served as it arrives rather than when the wait runs
+   --  out. A task in one is waiting for somebody, which is also what a
+   --  conditional call to it is told.
+   for Times in 1 .. 3 loop
+      select
+         accept Take (Amount : Integer) do
+            Running := Running + Amount;
+         end Take;
+      or
+         when Running > 0 =>
+            accept Total (So_Far : out Integer) do
+               So_Far := Running;
+            end Total;
+      end select;
+   end loop;
+end Adder;
+
+Left  : Adder;
+Right : Adder;
+
+Left.Take (2);
+Left.Take (3);
+Right.Take (30);
+Right.Take (7);
+
+Left_Says  : Integer := 0;
+Right_Says : Integer := 0;
+
+Left.Total (Left_Says);
+Right.Total (Right_Says);
+
+put_line ("left " & Trim (Left_Says'Image)
+          & ", right " & Trim (Right_Says'Image));
+
+--  `select ... then abort` abandons work when something else happens first.
+--  The abortable part runs as a strand of its own and the trigger waits in
+--  this one, which is the shape this machine can give it and a faithful one: a
+--  strand that is not running cannot be in the middle of anything, so there is
+--  nothing to unwind when it is abandoned.
+--
+--  Either side may win. When the trigger fires the work is abandoned; when the
+--  work finishes first the trigger is cancelled and its statements do not run
+--  -- and the wait ends there rather than running its full course.
+Steps_Taken : Integer := 0;
+
+select
+   delay 0.05;
+   put_line ("the long way round ran out of time");
+then abort
+   for Step in 1 .. 10000000 loop
+      Steps_Taken := Steps_Taken + 1;
+   end loop;
+
+   put_line ("the long way round finished");
+end select;
+
+select
+   delay 30.0;
+   put_line ("the short way round ran out of time");
+then abort
+   put_line ("the short way round finished");
+end select;
+
+put_line ("started");
+
+--  A master is a *region*, not a program. A subprogram does not return while a
+--  task declared inside it is still running, and neither does a task body:
+--  what a task reads through its static link is the frame it was declared in,
+--  and a region that left first would leave it reading slots the next call had
+--  taken.
+Steps_Run : Integer := 0;
+
+procedure Do_It_Twice is
+   task Once;
+   task Again;
+
+   task body Once is
+   begin
+      Steps_Run := Steps_Run + 1;
+   end Once;
+
+   task body Again is
+   begin
+      Steps_Run := Steps_Run + 1;
+   end Again;
+begin
+   null;
+end Do_It_Twice;
+
+Do_It_Twice;
+Do_It_Twice;
+
+--  Four, and read straight after the call rather than at the end of the
+--  script: each call waited for the two tasks it started, and the second call
+--  waited for its own rather than for the first call's.
+put_line ("steps run " & Trim (Steps_Run'Image));
+
+--  A block statement is a master too, which is Ada's rule and the useful one:
+--  it is how a script says "start these, and do not go on until they are
+--  done" without writing a subprogram to hold them.
+--
+--  A block makes no frame, so what says which of them a task belongs to is a
+--  numbered region rather than a frame -- numbered rather than counted,
+--  because a depth would make the second turn of a loop look like the first.
+declare
+   task Left_Half;
+   task Right_Half;
+
+   task body Left_Half is
+   begin
+      Steps_Run := Steps_Run + 10;
+   end Left_Half;
+
+   task body Right_Half is
+   begin
+      Steps_Run := Steps_Run + 100;
+   end Right_Half;
+begin
+   null;
+end;
+
+put_line ("and after the block " & Trim (Steps_Run'Image));
+
+--  A task answers two questions about itself. They are not each other's
+--  negation: a task that has run its body out and is still waiting for what
+--  depends on it has *completed* without having *terminated*, and answers False
+--  to both -- it has ended nothing and will meet nobody.
+task Asked_About;
+task body Asked_About is
+begin
+   null;
+end Asked_About;
+
+put_line ("while it may still be running: "
+          & Boolean'Image (Asked_About'Terminated)
+          & " " & Boolean'Image (Asked_About'Callable));
+
+--  And how long it has had turns for, which is not how long it has existed: a
+--  task that spends its life at a barrier has used almost none of it.
+put_line ("it has run for under a second: "
+          & Boolean'Image (Asked_About'Execution_Time < 1.0));
+
+--  `A'Identity` is which task, as something a program can hold. A task itself
+--  cannot be copied -- what one *is* is the thing that runs, and a second name
+--  for it would be a second of it -- so an identity has a type of its own, and
+--  it answers the same two questions the task does.
+Which_One : Task_Id := Asked_About'Identity;
+
+put_line ("and the identity says the same: "
+          & Boolean'Image (Which_One'Terminated)
+          & " " & Boolean'Image (Which_One = Asked_About'Identity));
+
+--  How much room something takes, in slots -- which is this machine's unit.
+--  Ada counts bits for `'Size` and a host's bytes for `'Storage_Size`; a slot
+--  here holds a value of any type, so either count would be a number nothing
+--  in this machine means, and a plausible wrong answer is worse than an honest
+--  different one.
+put_line ("a tally sheet takes " & Trim (Morning'Size'Image)
+          & " slots, and a task gets "
+          & Trim (Asked_About'Storage_Size'Image));
+
+--  And here is the rule that makes tasks usable in a script at all: the
+--  declarative region that declared a task does not finish until the task has.
+--  A submission is that region too, so the script waits -- which is why the
+--  line after this one can read the total and see all of it.
+--
+--  One consequence worth knowing: `quit` ends the session, and a session that
+--  has ended is not waiting for anything. A task still running when `quit` is
+--  written does not finish.
+--
+--  A rendezvous that fails is the caller's business too. Ada re-raises at the
+--  point of the entry call what the accept body failed with and releases the
+--  caller -- it asked for a piece of work and is owed the answer, and being
+--  left queued for ever is not one. The exception is carried to it and raised
+--  where it resumes, because what is set aside cannot raise.
+--
+--  `abort T;` is the other way a task stops. It takes effect where the strand
+--  would next have run, which is the next switch point: this machine
+--  interleaves rather than pre-empts, so there is no moment between two
+--  instructions at which to intervene -- and none is needed, because a strand
+--  that is not running cannot be in the middle of anything. An aborted task
+--  does not run its handlers, which is Ada's rule too.
+
+--  `or terminate;` is how a server task ends. It serves callers for as long
+--  as there are any, and when the master it depends on has finished and
+--  nobody is left who could call it, it ends instead of waiting for a caller
+--  who will never come. Without it, the loop below would be a task waiting
+--  for something no task will do -- which is what this machine reports, and
+--  reporting it is not the same as a program that ends.
+--
+--  Nothing the task itself does decides this: the alternative is taken when
+--  every task that depends on the same master is either over or waiting at
+--  one of these. So two servers that could call each other end together and
+--  neither ends alone, and one task still sleeping keeps all of them alive.
+task Tally_Keeper is
+   entry Add (Amount : Integer);
+end Tally_Keeper;
+
+task body Tally_Keeper is
+   Running : Integer := 0;
+begin
+   loop
+      select
+         accept Add (Amount : Integer) do
+            Running := Running + Amount;
+            put_line ("the keeper has" & Running'Image);
+         end Add;
+      or
+         terminate;
+      end select;
+   end loop;
+end Tally_Keeper;
+
+Tally_Keeper.Add (2);
+Tally_Keeper.Add (40);

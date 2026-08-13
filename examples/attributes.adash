@@ -1,0 +1,112 @@
+--  Putting a computed value inside a sentence.
+--
+--  This is what 'Image was wanted for. Before it, a program could compute a
+--  number and could not say anything *about* it: the value went on a line of
+--  its own, under a fixed heading, because there was no way to join it to
+--  surrounding text.
+--
+--  The images are Ada's own. Integer'Image puts a space before a non-negative
+--  value -- which looks like a bug in the shell and is not -- and Float'Image
+--  writes the long form rather than a friendlier short one. A shorter form
+--  would drop digits the number was carrying, and either change would make
+--  this program print something different under a real Ada compiler.
+--
+--  'Image of a String is refused rather than returning the text. Ada 2022 does
+--  define it, and what it yields is the text in quotes with the non-graphic
+--  characters bracketed -- so returning the text would be the plausible wrong
+--  answer. See ROADMAP.md.
+
+Count : Integer := 3;
+Ratio : Float := 1.5;
+Ready : Boolean := True;
+Mark  : Character := '*';
+
+--  The space before 3 is Ada's, so the text either side is written to suit it.
+put_line ("found" & Count'Image & " of them");
+
+--  The same thing written as an interpolated string, which is Ada 2022's
+--  syntax for it and means exactly the concatenation above.
+put_line (f"found{Count'Image} of them");
+
+--  The braces want a String, so a number goes in through 'Image. That is Ada's
+--  rule, not a limitation here: f"found {Count} of them" is refused, and says
+--  so in terms of the `&` this rewrites to.
+put_line (f"ratio is{Ratio'Image}, ready: {Ready'Image}");
+
+--  A literal brace is escaped, since braces are the delimiters.
+put_line (f"in braces: \{{Count'Image}\}");
+
+put_line ("ratio is" & Ratio'Image);
+put_line ("ready: " & Ready'Image);
+put_line ("marker is " & Mark'Image);
+
+--  The prefix is an expression to evaluate, not just a variable to read.
+function Doubled (N : Integer) return Integer is
+begin
+   return N * 2;
+end Doubled;
+
+put_line ("doubled:" & Doubled (Count)'Image);
+
+--  Which makes a subprogram able to describe what it was given.
+procedure Report (Label : String; Value : Integer) is
+begin
+   put_line (Label & " =" & Value'Image);
+end Report;
+
+Report ("width", 80);
+Report ("height", 24);
+
+--  And an out parameter can be described from inside the body that fills it.
+procedure Measure (Total : out Integer) is
+begin
+   Total := 0;
+
+   for Step in 1 .. 4 loop
+      Total := Total + Step;
+   end loop;
+
+   put_line ("measured" & Total'Image);
+end Measure;
+
+Sum : Integer := 0;
+Measure (Sum);
+put_line ("caller sees" & Sum'Image);
+
+--  And back the other way. `Integer'Value` reads a number out of text, which is
+--  what a program that has just read a line needs before it can do anything but
+--  compare it: reading gives you a String, and arithmetic does not.
+Counted : Integer := Integer'Value ("42");
+
+put_line (f"read back{Counted'Image} and one more is{Integer'Image (Counted + 1)}");
+
+--  `Integer'Image (N)` is how Ada has always written it, and `N'Image` is the
+--  same thing said the other way round. Both are here because refusing one
+--  while accepting the other would be accepting half of a thing.
+Same : Boolean := Integer'Image (Counted) = Counted'Image;
+
+--  Text that does not hold a number raises, as it does in Ada. A shell that
+--  answered zero would be inventing a number nobody wrote.
+
+--  Where a value sits in its type, and how to get back from there.
+--
+--  `'Pos` and `'Val` are the only way to reach a character code. Without them
+--  a script could not write a tab outside an interpolated literal, could not
+--  compare against a byte value, and could not step from one letter to the
+--  next.
+put_line ("A is at " & Trim (Character'Pos ('A')'Image));
+put_line ("and 66 is " & Character'Val (66));
+
+--  `'Succ` and `'Pred` are a position, an addition, and a position back --
+--  which is what Ada defines them as, so they cannot disagree with the two
+--  above. Going past the last value raises rather than wrapping.
+put_line ("after a comes " & Character'Succ ('a'));
+
+--  An Integer is its own position, so both directions are the value itself.
+put_line ("7 is at " & Trim (Integer'Pos (7)'Image));
+
+--  A type's own bounds, which take no argument. What a script guarding an
+--  addition or clamping a value has to be able to name.
+put_line ("the largest Integer is " & Trim (Integer'Last'Image));
+put_line ("the last Character is at "
+          & Trim (Character'Pos (Character'Last)'Image));

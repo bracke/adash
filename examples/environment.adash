@@ -1,0 +1,43 @@
+--  Reading a value out of the session.
+--
+--  Every other predefined entity denotes a type, yields a literal or writes
+--  output. Env_Value is the one that hands the program something back, and
+--  until it existed a program could put things into the session and never take
+--  one out: `set` wrote a variable that the program which wrote it could not
+--  then read.
+--
+--  What it returns is an ordinary String. It concatenates, it compares, and it
+--  can be passed straight to a command -- `cd (Env_Value ("HOME"))` is the
+--  reason this exists, and is not written here only because a path differs
+--  from one machine to the next and this file is checked against a fixed one.
+
+set ("EXAMPLE_STAGE=build");
+set ("EXAMPLE_TARGET=release");
+
+Stage : String := Env_Value ("EXAMPLE_STAGE");
+
+put_line (f"stage is {Stage}");
+
+--  Composed with other text, and with a second read, in one expression.
+put_line ("plan: " & Stage & "/" & Env_Value ("EXAMPLE_TARGET"));
+
+--  A name that was never set reads as the empty string rather than failing.
+--  A program asking whether something is set has to be able to ask.
+if Env_Value ("EXAMPLE_NOT_SET") = "" then
+   put_line ("nothing was set for that one");
+end if;
+
+--  Which makes a default expressible, in the language rather than by a
+--  convention of the shell.
+function Setting (Name : String; Fallback : String) return String is
+   Found : String := Env_Value (Name);
+begin
+   if Found = "" then
+      return Fallback;
+   end if;
+
+   return Found;
+end Setting;
+
+put_line (Setting ("EXAMPLE_STAGE", "none"));
+put_line (Setting ("EXAMPLE_MISSING", "none"));

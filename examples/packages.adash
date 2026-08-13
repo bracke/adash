@@ -1,0 +1,91 @@
+--  Packages and generics: naming a group of declarations, and writing one
+--  body for several types.
+--
+--  A submission is a unit here, and until packages existed the only way to
+--  group declarations was to keep them in a file and `source` it -- which
+--  shares the text and not the name. Everything a script declared landed in
+--  one namespace, and two scripts that both wanted a `Limit` could not be used
+--  together.
+
+--  A package names a group. What it holds is written in its specification.
+package Report is
+   type Verdict is (Worked, Failed);
+
+   Prefix : String := ">> ";
+
+   function Say (What : Verdict) return String;
+   function Framed (Text : String) return String;
+end Report;
+
+--  The bodies of what the specification promised go in the package body. Ada
+--  puts them there and so does this: a subset that let a body stand in the
+--  specification would accept what Ada rejects.
+package body Report is
+   function Say (What : Verdict) return String is
+   begin
+      case What is
+         when Worked => return "it worked";
+         when Failed => return "it failed";
+      end case;
+   end Say;
+
+   --  A name inside a package means that package's member first, so `Prefix`
+   --  here is `Report.Prefix` without having to say so.
+   function Framed (Text : String) return String is
+   begin
+      return Prefix & Text;
+   end Framed;
+end Report;
+
+--  `P.X` reaches a member. What a package holds is declared beside it under a
+--  dotted name, so this is one name with a dot in it rather than a reach into
+--  a value -- which is why a type mark may carry dots too.
+Outcome : Report.Verdict := Report.Worked;
+
+put_line (Report.Framed (Report.Say (Outcome)));
+
+--  `use` drops the prefix, for as long as the enclosing region lasts.
+use Report;
+
+put_line (Framed (Say (Failed)));
+
+--  A generic is one body for several types. The formals say what may vary;
+--  each instantiation binds them and gets a subprogram of its own.
+generic
+   type Element is private;
+procedure Swap (Left : in out Element; Right : in out Element);
+
+--  The generic's body is a unit of its own, as Ada writes it. It is not
+--  analysed where it stands: what every name in it means depends on what an
+--  instantiation binds, and there is nothing to conclude until one does.
+procedure Swap (Left : in out Element; Right : in out Element) is
+   Held : Element := Left;
+begin
+   Left  := Right;
+   Right := Held;
+end Swap;
+
+procedure Swap_Numbers is new Swap (Integer);
+procedure Swap_Words   is new Swap (String);
+
+Low  : Integer := 1;
+High : Integer := 2;
+
+Swap_Numbers (Low, High);
+put_line ("swapped to " & Trim (Low'Image) & " " & Trim (High'Image));
+
+Before : String := "second";
+After  : String := "first";
+
+Swap_Words (Before, After);
+put_line ("and to " & Before & " " & After);
+
+--  Each instantiation is its own subprogram. The copy the analyser makes has
+--  nodes of its own, because conclusions are recorded per node and two
+--  instantiations sharing them would overwrite each other's answers about
+--  every name in the generic.
+--
+--  What is deliberately not here: a generic package, and a generic formal that
+--  is anything but a type. A formal value or a formal subprogram would each
+--  need a rule of its own about what an instantiation may supply, and a type
+--  is what the useful generics in a shell take.

@@ -1,0 +1,834 @@
+with Ada.Characters.Latin_1;
+with Ada.Text_IO;
+
+with Adash.Commands;
+with Adash.Configuration;
+with Adash.Configuration.Files;
+with Adash.Diagnostics;
+with Adash.Engine;
+with Adash.Errors;
+with Adash.Execution;
+with Adash.Execution.Signals;
+with Adash.Interactive.Editing;
+with Adash.Interactive.History;
+with Adash.Interactive.Notifications;
+with Adash.Interactive.Prompt;
+with Adash.Persistence;
+with Ada.Strings.Unbounded;
+
+with Hostkit.Locks;
+
+with Adash.Persistence.History;
+with Adash.Scripting.Startup;
+with Adash.Source;
+with Adash.Terminal;
+
+package body Adash.Interactive.Session is
+
+   package Msg renames Adash.Messages;
+
+   --  What a typed line is called in a diagnostic. Not prose: it is an origin
+   --  name, which the diagnostic renderer prints as a location rather than as
+   --  a sentence, in the same position a file path would occupy.
+   Interactive_Origin : constant String := "-";
+
+   ---------
+   -- Run --
+   ---------
+
+   function Run (Catalog : in out Adash.Messages.Rendering.Catalog)
+                 return Natural
+   is
+      --  Aliased because the runner `source` uses points at them: a sourced
+      --  file runs in this session, and its diagnostics are this session's.
+      Shell   : aliased Adash.Engine.Session;
+      Recall  : Adash.Interactive.History.Log;
+      Waiting : Adash.Interactive.Notifications.Queue;
+
+      Report  : aliased Adash.Diagnostics.List;
+
+      --  The chain that sees a file sourcing itself. One per session rather
+      --  than one per submission: a cycle is about the files, and the chain is
+      --  empty again by the time a submission ends.
+      Loading : aliased Adash.Scripting.Loading;
+      Startup : Adash.Scripting.Startup.Report_Summary;
+
+      Last_Failed : Boolean := False;
+
+      --  What has been typed of a construct that is not finished yet, empty
+      --  between submissions. A user types `if C then` and goes on; until this
+      --  existed each line was a submission of its own, so the two halves of
+      --  one construct were two programs and neither was what was meant.
+      Pending : Ada.Strings.Unbounded.Unbounded_String;
+
+      Chosen : Adash.Configuration.Settings := Adash.Configuration.Defaults;
+
+      --  Read once, at the start, and held. Asking the settings on every line
+      --  would make a configuration change take effect halfway through a
+      --  session, which is a shell that behaves differently at the top and the
+      --  bottom of one screen.
+      Recording : Boolean := True;
+
+      --  Where this session's lines are written as they are typed. The shared
+      --  file when history is per-user, and a file of this session's own when
+      --  it is not -- see Merge_Session_History for why that is worth doing.
+      Writing_To : Ada.Strings.Unbounded.Unbounded_String;
+
+      Per_Session : Boolean := False;
+
+      --  Held for as long as this session runs, so that another shell sweeping
+      --  the data store can tell a live session's file from an abandoned one.
+      Owned : Hostkit.Locks.Lock;
+      Editing_Allowed : Boolean := True;
+      Recall_Limit : Positive := 1_000;
+
+      --  Said once per session, not once per line.
+      Reported_Write_Failure : Boolean := False;
+
+      Stdout_Is_Terminal : constant Boolean :=
+        Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Output);
+      Stderr_Is_Terminal : constant Boolean :=
+        Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Error);
+
+      function Prompt_Text (Kind : Adash.Interactive.Prompt.Prompt_Kind)
+                            return String;
+      function Prompt_Width (Kind : Adash.Interactive.Prompt.Prompt_Kind)
+                             return Natural;
+      procedure Render_Diagnostics;
+      procedure Deliver_Notices;
+
+      --  Build the prompt twice: once decorated for the screen, once bare to
+      --  be measured. Measuring the decorated form would count escape bytes as
+      --  cells and put the cursor in the wrong place on every styled prompt.
+      function Prompt_Body
+        (Kind    : Adash.Interactive.Prompt.Prompt_Kind;
+         Decorate : Boolean) return String;
+
+      -----------------
+      -- Prompt_Body --
+      -----------------
+
+      function Prompt_Body
+        (Kind    : Adash.Interactive.Prompt.Prompt_Kind;
+         Decorate : Boolean) return String
+      is
+         Model : constant Adash.Interactive.Prompt.Model :=
+           Adash.Interactive.Prompt.Build (Shell, Kind, Last_Failed);
+
+         Result : String (1 .. 512);
+         Length : Natural := 0;
+
+         procedure Append (Item : String);
+
+         procedure Append (Item : String) is
+            Room : constant Natural :=
+              Natural'Min (Item'Length, Result'Length - Length);
+         begin
+            if Room > 0 then
+               Result (Length + 1 .. Length + Room) :=
+                 Item (Item'First .. Item'First + Room - 1);
+               Length := Length + Room;
+            end if;
+         end Append;
+
+      begin
+         for Index in 1 .. Model.Count loop
+            declare
+               Part : constant Adash.Interactive.Prompt.Element :=
+                 Model.Elements (Index);
+
+               --  An element whose text is a message comes from the catalog;
+               --  everything else the prompt knows for itself.
+               Plain : constant String :=
+                 (case Part.Kind is
+                     when Adash.Interactive.Prompt.Element_Message
+                        | Adash.Interactive.Prompt.Element_Status =>
+                        Catalog.Text (Part.Message),
+                     when others =>
+                        Adash.Interactive.Prompt.Text_Of (Part));
+            begin
+               if Plain'Length > 0 then
+                  if Decorate then
+                     Append (Adash.Terminal.Styled
+                               (Plain, Part.Role, Stdout_Is_Terminal));
+                  else
+                     Append (Plain);
+                  end if;
+
+                  --  One blank between parts, so the line the user types does
+                  --  not begin against the prompt.
+                  Append (" ");
+               end if;
+            end;
+         end loop;
+
+         return Result (1 .. Length);
+      end Prompt_Body;
+
+      -----------------
+      -- Prompt_Text --
+      -----------------
+
+      function Prompt_Text (Kind : Adash.Interactive.Prompt.Prompt_Kind)
+                            return String
+      is
+      begin
+         return Prompt_Body (Kind, Decorate => True);
+      end Prompt_Text;
+
+      ------------------
+      -- Prompt_Width --
+      ------------------
+
+      function Prompt_Width (Kind : Adash.Interactive.Prompt.Prompt_Kind)
+                             return Natural
+      is
+         Plain : constant String := Prompt_Body (Kind, Decorate => False);
+         Count : Natural := 0;
+      begin
+         --  Characters, not bytes: a prompt with a non-ASCII character in it
+         --  occupies fewer cells than it has bytes.
+         for Index in Plain'Range loop
+            if Character'Pos (Plain (Index)) not in 16#80# .. 16#BF# then
+               Count := Count + 1;
+            end if;
+         end loop;
+
+         return Count;
+      end Prompt_Width;
+
+      -------------------------
+      -- Render_Diagnostics --
+      -------------------------
+
+      procedure Render_Diagnostics is
+         use Ada.Text_IO;
+      begin
+         Report.Sort;
+
+         for Index in 1 .. Report.Count loop
+            declare
+               Item : constant Adash.Diagnostics.Diagnostic :=
+                 Report.Element (Index);
+               Role : constant Adash.Terminal.Style_Role :=
+                 (case Adash.Diagnostics.Level (Item) is
+                     when Adash.Diagnostics.Severity_Note    =>
+                        Adash.Terminal.Role_Muted,
+                     when Adash.Diagnostics.Severity_Warning =>
+                        Adash.Terminal.Role_Warning,
+                     when others                             =>
+                        Adash.Terminal.Role_Error);
+            begin
+               Put_Line
+                 (Standard_Error,
+                  Adash.Terminal.Styled
+                    (Catalog.Text (Adash.Diagnostics.Message (Item),
+                                   Adash.Diagnostics.Arguments (Item),
+                                   Adash.Diagnostics.Detail (Item),
+                                   Adash.Diagnostics.Detail_Placeholder (Item),
+                                   Adash.Diagnostics.Detail_Arguments (Item)),
+                     Role, Stderr_Is_Terminal));
+            end;
+         end loop;
+
+         --  Cleared between submissions, unlike the script path: a line typed
+         --  now must not reprint the complaint about the line before it.
+         Report.Clear;
+      end Render_Diagnostics;
+
+      ------------------------------------------------------------------
+      --  Command output, rendered as the command produces it.
+      --
+      --  Not once the submission has finished, which is what it used to be. A
+      --  program writes to standard output as the machine runs it, so a line
+      --  held back arrives after text that was written later:
+      --  `pwd; put_line ("after");` printed `after` first.
+      ------------------------------------------------------------------
+      type Console is limited new Adash.Engine.Output_Sink with null record;
+
+      overriding procedure Write
+        (Sink : in out Console; Item : Adash.Commands.Line);
+
+      overriding procedure Write
+        (Sink : in out Console; Item : Adash.Commands.Line)
+      is
+         pragma Unreferenced (Sink);
+         use Ada.Text_IO;
+      begin
+         Put_Line
+           (Standard_Output,
+            Adash.Terminal.Styled
+              (Catalog.Text (Adash.Commands.Message (Item),
+                             Adash.Commands.Arguments (Item),
+                             Adash.Commands.Detail (Item),
+                             Adash.Commands.Detail_Placeholder (Item)),
+               Adash.Terminal.Role_Plain, Stdout_Is_Terminal));
+      end Write;
+
+      Output_To : aliased Console;
+
+      --  What `history` reports. The log is the session's own; this is the
+      --  shape the command layer can see it through.
+      type Typed_Lines is limited new Adash.Commands.History_Source
+        with null record;
+
+      overriding function Recorded (Source : Typed_Lines) return Natural;
+
+      overriding function Recorded_Line
+        (Source : Typed_Lines; Index : Positive) return String;
+
+      overriding function Recorded (Source : Typed_Lines) return Natural is
+         pragma Unreferenced (Source);
+      begin
+         return Adash.Interactive.History.Count (Recall);
+      end Recorded;
+
+      overriding function Recorded_Line
+        (Source : Typed_Lines; Index : Positive) return String
+      is
+         pragma Unreferenced (Source);
+      begin
+         return Adash.Interactive.History.Entry_At (Recall, Index);
+      end Recorded_Line;
+
+      Reporting : aliased Typed_Lines;
+
+      --  What `source` runs a script with: this session, this session's
+      --  diagnostics, and the one loading chain that can see a cycle.
+      Sourcing : aliased Adash.Scripting.Runner
+        (Session => Shell'Unchecked_Access,
+         Context => Loading'Unchecked_Access,
+         Report  => Report'Unchecked_Access,
+         Output  => Output_To'Unchecked_Access);
+
+      --  Declared ahead of the sweep that calls it, which is written first
+      --  because it is the one the session start reaches.
+      procedure Merge_History_File (Mine : String);
+
+      ---------------------------------
+      -- Sweep_Abandoned_History --
+      ---------------------------------
+
+      --  Fold the history of sessions that died before merging into the shared
+      --  file, and remove what they left.
+      --
+      --  A file is abandoned when its ownership lock can be taken: the session
+      --  that made it holds that lock from start to finish, so a lock that is
+      --  free means nobody is there. Trying the lock rather than reasoning from
+      --  the process id in the name matters -- ids are reused, and a sweep that
+      --  believed the number would eventually take a running shell's history.
+      procedure Sweep_Abandoned_History is
+         Files : Adash.Persistence.History.Path_List;
+         Count : Natural;
+      begin
+         Adash.Persistence.History.Abandoned_Session_Files (Files, Count);
+
+         for Index in 1 .. Count loop
+            declare
+               Left : constant String :=
+                 Ada.Strings.Unbounded.To_String (Files (Index));
+
+               Claim : Hostkit.Locks.Lock;
+
+               Taken : constant Hostkit.Locks.Lock_Outcome :=
+                 Hostkit.Locks.Acquire
+                   (Adash.Persistence.History.Owner_Lock_Path (Left),
+                    Hostkit.Locks.Lock_Exclusive, Wait => False, Item => Claim);
+
+               use type Hostkit.Locks.Lock_Outcome;
+            begin
+               --  Lock_Busy means that session is still running. Anything else
+               --  that is not Lock_Ok means this host cannot tell, and a sweep
+               --  that guessed would take a live session's history: left alone
+               --  is the answer for both.
+               if Taken = Hostkit.Locks.Lock_Ok then
+                  Merge_History_File (Left);
+                  Hostkit.Locks.Release (Claim);
+
+                  declare
+                     Gone_Owner : Adash.Persistence.Outcome;
+                  begin
+                     Adash.Persistence.Remove
+                       (Adash.Persistence.History.Owner_Lock_Path (Left),
+                        Gone_Owner);
+                  end;
+               end if;
+            end;
+         end loop;
+      end Sweep_Abandoned_History;
+
+      ---------------------------
+      -- Merge_History_File --
+      ---------------------------
+
+      --  Append one history file's entries to the shared one and remove it.
+      procedure Merge_History_File (Mine : String) is
+         Stored : Adash.Persistence.History.Log;
+         Result : Adash.Persistence.Outcome;
+      begin
+         Adash.Persistence.History.Load
+           (Stored, Result, Recall_Limit, From => Mine);
+
+         if Adash.Persistence.Succeeded (Result) then
+            for Index in 1 .. Adash.Persistence.History.Count (Stored) loop
+               declare
+                  Written : Adash.Persistence.Outcome;
+               begin
+                  Adash.Persistence.History.Append
+                    (Adash.Persistence.History.Entry_At (Stored, Index),
+                     Written, Adash.Persistence.History.Path);
+               end;
+            end loop;
+         end if;
+
+         --  Removed whether or not the merge worked. A file left after a failed
+         --  merge would be merged again by nothing and read by nothing, and
+         --  keeping it would grow the data store a session at a time.
+         declare
+            --  Two outcomes, neither read. Removal is best effort: a file that
+            --  will not go is untidy and not worth a diagnostic.
+            Gone_File : Adash.Persistence.Outcome;
+            Gone_Lock : Adash.Persistence.Outcome;
+         begin
+            Adash.Persistence.Remove (Mine, Gone_File);
+            Adash.Persistence.Remove (Mine & ".lock", Gone_Lock);
+         end;
+      end Merge_History_File;
+
+      -----------------------------
+      -- Merge_Session_History --
+      -----------------------------
+
+      --  Fold this session's own history file into the shared one and remove
+      --  it.
+      --
+      --  Done once, at the end, rather than line by line during the session.
+      --  Two shells appending to one file a line at a time leave their commands
+      --  shuffled together there, which is not what either user did and not
+      --  something either can read back afterwards. Written this way the shared
+      --  file holds each session's run in one piece.
+      --
+      --  A session that dies before reaching here leaves its file behind, and
+      --  the next shell to start sweeps it up.
+      procedure Merge_Session_History is
+         Mine : constant String :=
+           Ada.Strings.Unbounded.To_String (Writing_To);
+      begin
+         if not Per_Session or else Mine = ""
+           or else Mine = Adash.Persistence.History.Path
+         then
+            --  Nothing of its own to merge. The second test matters on a host
+            --  that would not say which process this is: Session_Path falls
+            --  back to the shared file there, and merging a file into itself
+            --  would double it.
+            return;
+         end if;
+
+         Merge_History_File (Mine);
+
+         --  Released after the merge, not before: until the file is gone this
+         --  session still owns the name, and a sweep in another shell must go
+         --  on seeing it as live.
+         Hostkit.Locks.Release (Owned);
+
+         declare
+            Gone_Owner : Adash.Persistence.Outcome;
+         begin
+            Adash.Persistence.Remove
+              (Adash.Persistence.History.Owner_Lock_Path (Mine), Gone_Owner);
+         end;
+      end Merge_Session_History;
+
+      ----------------------
+      -- Deliver_Notices --
+      ----------------------
+
+      procedure Deliver_Notices is
+         use Ada.Text_IO;
+         Item : Adash.Interactive.Notifications.Notice;
+      begin
+         --  The quiescent point: a submission has finished and no line is
+         --  being edited, so nothing on screen is half-written.
+         while Waiting.Ready (Editing => False)
+           and then Waiting.Take (Item)
+         loop
+            Put_Line
+              (Standard_Error,
+               Adash.Terminal.Styled
+                 (Catalog.Text (Item.Message,
+                                Item.Arguments (1 .. Item.Count)),
+                  Item.Role, Stderr_Is_Terminal));
+         end loop;
+      end Deliver_Notices;
+
+      Typed : String (1 .. Adash.Interactive.Editing.Max_Line);
+      Last  : Natural;
+
+      use type Adash.Persistence.Outcome;
+
+   begin
+      Adash.Engine.Open (Shell);
+      Adash.Engine.Use_Script_Runner (Shell, Sourcing'Unchecked_Access);
+      Adash.Engine.Use_History (Shell, Reporting'Unchecked_Access);
+
+      --  The shell takes its signal dispositions before it runs anything.
+      --
+      --  Adash.Execution.Signals has existed since Phase 11 and nothing called
+      --  it, so until now the shell ran with the host's defaults: Ctrl-C killed
+      --  it outright, and a truncated pipeline would have taken it down with
+      --  SIGPIPE. An interactive session is exactly where that matters.
+      --
+      --  A host that will not give them is reported and the session continues.
+      --  Refusing to start would leave the user without a shell over something
+      --  they can neither see nor fix.
+      declare
+         Taken : constant Adash.Errors.Error_Info :=
+           Adash.Execution.Signals.Install;
+      begin
+         if Adash.Errors.Is_Failure (Taken) then
+            Report.Emit
+              (Adash.Diagnostics.From_Error
+                 (Taken,
+                  Level     => Adash.Diagnostics.Severity_Warning,
+                  Of_Kind   => Adash.Diagnostics.Category_Execution,
+                  Raised_By => Adash.Diagnostics.Owner_Execution));
+         end if;
+      end;
+
+      --  Configuration first, before anything reads a setting. Its diagnostics
+      --  go out with the startup files' rather than separately: a user whose
+      --  file is wrong wants both complaints at the same moment, not one now
+      --  and one when the shell next does something that depends on it.
+      declare
+         Read_Result : Adash.Persistence.Outcome;
+      begin
+         Adash.Configuration.Files.Load (Chosen, Read_Result, Report);
+      end;
+
+      Adash.Engine.Apply_Settings (Shell, Chosen);
+
+      Recording := Adash.Configuration.Boolean_Value
+        (Chosen, Adash.Configuration.History_Enabled_Setting);
+      Editing_Allowed := Adash.Configuration.Boolean_Value
+        (Chosen, Adash.Configuration.Editing_Setting);
+      Recall_Limit := Positive
+        (Adash.Configuration.Integer_Value
+           (Chosen, Adash.Configuration.History_Limit_Setting));
+      Per_Session := Adash.Configuration.Boolean_Value
+        (Chosen, Adash.Configuration.History_Per_Session_Setting);
+
+      Writing_To := Ada.Strings.Unbounded.To_Unbounded_String
+        (if Per_Session then Adash.Persistence.History.Session_Path
+         else Adash.Persistence.History.Path);
+
+      if Per_Session then
+         declare
+            Mine : constant String :=
+              Ada.Strings.Unbounded.To_String (Writing_To);
+
+            --  The store may not exist yet -- a first session on a new machine
+            --  -- and a lock does not create it: locking is not writing, and
+            --  the file being locked may never be written. Without this the
+            --  claim below fails on a fresh store, every time.
+            Ready : constant Boolean :=
+              Adash.Persistence.Ensure_Container (Mine);
+
+            Taken : constant Hostkit.Locks.Lock_Outcome :=
+              (if Ready
+               then Hostkit.Locks.Acquire
+                      (Adash.Persistence.History.Owner_Lock_Path (Mine),
+                       Hostkit.Locks.Lock_Exclusive, Wait => False,
+                       Item => Owned)
+               else Hostkit.Locks.Lock_Error);
+
+            use type Hostkit.Locks.Lock_Outcome;
+         begin
+            --  Only an actually held lock will do. Anything else -- another
+            --  live session on a reused process id, a store that will not take
+            --  locks, a directory that could not be made -- leaves this session
+            --  unable to say "this file is mine", and a session file nobody
+            --  claims is one the next sweep takes away while it is still being
+            --  written. The shared file is the safe answer.
+            if Taken /= Hostkit.Locks.Lock_Ok then
+               Per_Session := False;
+               Writing_To := Ada.Strings.Unbounded.To_Unbounded_String
+                 (Adash.Persistence.History.Path);
+            end if;
+         end;
+      end if;
+
+      if Per_Session then
+         Sweep_Abandoned_History;
+      end if;
+
+      Adash.Interactive.History.Set_Limit (Recall, Recall_Limit);
+
+      --  Whatever the colour policy says, before the first prompt is drawn.
+      --  The words come from the schema, which is what validated them, so an
+      --  unrecognised one cannot reach here -- and the fallback is Auto rather
+      --  than an exception, because refusing to start over a colour setting
+      --  would be absurd.
+      declare
+         Word : constant String :=
+           Adash.Configuration.Choice_Value
+             (Chosen, Adash.Configuration.Color_Setting);
+      begin
+         if Word = "always" then
+            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Always);
+         elsif Word = "never" then
+            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Never);
+         else
+            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Auto);
+         end if;
+      end;
+
+      --  Then what was typed in earlier sessions. A shell whose history began
+      --  when it started would be one where recall is useful only after you
+      --  have already typed the thing you wanted to recall.
+      if Recording then
+         declare
+            Stored : Adash.Persistence.History.Log;
+            Result : Adash.Persistence.Outcome;
+         begin
+            Adash.Persistence.History.Load (Stored, Result, Recall_Limit);
+
+            if Result = Adash.Persistence.Store_Ok then
+               for Index in 1 .. Adash.Persistence.History.Count (Stored) loop
+                  Adash.Interactive.History.Record_Line
+                    (Recall,
+                     Adash.Persistence.History.Entry_At (Stored, Index));
+               end loop;
+
+               if Adash.Persistence.History.Skipped (Stored) > 0 then
+                  --  One skipped line is a session that ended badly; hundreds
+                  --  is a file that has been overwritten by something else,
+                  --  and the user would want to know either way.
+                  Waiting.Post
+                    (Adash.Interactive.Notifications.Session_Change,
+                     Msg.Msg_History_Damaged_Lines,
+                     [Msg.Named ("path", Adash.Persistence.History.Path),
+                      Msg.Named
+                        ("detail",
+                         Natural'Image
+                           (Adash.Persistence.History.Skipped (Stored)))],
+                     Adash.Terminal.Role_Warning);
+               end if;
+
+            elsif Result /= Adash.Persistence.Store_Absent
+              and then Result /= Adash.Persistence.Store_Unavailable
+            then
+               Waiting.Post
+                 (Adash.Interactive.Notifications.Session_Change,
+                  Msg.Msg_History_Unreadable,
+                  [1 => Msg.Named ("path", Adash.Persistence.History.Path)],
+                  Adash.Terminal.Role_Warning);
+            end if;
+         end;
+      end if;
+
+      --  Startup runs before the first prompt, and its diagnostics are shown
+      --  before it too: a user whose configuration is broken needs to know at
+      --  the moment it failed, not the first time something behaves oddly.
+      Adash.Scripting.Startup.Run_All
+        (Shell, Interactive => True, Summary => Startup, Report => Report,
+         On_Output => Output_To'Unchecked_Access);
+      Render_Diagnostics;
+
+      --  Said once, at the start, rather than discovered when the arrow keys
+      --  start printing letters. Only to someone actually at a terminal:
+      --  input from a pipe was never going to be edited, and saying so there
+      --  puts a line into output that a script has to filter out.
+      if Editing_Allowed
+        and then Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Input)
+        and then not Adash.Interactive.Editing.Supports_Editing
+      then
+         Waiting.Post
+           (Adash.Interactive.Notifications.Session_Change,
+            Msg.Msg_Interactive_Line_Editing_Unavailable,
+            Role => Adash.Terminal.Role_Muted);
+         Deliver_Notices;
+      end if;
+
+      loop
+         declare
+            --  What has been typed so far of a construct that is not finished.
+            --  A user writes `if C then` and means to go on; the shell reads a
+            --  line at a time and has to hold what it has until the grammar
+            --  says the program is whole.
+            Started : constant Boolean :=
+              Ada.Strings.Unbounded.Length (Pending) > 0;
+
+            Asking : constant Adash.Interactive.Prompt.Prompt_Kind :=
+              (if Started then Adash.Interactive.Prompt.Continuation
+               else Adash.Interactive.Prompt.Primary);
+
+            Outcome : constant Adash.Interactive.Editing.Read_Outcome :=
+              Adash.Interactive.Editing.Read_Line
+                (Prompt       => Prompt_Text (Asking),
+                 Prompt_Width => Prompt_Width (Asking),
+                 Recall       => Recall,
+                 Allow_Editing => Editing_Allowed,
+                 Into         => Typed,
+                 Last         => Last);
+
+            --  The whole of what has been typed, which is what is judged,
+            --  recorded and submitted. A newline between lines rather than a
+            --  space: it keeps a comment from swallowing what follows it, and
+            --  it is what the user wrote.
+            Line : constant String :=
+              (if Started
+               then Ada.Strings.Unbounded.To_String (Pending) & Ada.Characters.Latin_1.LF
+                    & Typed (Typed'First .. Last)
+               else Typed (Typed'First .. Last));
+
+            use type Adash.Interactive.Editing.Read_Outcome;
+         begin
+            if Outcome = Adash.Interactive.Editing.Input_Ended then
+               --  Ended part-way through something. Submitted rather than
+               --  dropped, so the user is told the construct was unfinished
+               --  instead of watching it disappear.
+               if Started then
+                  declare
+                     Answer : Adash.Engine.Result;
+                  begin
+                     Adash.Engine.Submit
+                       (Shell,
+                        Text    => Line,
+                        Name    => Interactive_Origin,
+                        Kind    => Adash.Source.Origin_Interactive,
+                        Outcome => Answer,
+                        Report  => Report,
+                        On_Output => Output_To'Unchecked_Access);
+
+                     Render_Diagnostics;
+                  end;
+               end if;
+
+               exit;
+            end if;
+
+            if Outcome = Adash.Interactive.Editing.Read_Failed then
+               --  The terminal stopped answering. Ending is the honest
+               --  response: a loop that kept prompting into a stream it cannot
+               --  read would spin without the user being able to stop it.
+               Waiting.Post
+                 (Adash.Interactive.Notifications.Session_Change,
+                  Msg.Msg_Interactive_Read_Failed,
+                  Role => Adash.Terminal.Role_Error);
+               Deliver_Notices;
+               return 2;
+            end if;
+
+            --  Held back rather than submitted: the grammar says this could
+            --  still be completed, so nothing is recorded, nothing is
+            --  analysed, and the next line joins this one.
+            if Outcome = Adash.Interactive.Editing.Line_Read
+              and then Adash.Engine.Wants_More (Line, Interactive_Origin)
+            then
+               Pending := Ada.Strings.Unbounded.To_Unbounded_String (Line);
+               Deliver_Notices;
+               goto Continue;
+            end if;
+
+            --  Whole again, however many lines it took.
+            Pending := Ada.Strings.Unbounded.Null_Unbounded_String;
+
+            --  Recorded whether it ran or not, and whether it was abandoned or
+            --  not. A user recalling the last line usually wants the one they
+            --  got wrong -- and recalls the whole of it, because half a
+            --  construct is not something anybody can edit into shape.
+            declare
+               Before : constant Natural :=
+                 Adash.Interactive.History.Count (Recall);
+            begin
+               Adash.Interactive.History.Record_Line (Recall, Line);
+
+               --  Written only when the in-memory log actually took it, so the
+               --  file gets the same treatment for blanks and consecutive
+               --  duplicates as recall does. Two policies would drift, and the
+               --  one on disk is the one nobody checks.
+               if Recording
+                 and then Adash.Interactive.History.Count (Recall) > Before
+               then
+                  declare
+                     Result : Adash.Persistence.Outcome;
+                  begin
+                     Adash.Persistence.History.Append
+                       (Line, Result,
+                        Ada.Strings.Unbounded.To_String (Writing_To));
+
+                     if Result /= Adash.Persistence.Store_Ok
+                       and then Result /= Adash.Persistence.Store_Unavailable
+                       and then not Reported_Write_Failure
+                     then
+                        --  Said once per session. A shell that complained on
+                        --  every line about a read-only home directory would be
+                        --  unusable in exactly the situation where the user has
+                        --  the fewest options.
+                        Reported_Write_Failure := True;
+                        Waiting.Post
+                          (Adash.Interactive.Notifications.Session_Change,
+                           Msg.Msg_History_Not_Written,
+                           [1 => Msg.Named
+                                   ("path", Adash.Persistence.History.Path)],
+                           Adash.Terminal.Role_Warning);
+                     end if;
+                  end;
+               end if;
+            end;
+
+            if Outcome = Adash.Interactive.Editing.Line_Read then
+               declare
+                  Answer : Adash.Engine.Result;
+                  use type Adash.Engine.Submission_Kind;
+               begin
+                  --  Unchecked_Access, and safe for the same reason the
+                  --  engine's command bridge is: the sink is used only for the
+                  --  duration of this call.
+                  Adash.Engine.Submit
+                    (Shell,
+                     Text    => Line,
+                     Name    => Interactive_Origin,
+                     Kind    => Adash.Source.Origin_Interactive,
+                     Outcome => Answer,
+                     Report  => Report,
+                     On_Output => Output_To'Unchecked_Access);
+
+                  Render_Diagnostics;
+
+                  --  Acknowledged once the submission has ended, whether it
+                  --  ended because of the interrupt or in spite of it. An
+                  --  interrupt that stays outstanding would stop the next line
+                  --  the moment it started, and the user would have no way to
+                  --  get a working prompt back.
+                  Adash.Execution.Signals.Acknowledge_Interrupt;
+                  Adash.Engine.Clear_Cancellation (Shell);
+
+                  Last_Failed :=
+                    Answer.Kind = Adash.Engine.Not_Understood
+                      or else (Answer.Ran
+                               and then not Adash.Execution.Succeeded
+                                              (Answer.Status));
+
+                  exit when Adash.Engine.Exit_Requested (Shell);
+               end;
+            end if;
+
+            Deliver_Notices;
+
+            <<Continue>>
+         end;
+      end loop;
+
+      Merge_Session_History;
+
+      if Adash.Engine.Exit_Requested (Shell) then
+         return Adash.Execution.Numeric (Adash.Engine.Exit_Status (Shell));
+      end if;
+
+      --  Ended by end of input rather than by asking. That is a successful
+      --  session, not a failed one.
+      return 0;
+   end Run;
+
+end Adash.Interactive.Session;

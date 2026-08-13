@@ -1,0 +1,23 @@
+# Alire and GPRbuild working directories.
+/alire/
+/obj/
+/bin/
+/lib/
+/config/
+adash_tests/alire/
+adash_tests/obj/
+adash_tests/bin/
+adash_tests/config/
+
+# Build leftovers that gprbuild drops beside the project when it is invoked
+# directly rather than through Alire.
+*.ali
+*.o
+*.bexch
+
+# Generated artifacts are reproducible from their sources and are never
+# authoritative, so they are not tracked. The README in each directory is.
+/generated/*
+!/generated/README.md
+adash_tests/generated/*
+!adash_tests/generated/README.md

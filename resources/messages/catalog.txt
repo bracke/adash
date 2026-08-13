@@ -1,0 +1,479 @@
+# Adash message catalog.
+#
+# Format: locale.key = ICU message string. One message per line. Blank lines
+# and lines beginning with '#' are ignored.
+#
+# This file is the only place a user-visible Adash string exists. No Ada
+# source may contain one. Keys are stable across releases -- they are part of
+# the contract with translators and with conformance cases -- so renaming a
+# key is a breaking change even when the English text is untouched.
+#
+# Adding a message: add the literal to Adash.Messages.Message_Id, give it a
+# key in Adash.Messages.Key, then add the key here. The Key case statement has
+# no `others`, so the Ada side cannot be forgotten; adash_check verifies this
+# side, that every key Message_Id names exists here.
+#
+# ICU treats the apostrophe as an escape character. Messages here avoid it
+# rather than doubling it, because a doubled apostrophe is invisible to
+# review and renders wrongly exactly once, in the released build.
+
+default_locale = en
+
+# -- Product identity -------------------------------------------------------
+
+en.application.name = adash
+en.application.summary = A shell whose command language is Ada. Interactive input and scripts pass through one language pipeline and one execution engine.
+
+# -- Version reporting ------------------------------------------------------
+
+en.version.line = adash {version}
+en.version.build = build profile {profile}, built for {os} {arch}
+en.version.prerelease_notice = This is a pre-release build. Interfaces and behaviour may still change.
+
+# -- Command-line usage -----------------------------------------------------
+
+en.usage.line = Usage: adash [options] [FILE [ARGUMENT...]]
+en.usage.options_header = Options:
+en.usage.option.help = --help, -h       show this help and exit
+en.usage.option.version = --version, -V    show version information and exit
+en.usage.script = FILE             run a script and exit; anything after it is the script's own
+en.usage.more = Run adash with no options to start an interactive session.
+
+# -- Startup ----------------------------------------------------------------
+
+en.startup.unknown_option = Unknown option: {option}
+en.startup.catalog_unavailable = Could not load the message catalog from {path}. Adash will report messages by identifier instead of by text.
+
+# -- Operational failures ---------------------------------------------------
+#
+# One per Adash.Errors.Error_Code. These are what a user reads when something
+# they asked for could not be done -- not when Adash is broken, which raises
+# instead.
+
+en.error.none = no error
+en.error.command_not_found = command not found: {command}
+en.error.command_not_executable = not executable: {command}
+en.error.command_denied = permission denied: {command}
+en.error.command_start_failed = could not start {command}: {reason}
+en.error.redirection_open_failed = could not open {path} for redirection
+en.error.redirection_conflict = more than one redirection targets {stream}
+en.error.pipe_creation_failed = could not create a pipe for the pipeline
+en.error.machine.stack_full = the expression stack is full
+en.error.machine.stack_empty = the expression stack is empty
+en.error.machine.no_place = a by-reference slot holds no place
+en.error.machine.no_store_place = a store with no place to store into
+en.error.machine.swap_empty = a swap with nothing to swap
+en.error.machine.not_a_number = arithmetic on a non-number
+en.error.machine.arithmetic = the arithmetic does not hold
+en.error.machine.too_many_calls = too many calls without returning
+en.error.machine.no_frame_room = no room for another frame
+en.error.machine.no_return_to = a return with nothing to return to
+en.error.machine.no_shell = a command with no shell to run it
+en.error.machine.index_outside = position {position} is outside a String of {length}
+en.error.machine.slice_outside = the slice {first} .. {last} is outside a String of {length}
+en.error.machine.bad_value_text = {text} does not hold a value of that type
+en.error.machine.too_many_handlers = too many handlers at once
+en.error.machine.no_return_value = a function ended without returning a value
+en.error.machine.not_a_raise = a re-raise of something that was not raised
+en.error.machine.position_outside = position {position} is outside {type}
+en.error.machine.outside_bounds = {position} is outside the range of {type}
+en.error.machine.outside_array = index {position} is outside {type}
+en.error.machine.too_many_tasks = more tasks at once than this build runs
+en.error.machine.too_many_alternatives = more alternatives in one select than this build offers at once
+en.error.machine.queue_too_long = more callers at one entry than this program allowed
+en.error.machine.task_ran_out = a task ran out where this program said none would
+en.error.machine.too_many_allowed = more tasks at once than this program allowed itself
+en.error.machine.blocking_in_protected = an operation that may wait was run inside a protected operation, which would hold its lock against everybody
+en.error.machine.above_ceiling = a task of higher priority than a protected object's ceiling called one of its operations
+en.error.machine.no_caller = a rendezvous was moved on with nobody in it
+en.error.machine.tasks_stuck = every task is waiting for something no task will do
+en.error.machine.task_finished = the task whose entry was called has ended
+en.expected.expression = an expression
+en.expected.statement = a statement
+en.expected.type_name = a type name
+en.expected.literal_name = the name of a value
+en.expected.component_name = the name of a component
+en.expected.package_name = the name of a package
+en.error.subtype.not_discrete = a range can only narrow a discrete type; {found} is not one
+en.error.subtype.bound_not_static = a subtype bound must be a value this build knows before it runs
+en.error.subtype.range_is_empty = this range runs backwards, so the subtype admits nothing
+en.error.part_not_simple = {name} holds a {found}, and a record or an array can only hold a simple value
+en.error.part_given_twice = this record has two components called {name}
+en.error.record_is_empty = {name} has no components, and a record with none holds nothing
+en.error.array_bound_not_static = an array bound must be a value this build knows before it runs
+en.error.array_is_empty = {name} runs backwards, so it holds nothing
+en.error.array_too_long = {name} has more elements than this build carries, which is {limit}
+en.error.not_a_record = {found} has no components, so {name} does not name one
+en.error.no_such_component = {found} has no component called {name}
+en.error.not_an_array = {found} is not an array, so it cannot be indexed
+en.error.aggregate_wrong_count = {name} takes {expected} values, not {found}
+en.error.aggregate_not_expected = a list of values in parentheses builds a record or an array, and {found} is neither
+en.error.not_a_package = {name} is not a package
+en.error.package_not_declared = there is no package called {name} for this body to complete
+en.error.not_a_generic = {name} is not a generic, so there is nothing to make a new one from
+en.error.generic_wrong_actuals = {name} takes {expected} types, not {found}
+en.error.not_a_task = {name} is not a task, so there is nothing to abort
+en.error.not_an_entry = {name} is not an entry
+en.error.accept_differs = accept {name} must take what the entry was declared with
+en.error.protected_entry_parameters = a protected entry takes no parameters; {name} was given some
+en.error.entry_parameter_not_simple = {name} cannot take a {found}: an entry's parameters are simple values
+en.error.select_alternative = a select alternative is an accept or a delay
+en.error.select_trigger = what a select abandons work for is an entry call or a delay
+en.error.select_waits_twice = a select says once what to do when nothing can be accepted, and this says it more than once
+en.error.discriminants_need_a_type = {name} is a single declaration and has nowhere to be given discriminants; declare a type and an object of it
+en.error.discriminants_wrong_count = {name} takes {expected} discriminants, not {found}
+en.error.nothing_to_constrain = {name} takes nothing in parentheses
+en.error.count_outside_its_unit = {name}'Count is asked inside the task or protected body that declares the entry, where the answer keeps
+en.error.generic_not_callable = {name} is a generic; make one from it before calling it
+en.error.cannot_write = {name} cannot write a {found}: a record or an array is its parts, and each of those has a text form where the whole has none
+en.error.result_not_simple = {name} returns a {found}; a function here returns a simple value, and an out parameter is how a program hands back a record or an array
+en.expected.parameter_name = a parameter name
+en.expected.loop_variable = a loop variable
+en.expected.subprogram_name = a subprogram name
+en.expected.exception_name = an exception name
+en.expected.attribute_name = an attribute name
+en.expected.interpolation_rest = the rest of an interpolated string
+en.expected.end_of_input = end of input
+en.lower.call_wrong_count = a call with the wrong number of arguments
+en.lower.write_back_not_variable = a write-back argument that is not a variable
+en.lower.float_literal = a Float literal this build cannot hold
+en.lower.unresolved_name = an unresolved name
+en.lower.variable_of_type = a variable of type {type}
+en.lower.call_to = a call to {name}
+en.lower.this_operator = this operator
+en.lower.arithmetic_on = arithmetic on {type}
+en.lower.float_operation = that operation on a Float
+en.lower.joining_letters = joining two Characters
+en.lower.string_operation = that operation on a String
+en.lower.string_concatenation = string concatenation
+en.lower.value_of = reading a {type} back from text
+en.lower.image_of = the image of a {type}
+en.lower.procedure_as_value = a procedure call used as a value
+en.lower.this_expression = this expression
+en.lower.call_in_context = a call to {name} in this context
+en.lower.command_arguments = a command call with more than {count} arguments
+en.lower.argument_of_type = an argument of type {type}
+en.lower.declaration_unresolved = a declaration of an unresolved name
+en.lower.string_no_value = a String declared with no initial value
+en.lower.assignment_unresolved = an assignment to an unresolved name
+en.lower.case_choice = a case choice
+en.lower.exit_outside_loop = an exit outside a loop
+en.lower.return_with_value = a return statement with a value
+en.lower.this_statement = this statement
+en.lower.writing_type = writing a value of type {type}
+en.config.wants.truth = true or false
+en.config.wants.whole = a whole number
+en.config.wants.range = between {low} and {high}
+en.config.wants.choice = one of {choices}
+en.error.file_not_writable = nothing can be written at {path}
+en.error.file_write_failed = writing to {path} did not finish
+en.error.stream_write_failed = could not write to {stream}
+en.error.stream_read_failed = could not read from {stream}
+en.error.job_unknown = no such job: {job}
+en.error.job_is_suspended = job {job} is suspended; resume it before waiting for it
+en.error.execution_cancelled = cancelled
+en.error.capability_unavailable = this system does not support {capability}
+en.error.directory_not_found = no such directory: {path}
+en.error.directory_denied = permission denied for directory: {path}
+en.error.module_not_found = no script called {name}: {where}
+en.module.looked.as_written = it names a path, and there is nothing there
+en.module.looked.beside = nothing of that name beside the script that asked for it
+en.module.looked.in_modules = nothing of that name beside the script that asked for it, nor in your module directory
+en.error.source_unreadable = could not read source: {source}
+en.error.source_invalid_encoding = {source} is not valid UTF-8; the first bad byte is at offset {offset}
+en.error.type_mismatch = expected {expected}, found {found}
+en.error.name_undeclared = {name} is not declared here
+en.error.name_already_declared = {name} is already declared in this scope, on line {line}
+en.error.lexical.stray_character = {character} does not begin anything the language recognises
+en.error.lexical.unterminated_string = this string literal is not closed before the end of the line
+en.error.lexical.unterminated_character = this character literal is not closed
+en.error.lexical.malformed_number = {text} is not a well formed numeric literal
+en.error.lexical.malformed_identifier = {text} is not a well formed identifier
+en.error.lexical.bad_escape = {text} is not an escape this build defines
+en.error.lexical.quote_in_interpolation = a quotation mark in an interpolated string is written \" and never doubled
+en.error.lexical.brace_unescaped = a closing brace in an interpolated string must be escaped
+en.error.syntax.unexpected = expected {expected}, found {found}
+en.error.syntax.missing = expected {expected} here
+en.error.syntax.mixed_logical = {first} and {second} cannot be mixed without parentheses
+en.error.not_assignable = {name} cannot be assigned to
+en.error.not_a_type = {name} is not a type
+en.error.requeue_not_an_entry = {name} is not an entry of this task or protected object, and a requeue moves a caller to one of its own
+en.error.family_index_not_discrete = an entry family is indexed by a discrete type of at most 256 values, and {found} is not one
+en.error.terminate_outside_select = terminate says a task may end instead of waiting for a caller, so it belongs to a select that is waiting for one
+en.error.queuing_twice = {name} says how callers are taken off a queue and this program already said otherwise, and a program has one queuing policy
+en.error.dispatching_twice = {name} gives a dispatching policy to priorities that already have another one, and a priority runs under one policy
+en.error.empty_priority_range = the priorities from{first} to{last} are none of them, because the range runs backwards
+en.error.unknown_profile = {name} is not a profile this language has; the ones it has are Ravenscar and Jorvik
+en.error.unknown_policy = {name} is not a policy this machine implements; a policy accepted and not implemented would say something untrue about how a program runs
+en.error.unknown_restriction = {name} is not a restriction this language knows
+en.error.restriction_broken = this program said {name}, and this is one
+en.error.unknown_pragma = {name} is not a pragma this language has; the ones it has are Priority, Detect_Blocking, Restrictions, Task_Dispatching_Policy, Priority_Specific_Dispatching, Queuing_Policy, Locking_Policy and Profile
+en.error.priority_not_static = a priority is a number written where it stands, because what a task runs at is decided when it starts
+en.error.identity_needs_a_task = {name} is a Task_Id with nothing in it, and an identity that names no task is not one; declare it with the task it means
+en.error.cannot_be_copied = a {name} cannot be copied: what one is is the thing that runs or the state that is shared, and A'Identity is how a program keeps which one it meant
+en.error.not_a_family = {name} is one entry rather than a family, so there is no member to name
+en.error.family_needs_a_member = {name} is an entry family, and which member is what the parentheses say
+en.error.family_takes_nothing = {name} is an entry family, and a member of one takes nothing
+en.error.requeue_takes_nothing = {name} takes parameters, and a requeue moves a caller without moving what it gave
+en.error.is_a_type = {name} is a type, and a type is not a value; an object of it is what has operations
+en.error.not_an_exception = {name} is not an exception anything raises
+en.error.not_callable = {name} cannot be called
+en.error.function_as_statement = {name} yields a value, so a call to it is an expression and not a statement
+en.error.exit_outside_loop = an exit statement outside any loop
+en.error.program_raised = the program raised {exception}
+en.error.program_raised_detail = the program raised {exception}: {detail}
+en.error.body_missing = {name} was declared and never given a body
+en.error.name_is_predefined = {name} is provided by the shell and cannot be redeclared
+en.error.no_matching_subprogram = no {name} among the {count} declared takes these arguments
+en.error.ambiguous_literal = {name} is a value of {count} types here, and nothing says which of them is meant
+en.error.ambiguous_call = this call to {name} fits {count} of the declarations
+en.error.attribute_not_defined = {found} does not have a {attribute} attribute
+en.error.actual_not_variable = argument {position} is {mode}, so it must be a variable
+en.error.nested_subprogram = {name} is nested more deeply than this build can analyse
+en.error.return_without_value = a function must return a value
+en.error.return_with_value = a procedure cannot return a value
+en.error.condition_not_boolean = a condition must be Boolean, not {found}
+en.error.operator_not_defined = operator {operator} is not defined for {left} and {right}
+en.error.statement_among_declarations = only declarations may appear before begin
+en.error.string_index_malformed = a String is taken apart by one position or one range of them
+en.error.case.not_discrete = a case examines a discrete value; {found} is not one
+en.error.case.choice_not_static = a case choice must be a literal value, a range of them, or others
+en.error.case.choice_covered_twice = this choice covers a value an earlier one already covers
+en.error.case.range_is_empty = this range runs backwards, so it covers nothing
+en.error.case.others_not_last = others covers what is left, so it must be the last choice of the last alternative
+en.error.case.incomplete = this case does not cover every value of {found}; add an others alternative
+en.error.not_lowerable = this build cannot yet run {construct}
+en.error.wrong_argument_count = {name} takes {expected} arguments, not {found}
+en.error.no_such_parameter = {name} has no parameter called {parameter}
+en.error.parameter_given_twice = {name} was given {parameter} twice
+en.error.positional_after_named = an argument without a name comes after one with a name, in a call to {name}
+en.error.parameter_not_given = {name} was not given {parameter}, which has no default
+en.error.default_not_literal = the default for {name} is not a literal
+en.error.default_not_in_mode = {name} is written to rather than given, so it cannot have a default
+en.error.not_runnable_yet = {name} exists but cannot be run in this build
+en.error.command.wrong_arguments = {name} was given the wrong number of arguments: {found}
+en.error.too_many_kept = this session already carries {limit} definitions, so {name} will not be remembered
+en.error.empty_pipeline = nothing has been added to the pipeline
+en.error.no_history_here = this session is not keeping a history
+en.error.command.unavailable = {name} is not available in this build
+en.error.command.bad_assignment = {text} is not of the form NAME=VALUE
+en.error.script_cycle = {source} is already being loaded; scripts may not load each other in a cycle
+en.signal.interrupt = an interrupt
+en.signal.quit = a quit request
+en.signal.terminate = a request to end
+en.signal.kill = a kill
+en.signal.hangup = a hangup
+en.signal.stop = a stop that cannot be caught
+en.signal.terminal_stop = the terminal's stop
+en.signal.continue = a request to continue
+en.signal.pipe = writing to a closed pipe
+en.signal.background_read = reading the terminal from the background
+en.signal.background_write = writing to the terminal from the background
+en.signal.window_change = the terminal changing size
+en.signal.child = a child changing state
+en.job.state.running = running
+en.job.state.stopped = stopped
+en.job.state.completed = finished
+en.capability.signals = sending signals
+en.capability.job_control = job control
+en.capability.pseudo_terminal = pseudo-terminals
+en.capability.advisory_locks = advisory file locks
+en.start.reason.host_refused = the host refused
+en.start.reason.stream_setup = its streams could not be prepared
+en.completion.keyword = keyword
+en.completion.path = file
+
+# -- The prompt -------------------------------------------------------------
+
+en.prompt.primary = >
+en.prompt.continuation = ...
+en.prompt.failed = !
+
+# -- The interactive session ------------------------------------------------
+
+en.interactive.line-editing-unavailable = This terminal does not support line editing; lines are read whole.
+en.interactive.read-failed = The terminal stopped responding; ending the session.
+
+# -- Settings ---------------------------------------------------------------
+
+en.setting.color = When coloured output is produced: auto, always or never.
+en.setting.history-enabled = Whether commands are recorded in the history file.
+en.setting.history-limit = How many history entries are kept.
+en.setting.prompt-directory = Whether the prompt shows the working directory.
+en.setting.prompt-failure = Whether the prompt marks that the last command failed.
+en.setting.editing = Whether lines are edited in place rather than read whole.
+en.setting.history-per-session = keep this session's history in a file of its own and merge it in when the session ends
+en.setting.session-file = Whether the per-session startup file runs.
+
+# -- Reading a configuration file --------------------------------------------
+
+en.error.setting_unknown = no setting is called {key}
+en.config.unknown-key = {path}: no setting is called {key}; it was ignored.
+en.config.wrong-type = {key} expects {detail}.
+en.config.out-of-range = {key} must be {detail}.
+en.config.bad-choice = {key} must be one of {detail}.
+en.config.syntax = {path}: line {line}, column {column}: {detail}
+en.config.unreadable = {path} could not be read; the defaults are in force.
+en.config.not-text = {path} is not valid UTF-8; the defaults are in force.
+en.config.newer-schema = {path} was written by a newer Adash (schema {detail}); unknown settings were ignored.
+en.config.migrated = {path} was written for schema {detail} and has been brought forward.
+
+# -- History ------------------------------------------------------------------
+
+en.history.unreadable = {path} could not be read; this session starts with no history.
+en.history.damaged-lines = {path}: {detail} entries could not be read and were skipped.
+en.history.not-written = {path} could not be written; this session was not recorded.
+
+# -- Internal commands ------------------------------------------------------
+
+en.command.cd.doc = Change the directory the shell is in. With no argument, go to the home directory.
+en.command.pwd.doc = Report the directory the shell is in.
+en.command.exit.doc = End the session, optionally with a status. Written quit, because exit is a keyword of the language.
+en.command.set.doc = Set a variable children will inherit, written NAME=VALUE.
+en.command.unset.doc = Remove a variable children would inherit.
+en.command.env.doc = List the variables children will inherit.
+en.command.jobs.doc = List what the shell is running.
+en.command.help.doc = List the internal commands, or describe one.
+en.command.version.doc = Report which build this is.
+en.command.history.doc = List what has been typed this session.
+en.command.run.doc = Run a program and wait for it to finish.
+en.command.run_into.doc = Run a program with its output written to a file, replacing what was there.
+en.command.run_from.doc = Run a program with its input read from a file.
+en.command.run_append.doc = Run a program with its output added to the end of a file.
+en.command.run_new.doc = Run a program with its output written to a file that must not already exist.
+en.command.pipe.doc = Add a program to the pipeline being built.
+en.command.pipe_run.doc = Run the pipeline that pipe has built, and wait for it.
+en.command.start.doc = Start a program in the background and record it as a job.
+en.command.wait.doc = Wait for a job to finish and report how it ended.
+en.command.stop.doc = Ask a job to stop.
+en.command.suspend.doc = Suspend a running job, leaving it able to be resumed.
+en.command.resume.doc = Resume a suspended job, in the background.
+en.command.write_file.doc = Write text to a file, replacing what was there: write_file (TEXT, FILE).
+en.command.append_file.doc = Add text to the end of a file: append_file (TEXT, FILE).
+en.command.settings.doc = List the settings, or change one: settings (NAME, VALUE).
+en.command.save_settings.doc = Write the current settings to the configuration file.
+en.line.history_entry = {number}  {line}
+en.line.job_started = [{id}] started {what}
+en.line.job_finished = [{id}] finished with status {status}
+en.line.job_signalled = [{id}] was ended by {signal}
+en.command.source.doc = Read and run a script in this session.
+en.command.hint = shell command
+
+en.line.directory = {path}
+en.line.setting = {key} = {value}  {summary}
+en.line.settings_saved = settings written to {path}
+en.line.variable = {name}={value}
+en.line.job = [{job}] {state}  {description}
+en.line.command_entry = {name}  {summary}
+en.line.version = {name} {version}
+
+# -- Predefined entities ----------------------------------------------------
+#
+# What each predefined name is, and the shorter form completion shows beside
+# it. Two messages rather than one: a reference page wants the sentence and a
+# completion list wants the phrase.
+
+en.predefined.type.doc = A predefined type. It can be written where a type is expected, and nowhere else.
+en.predefined.clock.doc = The seconds on the session's own clock, which is monotonic: a program that measures an interval measures one whatever somebody does to the system time. What `delay until` takes.
+en.predefined.clock.hint = seconds on the session's clock
+en.predefined.true.doc = The Boolean value True.
+en.predefined.false.doc = The Boolean value False.
+en.predefined.put_line.doc = Write a value to standard output, followed by a line ending.
+en.predefined.put.doc = Write a value to standard output without a line ending.
+en.predefined.env_value.doc = The value of an environment variable, or the empty string when it is not set.
+en.predefined.env_value.hint = read an environment variable
+en.predefined.status.doc = What the last command did: zero when it succeeded, and otherwise the shell's one number for what became of it.
+en.predefined.status.hint = the last command's status
+en.predefined.exists.doc = Whether anything at all is at this path, of whatever kind.
+en.predefined.exists.hint = whether anything is at a path
+en.predefined.is_directory.doc = Whether a directory is at this path.
+en.predefined.is_directory.hint = whether a path is a directory
+en.predefined.is_executable.doc = Whether a program at this path could be run, as this host judges it.
+en.predefined.is_executable.hint = whether a path is something to run
+en.predefined.index.doc = Where one text starts inside another, counting from one, or zero when it is not there at all.
+en.predefined.index.hint = where a piece of text starts inside another
+en.predefined.trim.doc = The text without the blanks at either end of it.
+en.predefined.trim.hint = the text without the blanks around it
+en.predefined.to_upper.doc = The text with every letter in upper case.
+en.predefined.to_upper.hint = the text in capitals
+en.predefined.to_lower.doc = The text with every letter in lower case.
+en.predefined.to_lower.hint = the text in small letters
+en.predefined.starts_with.doc = Whether the text begins with that piece.
+en.predefined.starts_with.hint = whether text begins with a piece
+en.predefined.ends_with.doc = Whether the text ends with that piece.
+en.predefined.ends_with.hint = whether text ends with a piece
+en.predefined.output_of.doc = Run a program and answer with what it wrote to standard output, without the newline it ended with. What it writes to standard error is not collected and reaches the user.
+en.predefined.read_line.doc = Read one line from the shell's own input, without the newline that ended it. Answers with nothing at the end of the input; Input_Ended says which.
+en.predefined.read_line.hint = read a line of input
+en.predefined.input_ended.doc = Whether the last Read_Line found the end of the input rather than a line. An empty line is a line a file may contain, so the two are asked separately.
+en.predefined.input_ended.hint = whether the input has run out
+en.predefined.output_of.hint = run a program and read what it wrote
+en.predefined.argument_count.doc = How many arguments the script was given, after its own path. Zero in an interactive session.
+en.predefined.argument_count.hint = how many arguments the script was given
+en.predefined.argument.doc = One of the arguments the script was given, counting from one, or the empty string when it was not given that many.
+en.predefined.argument.hint = one of the script's arguments
+en.predefined.new_line.doc = Write a line ending to standard output.
+en.predefined.type.hint = type
+en.predefined.constant.hint = constant
+en.predefined.put_line.hint = write a line
+en.predefined.put.hint = write without a line ending
+en.predefined.new_line.hint = end the line
+
+# -- Repository tooling -----------------------------------------------------
+#
+# These are not part of the shipped shell. They belong to the adash_tests
+# crate, whose output is addressed to a maintainer rather than to a user --
+# but the rule that no Ada source carries user-visible text applies there too,
+# so its strings live here rather than in its bodies.
+
+en.tooling.conformance.no_id = the case has no id
+en.tooling.conformance.other_host = not for this host
+en.tooling.conformance.no_cases = no case directory at {path}
+en.tooling.conformance.no_expected = no expected-output file beside it
+en.tooling.conformance.no_binary = the binary could not be started
+en.tooling.conformance.no_status = the case has no integer exit status
+en.tooling.conformance.unreadable_expected = the expected-output file could not be read
+en.tooling.conformance.no_entries = the file holds no case entries
+en.tooling.conformance.unknown_key = unknown key: {key}
+en.tooling.conformance.unreadable = could not be read: {reason}
+en.tooling.conformance.wrong_status = exit status: expected {expected} got {found}
+en.tooling.conformance.malformed_toml = line {line}: {reason}
+en.tooling.bench.header = adash benchmarks
+en.tooling.bench.repetitions = median and fastest of {count} runs, in microseconds
+en.tooling.bench.profile = build profile: {profile}
+en.tooling.bench.column.median = median
+en.tooling.bench.column.fastest = fastest
+en.tooling.bench.group.pipeline = language pipeline, one typed line
+en.tooling.bench.group.frontend = interactive frontend
+en.tooling.bench.group.startup = start-up work, once per session
+en.tooling.bench.no_sample = the sample line did not load; nothing measured
+en.tooling.bench.drift = A fastest run far below the median means the operation gets slower as it repeats, which is a defect rather than noise. See docs/benchmark-guide.md.
+en.tooling.bench.methodology = Methodology: each figure is the median of {count} consecutive in-process runs of the named operation, timed with Ada.Real_Time on the machine this was run on. No process is spawned, so these do not include the operating system cost of starting a shell. Comparisons between machines, or between builds at different optimization levels, are not meaningful.
+en.tooling.bench.what.utf8 = load and validate UTF-8
+en.tooling.bench.what.lex = lex
+en.tooling.bench.what.parse = parse
+en.tooling.bench.what.analyse = analyse
+en.tooling.bench.what.run = lower and run
+en.tooling.bench.what.highlight = highlight (per keystroke)
+en.tooling.bench.what.complete = complete a command prefix
+en.tooling.bench.what.history = encode a history entry
+en.tooling.bench.what.config = parse a configuration file
+en.tooling.bench.what.session = open an engine session
+en.tooling.check.header = Adash repository check
+en.tooling.check.checking = checking {what}
+en.tooling.check.passed = {count, plural, =0 {no checks ran} one {# check passed} other {# checks passed}}
+en.tooling.check.failed = {count, plural, =0 {no failures} one {# check failed} other {# checks failed}}
+en.tooling.check.ok = ok
+en.tooling.check.missing_file = required file is missing: {path}
+en.tooling.check.missing_directory = required directory is missing: {path}
+en.tooling.check.version_mismatch = version disagreement: {first} says {first_value}, {second} says {second_value}
+en.tooling.check.catalog_missing_key = message identifier {id} names key {key}, which the catalog does not carry
+en.tooling.check.inventory_missing = repository.toml lists {path}, which does not exist
+en.tooling.check.inventory_unlisted = {path} exists but repository.toml does not list it, so the package has no recorded owner
+en.tooling.check.catalog_unreadable = could not read the message catalog at {path}
+en.tooling.check.prose_as_text = {path} writes a sentence in Ada source: {text}
+en.tooling.check.identifier_as_text = {path} passes an identifier where a message argument must be text: {text}
+en.tooling.check.escape_sequence = {path} contains a literal terminal escape sequence; styling belongs to terminal_styles by way of Adash.Terminal
+en.tooling.check.forbidden_dependency = {path} depends on {unit}, which Adash may not use directly; see AI.md
+en.tooling.check.result_pass = PASS
+en.tooling.check.result_fail = FAIL

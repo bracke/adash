@@ -1,0 +1,251 @@
+# One name, several subprograms, chosen by the arguments.
+#
+# Resolution is by the number of arguments, their types, and what the context
+# requires of the result. The last is what settles a pair differing only in what
+# they return; where the context requires nothing, such a call is ambiguous --
+# which is Ada's answer as well, and a better one than picking whichever was
+# declared last.
+#
+# The lowering needed no change for any of this. Calls are matched to the
+# declaration the scope chain resolved to rather than to the name, so once the
+# semantic pass picks a candidate the rest follows.
+
+suite = "overloading"
+
+[[case]]
+id = "over.by-type"
+requirement = "The argument's type decides which subprogram a call means."
+script = "procedure P (A : Integer) is begin put_line (\"int\"); end P; procedure P (A : String) is begin put_line (\"str\"); end P; P (1); P (\"x\");"
+exit_status = 0
+output = ["int", "str"]
+diagnostics = []
+
+[[case]]
+id = "over.by-count"
+requirement = "So does how many arguments there are."
+script = "procedure P (A : Integer) is begin put_line (\"one\"); end P; procedure P (A : Integer; B : Integer) is begin put_line (\"two\"); end P; P (1); P (1, 2);"
+exit_status = 0
+output = ["one", "two"]
+diagnostics = []
+
+[[case]]
+id = "over.functions"
+requirement = "Functions overload, and the call has the chosen one's result type."
+script = "function F (N : Integer) return Integer is begin return N; end F; function F (S : String) return String is begin return S; end F; put_line (F (7)); put_line (F (\"s\"));"
+exit_status = 0
+output = ["7", "s"]
+diagnostics = []
+
+[[case]]
+id = "over.bare-name"
+requirement = """
+A name written without arguments means whichever takes none, not whichever was
+declared last.
+"""
+script = "function G return Integer is begin return 1; end G; function G (N : Integer) return Integer is begin return N; end G; put_line (G); put_line (G (5));"
+exit_status = 0
+output = ["1", "5"]
+diagnostics = []
+
+[[case]]
+id = "over.inner-does-not-hide"
+requirement = "An inner declaration of a different profile does not hide an outer one; both are candidates."
+script = "procedure P (A : Integer) is begin put_line (\"outer\"); end P; procedure Q is procedure P (A : String) is begin put_line (\"inner\"); end P; begin P (1); P (\"s\"); end Q; Q;"
+exit_status = 0
+output = ["outer", "inner"]
+diagnostics = []
+
+[[case]]
+id = "over.same-profile-refused"
+requirement = "Same name and same parameter types: no call could tell them apart."
+script = "procedure P (A : Integer) is begin null; end P; procedure P (B : Integer) is begin null; end P;"
+exit_status = 0
+output = []
+diagnostics = ["!error.name_already_declared{name=P,line= 11}!"]
+
+[[case]]
+id = "over.no-match"
+requirement = "Arguments that fit none of the declarations say so, and say how many there were."
+script = "procedure P (A : Integer) is begin null; end P; procedure P (A : String) is begin null; end P; P (1.5);"
+exit_status = 0
+output = []
+diagnostics = ["!error.no_matching_subprogram{name=P,count= 2}!"]
+
+[[case]]
+id = "over.shell-names-are-reserved"
+requirement = """
+Ada would let a user overload Put_Line. Here the shell's own subprograms accept
+any type, so a user's version would fit every call the original does and every
+one would be ambiguous -- a declaration whose every use is an error.
+"""
+script = "procedure Put_Line (X : Integer) is begin null; end Put_Line;"
+exit_status = 0
+output = []
+diagnostics = ["!error.name_is_predefined{name=Put_Line}!"]
+
+[[case]]
+id = "over.result-type-by-declaration"
+requirement = """
+Two subprograms differing only in what they return. The arguments cannot tell
+them apart -- there are none -- so the declared type of the variable does.
+"""
+script = "function F return Integer is begin return 1; end F; function F return String is begin return \"s\"; end F; X : Integer := F; S : String := F; put_line (X); put_line (S);"
+exit_status = 0
+output = ["1", "s"]
+diagnostics = []
+
+[[case]]
+id = "over.result-type-through-an-operator"
+requirement = """
+An operator whose result is its operands' type passes the requirement down to
+them, so a String is wanted of the concatenation and therefore of the call.
+"""
+script = "function F return Integer is begin return 1; end F; function F return String is begin return \"s\"; end F; S : String := F & \"!\"; put_line (S);"
+exit_status = 0
+output = ["s!"]
+diagnostics = []
+
+[[case]]
+id = "over.result-type-unsettled"
+requirement = """
+put_line takes any type, so it requires nothing of its argument and both
+candidates fit. Reported rather than resolved to whichever came last.
+"""
+script = "function F return Integer is begin return 1; end F; function F return String is begin return \"s\"; end F; put_line (F);"
+exit_status = 0
+output = []
+diagnostics = ["!error.ambiguous_call{name=F,count= 2}!"]
+
+[[case]]
+id = "over.comparison-settles-it"
+requirement = """
+A comparison's operands have each other's type, even though neither has the
+comparison's own. So a call several subprograms could answer is settled by what
+it is compared against -- which is how Ada reads `if F = 1`.
+"""
+script = "function F return Integer is begin return 1; end F; function F return String is begin return \"s\"; end F; if F = 1 then put_line (\"int\"); end if; if F = \"s\" then put_line (\"str\"); end if;"
+exit_status = 0
+output = ["int", "str"]
+diagnostics = []
+
+[[case]]
+id = "over.comparison-of-two-open-calls"
+requirement = """
+Only when exactly one operand is open. Two ambiguous calls say nothing about
+each other, and neither does the operator between them.
+"""
+script = "function F return Integer is begin return 1; end F; function F return String is begin return \"s\"; end F; if F = F then null; end if;"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.ambiguous_call{name=F,count= 2}!",
+  "!error.ambiguous_call{name=F,count= 2}!",
+]
+
+[[case]]
+id = "overloading.two-types-may-name-one-value"
+requirement = """
+Ada lets two enumerations each declare a `Red`: a literal is a parameterless
+function returning its own type, so it overloads like one and a use of the name
+is settled by what the context expects. Every context that has an expectation
+settles it -- an object's type, either side of a comparison, a case, a loop
+parameter, an argument, and a type mark's own attribute.
+"""
+script = "type Warm is (Red, Amber); type Signal is (Red, Green); X : Warm := Red; Y : Signal := Red; if X = Red then put_line (\"compared against the warm one\"); end if; if Red = Y then put_line (\"and against the signal, literal first\"); end if; case X is when Red => put_line (\"case took the warm Red\"); when Amber => put_line (\"amber\"); end case; for Each in Signal loop if Each = Red then put_line (\"the loop's Red is the signal's\"); end if; end loop; procedure Show (Which : Signal) is begin put_line (\"shown \" & Which'Image); end Show; Show (Red); put_line (\"position in Warm:\" & Warm'Pos (Red)'Image & \", in Signal:\" & Signal'Pos (Red)'Image);\nquit (0);"
+exit_status = 0
+output = [
+  "compared against the warm one",
+  "and against the signal, literal first",
+  "case took the warm Red",
+  "the loop's Red is the signal's",
+  "shown Red",
+  "position in Warm: 0, in Signal: 0",
+]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-where-nothing-says-which-it-is-refused"
+requirement = """
+Where no context says which type is meant the name is ambiguous, which is Ada's
+answer too: taking one of them would make the program mean whichever was
+declared last. Said as what it is -- a value of two types -- rather than as a
+call that fits too many declarations.
+"""
+script = "type Warm is (Red, Amber); type Signal is (Red, Green); put_line (Red'Image);\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.ambiguous_literal{name=Red,count= 2}!"]
+
+[[case]]
+id = "overloading.but-one-type-still-names-a-value-once"
+requirement = """
+Two literals of one type are a redeclaration however they are spelled: nothing
+could tell them apart. A variable of the same name is one too -- only what
+overloads overloads -- and a name the shell provides is still refused.
+"""
+script = "type T is (Red, Red);\ntype W is (Red, Amber); Red : Integer := 3;\ntype B is (True, False);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.name_already_declared{name=Red,line= 12}!",
+  "!error.name_already_declared{name=Red,line= 12}!",
+  "!error.name_is_predefined{name=True}!",
+  "!error.name_is_predefined{name=False}!",
+]
+
+[[case]]
+id = "overloading.the-other-operand-settles-it"
+requirement = """
+A comparison's operands have each other's type, so when exactly one of them is
+a name several declarations could answer, the other is analysed first and
+settles it. That is how `if F = 1` reads, and an enumeration literal is the
+same shape of question: `Red = Amber` where only one type has an Amber.
+"""
+script = "type Warm is (Red, Amber); type Signal is (Red, Green); if Red = Amber then put_line (\"never\"); else put_line (\"settled from the other operand\"); end if; if Amber = Red then put_line (\"never\"); else put_line (\"and the other way round\"); end if; if Red = Green then put_line (\"never\"); else put_line (\"settled to the signal\"); end if;\nquit (0);"
+exit_status = 0
+output = ["settled from the other operand", "and the other way round", "settled to the signal"]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-a-bound-settles-a-membership"
+requirement = """
+Membership asks the same question with its bound: the value settles the bounds
+unless the value is the one in doubt, and then the bound settles the value.
+Which type the bound belongs to is what decides, so the same test reads two
+ways in two programs.
+"""
+script = "type Warm is (Red, Amber); type Signal is (Red, Green); if Red in Amber .. Amber then put_line (\"never\"); else put_line (\"took the warm Red\"); end if; if Red in Green .. Green then put_line (\"never\"); else put_line (\"took the signal Red\"); end if;\nquit (0);"
+exit_status = 0
+output = ["took the warm Red", "took the signal Red"]
+diagnostics = []
+
+[[case]]
+id = "overloading.but-two-open-ends-say-nothing"
+requirement = """
+Two operands that are each a name several declarations could answer say nothing
+about each other, and neither does the operator, so it stays ambiguous. Ada's
+answer too: both readings exist and nothing chooses between them.
+"""
+script = "type Warm is (Red, Amber); type Signal is (Red, Green); if Red = Red then put_line (\"never\"); end if;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.ambiguous_literal{name=Red,count= 2}!",
+  "!error.ambiguous_literal{name=Red,count= 2}!",
+]
+
+[[case]]
+id = "overloading.and-what-is-wrong-is-said-as-what-it-is"
+requirement = """
+Where the context expects a type none of the declarations has, the fault is the
+type rather than the choice, and the diagnostic says so. Here the second bound
+of a range fixes the type and the first cannot be it.
+"""
+script = "type Warm is (Red, Amber); type Count_Of is (One, Two); for Each in Red .. Two loop put_line (Each'Image); end loop;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.type_mismatch{found=Count_Of,expected=Warm}!"]
+
+[[case]]
+id = "overloading.and-a-range-loop-settles-its-bounds-the-same-way"
+requirement = "A range loop's two bounds have each other's type, so an open one is settled by the closed one -- the same rule as a comparison, applied where a loop counts."
+script = "type Warm is (Red, Amber); type Signal is (Red, Green); for Each in Red .. Amber loop put_line (\"warm \" & Each'Image); end loop; for Each in Red .. Green loop put_line (\"signal \" & Each'Image); end loop;\nquit (0);"
+exit_status = 0
+output = ["warm Red", "warm Amber", "signal Red", "signal Green"]
+diagnostics = []

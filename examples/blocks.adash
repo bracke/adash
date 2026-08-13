@@ -1,0 +1,58 @@
+--  A scope where you need one.
+--
+--  A block declares what it needs, uses it, and gives the names back at its
+--  `end`. That is worth having in a shell in particular: an interactive session
+--  keeps every top-level name it declares, so a value wanted for three lines
+--  and never again is better kept where it cannot be reached afterwards.
+--
+--  The `declare` is optional, as in Ada. A block that declares nothing is
+--  written `begin ... end;`.
+
+Total : Integer := 0;
+
+for Step in 1 .. 3 loop
+   declare
+      Doubled : Integer := Step * 2;
+   begin
+      Total := Total + Doubled;
+      put_line (f"step {Step'Image} adds {Doubled'Image}");
+   end;
+end loop;
+
+put_line (Total);
+
+--  What a block declares may hide a name from around it, for as long as the
+--  block lasts and no longer.
+Name : String := "outer";
+
+declare
+   Name : String := "inner";
+begin
+   put_line (Name);
+end;
+
+put_line (Name);
+
+--  A block is an ordinary statement, so it goes wherever one goes -- including
+--  inside a subprogram, where a return leaves from the middle of it.
+function First_Even (Upto : Integer) return Integer is
+begin
+   for N in 1 .. Upto loop
+      declare
+         Half : Integer := N / 2;
+      begin
+         if Half * 2 = N then
+            return N;
+         end if;
+      end;
+   end loop;
+
+   return 0;
+end First_Even;
+
+put_line (First_Even (7));
+
+--  And with nothing to declare, it is just a way of grouping.
+begin
+   put_line ("done");
+end;

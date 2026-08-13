@@ -1,0 +1,534 @@
+# A program can report what it computed.
+#
+# Until put_line was lowered for String, a program could compute but not say
+# anything: its only observable result was its exit status. Every case here was
+# unobservable before.
+#
+# The last three cases mix put_line with an internal command in one submission.
+# They could not be written until the frontend began rendering a command's
+# output as the command produced it: the two take different routes to standard
+# output -- a program writes as the machine runs it, a command produces
+# structured lines -- and holding the second back put it after text written
+# later.
+
+suite = "program-output"
+
+[[case]]
+id = "output.literal"
+requirement = "put_line writes a string literal and a newline."
+script = "put_line (\"hello, world\");"
+exit_status = 0
+output = ["hello, world"]
+diagnostics = []
+
+[[case]]
+id = "output.variable"
+requirement = "put_line writes what a variable holds, not its name."
+script = "X : String := \"from a variable\"; put_line (X);"
+exit_status = 0
+output = ["from a variable"]
+diagnostics = []
+
+[[case]]
+id = "output.computed"
+requirement = "A program can compute a string and report it. This is what could not be done at all: compute, then say."
+script = "X : String := \"\"; for I in 1 .. 3 loop X := X & \"ab\"; end loop; put_line (X);"
+exit_status = 0
+output = ["ababab"]
+diagnostics = []
+
+[[case]]
+id = "output.empty-line"
+requirement = "An empty string writes an empty line, not nothing."
+script = "put_line (\"\");"
+exit_status = 0
+output = [""]
+diagnostics = []
+
+[[case]]
+id = "output.utf8-survives"
+requirement = "Text above ASCII reaches standard output byte for byte, through the lexer, the machine and the writer."
+script = "put_line (\"héllo — ok\");"
+exit_status = 0
+output = ["héllo — ok"]
+diagnostics = []
+
+[[case]]
+id = "output.put-does-not-break-the-line"
+requirement = "put writes without a newline, so several calls build one line."
+script = "put (\"a\"); put (\"b\"); put_line (\"c\");"
+exit_status = 0
+output = ["abc"]
+diagnostics = []
+
+[[case]]
+id = "output.integer-still-writes"
+requirement = "Lowering String did not disturb Integer, which needs a width and a base where a string needs neither. The width is zero, so there is no padding."
+script = "put_line (42);"
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "output.character"
+requirement = "put_line writes a Character, with no padding: the width is zero, so a value takes exactly the room it needs."
+script = "put (\"[\"); put ('q'); put_line (\"]\");"
+exit_status = 0
+output = ["[q]"]
+diagnostics = []
+
+[[case]]
+id = "output.boolean"
+requirement = "put_line writes a Boolean as Ada writes one -- upper case -- and with no padding. Ada's own default width pads to the longest literal, which would put a trailing space after every True."
+script = "put (\"[\"); put (True); put_line (\"]\");"
+exit_status = 0
+output = ["[TRUE]"]
+diagnostics = []
+
+[[case]]
+id = "output.boolean-from-an-expression"
+requirement = "What is written is the value, so a comparison can be reported directly."
+script = "N : Integer := 3; put_line (N > 2);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "output.float"
+requirement = "put_line writes a Float in the form HAC's own compiler writes one, so the same program means the same thing under either. A prettier form was available and would have printed a Float differently here than in the language Adash is a subset of."
+script = "put_line (1.5);"
+exit_status = 0
+output = [" 1.50000000000000000E+00"]
+diagnostics = []
+platforms = ["linux"]
+
+[[case]]
+id = "output.float-keeps-its-sign"
+requirement = "A negative Float keeps its sign. Negating one with the integer instruction leaves the value untouched, and the program runs on with the wrong number rather than failing."
+script = "put_line (-2.25);"
+exit_status = 0
+output = ["-2.25000000000000000E+00"]
+diagnostics = []
+platforms = ["linux"]
+
+[[case]]
+id = "output.float-arithmetic"
+requirement = "Float arithmetic uses the Float instructions: the value lives in a different field of the machine's cell from an Integer's, so the integer instructions would read the one that is not in use."
+script = "put_line (1.5 + 2.25);"
+exit_status = 0
+output = [" 3.75000000000000000E+00"]
+diagnostics = []
+platforms = ["linux"]
+
+[[case]]
+id = "output.command-then-program"
+requirement = "A command's output comes before what the program writes after it."
+script = "pwd; put_line (\"after the command\");"
+exit_status = 0
+platforms = ["linux"]
+
+[[case]]
+id = "output.program-then-command-then-program"
+requirement = "Output arrives in the order the submission wrote it, whichever channel each line came from."
+script = "put_line (\"first\"); version; put_line (\"third\");"
+exit_status = 0
+output = [
+  "first",
+  "!line.version{name=adash,version=0.1.0-dev}!",
+  "third",
+]
+diagnostics = []
+
+[[case]]
+id = "output.survives-a-halt"
+requirement = "Everything written before a command that ends the session is still written, and nothing after it is."
+script = "put_line (\"kept\"); version; quit (3); put_line (\"never\");"
+exit_status = 3
+output = [
+  "kept",
+  "!line.version{name=adash,version=0.1.0-dev}!",
+]
+diagnostics = []
+
+[[case]]
+id = "output.abs-integer"
+requirement = "abs gives the magnitude of an Integer."
+script = "put_line (abs (-5));"
+exit_status = 0
+output = ["5"]
+diagnostics = []
+
+[[case]]
+id = "output.abs-float"
+requirement = "abs gives the magnitude of a Float. It is a standard function with one form per type, and the integer form applied to a Float would leave the number untouched rather than fail."
+script = "put_line (abs (-2.25));"
+exit_status = 0
+output = [" 2.25000000000000000E+00"]
+diagnostics = []
+platforms = ["linux"]
+
+[[case]]
+id = "env.value-reaches-the-language"
+requirement = """
+A program can read an environment variable. Until this existed the language
+could obtain nothing from outside itself: every predefined entity was a type, a
+Boolean literal or a way to write output, so a program computed from literals
+and `cd (Home)` was unwritable.
+"""
+script = "set (\"ADASH_PROBE=seen\"); put_line (Env_Value (\"ADASH_PROBE\"));"
+exit_status = 0
+output = ["seen"]
+diagnostics = []
+
+[[case]]
+id = "env.unset-is-empty"
+requirement = """
+A name that is not set reads as the empty string rather than failing, as it does
+in every shell: a program testing whether something is set compares it, and an
+error would make that untestable.
+"""
+script = "if Env_Value (\"ADASH_NOT_SET_ANYWHERE\") = \"\" then put_line (\"unset\"); end if;"
+exit_status = 0
+output = ["unset"]
+diagnostics = []
+
+[[case]]
+id = "env.value-composes"
+requirement = "What it returns is an ordinary String: it concatenates, compares and can be passed on."
+script = "set (\"ADASH_PROBE=x\"); put_line (\"got \" & Env_Value (\"ADASH_PROBE\") & \".\");"
+exit_status = 0
+output = ["got x."]
+diagnostics = []
+
+[[case]]
+id = "capture.reads-what-a-program-wrote"
+requirement = """
+A program's output can be read as a value. Until this, a shell whose language
+could run programs could not read what any of them said: everything a program
+wrote went to the terminal and nothing could be computed from it.
+"""
+script = "put_line (\"[\" & Output_Of (\"echo\", \"hello world\") & \"]\"); quit (0);"
+exit_status = 0
+output = ["[hello world]"]
+diagnostics = []
+
+[[case]]
+id = "capture.drops-the-final-newline"
+requirement = """
+The newline a program ends with is dropped, which is the convention every shell
+follows and the reason `cd (Output_Of (\"pwd\"))` works. Only from the end: what
+is in the middle is what the program wrote.
+"""
+script = "put_line (\"[\" & Output_Of (\"printf\", \"a\\nb\\n\") & \"]\"); quit (0);"
+exit_status = 0
+output = ["[a", "b]"]
+diagnostics = []
+
+[[case]]
+id = "capture.answers-empty-for-a-program-that-said-nothing"
+requirement = "A program that wrote nothing answers with the empty string rather than failing, so a script can compare it."
+script = "if Output_Of (\"true\") = \"\" then put_line (\"nothing\"); end if; quit (0);"
+exit_status = 0
+output = ["nothing"]
+diagnostics = []
+
+[[case]]
+id = "capture.records-the-status"
+requirement = "Running a program for its output is still running a program, so Status says what became of it."
+script = "S : String := Output_Of (\"false\"); put_line (Status); quit (0);"
+exit_status = 0
+output = ["1"]
+diagnostics = []
+
+[[case]]
+id = "capture.a-program-that-will-not-start"
+requirement = "The same 127 the run family reports, from the one place that decides -- and the diagnostic still reaches the user."
+script = "S : String := Output_Of (\"adash-no-such-program-anywhere\"); put_line (Status); quit (0);"
+exit_status = 0
+output = ["127"]
+diagnostics = [
+  "!error.command_not_found{command=adash-no-such-program-anywhere}!",
+]
+
+[[case]]
+id = "capture.leaves-standard-error-alone"
+requirement = """
+What a program writes to standard error is not collected. It belongs to the
+user: a program explaining why it failed should be heard, not swallowed into a
+value the script is about to compare against something.
+"""
+script = "put_line (\"[\" & Output_Of (\"sh\", \"-c\", \"echo out; echo err >&2\") & \"]\"); quit (0);"
+exit_status = 0
+output = ["[out]"]
+diagnostics = ["err"]
+
+[[case]]
+id = "capture.needs-a-program"
+requirement = "It takes a program and up to three arguments, so a call with none is refused by the analyser rather than discovered when nothing runs."
+script = "S : String := Output_Of; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.wrong_argument_count{name=Output_Of,expected= 1 .. 4,found= 0}!",
+]
+
+[[case]]
+id = "string.one-position-yields-a-character"
+requirement = """
+A String can be taken apart. Until this it could be held, copied, joined and
+compared and nothing else -- a shell that could read a program's output could
+not look at any of it.
+"""
+script = "S : String := \"hello\"; put_line (S (2)); quit (0);"
+exit_status = 0
+output = ["e"]
+diagnostics = []
+
+[[case]]
+id = "string.a-range-yields-a-string"
+requirement = "A range of positions yields the String between them, written as Ada writes it."
+script = "S : String := \"hello world\"; put_line (S (7 .. 11)); quit (0);"
+exit_status = 0
+output = ["world"]
+diagnostics = []
+
+[[case]]
+id = "string.an-empty-slice-is-empty"
+requirement = "A range whose first position is past its last yields nothing, as Ada says, rather than failing."
+script = "S : String := \"hello\"; put_line (\"[\" & S (3 .. 2) & \"]\"); quit (0);"
+exit_status = 0
+output = ["[]"]
+diagnostics = []
+
+[[case]]
+id = "string.knows-its-own-length"
+requirement = """
+`'Length`, `'First` and `'Last`, which is what a loop over a String's characters
+needs. Every String here begins at one, so `'First` is one and `'Last` is the
+length -- there are no other index ranges to have.
+"""
+script = "S : String := \"abcd\"; put_line (S'Length); put_line (S'First); put_line (S'Last); quit (0);"
+exit_status = 0
+output = ["4", "1", "4"]
+diagnostics = []
+
+[[case]]
+id = "string.walks-its-characters"
+requirement = "The three attributes and indexing together, which is the loop somebody writes the day they have text to look at."
+script = "S : String := \"abc\"; for I in S'First .. S'Last loop put (S (I)); end loop; New_Line; quit (0);"
+exit_status = 0
+output = ["abc"]
+diagnostics = []
+
+[[case]]
+id = "string.a-position-past-the-end-raises"
+requirement = """
+Out of range raises rather than reading whatever was next. The check is HAC's
+own, which is the point of lowering to its builtins rather than writing the
+indexing again.
+"""
+script = "S : String := \"abc\"; put_line (S (9)); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.program_raised_detail{exception=Index_Error,detail=!error.machine.index_outside{position=9,length=3}!}!",
+]
+
+[[case]]
+id = "string.is-taken-apart-one-way"
+requirement = "One position or one range, and nothing else: two arguments is not an index and is refused by name."
+script = "S : String := \"abc\"; put_line (S (1, 2)); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.string_index_malformed!",
+]
+
+[[case]]
+id = "string.only-a-string-has-a-length"
+requirement = "An attribute that means nothing for the type is refused rather than guessed at."
+script = "N : Integer := 3; put_line (N'Length); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.attribute_not_defined{attribute=Length,found=Integer}!",
+]
+
+[[case]]
+id = "string.joins-with-a-character"
+requirement = """
+Ada's rule for a one-dimensional array: two of them, or one and a component. A
+String and a Character is the second, and is what a loop building text out of
+the characters it took apart writes. Two Characters are refused, as Ada refuses
+them: neither is an array, so nothing says which array type the result would be.
+"""
+script = "S : String := \"ab\"; C : Character := 'z'; put_line (S & C); put_line (C & S); quit (0);"
+exit_status = 0
+output = ["abz", "zab"]
+diagnostics = []
+
+[[case]]
+id = "string.two-characters-are-not-a-string"
+requirement = "Refused as Ada refuses it, rather than quietly producing a two-character String."
+script = "C : Character := 'a'; put_line (C & C); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.operator_not_defined{operator=&,left=Character,right=Character}!",
+]
+
+[[case]]
+id = "string.rebuilt-from-its-characters"
+requirement = "Taking a String apart and putting it back together, which is the loop the three attributes and indexing exist for."
+script = "S : String := \"abc\"; T : String := \"\"; for I in S'First .. S'Last loop T := T & S (I); end loop; if T = S then put_line (\"same\"); end if; quit (0);"
+exit_status = 0
+output = ["same"]
+diagnostics = []
+
+[[case]]
+id = "input.reads-a-line-at-a-time"
+requirement = """
+A script can read its own input. Until this the shell could write its output and
+run other programs and could not read a byte of what it was given: a script at
+the end of a pipe had no way to see anything.
+
+An empty line is a line, which is why the end of the input is a separate
+question: a program that could only see the text could not tell `` from `no
+more`.
+"""
+arguments = ["{root}/conformance/fixtures/echoes.adash"]
+input = "one\ntwo\n\nthree"
+exit_status = 0
+output = ["[one]", "[two]", "[]", "[three]", "read to the end"]
+diagnostics = []
+
+[[case]]
+id = "paths.asks-whether-something-is-there"
+requirement = """
+A shell script asks whether a file is there before it acts on it -- the
+commonest conditional anybody writes -- and the language could not ask it at
+all. Every other way a program touched the filesystem went through running
+something, and none of those answers a question.
+"""
+script = "if Exists (\"{root}/README.md\") then put_line (\"there\"); end if; if not Exists (\"{root}/adash-no-such-file\") then put_line (\"and not there\"); end if; quit (0);"
+exit_status = 0
+output = ["there", "and not there"]
+diagnostics = []
+
+[[case]]
+id = "paths.tells-a-directory-from-a-file"
+requirement = "Two different questions, because acting on a directory as though it were a file is the mistake the question exists to prevent."
+script = "put_line (Is_Directory (\"{root}/conformance\")); put_line (Is_Directory (\"{root}/README.md\")); quit (0);"
+exit_status = 0
+output = ["TRUE", "FALSE"]
+diagnostics = []
+
+[[case]]
+id = "paths.asks-whether-something-could-be-run"
+requirement = "The host's own answer, from hostkit: what makes a file runnable is the host's business and not a guess from the name."
+script = "put_line (Is_Executable (\"{root}/bin/adash\")); put_line (Is_Executable (\"{root}/README.md\")); quit (0);"
+exit_status = 0
+output = ["TRUE", "FALSE"]
+diagnostics = []
+
+[[case]]
+id = "paths.a-path-that-cannot-be-reached-is-not-a-file"
+requirement = """
+A path that cannot be reached -- no such directory, nothing named at all -- is
+not a file, so the answer is False rather than a failure. A predicate that could
+fail would need a second question beside every use, and the useful answer is the
+same either way.
+"""
+script = "put_line (Exists (\"\")); put_line (Exists (\"/adash-no-such-directory/and/deeper\")); quit (0);"
+exit_status = 0
+output = ["FALSE", "FALSE"]
+diagnostics = []
+
+[[case]]
+id = "text.is-searched"
+requirement = """
+Where a piece of text starts inside another, counting from one, and zero when it
+is not there -- which is Ada's own answer, and what lets a caller test without a
+second question. A String could be compared whole and taken apart by position;
+finding something in it meant a hand-written loop.
+"""
+script = "S : String := \"Hello World\"; put_line (Index (S, \"World\")); put_line (Index (S, \"zzz\")); quit (0);"
+exit_status = 0
+output = ["7", "0"]
+diagnostics = []
+
+[[case]]
+id = "text.is-shaped"
+requirement = """
+Trimmed, and in either case. Ada spells these in packages --
+`Ada.Strings.Fixed.Trim`, `Ada.Characters.Handling.To_Upper` -- and this
+language has no packages to spell, so the names are visible directly. They are
+Ada's own names; what is missing is only the road to them.
+"""
+script = "put_line (Trim (\"  x  \") & \"|\"); put_line (To_Upper (\"aBc\")); put_line (To_Lower (\"aBc\")); quit (0);"
+exit_status = 0
+output = ["x|", "ABC", "abc"]
+diagnostics = []
+
+[[case]]
+id = "text.is-tested-at-either-end"
+requirement = "Whether it begins or ends with something, which is what a script asks of a path, a flag or a line of output."
+script = "S : String := \"report.txt\"; put_line (Starts_With (S, \"report\")); put_line (Ends_With (S, \".txt\")); put_line (Ends_With (S, \".csv\")); quit (0);"
+exit_status = 0
+output = ["TRUE", "TRUE", "FALSE"]
+diagnostics = []
+
+[[case]]
+id = "files.writes-what-a-script-computed"
+requirement = """
+A script works something out and puts it in a file. Everything that wrote a file
+before this wrote what a *program* had printed -- `run_into` and its relatives --
+so a value the language itself produced had nowhere to go, and the shell could
+not save its own answer.
+"""
+script = "write_file (\"alpha\", \"{store}/out.txt\"); put_line (Output_Of (\"cat\", \"{store}/out.txt\")); quit (0);"
+exit_status = 0
+output = ["alpha"]
+diagnostics = []
+
+[[case]]
+id = "files.appends-to-the-end"
+requirement = "Adding to a file rather than replacing it, so a loop can collect lines. Appending to a file that is not there makes it, because the first turn of that loop is not an error."
+script = "for Index in 1 .. 3 loop append_file (\"line\", \"{store}/log.txt\"); end loop; put_line (Output_Of (\"cat\", \"{store}/log.txt\")); quit (0);"
+exit_status = 0
+output = ["linelineline"]
+diagnostics = []
+
+[[case]]
+id = "files.replaces-rather-than-adds"
+requirement = "The second write leaves the file holding only what the second write said, which is the difference between the two commands and the reason there are two."
+script = "write_file (\"first\", \"{store}/r.txt\"); write_file (\"second\", \"{store}/r.txt\"); put_line (Output_Of (\"cat\", \"{store}/r.txt\")); quit (0);"
+exit_status = 0
+output = ["second"]
+diagnostics = []
+
+[[case]]
+id = "files.a-path-that-cannot-be-written-is-refused"
+requirement = """
+Refused rather than reported as done. A write that silently failed would leave a
+script believing it had saved something, and the next run reading what the run
+before it wrote.
+"""
+script = "write_file (\"x\", \"{store}/no-such-directory/out.txt\"); quit (Status);"
+exit_status = 1
+diagnostics = ["!error.file_not_writable{path={store}/no-such-directory/out.txt}!"]
+
+[[case]]
+id = "files.a-directory-is-not-a-file-to-write"
+requirement = "Writing over a directory is refused before anything is opened, because the host's own answer to that is not the same everywhere and a shell should not depend on which one it got."
+script = "write_file (\"x\", \"{store}\"); quit (Status);"
+exit_status = 1
+diagnostics = ["!error.file_not_writable{path={store}}!"]
+
+[[case]]
+id = "files.writing-sets-the-status"
+requirement = "A write that worked leaves Status at zero, so a script can act on the one before it in the same way it acts on a program that ran."
+script = "write_file (\"x\", \"{store}/s.txt\"); if Status = 0 then put_line (\"saved\"); end if; quit (0);"
+exit_status = 0
+output = ["saved"]
+diagnostics = []

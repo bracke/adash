@@ -1,0 +1,41 @@
+--  Reading what the shell was given.
+--
+--  A shell that can write its output and run other programs and cannot read a
+--  byte of its own input is only half a shell: a script at the end of a pipe
+--  had no way to see anything at all.
+--
+--  `Read_Line` answers with one line, without the newline that ended it.
+--  `Input_Ended` says whether the last read found the end rather than a line --
+--  a separate question on purpose, because an empty line is a line a file may
+--  genuinely contain and a program that could only see the text could not tell
+--  the two apart.
+--
+--  This file is checked against a fixed output, so it is run with nothing on
+--  its input. Everything below is what a script does when it was given nothing,
+--  which is the case a script has to handle first.
+
+Lines : Integer := 0;
+Longest : Integer := 0;
+
+loop
+   Line : String := Read_Line;
+
+   exit when Input_Ended;
+
+   Lines := Lines + 1;
+
+   if Line'Length > Longest then
+      Longest := Line'Length;
+   end if;
+end loop;
+
+put_line (f"{Lines'Image} lines, the longest{Longest'Image} characters");
+
+if Lines = 0 then
+   put_line ("nothing was piped in");
+end if;
+
+--  Which makes the shape every filter has: read until there is nothing left,
+--  do something with each line, say what came of it. What a program reads is
+--  its own input, so `adash count.adash < notes.txt` and `cat notes.txt | adash
+--  count.adash` are the same run.

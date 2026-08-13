@@ -1,0 +1,524 @@
+# Adash repository metadata.
+#
+# The package inventory: what exists, which subsystem owns it, and whether it
+# is part of a public API or an implementation detail. This file is not
+# documentation about the code -- it is checked against the code. adash_check
+# verifies both directions: every spec named here exists, and every spec that
+# exists is named here. A package added without an entry has no recorded
+# owner, and ownership is what the architecture is made of.
+#
+# `version` must agree with alire.toml. Two files record it because they
+# answer different questions, and a release that ships them disagreeing is a
+# release nobody can identify afterwards.
+
+version = "0.1.0-dev"
+schema = 1
+
+[project]
+name = "adash"
+crate = "adash"
+test_crate = "adash_tests"
+language = "Ada 2022"
+
+# The crates that own capabilities Adash may not implement for itself. Listed
+# here so the rule has a machine-readable form and not only a paragraph in
+# AI.md.
+[providers]
+platform = "hostkit"
+messages = "messages"
+styling = "terminal_styles"
+tooling = "project_tools"
+tests = "aunit"
+# Not yet in the dependency graph. jsonlib and tomllib do not exist and are to
+# be created as sibling crates. Until
+# then no Adash source may parse JSON or TOML, and none does.
+json = "jsonlib"
+toml = "tomllib"
+
+# ---------------------------------------------------------------------------
+# Package inventory.
+#
+# status is one of: complete, in_progress, planned. Only `complete` packages
+# may be depended on by another subsystem.
+# ---------------------------------------------------------------------------
+
+[[package]]
+name = "Adash"
+subsystem = "root"
+visibility = "public"
+spec = "src/library/adash.ads"
+status = "complete"
+summary = "Root of the hierarchy and the project's identity. Holds no state."
+
+[[package]]
+name = "Adash.Version"
+subsystem = "root"
+visibility = "public"
+spec = "src/library/adash-version.ads"
+body = "src/library/adash-version.adb"
+status = "complete"
+summary = "Product version and build identity, read from the Alire manifest."
+
+[[package]]
+name = "Adash.Messages"
+subsystem = "messages"
+visibility = "public"
+spec = "src/library/adash-messages.ads"
+body = "src/library/adash-messages.adb"
+status = "complete"
+summary = "Stable message identifiers and their structured arguments."
+
+[[package]]
+name = "Adash.Messages.Rendering"
+subsystem = "messages"
+visibility = "public"
+spec = "src/library/adash-messages-rendering.ads"
+body = "src/library/adash-messages-rendering.adb"
+status = "complete"
+summary = "The presentation boundary: the only package that renders text."
+
+[[package]]
+name = "Adash.Terminal"
+subsystem = "terminal"
+visibility = "public"
+spec = "src/library/adash-terminal.ads"
+body = "src/library/adash-terminal.adb"
+status = "complete"
+summary = "Adash style roles and colour policy over terminal_styles."
+
+[[package]]
+name = "Adash.Errors"
+subsystem = "errors"
+visibility = "public"
+spec = "src/library/adash-errors.ads"
+body = "src/library/adash-errors.adb"
+status = "complete"
+summary = "Operational failures as structured data: a code, a domain and typed arguments, never a sentence."
+
+[[package]]
+name = "Adash.Platform"
+subsystem = "platform"
+visibility = "public"
+spec = "src/library/adash-platform.ads"
+body = "src/library/adash-platform.adb"
+status = "complete"
+summary = "Adash policy over hostkit: capability queries and the translation of host refusals into failures."
+
+[[package]]
+name = "Adash.Execution"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution.ads"
+body = "src/library/adash-execution.adb"
+status = "complete"
+summary = "Execution root and the one documented exit-status model."
+
+[[package]]
+name = "Adash.Execution.Streams"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-streams.ads"
+body = "src/library/adash-execution-streams.adb"
+status = "complete"
+summary = "Stream endpoints, carrying whether the shell owns a descriptor and must close it."
+
+[[package]]
+name = "Adash.Execution.Environment"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-environment.ads"
+body = "src/library/adash-execution-environment.adb"
+status = "complete"
+summary = "The environment a child is given, built as a value rather than by mutating this process."
+
+[[package]]
+name = "Adash.Execution.Commands"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-commands.ads"
+body = "src/library/adash-execution-commands.adb"
+status = "complete"
+summary = "The invocation model: everything one command needs, decided before anything irreversible."
+
+[[package]]
+name = "Adash.Execution.External"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-external.ads"
+body = "src/library/adash-execution-external.adb"
+status = "complete"
+summary = "Deterministic executable resolution, starting programs, and waiting for them."
+
+[[package]]
+name = "Adash.Execution.Redirection"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-redirection.ads"
+body = "src/library/adash-execution-redirection.adb"
+status = "complete"
+summary = "Redirection planned and validated before it is applied, so a rejected command has destroyed nothing."
+
+[[package]]
+name = "Adash.Execution.Pipelines"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-pipelines.ads"
+body = "src/library/adash-execution-pipelines.adb"
+status = "complete"
+summary = "Pipeline planning and execution: pipes, close order, one process group, status from the last stage."
+
+[[package]]
+name = "Adash.Execution.Cancellation"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-cancellation.ads"
+body = "src/library/adash-execution-cancellation.adb"
+status = "complete"
+summary = "Cancellation as explicit, sticky, task-safe state rather than an exception or a return value."
+
+[[package]]
+name = "Adash.Execution.Signals"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-signals.ads"
+body = "src/library/adash-execution-signals.adb"
+status = "complete"
+summary = "The shell's own signal policy: the signals it must refuse, and why each one would otherwise end the session."
+
+[[package]]
+name = "Adash.Execution.Jobs"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-jobs.ads"
+body = "src/library/adash-execution-jobs.adb"
+status = "complete"
+summary = "Job identity, lifecycle, placement and notification state. Records that a change is unreported; never writes to a terminal."
+
+[[package]]
+name = "Adash.Source"
+subsystem = "source"
+visibility = "public"
+spec = "src/library/adash-source.ads"
+body = "src/library/adash-source.adb"
+status = "complete"
+summary = "Source identities, immutable buffers, byte spans, and a line map that normalizes terminators without moving offsets."
+
+[[package]]
+name = "Adash.Display_Width"
+spec = "src/library/adash-display_width.ads"
+body = "src/library/adash-display_width.adb"
+status = "complete"
+summary = "How many terminal cells text occupies: wide and fullwidth code points count two, combining and zero-width count none."
+
+[[package]]
+name = "Adash.Diagnostics"
+subsystem = "diagnostics"
+visibility = "public"
+spec = "src/library/adash-diagnostics.ads"
+body = "src/library/adash-diagnostics.adb"
+status = "complete"
+summary = "Structured, presentation-independent diagnostics with stable identity, spans, related locations and deterministic ordering."
+
+[[package]]
+name = "Adash.Language"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language.ads"
+status = "complete"
+summary = "Root of the language subsystem: names the one pipeline and the layering its packages must keep."
+
+[[package]]
+name = "Adash.Language.Types"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-types.ads"
+body = "src/library/adash-language-types.adb"
+status = "complete"
+summary = "What a value can be: Ada's types under Ada's names, with no implicit conversion between them."
+
+[[package]]
+name = "Adash.Language.Values"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-values.ads"
+body = "src/library/adash-language-values.adb"
+status = "complete"
+summary = "Immutable values that know their own type, refuse the wrong read, and report conversion failures."
+
+[[package]]
+name = "Adash.Language.Symbols"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-symbols.ads"
+body = "src/library/adash-language-symbols.adb"
+status = "complete"
+summary = "What a name denotes: kind, type, declaration span, and Ada's case-insensitive folding with the spelling kept."
+
+[[package]]
+name = "Adash.Language.Scopes"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-scopes.ads"
+body = "src/library/adash-language-scopes.adb"
+status = "complete"
+summary = "The scope chain: duplicates in one scope refused, inner declarations hiding outer ones and restoring them."
+
+[[package]]
+name = "Adash.Language.Tokens"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-tokens.ads"
+body = "src/library/adash-language-tokens.adb"
+status = "complete"
+summary = "Immutable tokens carrying their exact extents, Ada's reserved words and delimiters, and an addressable token stream."
+
+[[package]]
+name = "Adash.Language.Lexer"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-lexer.ads"
+body = "src/library/adash-language-lexer.adb"
+status = "complete"
+summary = "Text to tokens: deterministic, locale-independent, and recovering rather than stopping at the first problem."
+
+[[package]]
+name = "Adash.Language.Syntax"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-syntax.ads"
+body = "src/library/adash-language-syntax.adb"
+status = "complete"
+summary = "The syntax tree: nodes in an arena addressed by index, so semantics annotates through a side table and never mutates the tree."
+
+[[package]]
+name = "Adash.Language.Parser"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-parser.ads"
+body = "src/library/adash-language-parser.adb"
+status = "complete"
+summary = "Recursive descent over Ada's precedence levels, recovering rather than stopping. Adash's own, as every pass here is."
+
+[[package]]
+name = "Adash.Language.Semantics"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-semantics.ads"
+body = "src/library/adash-language-semantics.adb"
+status = "complete"
+summary = "Name resolution, type resolution and static legality, recorded in a side table keyed by node so the tree is never mutated."
+
+[[package]]
+name = "Adash.Language.Evaluation"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-language-evaluation.ads"
+body = "src/library/adash-language-evaluation.adb"
+status = "complete"
+summary = "Lowering the analysed tree to the machine's instructions and running it. The only package that reaches into Adash.Machine."
+
+[[package]]
+name = "Adash.Predefined"
+subsystem = "predefined"
+visibility = "public"
+spec = "src/library/adash-predefined.ads"
+body = "src/library/adash-predefined.adb"
+status = "complete"
+summary = "The registry of predefined entities and their metadata: signatures calls are checked against, documentation and completion keys, and availability."
+
+[[package]]
+name = "Adash.Commands"
+subsystem = "commands"
+visibility = "public"
+spec = "src/library/adash-commands.ads"
+body = "src/library/adash-commands.adb"
+status = "complete"
+summary = "The internal command registry, its metadata, shell state, and structured output lines rendered by the frontend rather than printed here."
+
+[[package]]
+name = "Adash.Commands.Builtins"
+subsystem = "commands"
+visibility = "internal"
+spec = "src/library/adash-commands-builtins.ads"
+body = "src/library/adash-commands-builtins.adb"
+status = "complete"
+summary = "The internal commands themselves, separated from the registry so one does not change every time the other does."
+
+[[package]]
+name = "Adash.Execution.Internal_Commands"
+subsystem = "execution"
+visibility = "public"
+spec = "src/library/adash-execution-internal_commands.ads"
+body = "src/library/adash-execution-internal_commands.adb"
+status = "complete"
+summary = "Execution's one question about commands: is this the shell's own, or a program to start? Internal wins over an external of the same name."
+
+[[package]]
+name = "Adash.Engine"
+subsystem = "engine"
+visibility = "public"
+spec = "src/library/adash-engine.ads"
+body = "src/library/adash-engine.adb"
+status = "complete"
+summary = "The single coordinator: one lexer, one parser, one tree, and the classification that sends a submission to the commands or to the language."
+
+[[package]]
+name = "Adash.Scripting"
+subsystem = "scripting"
+visibility = "public"
+spec = "src/library/adash-scripting.ads"
+body = "src/library/adash-scripting.adb"
+status = "complete"
+summary = "Running source nobody is typing, through the same engine, with a loading chain so a file cannot load itself."
+
+[[package]]
+name = "Adash.Scripting.Modules"
+subsystem = "scripting"
+visibility = "public"
+spec = "src/library/adash-scripting-modules.ads"
+body = "src/library/adash-scripting-modules.adb"
+status = "complete"
+summary = "Turning a name into a file: a path is used as written, a bare name is searched beside the loader then in the user's modules, and never from the environment."
+
+[[package]]
+name = "Adash.Scripting.Startup"
+subsystem = "scripting"
+visibility = "public"
+spec = "src/library/adash-scripting-startup.ads"
+body = "src/library/adash-scripting-startup.adb"
+status = "complete"
+summary = "Startup discovery and policy: system then user then session, absence silent, failure reported, and the shell always comes up."
+
+[[package]]
+name = "Adash.Machine"
+subsystem = "machine"
+visibility = "public"
+spec = "src/library/adash-machine.ads"
+body = "src/library/adash-machine.adb"
+status = "complete"
+summary = "The virtual machine Adash programs run on: a stack machine with frames, static links and a call out to the shell. Its instruction set is what the lowering emits and nothing else."
+
+[[package]]
+name = "Adash.Filesystem"
+subsystem = "filesystem"
+visibility = "public"
+spec = "src/library/adash-filesystem.ads"
+body = "src/library/adash-filesystem.adb"
+status = "complete"
+summary = "What the shell can ask about a path: whether anything is there, whether it is a directory, whether it is something this host could run. Questions only -- making and unmaking files is what programs are for, and this shell runs programs."
+
+[[package]]
+name = "Adash.Persistence"
+subsystem = "persistence"
+visibility = "public"
+spec = "src/library/adash-persistence.ads"
+body = "src/library/adash-persistence.adb"
+status = "complete"
+summary = "Where the shell keeps things and how it puts them there: atomic replacement, an exclusive lock, private permissions, and an outcome for every way a machine can say no."
+
+[[package]]
+name = "Adash.Persistence.History"
+subsystem = "persistence"
+visibility = "public"
+spec = "src/library/adash-persistence-history.ads"
+body = "src/library/adash-persistence-history.adb"
+status = "complete"
+summary = "History that survives the session, as one JSON string per line -- because an entry may contain a newline and a newline-separated format cannot hold one."
+
+[[package]]
+name = "Adash.Configuration"
+subsystem = "configuration"
+visibility = "public"
+spec = "src/library/adash-configuration.ads"
+body = "src/library/adash-configuration.adb"
+status = "complete"
+summary = "The closed schema of what can be configured, with every default in one place, so an unknown key is something the user is told about rather than something they discover later."
+
+[[package]]
+name = "Adash.Configuration.Files"
+subsystem = "configuration"
+visibility = "public"
+spec = "src/library/adash-configuration-files.ads"
+body = "src/library/adash-configuration-files.adb"
+status = "complete"
+summary = "Reading and writing the file, through tomllib. A bad file never stops the shell: every problem is a diagnostic naming its key, and the setting keeps its default."
+
+[[package]]
+name = "Adash.Configuration.Migration"
+subsystem = "configuration"
+visibility = "public"
+spec = "src/library/adash-configuration-migration.ads"
+body = "src/library/adash-configuration-migration.adb"
+status = "complete"
+summary = "Bringing an older file forward. The rename table is empty because there has been one schema; the mechanism exists because the first rename is when nobody wants to be designing it."
+
+[[package]]
+name = "Adash.Interactive"
+subsystem = "interactive"
+visibility = "public"
+spec = "src/library/adash-interactive.ads"
+status = "complete"
+summary = "The root of the frontend: a pure package naming the seven children and stating that a frontend which parsed or ran anything itself would be a second engine."
+
+[[package]]
+name = "Adash.Interactive.Prompt"
+subsystem = "interactive"
+visibility = "public"
+spec = "src/library/adash-interactive-prompt.ads"
+body = "src/library/adash-interactive-prompt.adb"
+status = "complete"
+summary = "The prompt as parts rather than a format string, so there is no second small language, and building one can never fail the shell."
+
+[[package]]
+name = "Adash.Interactive.Editing"
+subsystem = "interactive"
+visibility = "public"
+spec = "src/library/adash-interactive-editing.ads"
+body = "src/library/adash-interactive-editing.adb"
+status = "complete"
+summary = "A line buffer whose cursor never lands inside a character, a key decoder that asks for more bytes rather than guessing, and the reader that drives a terminal in raw mode."
+
+[[package]]
+name = "Adash.Interactive.History"
+subsystem = "interactive"
+visibility = "public"
+spec = "src/library/adash-interactive-history.ads"
+body = "src/library/adash-interactive-history.adb"
+status = "complete"
+summary = "What has been typed: failures kept because they are what a user recalls to fix, consecutive duplicates collapsed, and a line marked sensitive recorded nowhere at all."
+
+[[package]]
+name = "Adash.Interactive.Completion"
+subsystem = "interactive"
+visibility = "public"
+spec = "src/library/adash-interactive-completion.ads"
+body = "src/library/adash-interactive-completion.adb"
+status = "complete"
+summary = "What could be typed next: deterministic, ordered by source rather than by score, and never evaluating the line it is completing."
+
+[[package]]
+name = "Adash.Interactive.Highlighting"
+subsystem = "interactive"
+visibility = "public"
+spec = "src/library/adash-interactive-highlighting.ads"
+body = "src/library/adash-interactive-highlighting.adb"
+status = "complete"
+summary = "Colour driven by tokens rather than by a tree, so a line that does not parse yet -- which is every line being typed -- is still highlighted."
+
+[[package]]
+name = "Adash.Interactive.Notifications"
+subsystem = "interactive"
+visibility = "public"
+spec = "src/library/adash-interactive-notifications.ads"
+body = "src/library/adash-interactive-notifications.adb"
+status = "complete"
+summary = "News held until a quiescent point, because printing it as it arrives writes over the line the user is typing, and that line is the one thing on screen that is theirs."
+
+[[package]]
+name = "Adash.Interactive.Session"
+subsystem = "interactive"
+visibility = "public"
+spec = "src/library/adash-interactive-session.ads"
+body = "src/library/adash-interactive-session.adb"
+status = "complete"
+summary = "The loop, and the presentation boundary for an interactive session: read, submit, render, deliver, prompt again."

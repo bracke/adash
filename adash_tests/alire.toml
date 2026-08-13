@@ -1,0 +1,73 @@
+name = "adash_tests"
+description = "AUnit suite and repository tooling for adash"
+version = "0.1.0-dev"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+long-description = "The child crate of adash: its AUnit suites and every program that checks, documents, measures or releases the repository. Adash keeps runtime code and tooling in separate crates so that no tool can be reached from the shell binary, and so that AUnit and project_tools are never dependencies of the thing users install."
+project-files = ["adash_tests.gpr"]
+executables = ["adash_tests", "adash_check", "adash_test_emit", "adash_test_upcase"]
+
+[[depends-on]]
+gnat_native = "=15.2.1"
+
+[[depends-on]]
+adash = "~0.1.0-dev"
+
+[[depends-on]]
+aunit = "~26.0.0"
+
+[[depends-on]]
+project_tools = "~0.1.0"
+
+[[pins]]
+adash = { path = ".." }
+
+[[pins]]
+project_tools = { path = "../../project_tools" }
+
+# Everything below is inherited from adash's own graph. Alire honours pins
+# only in the root crate, and this crate is a root too, so the whole list has
+# to be repeated here. A run that resolved without them was reading a cache.
+[[pins]]
+terminal_styles = { path = "../../terminal_styles" }
+
+[[pins]]
+messages = { path = "../../messages" }
+
+[[pins]]
+hostkit = { path = "../../hostkit" }
+
+[[pins]]
+jsonlib = { path = "../../jsonlib" }
+
+[[pins]]
+tomllib = { path = "../../tomllib" }
+
+[[pins]]
+
+[[pins]]
+httpclient = { path = "../../httpclient" }
+
+[[pins]]
+ssllib = { path = "../../ssllib" }
+
+[[pins]]
+cryptolib = { path = "../../cryptolib" }
+
+[[pins]]
+truststores = { path = "../../truststores" }
+
+[[pins]]
+zlib = { path = "../../zlib" }
+
+[[pins]]
+awklib = { path = "../../awklib" }
+
+[[pins]]
+regexp = { path = "../../regexp" }
+
+[build-profiles]
+"*" = "development"

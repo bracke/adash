@@ -1,0 +1,18 @@
+--  A command inside control flow.
+--
+--  No shell that puts its commands beside a language rather than inside one
+--  can express this: the command runs when the program reaches it, once per
+--  iteration, and a branch decides whether it runs at all.
+--
+--  `version` rather than `pwd`, only so that this example's output is the same
+--  on every machine and can be checked -- see examples/README.md.
+
+Wanted : constant Integer := 2;
+
+for Index in 1 .. Wanted loop
+   version;
+end loop;
+
+if Wanted > 1 then
+   version;
+end if;

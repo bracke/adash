@@ -1,0 +1,112 @@
+# `source`: running another file in this session rather than in a child.
+#
+# The distinction is the whole point. A child process could not change the
+# environment of the shell that started it; a sourced file can, because it is
+# the same session -- and that is why this is a shell command rather than a way
+# to spawn one more adash.
+#
+# These cases write no files of their own: a conformance case is a script and a
+# set of expectations, and one that needed a fixture on disk would be testing
+# the fixture too. What is pinned down here is what `source` does when the file
+# is not there, and that a session which cannot run scripts says so.
+
+suite = "sourcing"
+
+[[case]]
+id = "source.missing-file"
+requirement = """
+A file that is not there is reported, and the rest of the submission still
+runs: a failed command does not stop the sequence, which the exit-status cases
+already pin down. A name with a separator in it is a path and is used as
+written, so the report says there is nothing there rather than describing a
+search that never happened.
+"""
+script = "source (\"/nonexistent/adash-no-such-file.adash\"); put_line (\"after\");"
+exit_status = 0
+output = ["after"]
+diagnostics = [
+  "!error.module_not_found{name=/nonexistent/adash-no-such-file.adash,where=!module.looked.as_written!}!",
+]
+
+[[case]]
+id = "source.needs-one-argument"
+requirement = "source takes exactly one path, and says so rather than guessing."
+script = "source;"
+exit_status = 0
+output = []
+diagnostics = ["!error.wrong_argument_count{name=source,expected= 1,found= 0}!"]
+
+[[case]]
+id = "history.reports-what-was-typed"
+requirement = """
+`history` reports this session's lines, numbered, including the call itself --
+the line is recorded before the command runs, which is what every shell does.
+
+Each case gets a data store of its own, so the numbering here is this session's
+and not a count of everything the suite has run.
+"""
+script = "version;\nhistory;"
+exit_status = 0
+output = [
+  "!line.version{name=adash,version=0.1.0-dev}!",
+  "!line.history_entry{number=1,line=version;}!",
+  "!line.history_entry{number=2,line=history;}!",
+]
+diagnostics = []
+
+[[case]]
+id = "source.finds-a-module-beside-the-script"
+requirement = """
+A bare name is searched for rather than used as written: beside the script doing
+the loading first, then the user's own module directory. A set of scripts that
+ship together find each other without any of them knowing where they were
+installed -- and without the working directory deciding, which is what makes it
+work when somebody runs the script from elsewhere.
+
+`Adash.Scripting.Modules` had decided all of this since Phase 14 and nothing
+asked it: `source ("greeting")` failed unless a file of exactly that name sat in
+the working directory.
+"""
+arguments = ["{root}/conformance/fixtures/modules/asks.adash"]
+exit_status = 0
+output = ["the module ran", "and the script that asked for it"]
+diagnostics = []
+
+[[case]]
+id = "source.says-where-it-looked"
+requirement = """
+A name that resolves to nothing says where the search went. `no script called
+setup` leaves a reader wondering whether the shell searched at all.
+"""
+script = "source (\"adash-no-such-module\"); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.module_not_found{name=adash-no-such-module,where=!module.looked.in_modules!}!",
+]
+
+[[case]]
+id = "session.a-protected-object-keeps-its-state-across-submissions"
+requirement = """
+A protected object declared at the prompt is there on the next line, with the
+state it ended with. It is carried by replaying its declaration and handing its
+state back, which is why it works for a single object and for one of a
+protected type alike -- a protected object has no value to be handed back as.
+"""
+script = "protected Tally is procedure Add; function Total return Integer; end Tally; protected body Tally is N : Integer := 0; procedure Add is begin N := N + 1; end Add; function Total return Integer is begin return N; end Total; end Tally;\nTally.Add; Tally.Add;\nput_line (\"kept: \" & Integer'Image (Tally.Total));\nquit (0);"
+exit_status = 0
+output = ["kept:  2"]
+diagnostics = []
+
+[[case]]
+id = "session.and-a-task-object-does-not-outlive-its-submission"
+requirement = """
+A task object is not carried, and the roadmap says why: a task does not outlive
+its master and a submission is one, so what would be carried is the name of
+something that has ended. The type is carried, body and all, because a type
+starts nothing.
+"""
+script = "task type Worker is entry Go; end Worker; task body Worker is begin accept Go do put_line (\"served\"); end Go; end Worker;\nW : Worker; W.Go;\nW.Go;\nquit (0);"
+exit_status = 0
+output = ["served"]
+diagnostics = ["!error.name_undeclared{name=W}!"]

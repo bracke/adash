@@ -1,0 +1,94 @@
+--  Choosing by value.
+--
+--  `case` runs the one alternative whose choices cover the value, and runs
+--  nothing else -- there is no falling through from one to the next, and no
+--  `break` to forget. The four forms Ada writes are all here: a value, several
+--  values, a range, and `others`.
+--
+--  What a case must do that a chain of `if`s need not: account for every value
+--  the type has. A case that silently did nothing for a value nobody thought
+--  about is the mistake the rule exists to prevent, so a case that misses one
+--  is refused rather than run.
+
+for N in 1 .. 8 loop
+   case N is
+      when 1 =>
+         put_line ("one");
+
+      when 2 | 3 =>
+         put_line ("two or three");
+
+      when 4 .. 6 =>
+         put_line ("four to six");
+
+      when others =>
+         put_line ("more than six");
+   end case;
+end loop;
+
+--  Completeness is what the rule asks for, not the word `others`: a Boolean has
+--  two values and two alternatives account for both.
+Ready : Boolean := True;
+
+case Ready is
+   when True =>
+      put_line ("ready");
+
+   when False =>
+      put_line ("not ready");
+end case;
+
+--  A Character is a discrete value like any other, so a range of them is a
+--  range.
+Answer : Character := 'y';
+
+case Answer is
+   when 'y' | 'Y' =>
+      put_line ("yes");
+
+   when 'n' | 'N' =>
+      put_line ("no");
+
+   when 'a' .. 'm' | 'o' .. 'x' | 'z' =>
+      put_line ("some other lower-case letter");
+
+   when others =>
+      put_line ("not one of those");
+end case;
+
+--  The value is examined once, whatever the alternatives do, so a case over
+--  something the shell has to be asked for asks once.
+case Argument_Count is
+   when 0 =>
+      put_line ("given nothing");
+
+   when 1 =>
+      put_line ("given one thing");
+
+   when others =>
+      put_line ("given several things");
+end case;
+
+--  And a case is an ordinary statement, so it goes wherever one goes --
+--  including inside a subprogram, where a return leaves from the middle of it.
+function Sign_Of (N : Integer) return String is
+begin
+   case N is
+      when 0 =>
+         return "zero";
+
+      when 1 .. 9 =>
+         return "small and positive";
+
+      when others =>
+         return "something else";
+   end case;
+end Sign_Of;
+
+put_line (Sign_Of (3));
+put_line (Sign_Of (0));
+put_line (Sign_Of (0 - 3));
+
+--  `Integer'Last` would say what the last alternative means, and `'Image` is
+--  the only attribute this build has -- so `others` says it instead. That is a
+--  limitation of the attributes rather than of the case statement.

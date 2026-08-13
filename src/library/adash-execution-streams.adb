@@ -1,0 +1,213 @@
+with Ada.Characters.Latin_1;
+with Ada.Streams;
+with Ada.Strings.Unbounded;
+
+package body Adash.Execution.Streams is
+
+   package D renames Hostkit.Descriptors;
+
+   ----------
+   -- Name --
+   ----------
+
+   function Name (Item : Stream_Role) return String is
+   begin
+      case Item is
+         when Role_Input  => return "INPUT";
+         when Role_Output => return "OUTPUT";
+         when Role_Error  => return "ERROR";
+      end case;
+   end Name;
+
+   ---------------
+   -- Inherited --
+   ---------------
+
+   function Inherited (Role : Stream_Role) return Endpoint is
+   begin
+      return (Handle =>
+                (case Role is
+                    when Role_Input  => D.Standard_Input,
+                    when Role_Output => D.Standard_Output,
+                    when Role_Error  => D.Standard_Error),
+              Owned  => False);
+   end Inherited;
+
+   -----------
+   -- Owned --
+   -----------
+
+   function Owned (Handle : D.Descriptor) return Endpoint is
+   begin
+      return (Handle => Handle, Owned => True);
+   end Owned;
+
+   --------------
+   -- Borrowed --
+   --------------
+
+   function Borrowed (Handle : D.Descriptor) return Endpoint is
+   begin
+      return (Handle => Handle, Owned => False);
+   end Borrowed;
+
+   ------------
+   -- Handle --
+   ------------
+
+   function Handle (Item : Endpoint) return D.Descriptor is
+   begin
+      return Item.Handle;
+   end Handle;
+
+   --------------
+   -- Is_Owned --
+   --------------
+
+   function Is_Owned (Item : Endpoint) return Boolean is
+   begin
+      return Item.Owned;
+   end Is_Owned;
+
+   -----------------------
+   -- Prepare_For_Child --
+   -----------------------
+
+   function Prepare_For_Child (Item : Endpoint) return Boolean is
+   begin
+      if not D.Is_Valid (Item.Handle) then
+         return False;
+      end if;
+
+      return D.Set_Inheritable (Item.Handle, True);
+   end Prepare_For_Child;
+
+   -------------
+   -- Release --
+   -------------
+
+   procedure Release (Item : in out Endpoint) is
+   begin
+      if Item.Owned then
+         D.Close (Item.Handle);
+      end if;
+
+      --  Forgotten whether or not it was owned. A borrowed endpoint released
+      --  twice must not be handed to anything a third time, and an owned one
+      --  is already invalid after Close.
+      Item := (Handle => D.Invalid, Owned => False);
+   end Release;
+
+   ----------------
+   -- Read_Line --
+   ----------------
+
+   --  What has been read and not yet handed out, and whether the host has said
+   --  there is no more. Package state because there is one standard input:
+   --  two buffers over one descriptor would each hold half of somebody's line.
+   Held    : Ada.Strings.Unbounded.Unbounded_String;
+   Drained : Boolean := False;
+
+   function Read_Line (Ended : out Boolean) return String is
+      use Ada.Strings.Unbounded;
+
+      --  Where the first line ends in what is held, or zero when no terminator
+      --  has arrived yet.
+      function Break return Natural;
+
+      function Break return Natural is
+      begin
+         for Index in 1 .. Length (Held) loop
+            if Element (Held, Index) = Ada.Characters.Latin_1.LF then
+               return Index;
+            end if;
+         end loop;
+
+         return 0;
+      end Break;
+
+      Chunk : Ada.Streams.Stream_Element_Array (1 .. 4096);
+      Last  : Ada.Streams.Stream_Element_Offset;
+   begin
+      Ended := False;
+
+      loop
+         declare
+            At_Break : constant Natural := Break;
+         begin
+            if At_Break > 0 then
+               declare
+                  --  A CR before the newline belongs to the terminator. A file
+                  --  written on another host is still a file this shell reads.
+                  Stop : Natural := At_Break - 1;
+               begin
+                  if Stop > 0
+                    and then Element (Held, Stop) = Ada.Characters.Latin_1.CR
+                  then
+                     Stop := Stop - 1;
+                  end if;
+
+                  return Line : constant String := Slice (Held, 1, Stop) do
+                     Delete (Held, 1, At_Break);
+                  end return;
+               end;
+            end if;
+         end;
+
+         exit when Drained;
+
+         case Hostkit.Descriptors.Read
+                (Hostkit.Descriptors.Standard_Input, Chunk, Last)
+         is
+            when Hostkit.Descriptors.Transfer_Ok =>
+               for Index in Chunk'First .. Last loop
+                  Append (Held, Character'Val (Natural (Chunk (Index))));
+               end loop;
+
+            when Hostkit.Descriptors.Transfer_Interrupted =>
+               null;
+
+            when others =>
+               --  End of file, or a host that will not answer. Either way
+               --  nothing more is coming, and what is held is the last line
+               --  whether or not it was terminated.
+               Drained := True;
+         end case;
+      end loop;
+
+      --  Drained, with something held: a last line with no terminator.
+      if Length (Held) > 0 then
+         return Line : constant String := To_String (Held) do
+            Held := Null_Unbounded_String;
+         end return;
+      end if;
+
+      Ended := True;
+      return "";
+   end Read_Line;
+
+   -----------------
+   -- Take_Held --
+   -----------------
+
+   function Take_Held return String is
+      use Ada.Strings.Unbounded;
+   begin
+      return Taken : constant String := To_String (Held) do
+         Held := Null_Unbounded_String;
+      end return;
+   end Take_Held;
+
+   ----------------
+   -- Put_Back --
+   ----------------
+
+   procedure Put_Back (Bytes : String) is
+      use Ada.Strings.Unbounded;
+   begin
+      if Bytes'Length > 0 then
+         Held := To_Unbounded_String (Bytes) & Held;
+      end if;
+   end Put_Back;
+
+end Adash.Execution.Streams;

@@ -1,0 +1,77 @@
+--  Counting backwards, and asking whether a value is inside a range.
+--
+--  Both are Ada, both are what a shell script wants several times a day, and
+--  neither could be written here until now. Walking a list backwards meant a
+--  `while` with a counter the writer maintained by hand -- which is the loop
+--  `for` exists to remove -- and asking whether a value was in a range meant
+--  writing the two comparisons out, which is longer, easy to get backwards,
+--  and evaluates the value twice.
+
+--  `reverse` goes between `in` and the range, where Ada puts it.
+for Countdown in reverse 1 .. 5 loop
+   put_line (Trim (Countdown'Image));
+end loop;
+
+put_line ("lift off");
+
+--  A range whose low bound is above its high one is null whichever way it is
+--  walked, so the body runs no times rather than counting away from it.
+for Never in reverse 3 .. 1 loop
+   put_line ("this does not happen");
+end loop;
+
+--  The bounds are evaluated left to right as written, whichever direction the
+--  loop then runs. Starting from the upper bound changes where the counting
+--  begins and not what order the two expressions are run in.
+
+--  `X in L .. H`, and `not in` for the other answer.
+Status_Code : Integer := 4;
+
+if Status_Code in 1 .. 125 then
+   put_line ("the program failed on its own account");
+end if;
+
+if Status_Code not in 126 .. 128 then
+   put_line ("and not because the shell could not start it");
+end if;
+
+--  Any ordered type, not only Integer.
+Letter : Character := 'q';
+
+if Letter in 'a' .. 'z' then
+   put_line ("a lower-case letter");
+end if;
+
+--  The value is evaluated once, so a call inside it happens once.
+Asked : Integer := 0;
+
+function Answer return Integer is
+begin
+   Asked := Asked + 1;
+   return 3;
+end Answer;
+
+if Answer in 1 .. 5 then
+   put_line ("inside");
+end if;
+
+put_line ("asked " & Trim (Asked'Image) & " time");
+
+--  Which makes the shape a script uses to classify what it just ran.
+function Verdict (Code : Integer) return String is
+begin
+   if Code = 0 then
+      return "worked";
+   elsif Code in 1 .. 125 then
+      return "failed";
+   elsif Code in 126 .. 127 then
+      return "could not be run";
+   end if;
+
+   return "was killed";
+end Verdict;
+
+put_line (Verdict (0));
+put_line (Verdict (2));
+put_line (Verdict (127));
+put_line (Verdict (139));

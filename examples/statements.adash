@@ -1,0 +1,18 @@
+--  A script of ordinary Ada statements.
+--
+--  Adash's command language is a subset of Ada, so this is not "shell syntax
+--  that resembles Ada" -- it is Ada, declared, analysed and run. A name that
+--  was never declared is a diagnostic, a type mismatch is a diagnostic, and
+--  neither is discovered halfway through by a command that got the wrong
+--  argument.
+--
+--  This script computes and then ends, so it produces no output and exits
+--  zero. That is the ordinary success of a script: silence.
+
+Total : Integer := 0;
+
+for Index in 1 .. 4 loop
+   Total := Total + Index * 2;
+end loop;
+
+Doubled : Integer := Total * 2;

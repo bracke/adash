@@ -1,0 +1,816 @@
+with Ada.Streams;
+with Ada.Strings.Unbounded;
+
+with AUnit.Assertions;
+
+with Adash.Diagnostics;
+with Adash.Interactive.Completion;
+with Adash.Display_Width;
+with Adash.Interactive.Editing;
+with Adash.Interactive.Highlighting;
+with Adash.Interactive.History;
+with Adash.Interactive.Notifications;
+with Adash.Errors;
+with Adash.Language.Lexer;
+with Adash.Language.Tokens;
+with Adash.Messages;
+with Adash.Source;
+with Adash.Terminal;
+
+package body Adash_Tests.Interactive_Cases is
+
+   use AUnit.Assertions;
+
+   package Edit renames Adash.Interactive.Editing;
+   package Hist renames Adash.Interactive.History;
+   package Note renames Adash.Interactive.Notifications;
+   package Comp renames Adash.Interactive.Completion;
+   package High renames Adash.Interactive.Highlighting;
+
+   use type Edit.Key_Kind;
+   use type Comp.Source_Kind;
+   use type Adash.Terminal.Style_Role;
+
+   --  "e" with an acute accent, in UTF-8: two bytes, one character. Enough to
+   --  catch a cursor that moves a byte at a time.
+   Accented : constant String :=
+     [Character'Val (16#C3#), Character'Val (16#A9#)];
+
+   --  Turn a string into bytes, for the decoder.
+   function Bytes (Item : String) return Ada.Streams.Stream_Element_Array;
+
+   function Bytes (Item : String) return Ada.Streams.Stream_Element_Array is
+      Result : Ada.Streams.Stream_Element_Array
+                 (1 .. Ada.Streams.Stream_Element_Offset (Item'Length));
+   begin
+      for Index in Item'Range loop
+         Result (Ada.Streams.Stream_Element_Offset (Index - Item'First + 1)) :=
+           Ada.Streams.Stream_Element (Character'Pos (Item (Index)));
+      end loop;
+
+      return Result;
+   end Bytes;
+
+   procedure Buffer_Inserts_And_Deletes
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Cursor_Moves_By_Character
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Buffer_Refuses_Overflow
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Word_Operations_Take_Their_Separator
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Decoder_Reads_Arrow_Keys
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Decoder_Waits_For_Split_Sequences
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Decoder_Never_Inserts_Control_Bytes
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure History_Collapses_Consecutive_Duplicates
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure History_Forgets_Sensitive_Lines
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure History_Drops_Oldest_At_Its_Limit
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure History_Searches_Backwards
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Notices_Wait_While_Editing
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Notices_Keep_Job_News_When_Full
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Completion_Is_Ordered_And_Deterministic
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Completion_Prefix_Is_Never_A_Guess
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Highlighting_Covers_Unparsable_Input
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+
+   ---------------------------------
+   -- Buffer_Inserts_And_Deletes --
+   ---------------------------------
+
+   procedure Buffer_Inserts_And_Deletes
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Line    : Edit.Buffer;
+      Ignored : Boolean;
+   begin
+      Ignored := Line.Insert ("quit");
+      Assert (Line.Text = "quit", "insert did not build the line: " & Line.Text);
+      Assert (Line.Cursor = 4, "cursor did not follow the insertion");
+
+      Ignored := Line.Move (Edit.To_Start);
+      Ignored := Line.Insert ("--");
+      Assert (Line.Text = "--quit", "insertion at the cursor appended instead: "
+              & Line.Text);
+
+      Ignored := Line.Move (Edit.To_End);
+      Assert (Line.Delete_Backward, "backspace at the end deleted nothing");
+      Assert (Line.Text = "--qui", "backspace removed the wrong byte: " & Line.Text);
+
+      Ignored := Line.Move (Edit.To_Start);
+      Assert (not Line.Delete_Backward,
+              "backspace at the start reported a deletion");
+      Assert (Line.Delete_Forward, "delete at the start deleted nothing");
+      Assert (Line.Text = "-qui", "delete removed the wrong byte: " & Line.Text);
+
+      Assert (Line.Delete_To_End, "kill-to-end deleted nothing");
+      Assert (Line.Text = "", "kill-to-end left something behind: " & Line.Text);
+   end Buffer_Inserts_And_Deletes;
+
+   ---------------------------------
+   -- Cursor_Moves_By_Character --
+   ---------------------------------
+
+   procedure Cursor_Moves_By_Character
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Line    : Edit.Buffer;
+      Ignored : Boolean;
+   begin
+      Ignored := Line.Insert ("a" & Accented & "b");
+
+      Assert (Line.Length = 4, "the accented character was not two bytes");
+      Assert (Line.Character_Count = 3,
+              "three characters were counted as"
+              & Natural'Image (Line.Character_Count));
+
+      --  Left from the end: past 'b', then past the whole accented character
+      --  rather than into the middle of it.
+      Ignored := Line.Move (Edit.Left);
+      Assert (Line.Cursor = 3, "left did not step over one byte");
+
+      Ignored := Line.Move (Edit.Left);
+      Assert (Line.Cursor = 1,
+              "left stopped inside a UTF-8 character, at"
+              & Natural'Image (Line.Cursor));
+
+      Assert (Line.Cursor_Column = 1,
+              "the cursor column counted bytes rather than characters");
+
+      --  And deleting it removes both bytes, not one.
+      Ignored := Line.Move (Edit.Right);
+      Assert (Line.Delete_Backward, "backspace deleted nothing");
+      Assert (Line.Text = "ab", "backspace split a character: " & Line.Text);
+   end Cursor_Moves_By_Character;
+
+   ---------------------------------
+   -- Buffer_Refuses_Overflow --
+   ---------------------------------
+
+   procedure Buffer_Refuses_Overflow
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Line    : Edit.Buffer;
+      Filler  : constant String (1 .. Edit.Max_Line - 1) := [others => 'x'];
+      Ignored : Boolean;
+   begin
+      Assert (Line.Insert (Filler), "a line one short of the limit was refused");
+      Assert (Line.Insert ("y"), "the last byte was refused");
+
+      --  Full. The refusal has to be total: a partial insertion would leave
+      --  the user with a line that looks right and is not.
+      Assert (not Line.Insert ("z"), "an insertion past the limit was accepted");
+      Assert (Line.Length = Edit.Max_Line,
+              "a refused insertion changed the length");
+
+      Assert (not Line.Insert ("abc"),
+              "a multi-byte insertion past the limit was accepted");
+      Assert (Line.Length = Edit.Max_Line,
+              "a refused insertion inserted part of itself");
+   end Buffer_Refuses_Overflow;
+
+   ----------------------------------------------
+   -- Word_Operations_Take_Their_Separator --
+   ----------------------------------------------
+
+   procedure Word_Operations_Take_Their_Separator
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Line    : Edit.Buffer;
+      Ignored : Boolean;
+   begin
+      Ignored := Line.Insert ("put_line hello world");
+
+      Assert (Line.Delete_Word_Backward, "word deletion deleted nothing");
+      Assert (Line.Text = "put_line hello ",
+              "word deletion left its separator behind: " & Line.Text);
+
+      Assert (Line.Delete_Word_Backward, "the second word deletion did nothing");
+      Assert (Line.Text = "put_line ",
+              "the second word deletion took the wrong span: " & Line.Text);
+
+      --  And movement agrees with deletion about where a word starts.
+      Ignored := Line.Move (Edit.Word_Left);
+      Assert (Line.Cursor = 0,
+              "word-left did not reach the start, stopping at"
+              & Natural'Image (Line.Cursor));
+   end Word_Operations_Take_Their_Separator;
+
+   ---------------------------------
+   -- Decoder_Reads_Arrow_Keys --
+   ---------------------------------
+
+   procedure Decoder_Reads_Arrow_Keys
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Escape : constant Character := Character'Val (16#1B#);
+
+      procedure Expect (Input : String; Kind : Edit.Key_Kind; Used : Natural);
+
+      procedure Expect (Input : String; Kind : Edit.Key_Kind; Used : Natural) is
+         Event    : Edit.Key_Event;
+         Consumed : Natural;
+      begin
+         Edit.Decode (Bytes (Input), Event, Consumed);
+         Assert (Event.Kind = Kind,
+                 "decoded as " & Edit.Key_Kind'Image (Event.Kind)
+                 & " rather than " & Edit.Key_Kind'Image (Kind));
+         Assert (Consumed = Used,
+                 "consumed" & Natural'Image (Consumed)
+                 & " bytes rather than" & Natural'Image (Used));
+      end Expect;
+
+   begin
+      Expect (Escape & "[A", Edit.Key_Up, 3);
+      Expect (Escape & "[B", Edit.Key_Down, 3);
+      Expect (Escape & "[C", Edit.Key_Right, 3);
+      Expect (Escape & "[D", Edit.Key_Left, 3);
+      Expect (Escape & "[H", Edit.Key_Home, 3);
+      Expect (Escape & "[F", Edit.Key_End, 3);
+
+      --  The numeric forms, which are what many terminals actually send.
+      Expect (Escape & "[3~", Edit.Key_Delete, 4);
+      Expect (Escape & "[1~", Edit.Key_Home, 4);
+      Expect (Escape & "[4~", Edit.Key_End, 4);
+
+      --  Control-arrow, whose parameters make the sequence longer without
+      --  changing what it means.
+      Expect (Escape & "[1;5C", Edit.Key_Word_Right, 6);
+      Expect (Escape & "[1;5D", Edit.Key_Word_Left, 6);
+
+      --  A sequence carrying several keystrokes decodes the first and leaves
+      --  the rest: one read routinely holds more than one key.
+      Expect (Escape & "[Ax", Edit.Key_Up, 3);
+   end Decoder_Reads_Arrow_Keys;
+
+   ------------------------------------------
+   -- Decoder_Waits_For_Split_Sequences --
+   ------------------------------------------
+
+   procedure Decoder_Waits_For_Split_Sequences
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Escape : constant Character := Character'Val (16#1B#);
+
+      procedure Expect_Incomplete (Input : String);
+
+      procedure Expect_Incomplete (Input : String) is
+         Event    : Edit.Key_Event;
+         Consumed : Natural;
+      begin
+         Edit.Decode (Bytes (Input), Event, Consumed);
+         Assert (Event.Kind = Edit.Key_Incomplete,
+                 "a partial sequence decoded as "
+                 & Edit.Key_Kind'Image (Event.Kind));
+         Assert (Consumed = 0,
+                 "an incomplete decode consumed" & Natural'Image (Consumed)
+                 & " bytes, which would lose them");
+      end Expect_Incomplete;
+
+   begin
+      --  Every prefix of an arrow key. A read can end at any of them, and each
+      --  one has to ask for more rather than guess.
+      Expect_Incomplete ("");
+      Expect_Incomplete (Escape & "");
+      Expect_Incomplete (Escape & "[");
+      Expect_Incomplete (Escape & "[1");
+      Expect_Incomplete (Escape & "[1;");
+      Expect_Incomplete (Escape & "[1;5");
+
+      --  And a UTF-8 character split across reads. Inserting the first byte
+      --  alone would corrupt the line.
+      Expect_Incomplete (Accented (Accented'First .. Accented'First));
+   end Decoder_Waits_For_Split_Sequences;
+
+   ----------------------------------------------
+   -- Decoder_Never_Inserts_Control_Bytes --
+   ----------------------------------------------
+
+   procedure Decoder_Never_Inserts_Control_Bytes
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Event    : Edit.Key_Event;
+      Consumed : Natural;
+   begin
+      --  No byte below a space is ever text, whether this editor binds it or
+      --  not. One that leaked through would put an invisible character into
+      --  the line, and the user would see a command that looks right and fails.
+      for Code in 0 .. 16#1F# loop
+         Edit.Decode
+           (Bytes ([1 => Character'Val (Code)]), Event, Consumed);
+
+         Assert (Event.Kind /= Edit.Key_Character,
+                 "control byte" & Integer'Image (Code) & " decoded as text");
+
+         --  Escape alone is the one that legitimately waits for more.
+         if Code /= 16#1B# then
+            Assert (Consumed = 1,
+                    "control byte" & Integer'Image (Code) & " was not consumed");
+         end if;
+      end loop;
+
+      --  A stray continuation byte cannot start a character either.
+      Edit.Decode (Bytes ([1 => Character'Val (16#A9#)]), Event, Consumed);
+      Assert (Event.Kind = Edit.Key_Unknown,
+              "a stray continuation byte decoded as "
+              & Edit.Key_Kind'Image (Event.Kind));
+      Assert (Consumed = 1, "a stray continuation byte was not consumed");
+   end Decoder_Never_Inserts_Control_Bytes;
+
+   --------------------------------------------------
+   -- History_Collapses_Consecutive_Duplicates --
+   --------------------------------------------------
+
+   procedure History_Collapses_Consecutive_Duplicates
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Log : Hist.Log;
+   begin
+      Hist.Record_Line (Log, "quit;");
+      Hist.Record_Line (Log, "quit;");
+      Assert (Hist.Count (Log) = 1,
+              "a consecutive duplicate was recorded, giving"
+              & Natural'Image (Hist.Count (Log)) & " entries");
+
+      --  A non-consecutive repeat is a real place in the session and is kept.
+      Hist.Record_Line (Log, "put_line;");
+      Hist.Record_Line (Log, "quit;");
+      Assert (Hist.Count (Log) = 3,
+              "a non-consecutive repeat was collapsed, giving"
+              & Natural'Image (Hist.Count (Log)) & " entries");
+
+      --  A blank line is not an entry: recalling one gives the user nothing.
+      Hist.Record_Line (Log, "");
+      Assert (Hist.Count (Log) = 3, "a blank line was recorded");
+
+      Assert (Hist.Most_Recent (Log) = "quit;",
+              "the most recent entry was " & Hist.Most_Recent (Log));
+   end History_Collapses_Consecutive_Duplicates;
+
+   -------------------------------------------
+   -- History_Forgets_Sensitive_Lines --
+   -------------------------------------------
+
+   procedure History_Forgets_Sensitive_Lines
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Log : Hist.Log;
+   begin
+      Hist.Record_Line (Log, "before;");
+      Hist.Record_Line (Log, "secret;", Sensitive => True);
+      Hist.Record_Line (Log, "after;");
+
+      --  Not even a placeholder. An entry saying a secret was here is still a
+      --  record of when one was typed.
+      Assert (Hist.Count (Log) = 2,
+              "a sensitive line left" & Natural'Image (Hist.Count (Log))
+              & " entries rather than 2");
+      Assert (Hist.Entry_At (Log, 1) = "before;", "the first entry moved");
+      Assert (Hist.Entry_At (Log, 2) = "after;",
+              "the sensitive line was recorded as " & Hist.Entry_At (Log, 2));
+   end History_Forgets_Sensitive_Lines;
+
+   ----------------------------------------------
+   -- History_Drops_Oldest_At_Its_Limit --
+   ----------------------------------------------
+
+   procedure History_Drops_Oldest_At_Its_Limit
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Log : Hist.Log;
+   begin
+      Hist.Set_Limit (Log, 3);
+
+      for Index in 1 .. 5 loop
+         Hist.Record_Line (Log, "line" & Natural'Image (Index));
+      end loop;
+
+      Assert (Hist.Count (Log) = 3,
+              "the limit was not honoured:" & Natural'Image (Hist.Count (Log))
+              & " entries");
+
+      --  The oldest goes, because it is the least likely to be wanted.
+      Assert (Hist.Entry_At (Log, 1) = "line 3",
+              "the wrong end was dropped; the first entry is "
+              & Hist.Entry_At (Log, 1));
+      Assert (Hist.Most_Recent (Log) = "line 5",
+              "the newest entry was lost");
+
+      --  Lowering the limit takes effect at once rather than at the next
+      --  insertion, so a user who has just been asked for less gets it.
+      Hist.Set_Limit (Log, 1);
+      Assert (Hist.Count (Log) = 1, "a lowered limit was not applied");
+      Assert (Hist.Most_Recent (Log) = "line 5", "the wrong entry survived");
+   end History_Drops_Oldest_At_Its_Limit;
+
+   ---------------------------------------
+   -- History_Searches_Backwards --
+   ---------------------------------------
+
+   procedure History_Searches_Backwards
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Log   : Hist.Log;
+      Found : Hist.Entry_Text;
+      use Ada.Strings.Unbounded;
+   begin
+      Hist.Record_Line (Log, "put_line first;");
+      Hist.Record_Line (Log, "quit;");
+      Hist.Record_Line (Log, "put_line second;");
+
+      --  From the newest end: "the last time I did this".
+      Assert (Hist.Search_Backwards (Log, "put_line", Found),
+              "a prefix that is present was not found");
+      Assert (To_String (Found) = "put_line second;",
+              "the search found the older match: " & To_String (Found));
+
+      Assert (not Hist.Search_Backwards (Log, "nothing", Found),
+              "a prefix that is absent was found anyway");
+      Assert (Length (Found) = 0,
+              "a failed search left something in the result");
+   end History_Searches_Backwards;
+
+   --------------------------------------
+   -- Notices_Wait_While_Editing --
+   --------------------------------------
+
+   procedure Notices_Wait_While_Editing
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Queue : Note.Queue;
+      Item  : Note.Notice;
+   begin
+      Queue.Post (Note.Job_Change, Adash.Messages.Msg_Error_None);
+
+      --  Never while a line is part-typed, however long it has waited:
+      --  interrupting the user's typing trades something they are doing for
+      --  something they are not.
+      Assert (not Queue.Ready (Editing => True),
+              "a notice was offered while a line was being edited");
+      Assert (Queue.Ready (Editing => False),
+              "a notice was withheld at a quiescent point");
+
+      Assert (Queue.Take (Item), "a waiting notice could not be taken");
+      Assert (Queue.Pending = 0, "taking a notice left it in the queue");
+      Assert (not Queue.Take (Item), "an empty queue produced a notice");
+   end Notices_Wait_While_Editing;
+
+   -------------------------------------------
+   -- Notices_Keep_Job_News_When_Full --
+   -------------------------------------------
+
+   procedure Notices_Keep_Job_News_When_Full
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Queue : Note.Queue;
+      Item  : Note.Notice;
+
+      use type Note.Notice_Kind;
+   begin
+      --  One job change, then enough advisories to overflow. The user asked
+      --  for the job and is owed the news; an advisory buried under sixty
+      --  others is not worth the line it would take.
+      Queue.Post (Note.Job_Change, Adash.Messages.Msg_Error_None);
+
+      for Index in 1 .. Note.Max_Pending + 5 loop
+         Queue.Post (Note.Advisory, Adash.Messages.Msg_Error_None);
+      end loop;
+
+      Assert (Queue.Pending = Note.Max_Pending,
+              "the queue grew past its bound, to"
+              & Natural'Image (Queue.Pending));
+
+      Assert (Queue.Take (Item), "the queue was empty after overflowing");
+      Assert (Item.Kind = Note.Job_Change,
+              "the job change was dropped in favour of an advisory");
+   end Notices_Keep_Job_News_When_Full;
+
+   ---------------------------------------------------
+   -- Completion_Is_Ordered_And_Deterministic --
+   ---------------------------------------------------
+
+   procedure Completion_Is_Ordered_And_Deterministic
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      First  : constant Comp.Candidate_List :=
+        Comp.Complete (Comp.Make_Request ("qu", 3));
+      Second : constant Comp.Candidate_List :=
+        Comp.Complete (Comp.Make_Request ("qu", 3));
+   begin
+      Assert (First.Count > 0, "completing a known command prefix found nothing");
+
+      --  The same request twice gives the same answer in the same order. A
+      --  completion list that reordered itself would make the same keystrokes
+      --  mean different things on different days.
+      Assert (First.Count = Second.Count,
+              "the same request produced different counts");
+
+      for Index in 1 .. First.Count loop
+         Assert (Comp.Insertion (First.Element (Index))
+                 = Comp.Insertion (Second.Element (Index)),
+                 "the same request produced a different order at"
+                 & Natural'Image (Index));
+      end loop;
+
+      --  Commands come before everything else, because a shell prompt is
+      --  where commands are typed.
+      Assert (Comp.Source (First.Element (1)) = Comp.From_Command,
+              "the first candidate came from "
+              & Comp.Source_Kind'Image (Comp.Source (First.Element (1))));
+   end Completion_Is_Ordered_And_Deterministic;
+
+   ------------------------------------------------
+   -- Completion_Prefix_Is_Never_A_Guess --
+   ------------------------------------------------
+
+   procedure Completion_Prefix_Is_Never_A_Guess
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Candidates : constant Comp.Candidate_List :=
+        Comp.Complete (Comp.Make_Request ("", 1));
+      Shared     : constant String := Candidates.Common_Prefix;
+   begin
+      --  Whatever the shared prefix is, every candidate has to begin with it.
+      --  A prefix longer than that is a guess, and a user cannot tell a
+      --  completion from a mistake until it has run.
+      for Index in 1 .. Candidates.Count loop
+         declare
+            Text : constant String := Comp.Insertion (Candidates.Element (Index));
+         begin
+            Assert (Text'Length >= Shared'Length
+                    and then Text (Text'First .. Text'First + Shared'Length - 1)
+                             = Shared,
+                    "candidate " & Text & " does not begin with the common "
+                    & "prefix " & Shared);
+         end;
+      end loop;
+
+      --  Nothing typed and nothing in scope still answers, rather than
+      --  refusing: an empty list is a fact, not a failure.
+      Assert (Comp.Complete (Comp.Make_Request ("zzzqqq", 7)).Count = 0,
+              "a prefix nothing matches produced candidates");
+   end Completion_Prefix_Is_Never_A_Guess;
+
+   -----------------------------------------------
+   -- Highlighting_Covers_Unparsable_Input --
+   -----------------------------------------------
+
+   procedure Highlighting_Covers_Unparsable_Input
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      --  Deliberately not a program: an unclosed string and a missing
+      --  semicolon. Highlighting runs off tokens rather than a tree precisely
+      --  so that a line being typed -- which is unfinished by definition --
+      --  still gets coloured.
+      Text   : constant String := "if x then put_line (""unclosed";
+      Origin : constant Adash.Source.Origin :=
+        Adash.Source.Make_Origin (Adash.Source.Origin_Interactive, "-");
+
+      Buffer : Adash.Source.Buffer;
+      Stream : Adash.Language.Tokens.Token_Stream;
+      Report : Adash.Diagnostics.List;
+      Error  : Adash.Errors.Error_Info;
+
+      Coloured : High.Highlight;
+   begin
+      Assert (Adash.Source.Load (Buffer, Origin, Text, Error),
+              "the sample source did not load");
+      Adash.Language.Lexer.Scan (Buffer, Stream, Report);
+      Coloured := High.Colour (Stream);
+
+      Assert (Coloured.Count > 0,
+              "unfinished input produced no highlighting at all");
+
+      --  The reserved words are recognised even though the line is not a
+      --  program.
+      declare
+         Keywords : Natural := 0;
+      begin
+         for Index in 1 .. Coloured.Count loop
+            if Coloured.Spans (Index).Role = Adash.Terminal.Role_Keyword then
+               Keywords := Keywords + 1;
+            end if;
+         end loop;
+
+         Assert (Keywords >= 2,
+                 "if and then were not highlighted as keywords;"
+                 & Natural'Image (Keywords) & " keyword spans");
+      end;
+   end Highlighting_Covers_Unparsable_Input;
+
+   ----------
+   -- Name --
+   ----------
+
+   procedure Width_Counts_Cells_Not_Characters
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      package W renames Adash.Display_Width;
+
+      --  U+4E2D, a CJK ideograph: three bytes, two cells.
+      Ideograph : constant String :=
+        Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
+
+      --  U+0301, a combining acute accent: two bytes, no cells of its own.
+      Accent : constant String :=
+        Character'Val (16#CC#) & Character'Val (16#81#);
+
+      Line    : Edit.Buffer;
+      Ignored : Boolean;
+   begin
+      --  Ordinary text is one cell per character, which is what it always was.
+      Assert (W.Cells ("abc") = 3, "plain text was not three cells");
+
+      --  An ideograph takes two. Counting characters gave one, which put every
+      --  cell after it one place left of where the terminal drew it.
+      Assert (W.Cells (Ideograph) = 2,
+              "an ideograph was not two cells but"
+              & Natural'Image (W.Cells (Ideograph)));
+
+      --  A combining accent takes none: it is drawn on the character before
+      --  it, so counting it would push the rest of the line one cell right.
+      Assert (W.Cells ("e" & Accent) = 1,
+              "a combining accent added a cell");
+
+      --  The two questions differ, and the buffer answers both.
+      Ignored := Line.Insert (Ideograph & "a");
+      Assert (Line.Character_Count = 2,
+              "two characters were counted as"
+              & Natural'Image (Line.Character_Count));
+      Assert (Line.Cell_Count = 3,
+              "an ideograph and a letter were not three cells but"
+              & Natural'Image (Line.Cell_Count));
+
+      --  And so do the two cursor measures. The cursor sits after both
+      --  characters: two characters back, three cells back.
+      Assert (Line.Cursor_Column = 2, "the cursor was not after two characters");
+      Assert (Line.Cursor_Cells = 3,
+              "the cursor was not three cells in but"
+              & Natural'Image (Line.Cursor_Cells));
+
+      --  Moving left over the ideograph loses two cells, not one.
+      Ignored := Line.Move (Edit.Left);
+      Assert (Line.Cursor_Cells = 2,
+              "stepping back over a letter did not lose one cell");
+      Ignored := Line.Move (Edit.Left);
+      Assert (Line.Cursor_Cells = 0,
+              "stepping back over an ideograph did not lose two cells");
+
+      --  A byte that is not valid UTF-8 counts as one cell rather than none.
+      --  It should never reach here, and a character that measured zero would
+      --  hide the cursor rather than misplace it.
+      Assert (W.Cells (String'(1 => Character'Val (16#FF#))) = 1,
+              "an invalid byte was not counted as one cell");
+   end Width_Counts_Cells_Not_Characters;
+
+   procedure A_Wrapped_Line_Places_Its_Cursor
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      --  U+4E2D, three bytes and two cells.
+      Ideograph : constant String :=
+        Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
+
+      Line    : Edit.Buffer;
+      Ignored : Boolean;
+
+      --  A prompt of eight cells and rows of nineteen, which is what a
+      --  twenty-column terminal leaves once one cell is kept free.
+      Prompt : constant := 8;
+      Usable : constant := 19;
+
+      Where : Edit.Screen_Position;
+   begin
+      --  Thirty plain characters. The first row takes eleven of them after the
+      --  prompt and the second takes nineteen, so the cursor ends at the end of
+      --  the second row -- not at the start of a third.
+      --
+      --  That is the case arithmetic gets wrong: thirty-eight cells over rows
+      --  of nineteen divides to exactly two, and a break is written *before* a
+      --  character that would overflow, so a row filled exactly has none after
+      --  it and the cursor has not moved down.
+      for Step in 1 .. 30 loop
+         Ignored := Line.Insert ("a");
+      end loop;
+
+      Where := Line.Place (Prompt, Usable, Natural'Last);
+      Assert (Where.Row = 1 and then Where.Column = 19,
+              "thirty characters ended at row" & Natural'Image (Where.Row)
+              & " column" & Natural'Image (Where.Column)
+              & " rather than row 1 column 19");
+
+      --  At the very start, the cursor sits just past the prompt.
+      Where := Line.Place (Prompt, Usable, 0);
+      Assert (Where.Row = 0 and then Where.Column = Prompt,
+              "the start of the line was not just past the prompt");
+
+      --  Twelve ideographs, twenty-four cells. Five fit on the first row after
+      --  the prompt -- a sixth would need twenty of the nineteen -- so that row
+      --  ends a cell short, and the remaining seven put the cursor at fourteen.
+      --
+      --  This is what dividing gets wrong the other way: rows are not all the
+      --  same width once a wide character forces an early break.
+      Line.Clear;
+
+      for Step in 1 .. 12 loop
+         Ignored := Line.Insert (Ideograph);
+      end loop;
+
+      Where := Line.Place (Prompt, Usable, Natural'Last);
+      Assert (Where.Row = 1 and then Where.Column = 14,
+              "twelve ideographs ended at row" & Natural'Image (Where.Row)
+              & " column" & Natural'Image (Where.Column)
+              & " rather than row 1 column 14");
+
+      --  A line that fits needs no rows at all.
+      Line.Clear;
+      Ignored := Line.Insert ("abc");
+      Where := Line.Place (Prompt, Usable, Natural'Last);
+      Assert (Where.Row = 0 and then Where.Column = 11,
+              "a short line did not stay on the first row");
+   end A_Wrapped_Line_Places_Its_Cursor;
+
+   overriding function Name (T : Case_Type) return AUnit.Message_String is
+      pragma Unreferenced (T);
+   begin
+      return AUnit.Format ("Adash.Interactive");
+   end Name;
+
+   --------------------
+   -- Register_Tests --
+   --------------------
+
+   overriding procedure Register_Tests (T : in out Case_Type) is
+      use AUnit.Test_Cases.Registration;
+   begin
+      Register_Routine
+        (T, A_Wrapped_Line_Places_Its_Cursor'Access,
+         "a wrapped line puts its cursor where the text actually ends");
+      Register_Routine
+        (T, Width_Counts_Cells_Not_Characters'Access,
+         "display width counts cells: wide characters two, combining none");
+      Register_Routine (T, Buffer_Inserts_And_Deletes'Access,
+                        "the buffer inserts and deletes at the cursor");
+      Register_Routine (T, Cursor_Moves_By_Character'Access,
+                        "the cursor never lands inside a character");
+      Register_Routine (T, Buffer_Refuses_Overflow'Access,
+                        "an insertion past the limit is refused whole");
+      Register_Routine (T, Word_Operations_Take_Their_Separator'Access,
+                        "word operations take the blanks with the word");
+      Register_Routine (T, Decoder_Reads_Arrow_Keys'Access,
+                        "the decoder reads the escape sequences terminals send");
+      Register_Routine (T, Decoder_Waits_For_Split_Sequences'Access,
+                        "a split sequence asks for more rather than guessing");
+      Register_Routine (T, Decoder_Never_Inserts_Control_Bytes'Access,
+                        "no control byte ever decodes as text");
+      Register_Routine (T, History_Collapses_Consecutive_Duplicates'Access,
+                        "history collapses consecutive duplicates only");
+      Register_Routine (T, History_Forgets_Sensitive_Lines'Access,
+                        "history records nothing at all for a sensitive line");
+      Register_Routine (T, History_Drops_Oldest_At_Its_Limit'Access,
+                        "history drops its oldest entry at the limit");
+      Register_Routine (T, History_Searches_Backwards'Access,
+                        "history searches from the newest end");
+      Register_Routine (T, Notices_Wait_While_Editing'Access,
+                        "a notice waits while a line is being edited");
+      Register_Routine (T, Notices_Keep_Job_News_When_Full'Access,
+                        "a full queue drops advisories before job news");
+      Register_Routine (T, Completion_Is_Ordered_And_Deterministic'Access,
+                        "completion is deterministic and ordered by source");
+      Register_Routine (T, Completion_Prefix_Is_Never_A_Guess'Access,
+                        "the common prefix is shared by every candidate");
+      Register_Routine (T, Highlighting_Covers_Unparsable_Input'Access,
+                        "highlighting works on input that does not parse");
+   end Register_Tests;
+
+end Adash_Tests.Interactive_Cases;

@@ -1,0 +1,60 @@
+--  Saving what a script worked out.
+--
+--  Everything that wrote a file before these existed wrote what a *program*
+--  had printed -- `run_into` and its relatives attach a program's output to a
+--  file -- so a value the language itself computed had nowhere to go. A shell
+--  that can read a file, run a program and work something out, and then cannot
+--  save the answer, has to end every script by piping through `cat`.
+--
+--  These are commands rather than functions, and that is deliberate. `Exists`
+--  and its two companions are functions because a question has no consequences
+--  and may safely sit inside a condition. Writing has consequences, so it is a
+--  statement, where a reader sees it happen: nobody should be able to write
+--  `if Exists (P) and then Write (P, "") then` by accident.
+
+--  Somewhere to work. A script that wrote into whatever directory it happened
+--  to be started from would leave files behind wherever you ran it, and this
+--  file is checked against a fixed output.
+cd (Output_Of ("mktemp", "-d"));
+
+--  Replaces whatever was there.
+write_file ("first", "report.txt");
+write_file ("second", "report.txt");
+
+put_line ("the file holds: " & Output_Of ("cat", "report.txt"));
+
+--  Adds to the end, and makes the file when it is not there yet -- the first
+--  turn of a loop that collects lines is not an error.
+for Attempt in 1 .. 3 loop
+   append_file (Trim (Attempt'Image) & " ", "log.txt");
+end loop;
+
+put_line ("the log holds: " & Output_Of ("cat", "log.txt"));
+
+--  A write that worked says nothing. A command that announced each one would
+--  put its own lines into the script's output, and then nothing could read
+--  what the script itself printed. `Status` says what became of it, in the
+--  same way it does for a program that ran.
+write_file ("x", "no-such-directory/out.txt");
+
+if Status /= 0 then
+   put_line ("that one had nowhere to go");
+end if;
+
+--  Which makes the shape a script uses to save its work only when it can.
+procedure Save (Text : String; Where : String) is
+begin
+   write_file (Text, Where);
+
+   if Status = 0 then
+      put_line ("saved");
+   else
+      put_line ("not saved");
+   end if;
+end Save;
+
+Save ("keep this", "kept.txt");
+Save ("keep this", "nor-this-directory/kept.txt");
+
+--  Nothing here removes a file. Unmaking things is what programs are for, and
+--  this shell runs programs.

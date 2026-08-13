@@ -1,0 +1,48 @@
+--  Asking about a file before acting on it.
+--
+--  This is the commonest conditional anybody writes in a shell, and until these
+--  existed the language could not ask it at all: every other way a program
+--  touched the filesystem went through running something, and running something
+--  does not answer a question.
+--
+--  Three questions, because they are three different things. Something is
+--  there; it is a directory; it is something this host could run. Acting on a
+--  directory as though it were a file is the mistake the second one prevents.
+--
+--  A path nobody can reach -- no such directory, nothing named at all -- is not
+--  a file, so the answer is False rather than a failure. A predicate that could
+--  fail would need a second question beside every use, and the useful answer is
+--  the same either way.
+
+--  The working directory, which is somewhere by definition. A home directory
+--  would have done as well on a machine that has one, and this file is checked
+--  against a fixed output on machines that may not.
+Here : String := Output_Of ("pwd");
+
+if Exists (Here) then
+   put_line ("the working directory is there");
+end if;
+
+if Is_Directory (Here) then
+   put_line ("and it is a directory");
+end if;
+
+if not Exists ("/adash-no-such-thing") then
+   put_line ("and that is not there at all");
+end if;
+
+--  Which makes the shape a script uses before it does anything irreversible.
+function Ready (Path : String) return Boolean is
+begin
+   return Exists (Path) and then not Is_Directory (Path);
+end Ready;
+
+if not Ready ("/adash-no-such-thing") then
+   put_line ("nothing to work on");
+end if;
+
+--  Nothing here makes or unmakes a file, and nothing that answers a question
+--  ever will: a shell that could delete one from an expression would make an
+--  expression a thing with consequences. Writing is a command, where a reader
+--  sees it happen -- see `writing.adash`. Removing is what programs are for,
+--  and this shell runs programs.

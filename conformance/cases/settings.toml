@@ -1,0 +1,71 @@
+#  The shell's own settings.
+#
+#  Adash.Configuration carried a complete settings registry -- what each one is
+#  for, what values it takes, what its bounds are -- and Adash.Configuration.Files
+#  could write the file. None of it was reachable from the shell: a user could
+#  only change a setting by editing TOML by hand.
+
+[[case]]
+id = "settings.lists-what-there-is"
+requirement = """
+Every setting, its value, and what it is for. The description is quoted rather
+than rendered by the command, so it appears here as its own message key -- which
+is what shows that nothing below the presentation boundary turned it into text.
+"""
+script = "settings; quit (0);"
+exit_status = 0
+output = [
+  "!line.setting{key=color,value=auto,summary=!setting.color!}!",
+  "!line.setting{key=history.enabled,value=true,summary=!setting.history-enabled!}!",
+  "!line.setting{key=history.limit,value=1000,summary=!setting.history-limit!}!",
+  "!line.setting{key=prompt.directory,value=true,summary=!setting.prompt-directory!}!",
+  "!line.setting{key=prompt.failure,value=true,summary=!setting.prompt-failure!}!",
+  "!line.setting{key=editing.enabled,value=true,summary=!setting.editing!}!",
+  "!line.setting{key=startup.session,value=true,summary=!setting.session-file!}!",
+  "!line.setting{key=history.per-session,value=false,summary=!setting.history-per-session!}!",
+]
+diagnostics = []
+
+[[case]]
+id = "settings.changes-one"
+requirement = "Naming a setting and a value changes it, and the shell says back what it now holds rather than leaving the user to trust that it took."
+script = "settings (\"color\", \"never\"); quit (0);"
+exit_status = 0
+output = [
+  "!line.setting{key=color,value=never,summary=!setting.color!}!",
+]
+diagnostics = []
+
+[[case]]
+id = "settings.refuses-a-value-that-is-not-a-choice"
+requirement = "A choice setting takes one of a fixed list, and the refusal names the list so the reader does not have to go and find it."
+script = "settings (\"color\", \"purple\"); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!config.bad-choice{key=color,detail=auto, always, never}!",
+]
+
+[[case]]
+id = "settings.refuses-a-number-out-of-range"
+requirement = "The bounds the registry already carried are what the refusal reports."
+script = "settings (\"history.limit\", \"0\"); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!config.out-of-range{key=history.limit,detail=!config.wants.range{low=1,high=1000000}!}!",
+]
+
+[[case]]
+id = "settings.refuses-a-name-it-does-not-have"
+requirement = """
+Its own message rather than the file reader's. That one says the key `was
+ignored`, which is true of a line in a file nobody is watching and wrong for
+something a user has just typed.
+"""
+script = "settings (\"nope\", \"x\"); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.setting_unknown{key=nope}!",
+]

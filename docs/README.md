@@ -1,0 +1,48 @@
+# Documentation
+
+Reference documentation for Adash. The documents that describe decisions
+already made live in the repository root; the ones below describe subsystems,
+and each arrives with the phase that implements the thing it documents.
+
+Writing a reference for an unimplemented subsystem would produce a document that
+is wrong the moment the subsystem is built, and that readers would then
+disbelieve for the rest of the project's life. So this is an index of what will
+exist, with the phase it arrives in, rather than a set of empty files.
+
+| Document | Describes | Phase |
+|---|---|---|
+| `user-guide.md` | Using the shell | 14 |
+| `interactive-guide.md` | Prompt, editing, completion, history, jobs | 14 |
+| `scripting-guide.md` | Writing and running scripts | 13 |
+| `language-reference.md` | The Adash language: the Ada subset and its semantics | 6–7 |
+| `grammar-reference.md` | The grammar, formally | 5 |
+| `internal-commands.md` | Every internal command | 9 |
+| `predefined-functions.md` | Every predefined function, procedure and constructor | 8 |
+| `configuration-reference.md` | Every setting, generated from the schema metadata | 15 |
+| `persistence-formats.md` | On-disk formats and their migrations | 15 |
+| `execution-model.md` | Commands, pipelines, redirection, exit status | 11 |
+| `job-control.md` | Jobs, foreground and background, signals, degradation | 11 |
+| `diagnostics-catalog.md` | Every diagnostic identifier and what it means | 2 onward |
+| `package-map.md` | Every package, its owner and its dependencies | continuous |
+| `test-guide.md` | How the suites are organised and how to add to them | continuous |
+| `conformance-guide.md` | Writing and running conformance cases | 16 |
+| `benchmark-guide.md` | Methodology, environment recording, interpretation | 16 |
+| `release-guide.md` | The release gates and artifacts | 16 |
+| `ai-package-map.md` | Package and dependency maps for coding assistants | continuous |
+
+Documents marked *continuous* are generated or maintained as the code changes
+rather than arriving in one phase. Generated documentation goes under
+`generated/` and is never authoritative — the schema, the inventory and the
+source it is derived from are.
+
+## Available now
+
+- [`package-map.md`](package-map.md) — the packages that exist today.
+- [`test-guide.md`](test-guide.md) — how to run and extend the suites.
+- [`benchmark-guide.md`](benchmark-guide.md) — what `adash_bench` measures,
+  what its numbers are and are not, and what to make of one that moves.
+- [`hac-assessment.md`](hac-assessment.md) — what the HAC dependency gave the
+  language subsystem while it lasted, why it ended, and what replaced it.
+
+Everything else in the table above is not written yet, and `ROADMAP.md` says
+when it will be.

@@ -1,0 +1,10 @@
+--  Read by a conformance case. Reads what it was given, a line at a time, and
+--  says what it saw -- which is the whole of what a script processing its input
+--  does.
+loop
+   Line : String := Read_Line;
+   exit when Input_Ended;
+   put_line ("[" & Line & "]");
+end loop;
+
+put_line ("read to the end");

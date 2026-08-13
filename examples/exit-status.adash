@@ -1,0 +1,8 @@
+--  Ending a session with a status a caller can read.
+--
+--  Adash's command language is Ada, so a script is Ada statements and the
+--  internal commands are called the way Ada calls a procedure -- with
+--  parentheses and a semicolon, not with bare words. That is the whole point
+--  of the language choice, and it is the first thing a reader has to see.
+
+quit (3);

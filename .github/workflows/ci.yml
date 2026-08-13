@@ -1,0 +1,62 @@
+# Continuous integration.
+#
+# This file is an entry point, not a build system. Every decision it could make
+# -- what to check, in what order, what counts as a failure -- lives in the Ada
+# tools instead, so that a maintainer runs locally exactly what CI runs and
+# gets the same answer. The rule against non-Ada repository tooling is why this
+# file only ever invokes `alr` and the two programs in adash_tests.
+#
+# Adash is developed alongside its sibling crates, which Alire finds through
+# path pins. CI has to reproduce that layout before it can resolve anything.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out adash
+        uses: actions/checkout@v4
+        with:
+          path: Ada/adash
+
+      # The pinned graph. adash pins these by relative path, and Alire honours
+      # pins only in the root crate, so every one of them has to be present --
+      # a resolve that succeeds without them was reading a cache.
+      - name: Check out sibling crates
+        run: |
+          set -eu
+          cd Ada
+          for crate in hostkit messages terminal_styles project_tools \
+                       i18n httpclient ssllib cryptolib truststores \
+                       zlib awklib regexp; do
+            git clone --depth 1 "https://github.com/bracke/${crate}.git" "${crate}"
+          done
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@v4
+        with:
+          version: 2.1.0
+
+      - name: Build adash
+        working-directory: Ada/adash
+        run: alr -n build
+
+      - name: Build the test crate
+        working-directory: Ada/adash/adash_tests
+        run: alr -n build
+
+      - name: Run the AUnit suite
+        working-directory: Ada/adash/adash_tests
+        run: ./bin/adash_tests
+
+      - name: Check the repository invariants
+        working-directory: Ada/adash/adash_tests
+        run: ./bin/adash_check

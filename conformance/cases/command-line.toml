@@ -1,0 +1,189 @@
+# What the command line does, as a user sees it.
+#
+# Every expected line is a message identifier in its fallback form, because the
+# runner points the catalog at a path that does not exist. That is deliberate:
+# a case asserting on English would break on every wording change and would
+# stop testing anything the day somebody localized the build.
+#
+# `output` and `diagnostics` are exhaustive. A key left out means "nothing at
+# all is expected on that stream", which is what makes it possible to assert
+# that diagnostics do not leak into standard output.
+
+suite = "command-line"
+
+[[case]]
+id = "cli.version"
+requirement = "--version reports the version, the build, and -- for a pre-release -- that it is one. It goes to standard output, because it is an answer rather than a complaint."
+arguments = ["--version"]
+exit_status = 0
+output = [
+  "!version.line{version=0.1.0-dev}!",
+  "!version.build{profile=development,os=linux,arch=x86_64}!",
+  "!version.prerelease_notice!",
+]
+diagnostics = []
+platforms = ["linux"]
+
+[[case]]
+id = "cli.version-short"
+requirement = "-V is --version, not an abbreviation that behaves slightly differently."
+arguments = ["-V"]
+exit_status = 0
+output = [
+  "!version.line{version=0.1.0-dev}!",
+  "!version.build{profile=development,os=linux,arch=x86_64}!",
+  "!version.prerelease_notice!",
+]
+diagnostics = []
+platforms = ["linux"]
+
+[[case]]
+id = "cli.help-succeeds"
+requirement = "--help is a request that succeeded: it goes to standard output, exits zero, and lists every option the shell accepts."
+arguments = ["--help"]
+exit_status = 0
+output = [
+  "!usage.line!",
+  "!application.summary!",
+  "",
+  "!usage.options_header!",
+  "  !usage.option.help!",
+  "  !usage.option.version!",
+  "",
+  "  !usage.script!",
+  "",
+  "!usage.more!",
+]
+diagnostics = []
+
+[[case]]
+id = "cli.unknown-option"
+requirement = "An unknown option is a usage error: it names the option, goes to standard error, and exits 2."
+arguments = ["--nonsense"]
+exit_status = 2
+output = []
+diagnostics = [
+  "!startup.unknown_option{option=--nonsense}!",
+  "",
+  "!usage.line!",
+  "!application.summary!",
+  "",
+  "!usage.options_header!",
+  "  !usage.option.help!",
+  "  !usage.option.version!",
+  "",
+  "  !usage.script!",
+  "",
+  "!usage.more!",
+]
+
+[[case]]
+id = "cli.missing-script"
+requirement = "A script that is not there exits 127 -- the same status an unstartable program gets -- and says which file."
+arguments = ["/nonexistent/script.adash"]
+exit_status = 127
+output = []
+diagnostics = [
+  "!error.source_unreadable{source=/nonexistent/script.adash}!",
+]
+
+[[case]]
+id = "cli.script-sees-its-arguments"
+requirement = """
+A script is invoked with arguments and can read them. Before this the shell ran
+the script and discarded everything after its path -- silently, which is worse
+than refusing it: `adash build.adash release` did the wrong thing and said
+nothing.
+
+Anything after the script's path belongs to the script, options included: a
+script's own `-v` is the script's business and not this shell's, which is the
+rule every shell follows.
+"""
+arguments = ["{root}/conformance/fixtures/arguments.adash", "one", "-v", "three four"]
+exit_status = 0
+output = ["3", "one", "-v", "three four", "[]"]
+diagnostics = []
+
+[[case]]
+id = "cli.script-given-nothing-reads-nothing"
+requirement = "No arguments is a count of zero rather than an error, and the same script works either way."
+arguments = ["{root}/conformance/fixtures/arguments.adash"]
+exit_status = 0
+output = ["0", "[]"]
+diagnostics = []
+
+[[case]]
+id = "input.a-construct-may-span-lines"
+requirement = """
+A shell reads a line at a time and a construct does not fit on one. Until this,
+each line was a submission of its own: `if C then` on one line and `end if;` on
+the next were two programs, and neither was what the user wrote. What is typed
+is joined until the grammar says the program is whole.
+"""
+script = """
+if 1 = 1 then
+   put_line ("yes");
+end if;
+quit (0);"""
+exit_status = 0
+output = ["yes"]
+diagnostics = []
+
+[[case]]
+id = "input.a-body-may-span-lines"
+requirement = "The same for a subprogram, which is the construct nobody can write on one line and mean it."
+script = """
+function Twice (N : Integer) return Integer is
+begin
+   return N * 2;
+end Twice;
+put_line (Twice (21));
+quit (0);"""
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "input.an-expression-may-span-lines"
+requirement = "It is the grammar that decides, not a list of constructs, so an expression stopped in the middle waits too."
+script = """
+X : Integer := (1
+   + 2);
+put_line (X);
+quit (0);"""
+exit_status = 0
+output = ["3"]
+diagnostics = []
+
+[[case]]
+id = "input.unfinished-at-the-end-is-reported"
+requirement = """
+Input that ends part-way through a construct is submitted rather than dropped,
+so the user is told it was unfinished instead of watching it disappear. Before
+`end` was required of every construct, `if C then` alone parsed as an if with an
+empty body, ran, and did nothing -- and `loop` alone became one that never
+stops.
+"""
+script = """
+if 1 = 1 then"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.syntax.missing{expected=end}!",
+]
+
+[[case]]
+id = "input.wrong-is-not-unfinished"
+requirement = """
+A mistake is reported at once rather than waited on. Waiting for more input
+after a mistake would leave a user at a prompt that never comes back, which is
+worse than the mistake.
+"""
+script = """
+X := ;
+quit (0);"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.syntax.unexpected{found=;,expected=!expected.expression!}!",
+]

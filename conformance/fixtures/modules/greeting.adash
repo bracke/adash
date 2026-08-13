@@ -1,0 +1,4 @@
+--  Read by a conformance case, by bare name, from beside the script that asks
+--  for it. Its whole point is that the asking script does not have to know
+--  where either of them is.
+put_line ("the module ran");

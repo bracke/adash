@@ -1,0 +1,2793 @@
+# Tasks and protected objects.
+#
+# Interleaved rather than parallel: the machine runs one strand at a time and
+# changes strand at defined points. Ada does not require parallelism -- a
+# single-processor implementation is conforming -- and what a program may rely
+# on is that its tasks make progress and that its synchronisation holds.
+#
+# Interleaving rather than threads is also the only answer this repository can
+# give: anything platform-specific belongs to hostkit, and a machine reaching
+# for threads of its own would be a second provider of them.
+#
+# Every case here is written so that its output does not depend on the order
+# the strands happen to interleave in. A case that printed from two tasks and
+# expected an order would be testing the quantum rather than the language.
+
+suite = "tasking"
+
+[[case]]
+id = "tasks.a-task-runs-beside-what-declared-it"
+requirement = """
+`task T; task body T is ... end T;` starts a task where its body is elaborated,
+and the declarative region that declared it does not finish until the task has.
+That is Ada's rule about masters and dependents, and it is what makes a task
+worth having in a script: the script waits.
+"""
+script = "task Worker; task body Worker is begin put_line (\"worker\"); end Worker; put_line (\"main\");\nquit (0);"
+exit_status = 0
+output = ["main", "worker"]
+diagnostics = []
+
+[[case]]
+id = "tasks.a-task-reaches-what-encloses-it"
+requirement = "A task's frame carries a static link to the frame it was declared in, which is the whole of how it reads and writes what encloses it."
+script = "Total : Integer := 0;\ntask Adder;\ntask body Adder is begin for Step in 1 .. 10 loop Total := Total + Step; end loop; end Adder;\nput_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["55"]
+diagnostics = []
+
+[[case]]
+id = "tasks.the-master-waits-at-the-end-of-its-region"
+requirement = """
+At the end, not before. A read written before the region closes runs before the
+task has finished, which is Ada's meaning and not an accident: a master waits
+where its declarative region ends.
+"""
+script = "task Slow; task body Slow is begin for Step in 1 .. 2000 loop null; end loop; put_line (\"slow done\"); end Slow; put_line (\"main done\");\nquit (0);"
+exit_status = 0
+output = ["main done", "slow done"]
+diagnostics = []
+
+[[case]]
+id = "protected.operations-exclude-each-other"
+requirement = """
+Two tasks incrementing one counter two hundred times between them leave two
+hundred, and the machine never changes strand while a protected operation is
+running -- which on an interleaving machine is not an optimisation on top of
+something else, it is the whole implementation of mutual exclusion.
+"""
+script = "protected Counter is procedure Bump; function Value return Integer; end Counter;\nprotected body Counter is Held : Integer := 0; procedure Bump is begin Held := Held + 1; end Bump; function Value return Integer is begin return Held; end Value; end Counter;\ntask A;\ntask B;\ntask body A is begin for Step in 1 .. 100 loop Counter.Bump; end loop; end A;\ntask body B is begin for Step in 1 .. 100 loop Counter.Bump; end loop; end B;\nput_line (Trim (Counter.Value'Image));\nquit (0);"
+exit_status = 0
+output = ["200"]
+diagnostics = []
+
+[[case]]
+id = "protected.an-entry-waits-for-its-barrier"
+requirement = """
+An entry is a barrier and a body: a way to wait until something holds. A strand
+that finds the barrier closed is set aside until the object is next left, and
+*re-evaluates* it when it wakes -- testing the old value again would answer the
+question it went to sleep on rather than the one that woke it.
+"""
+script = "protected Gate is procedure Open; entry Pass; end Gate; protected body Gate is Opened : Boolean := False; procedure Open is begin Opened := True; end Open; entry Pass when Opened is begin put_line (\"through\"); end Pass; end Gate; task Waiter; task body Waiter is begin Gate.Pass; put_line (\"waited\"); end Waiter; put_line (\"opening\"); Gate.Open;\nquit (0);"
+exit_status = 0
+# What is guaranteed, and nothing else. Whether the waiter reaches the gate
+# before or after `opening` is printed depends on where the quantum falls, and
+# a case that said would be testing the quantum rather than the language. What
+# the language promises is that the passage happens *after* the gate opens.
+output = ["opening", "through", "waited"]
+diagnostics = []
+
+[[case]]
+id = "protected.a-protected-object-keeps-its-state"
+requirement = "A protected object is state, and is carried between submissions the way a package is. A task is not: the region that declared it is its master, a submission is that region, and Ada says a task cannot outlive its master."
+script = "protected Counter is procedure Bump; function Value return Integer; end Counter;\nprotected body Counter is Held : Integer := 0; procedure Bump is begin Held := Held + 1; end Bump; function Value return Integer is begin return Held; end Value; end Counter;\nCounter.Bump;\nput_line (Trim (Counter.Value'Image));\nCounter.Bump;\nput_line (Trim (Counter.Value'Image));\nquit (0);"
+exit_status = 0
+output = ["1", "2"]
+diagnostics = []
+
+[[case]]
+id = "tasks.a-declaration-outlives-the-line-it-was-typed-on"
+requirement = "So that a body typed on the next line finds it. The body is not carried, because carrying it would start the task again on every line typed after."
+script = "Seen : Integer := 0;\ntask Worker;\ntask body Worker is begin Seen := 1; end Worker;\nput_line (Trim (Seen'Image));\nquit (0);"
+exit_status = 0
+output = ["1"]
+diagnostics = []
+
+[[case]]
+id = "tasks.quit-does-not-wait"
+requirement = """
+`quit` ends the session, and a session that has ended is not waiting for
+anything. Ada's own rule is about a master reaching the end of its declarative
+region, and a program told to stop never reaches one -- so a task still running
+when `quit` is written does not finish.
+"""
+script = "task Worker; task body Worker is begin put_line (\"worker\"); end Worker; put_line (\"main\"); quit (3);"
+exit_status = 3
+output = ["main"]
+diagnostics = []
+
+[[case]]
+id = "tasks.a-body-needs-a-declaration"
+requirement = "Ada requires the declaration, and so does this: it is what a name resolves against."
+script = "task body Nowhere is begin null; end Nowhere; quit (0);"
+exit_status = 0
+diagnostics = ["!error.package_not_declared{name=Nowhere}!"]
+
+[[case]]
+id = "protected.a-barrier-that-never-opens-is-reported"
+requirement = """
+Every strand waiting for something no strand will do is a program that cannot
+go on, and saying so beats stopping quietly. A shell that hung on a script
+would be a shell somebody has to kill.
+"""
+script = "protected Gate is entry Pass; end Gate; protected body Gate is Opened : Boolean := False; entry Pass when Opened is begin null; end Pass; end Gate; task Waiter; task body Waiter is begin Gate.Pass; end Waiter; put_line (\"main done\");"
+exit_status = 0
+output = ["main done"]
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.tasks_stuck!}!"]
+
+[[case]]
+id = "tasks.a-task-answers-for-its-own-failure"
+requirement = """
+Ada lets a task body carry handlers and it is where most of a task's belong: a
+task that failed silently is a task nobody notices, and there is no caller to
+report to.
+"""
+script = "task Worker; task body Worker is Text : String := \"ab\"; begin put_line (Text (9)); exception when Index_Error => put_line (\"caught in the task\"); end Worker; put_line (\"main\");\nquit (0);"
+exit_status = 0
+output = ["main", "caught in the task"]
+diagnostics = []
+
+[[case]]
+id = "tasks.a-protected-object-can-live-in-a-package"
+requirement = "A protected object is a declaration, so a package holds one -- and `P.G.Bump` reaches an operation of it, which is one dotted name like every other package member."
+script = "package Shared is protected Gate is procedure Bump; function Value return Integer; end Gate; end Shared;\npackage body Shared is protected body Gate is Held : Integer := 0; procedure Bump is begin Held := Held + 1; end Bump; function Value return Integer is begin return Held; end Value; end Gate; end Shared;\nShared.Gate.Bump;\nput_line (Trim (Shared.Gate.Value'Image));\nquit (0);"
+exit_status = 0
+output = ["1"]
+diagnostics = []
+
+[[case]]
+id = "delay.a-script-can-wait"
+requirement = """
+`delay 0.2;` waits two tenths of a second, in real time from Ada's own
+monotonic clock. A delay that only yielded would make it a lie, and a script
+that waits for something is the commonest reason to write one at all.
+
+Monotonic rather than calendar: a script that waits half a second should wait
+half a second whatever somebody does to the system time.
+"""
+script = "put_line (\"before\"); delay 0.2; put_line (\"after\"); quit (0);"
+exit_status = 0
+output = ["before", "after"]
+diagnostics = []
+
+[[case]]
+id = "delay.a-wait-that-has-passed-is-no-wait"
+requirement = "Ada's rule: a delay whose duration is zero or negative is not an error, it is no wait at all."
+script = "delay 0.0; delay -1.0; put_line (\"straight through\"); quit (0);"
+exit_status = 0
+output = ["straight through"]
+diagnostics = []
+
+[[case]]
+id = "delay.the-others-run-while-one-waits"
+requirement = """
+A strand that is waiting for a time is not stopped, and the machine does not
+spin on it: it runs whoever else can, and when nobody can it sleeps until the
+earliest deadline -- every sleeper's, its own included. A scan that skipped the
+current strand slept past its own deadline whenever another had a later one.
+"""
+script = "task Quick;\ntask body Quick is begin delay 0.05; put_line (\"quick\"); end Quick;\ndelay 0.3;\nput_line (\"slow\");\nquit (0);"
+exit_status = 0
+output = ["quick", "slow"]
+diagnostics = []
+
+[[case]]
+id = "select.an-entry-is-taken-only-if-it-is-open"
+requirement = """
+`select E; ... else ... end select;` is Ada's conditional entry call: take the
+entry if its barrier is open now, and do something else if it is not.
+
+The lock is taken before the barrier is asked and nothing changes strand while
+it is held, so the barrier cannot close between being asked and being acted on.
+That window is the whole difficulty of a conditional entry call.
+"""
+script = "protected Gate is procedure Open; entry Pass; end Gate; protected body Gate is Opened : Boolean := False; procedure Open is begin Opened := True; end Open; entry Pass when Opened is begin put_line (\"through\"); end Pass; end Gate; select Gate.Pass; put_line (\"took it\"); else put_line (\"not open\"); end select; Gate.Open; select Gate.Pass; put_line (\"took it\"); else put_line (\"not open\"); end select;\nquit (0);"
+exit_status = 0
+output = ["not open", "through", "took it"]
+diagnostics = []
+
+[[case]]
+id = "select.a-timed-call-gives-up"
+requirement = """
+`or delay D;` bounds how long the call waits. A barrier that never opens leaves
+the alternative, rather than the caller waiting for ever.
+
+What this does *not* do is take the entry the moment it opens: it waits the
+whole of D and asks again. The outcome is Ada's -- the entry is taken when it
+opened within D -- and the latency is not.
+"""
+script = "protected Gate is entry Pass; end Gate; protected body Gate is Opened : Boolean := False; entry Pass when Opened is begin put_line (\"through\"); end Pass; end Gate; select Gate.Pass; put_line (\"took it\"); or delay 0.1; put_line (\"gave up\"); end select;\nquit (0);"
+exit_status = 0
+output = ["gave up"]
+diagnostics = []
+
+[[case]]
+id = "select.a-timed-call-takes-what-opened"
+requirement = "A barrier another task opens during the wait is taken when the wait ends."
+script = "protected Gate is procedure Open; entry Pass; end Gate; protected body Gate is Opened : Boolean := False; procedure Open is begin Opened := True; end Open; entry Pass when Opened is begin put_line (\"through\"); end Pass; end Gate; task Opener; task body Opener is begin delay 0.05; Gate.Open; end Opener; select Gate.Pass; put_line (\"took it\"); or delay 0.3; put_line (\"gave up\"); end select;\nquit (0);"
+exit_status = 0
+output = ["through", "took it"]
+diagnostics = []
+
+[[case]]
+id = "abort.a-task-can-be-stopped"
+requirement = """
+`abort T;` stops the task. It takes effect where the strand would next have
+run, which is the next switch point: this machine interleaves rather than
+pre-empts, so there is no moment between two instructions at which to
+intervene -- and none is needed, because a strand that is not running cannot be
+in the middle of anything.
+
+An aborted task does not run its handlers, which is Ada's rule too, and the
+master no longer waits for it.
+"""
+script = "task Forever; task body Forever is begin for Step in 1 .. 1000000 loop null; end loop; put_line (\"finished on its own\"); end Forever; put_line (\"running\"); abort Forever; put_line (\"aborted\");\nquit (0);"
+exit_status = 0
+output = ["running", "aborted"]
+diagnostics = []
+
+[[case]]
+id = "abort.only-a-task-can-be-aborted"
+requirement = "Named by what it is. A name that denotes something else has no strand to stop."
+script = "X : Integer := 1; abort X; quit (0);"
+exit_status = 0
+diagnostics = ["!error.not_a_task{name=X}!"]
+
+[[case]]
+id = "select.waits-on-an-entry-and-nothing-else"
+requirement = """
+An entry is the one callable thing with a barrier, and a barrier is what a
+select waits on. Refused by the analyser and named by what it is, so the
+message is a decision rather than a gap -- which is why an entry has a symbol
+kind of its own rather than borrowing a procedure's.
+"""
+script = "protected Gate is procedure Shut; end Gate; protected body Gate is procedure Shut is begin null; end Shut; end Gate; select Gate.Shut; null; else null; end select; quit (0);"
+exit_status = 0
+diagnostics = ["!error.not_an_entry{name=Gate.Shut}!"]
+
+[[case]]
+id = "rendezvous.a-caller-and-an-acceptor-meet"
+requirement = """
+`Server.Put (5);` on one side and `accept Put (Which : Integer) do ... end Put;`
+on the other are one event, not two: neither side passes it until both have
+reached it. That is what makes a rendezvous different from leaving a value
+somewhere and hoping -- the caller knows the body ran, and the body knows the
+caller is still there.
+"""
+script = "task Server is entry Put (Which : Integer); end Server; task body Server is Held : Integer := 0; begin accept Put (Which : Integer) do Held := Which; end Put; put_line (\"server got \" & Trim (Held'Image)); end Server; Server.Put (5); put_line (\"caller went on\");\nquit (0);"
+exit_status = 0
+output = ["server got 5", "caller went on"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.what-the-body-writes-comes-back"
+requirement = """
+An `out` parameter of an entry is how a task hands something back. The
+arguments live in a run of the *caller's* own slots and the accept body's
+formals are references into it, so the body writes where the caller reads --
+which is the only arrangement that works when the two sides are separate
+strands with separate frames.
+"""
+script = "task Store is entry Put (Which : Integer); entry Take (Which : out Integer); end Store; task body Store is Held : Integer := 0; begin accept Put (Which : Integer) do Held := Which; end Put; accept Take (Which : out Integer) do Which := Held * 2; end Take; end Store; Got : Integer := 0; Store.Put (21); Store.Take (Got); put_line (Trim (Got'Image));\nquit (0);"
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.callers-are-taken-in-the-order-they-arrived"
+requirement = """
+Ada queues the callers of an entry and the acceptor takes the one that has
+waited longest. Written so the answer does not depend on the quantum: what the
+case pins is that three calls are met by three accepts and each is met exactly
+once.
+
+The count is read in the next submission rather than the same one, because a
+master waits where its declarative region *ends*: read in the same submission
+it would be read after the caller's own rendezvous and before the other two
+tasks had had theirs, which is Ada's meaning and not an accident.
+"""
+script = "Met : Integer := 0; task Server is entry Ping; end Server; task First_Caller; task Second_Caller; task body Server is begin for Round in 1 .. 3 loop accept Ping do Met := Met + 1; end Ping; end loop; end Server; task body First_Caller is begin Server.Ping; end First_Caller; task body Second_Caller is begin Server.Ping; end Second_Caller; Server.Ping;\nput_line (Trim (Met'Image));\nquit (0);"
+exit_status = 0
+output = ["3"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.an-accept-repeats-the-profile-it-was-declared-with"
+requirement = """
+Ada has the accept write the entry's parameters again, and this holds it to
+writing the same ones. The caller writes its arguments by the entry's profile
+and the body reads them by the accept's, so an accept that disagreed would have
+one side writing a number where the other reads text -- which no run-time check
+could recover from because both sides think they are right.
+"""
+script = "task Server is entry Put (Which : Integer); end Server; task body Server is begin accept Put (Which : String) do null; end Put; end Server; Server.Put (1);\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.accept_differs{name=Put}!"]
+
+[[case]]
+id = "rendezvous.a-protected-entry-takes-no-parameters"
+requirement = """
+A protected entry is a barrier and a body, and there is no second side to carry
+parameters to: what carries them is the rendezvous, and a protected object has
+no strand of its own. Refused where it is written rather than ignored, because
+a parameter that was accepted and never given a value would be read as whatever
+its slot held.
+"""
+script = "protected Guard is entry Wait_For (Which : Integer); end Guard; protected body Guard is entry Wait_For (Which : Integer) when True is begin null; end Wait_For; end Guard; quit (0);"
+exit_status = 0
+diagnostics = ["!error.protected_entry_parameters{name=Wait_For}!"]
+
+[[case]]
+id = "rendezvous.a-call-is-matched-against-the-entry-profile"
+requirement = "An entry call is a call, and takes what the entry was declared with -- the same rule and the same message as a subprogram's."
+script = "task Server is entry Put (Which : Integer); end Server; task body Server is begin accept Put (Which : Integer) do null; end Put; end Server; Server.Put (1, 2);\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.wrong_argument_count{name=Server.Put,expected= 1,found= 2}!"]
+
+[[case]]
+id = "rendezvous.an-entry-call-may-name-its-arguments"
+requirement = """
+An entry call is a call. It may write its arguments in order, name them, or
+leave out the ones with defaults, and it is matched to the profile exactly as a
+subprogram call is -- one implementation of what a formal list means, asked
+twice, because a second copy is a second place for a default to be read
+differently.
+"""
+script = "task Server is entry Put (Which : Integer; Twice : Integer := 9); end Server; task body Server is begin accept Put (Which : Integer; Twice : Integer := 9) do put_line (Trim (Which'Image) & \" \" & Trim (Twice'Image)); end Put; end Server; Server.Put (Which => 5);\nquit (0);"
+exit_status = 0
+output = ["5 9"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.calling-an-entry-of-a-finished-task-raises"
+requirement = """
+Ada raises Tasking_Error in a caller whose task has ended, and so does this: the
+caller is resumed where its call left off and the exception is raised there, so
+a handler around the call catches it exactly as one around any other call
+would. Stopping quietly was the alternative, and a program abandoned in the
+middle of a statement with nothing said about it is the worst of the three.
+"""
+script = "task Server is entry Ping; end Server; task body Server is begin null; end Server; begin Server.Ping; put_line (\"met\"); exception when others => put_line (\"the server had gone\"); end;\nquit (0);"
+exit_status = 0
+output = ["the server had gone"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.an-entry-parameter-is-a-simple-value"
+requirement = """
+The arguments of a rendezvous live in a run of the caller's slots, one slot
+each, and a composite is itself a run: it would need a run inside a run, and
+every place that walks an argument would have to know how far the next one is
+rather than that it is one along. Refused where it is written, and once -- the
+type is left as written so that the accept repeating it faithfully is not
+reported as wrong as well.
+"""
+script = "type Pair is record A : Integer; B : Integer; end record; task Server is entry Put (Which : Pair); end Server; task body Server is begin accept Put (Which : Pair) do null; end Put; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.entry_parameter_not_simple{name=Put,found=Pair}!"]
+
+[[case]]
+id = "rendezvous.what-an-in-out-parameter-carries-goes-both-ways"
+requirement = "The caller's value goes in and the body's comes back, which is what `in out` means and what the run of caller slots is for."
+script = "task Server is entry Bump (Which : in out Integer); end Server; task body Server is begin accept Bump (Which : in out Integer) do Which := Which + 1; end Bump; end Server; N : Integer := 41; Server.Bump (N); put_line (Trim (N'Image));\nquit (0);"
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.aborting-a-task-strands-its-callers"
+requirement = """
+A caller queued at an entry of a task that is aborted is waiting for something
+that will now never happen, exactly as it would be had the task run to its end.
+It is handed the same answer, Tasking_Error, and after the abort has taken
+effect rather than before.
+
+Unhandled in a task, it ends the run and is reported. That is this build's
+answer to every exception a task does not handle -- Ada loses it and completes
+the task, and a task that failed silently is a task nobody notices.
+"""
+script = "task Server is entry Ping; end Server; task body Server is begin delay 5.0; accept Ping; end Server; task Caller_One; task body Caller_One is begin Server.Ping; put_line (\"met\"); end Caller_One; delay 0.05; abort Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Tasking_Error,detail=!error.machine.task_finished!}!"]
+
+[[case]]
+id = "task-types.several-objects-are-several-tasks"
+requirement = """
+`task type W is ... end W;` declares a type whose objects are each a task of
+their own: their own strand, their own local state, their own entry queues.
+That is why a task is a type at all, and why what a rendezvous names is the
+object rather than the routine -- several tasks share one body, and a caller of
+one is not a caller of another.
+"""
+script = "Total : Integer := 0; task type Worker is entry Do_It (How_Much : Integer); entry Report (So_Far : out Integer); end Worker; task body Worker is Mine : Integer := 0; begin accept Do_It (How_Much : Integer) do Mine := How_Much; Total := Total + How_Much; end Do_It; accept Report (So_Far : out Integer) do So_Far := Mine; end Report; end Worker; First : Worker; Second : Worker; One : Integer := 0; Two : Integer := 0; First.Do_It (10); Second.Do_It (32); First.Report (One); Second.Report (Two); put_line (Trim (One'Image) & \" \" & Trim (Two'Image) & \" \" & Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["10 32 42"]
+diagnostics = []
+
+[[case]]
+id = "task-types.an-object-starts-where-it-is-declared"
+requirement = """
+A task type's body starts nothing: it is what its objects run, and each of
+those is where a task begins. Ada elaborates a task object where it is
+declared, and so does this.
+"""
+script = "task type Worker; task body Worker is begin put_line (\"a worker ran\"); end Worker; put_line (\"before\"); A : Worker; B : Worker;\nquit (0);"
+exit_status = 0
+output = ["before", "a worker ran", "a worker ran"]
+diagnostics = []
+
+[[case]]
+id = "task-types.an-object-of-one-needs-a-body"
+requirement = """
+An object of a task type is a task, and a task runs a body. Asked at the
+object rather than at the type, because a declaration whose body is still to be
+typed is the ordinary way a session gets one -- what cannot wait is an object,
+which starts running where it stands.
+"""
+script = "task type Worker is entry Go; end Worker; A : Worker;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.body_missing{name=Worker}!"]
+
+[[case]]
+id = "task-types.a-type-is-not-something-to-abort"
+requirement = "What an abort stops is something running, and a type is not running -- its objects are."
+script = "task type Worker; task body Worker is begin null; end Worker; abort Worker;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.not_a_task{name=Worker}!"]
+
+[[case]]
+id = "task-types.a-task-has-entries-and-nothing-else"
+requirement = """
+A task holds nothing a program can reach into: what it has is entries. Named as
+that rather than left to the rule about components, which would report that a
+task has no components -- true, and about the wrong thing.
+"""
+script = "task type Worker is entry Go; end Worker; task body Worker is begin accept Go; end Worker; A : Worker; A.Nope;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.not_an_entry{name=A.Nope}!"]
+
+[[case]]
+id = "select-accept.serves-whichever-entry-was-called"
+requirement = """
+Ada's selective accept: a task saying "whichever of these happens first". Its
+alternatives are accepts, where the other `select` has an entry call -- one is
+a task deciding what to serve and the other is a caller deciding how long to
+wait, and the first word after `select` is what tells them apart.
+"""
+script = "task Server is entry Add (How_Much : Integer); entry Stop; end Server; task body Server is Total : Integer := 0; Going : Boolean := True; begin while Going loop select accept Add (How_Much : Integer) do Total := Total + How_Much; end Add; or accept Stop do Going := False; end Stop; end select; end loop; put_line (Trim (Total'Image)); end Server; Server.Add (10); Server.Add (32); Server.Stop;\nquit (0);"
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "select-accept.a-guard-closes-an-alternative"
+requirement = """
+`when <condition> => accept ...` serves that entry only while the condition
+holds, which is how a task says what it is ready for. The guards are asked
+once, when the select is reached: an alternative whose guard was closed then is
+closed for this execution of the select however the world changes while it
+waits, which is Ada's rule.
+
+A one-place buffer is the shape that needs it, and the case is written as one:
+what it pins is that a Take is never served on an empty buffer and a Put never
+on a full one.
+"""
+script = "task Buffer is entry Put (Item : Integer); entry Take (Item : out Integer); end Buffer; task body Buffer is Held : Integer := 0; Full : Boolean := False; Rounds : Integer := 0; begin while Rounds < 4 loop select when not Full => accept Put (Item : Integer) do Held := Item; Full := True; end Put; or when Full => accept Take (Item : out Integer) do Item := Held; Full := False; end Take; end select; Rounds := Rounds + 1; end loop; end Buffer; One : Integer := 0; Two : Integer := 0; Buffer.Put (7); Buffer.Take (One); Buffer.Put (35); Buffer.Take (Two); put_line (Trim (One'Image) & \" \" & Trim (Two'Image));\nquit (0);"
+exit_status = 0
+output = ["7 35"]
+diagnostics = []
+
+[[case]]
+id = "select-accept.else-does-not-wait"
+requirement = "`else` is what to do when no alternative can be taken *now*, which makes the whole select a look rather than a wait."
+script = "task Server is entry Ping; end Server; task body Server is begin select accept Ping do put_line (\"met\"); end Ping; else put_line (\"nobody was waiting\"); end select; end Server;\nquit (0);"
+exit_status = 0
+output = ["nobody was waiting"]
+diagnostics = []
+
+[[case]]
+id = "select-accept.or-delay-bounds-the-wait"
+requirement = """
+`or delay D;` bounds how long the alternatives are waited for. What it does not
+do is take an entry the moment one is called: it waits the whole of D and asks
+again, so the outcome is Ada's and the latency is not -- the same deviation a
+timed entry call makes, and stated in both places.
+"""
+script = "task Server is entry Ping; end Server; task body Server is begin select accept Ping do put_line (\"met\"); end Ping; or delay 0.05; put_line (\"gave up\"); end select; end Server;\nquit (0);"
+exit_status = 0
+output = ["gave up"]
+diagnostics = []
+
+[[case]]
+id = "select-accept.a-caller-during-the-wait-is-served"
+requirement = "The bound is on how long it waits, not on whether it serves: a caller that arrives while it waits is met when it looks again."
+script = "task Server is entry Ping; end Server; task Caller_One; task body Server is begin select accept Ping do put_line (\"met\"); end Ping; or delay 0.4; put_line (\"gave up\"); end select; end Server; task body Caller_One is begin delay 0.05; Server.Ping; end Caller_One;\nquit (0);"
+exit_status = 0
+output = ["met"]
+diagnostics = []
+
+[[case]]
+id = "select-accept.an-alternative-is-an-accept-or-a-delay"
+requirement = "Those are the two things a task waits for. Anything else written as an alternative is refused where it stands."
+script = "task Server is entry Ping; end Server; task body Server is begin select accept Ping; or put_line (\"not an alternative\"); end select; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.select_alternative!"]
+
+[[case]]
+id = "select-accept.it-says-once-what-to-do-when-nothing-can-be-taken"
+requirement = """
+An `else` and a `delay` say different things about what to do when nothing can
+be accepted, and a select that said both would have to decide which it meant.
+Ada forbids the pair; this forbids two delays as well, because choosing the
+shortest of several open ones is a run-time comparison that would decide which
+branch runs.
+"""
+script = "task Server is entry Ping; end Server; task body Server is begin select accept Ping; or delay 0.1; null; else null; end select; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.select_waits_twice!"]
+
+[[case]]
+id = "select-accept.a-closed-guard-serves-nobody"
+requirement = """
+A guarded alternative whose guard is closed is not taken, however long a caller
+has been waiting at that entry -- the caller stays queued and the select
+answers as though the entry were not written.
+
+Pinned with a caller already queued, because the failure it guards against is
+the one that reads a guard's answer from the wrong place and serves anyway. A
+guard's answer lives in a slot, and the first slot of a frame is address zero:
+a select whose guards were told apart from absent ones by their address served
+every guarded alternative in a task body that had no other local.
+"""
+script = "task Server is entry A; entry B; end Server; task Caller_One; task body Caller_One is begin Server.A; end Caller_One; task body Server is begin delay 0.05; select when False => accept A do put_line (\"served A from the select\"); end A; or accept B do put_line (\"served B\"); end B; else put_line (\"did not serve A\"); end select; accept A do put_line (\"served A afterwards\"); end A; end Server;\nquit (0);"
+exit_status = 0
+output = ["did not serve A", "served A afterwards"]
+diagnostics = []
+
+[[case]]
+id = "select-accept.a-closed-delay-bounds-nothing"
+requirement = """
+A guard on the delay alternative says whether the wait is bounded at all. When
+it is closed the select waits for a caller as though no delay had been written,
+which is what Ada means by a closed alternative: it is not there for this
+execution.
+"""
+script = "Bounded : Boolean := False; task Server is entry Go; end Server; task body Server is begin select accept Go do put_line (\"met\"); end Go; or when Bounded => delay 0.05; put_line (\"gave up\"); end select; end Server; task Caller_One; task body Caller_One is begin delay 0.1; Server.Go; end Caller_One;\nquit (0);"
+exit_status = 0
+output = ["met"]
+diagnostics = []
+
+[[case]]
+id = "task-types.an-object-may-stand-inside-a-task"
+requirement = """
+A task object declared inside a task body is that task's own dependent: its
+frame carries a static link to the frame it was declared in, and the body that
+declared it does not finish until it has. The same two rules a task at the top
+of a submission follows, which is the point of their being rules rather than
+special cases.
+"""
+script = "task type Inner is entry Go; end Inner; task body Inner is begin accept Go do put_line (\"inner went\"); end Go; end Inner; task Outer_One; task body Outer_One is Mine : Inner; begin Mine.Go; put_line (\"outer done\"); end Outer_One; put_line (\"main\");\nquit (0);"
+exit_status = 0
+output = ["main", "inner went", "outer done"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.the-trigger-abandons-the-work"
+requirement = """
+Ada's asynchronous transfer of control. The abortable part runs as a strand of
+its own and the trigger waits in the one that wrote the select: that is the
+shape this machine can give it, and a faithful one -- a strand that is not
+running cannot be in the middle of anything, so there is nothing to unwind when
+it is abandoned.
+"""
+script = "Counted : Integer := 0; select delay 0.05; put_line (\"ran out of time\"); then abort for Step in 1 .. 10000000 loop Counted := Counted + 1; end loop; put_line (\"finished the work\"); end select; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["ran out of time", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.work-that-finishes-first-cancels-the-trigger"
+requirement = """
+The other way round: the abortable part finishes, the trigger is cancelled, and
+its statements do not run. The wait ends when the work does rather than running
+its full course -- a delay that waited out its own reason to exist would give
+Ada's outcome with a latency nobody asked for.
+"""
+script = "select delay 30.0; put_line (\"ran out of time\"); then abort put_line (\"quick work\"); end select; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["quick work", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.an-entry-call-may-be-the-trigger"
+requirement = """
+A trigger is something that happens on somebody else's terms, which is the
+point of abandoning work when it does: an entry call or a delay, and nothing
+else.
+"""
+script = "task Stopper is entry Halt_It; end Stopper; task body Stopper is begin delay 0.05; accept Halt_It; end Stopper; Counted : Integer := 0; select Stopper.Halt_It; put_line (\"was told to stop\"); then abort for Step in 1 .. 10000000 loop Counted := Counted + 1; end loop; put_line (\"finished the work\"); end select; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["was told to stop", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.a-cancelled-call-leaves-the-queue"
+requirement = """
+A trigger that was an entry call and never met is taken out of the queue when
+the work finishes, and nothing is raised: it is a cancelled call rather than a
+failed one, and what the select does next is ask which of the two happened.
+"""
+script = "task Stopper is entry Halt_It; end Stopper; task body Stopper is begin delay 30.0; accept Halt_It; end Stopper; select Stopper.Halt_It; put_line (\"was told to stop\"); then abort put_line (\"quick work\"); end select; put_line (\"carried on\"); abort Stopper;\nquit (0);"
+exit_status = 0
+output = ["quick work", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.the-work-reaches-what-encloses-it"
+requirement = """
+The abortable part is a strand, and a strand carries a chain of static links to
+the frames that enclose it -- not one link, a chain. A link is an index into a
+frame array and every strand has an array of its own, so a link handed over on
+its own points at whatever that index happens to be in the new array: for a
+strand's first frame, itself. Work started inside a subprogram then wrote its
+own slot and the subprogram saw nothing.
+"""
+script = "Counted : Integer := 0; procedure Try_It is begin select delay 30.0; put_line (\"gave up\"); then abort for Step in 1 .. 5 loop Counted := Counted + 1; end loop; put_line (\"did the work\"); end select; end Try_It; Try_It; put_line (Trim (Counted'Image));\nquit (0);"
+exit_status = 0
+output = ["did the work", "5"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.it-may-stand-wherever-a-statement-may"
+requirement = """
+`select ... then abort` is a statement, and one written in a loop is a routine
+collected once and started on every turn. Bodies are found by walking
+declarative parts; this is found by walking statements, which is a walk of its
+own and has to agree with the first about what level a frame is at.
+"""
+script = "Counted : Integer := 0; for Round in 1 .. 2 loop select delay 0.02; put_line (\"round \" & Trim (Round'Image) & \" ran out\"); then abort for Step in 1 .. 10000000 loop Counted := Counted + 1; end loop; end select; end loop; put_line (\"done\");\nquit (0);"
+exit_status = 0
+output = ["round 1 ran out", "round 2 ran out", "done"]
+diagnostics = []
+
+[[case]]
+id = "discriminants.a-task-type-takes-them-at-elaboration"
+requirement = """
+`task type Worker (Number : Integer; Label : String)` takes at elaboration what
+a subprogram takes at a call, and `First : Worker (1, "first")` is where they
+are given. They arrive the way a parameter does and sit where one sits, which
+is what makes them nothing new to everything below the analyser -- and they are
+constants in the body, because a discriminant is what the object was elaborated
+with and there is nothing to assign to after that.
+"""
+script = "task type Worker (Number : Integer; Label : String) is entry Report; end Worker; task body Worker is begin accept Report do put_line (Label & \" \" & Trim (Number'Image)); end Report; end Worker; First : Worker (1, \"first\"); Second : Worker (2, \"second\"); First.Report; Second.Report;\nquit (0);"
+exit_status = 0
+output = ["first 1", "second 2"]
+diagnostics = []
+
+[[case]]
+id = "discriminants.every-one-must-be-given"
+requirement = "By position, all of them: a discriminant has no default here, and an object with one missing would run with a value nobody wrote."
+script = "task type Worker (Number : Integer) is entry Report; end Worker; task body Worker is begin accept Report; end Worker; A : Worker;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.discriminants_wrong_count{name=Worker,expected= 1,found= 0}!"]
+
+[[case]]
+id = "discriminants.one-task-has-nowhere-to-be-given-them"
+requirement = """
+A single task is elaborated where it is declared and there is nowhere to write
+what it would take. Ada's answer is a default on every one of them, which is a
+second way of giving a task something when it already has entries.
+"""
+script = "task Solo (Number : Integer); task body Solo is begin null; end Solo;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.discriminants_need_a_type{name=Solo}!"]
+
+[[case]]
+id = "discriminants.only-a-task-type-is-constrained"
+requirement = "Values in parentheses after a type mark are what a task is elaborated with, and nothing else here takes any."
+script = "X : Integer (3);\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.nothing_to_constrain{name=Integer}!"]
+
+[[case]]
+id = "discriminants.one-may-be-what-a-select-waits"
+requirement = "A discriminant is an ordinary value in the body, so a select may delay for one: what each object of the type waits is what it was elaborated with."
+script = "task type Watcher (Seconds : Float) is entry Cancel_It; end Watcher; task body Watcher is begin select accept Cancel_It; or delay Seconds; put_line (\"watcher fired\"); end select; end Watcher; Quick : Watcher (0.05); Slow : Watcher (30.0); Slow.Cancel_It; put_line (\"cancelled the slow one\");\nquit (0);"
+exit_status = 0
+output = ["cancelled the slow one", "watcher fired"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.a-trigger-is-an-entry-call-or-a-delay"
+requirement = "A trigger is something that happens on somebody else's terms, which is the point of abandoning work when it does. Named as what it is, rather than as a name that failed to be an entry."
+script = "select put_line (\"not a trigger\"); then abort null; end select;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.select_trigger!"]
+
+[[case]]
+id = "then-abort.a-task-may-abandon-its-own-work"
+requirement = "Nothing about the construct depends on where it stands: two objects of one task type each run their own select, each on a strand of its own, each abandoning its own work."
+script = "task type Worker (Which : Integer); task body Worker is begin select delay 0.02; put_line (\"worker \" & Trim (Which'Image) & \" ran out\"); then abort for Step in 1 .. 10000000 loop null; end loop; end select; end Worker; A : Worker (1); B : Worker (2);\nquit (0);"
+exit_status = 0
+output = ["worker 1 ran out", "worker 2 ran out"]
+diagnostics = []
+
+[[case]]
+id = "discriminants.one-may-travel-through-a-rendezvous"
+requirement = "A discriminant is an ordinary value in the body, so what a task hands back may be made from one."
+script = "task type Worker (Which : Integer) is entry Report (Back : out Integer); end Worker; task body Worker is begin accept Report (Back : out Integer) do Back := Which * 10; end Report; end Worker; A : Worker (4); Got : Integer := 0; A.Report (Got); put_line (Trim (Got'Image));\nquit (0);"
+exit_status = 0
+output = ["40"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-subprogram-waits-for-what-it-declared"
+requirement = """
+Ada's rule about masters, at the granularity Ada gives it: a master is a
+*region*, and a subprogram does not return while a task declared inside it is
+still running. A submission that waited for all of it at the end would let a
+frame be dropped while something was still reading through it -- what a task
+reads through its static link is that frame, and the next call would have taken
+its slots.
+
+The rule lives in the machine rather than in the lowering. Every way of leaving
+a region goes through an instruction, and a rule written at each of those would
+be the same rule three times over.
+"""
+script = "Total : Integer := 0; procedure Run_One is task Helper; task body Helper is begin Total := Total + 7; end Helper; begin null; end Run_One; Run_One; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["7"]
+diagnostics = []
+
+[[case]]
+id = "masters.an-explicit-return-waits-too"
+requirement = "Every way out of a region, not the last statement of it: a function that returns from the middle waits where it returns."
+script = "Total : Integer := 0; function Sum_It return Integer is task Helper; task body Helper is begin Total := Total + 5; end Helper; begin return 1; end Sum_It; X : Integer := Sum_It; put_line (Trim (Total'Image) & \" \" & Trim (X'Image));\nquit (0);"
+exit_status = 0
+output = ["5 1"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-region-waits-for-its-own"
+requirement = """
+Its own, and only its own. A frame is what says which region a task belongs to,
+and a frame index is reused by the next call: two calls to one subprogram each
+wait for the two tasks they started rather than for each other's.
+"""
+script = "Total : Integer := 0; procedure Spawn_Some is task A; task B; task body A is begin Total := Total + 1; end A; task body B is begin Total := Total + 10; end B; begin null; end Spawn_Some; Spawn_Some; Spawn_Some; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["22"]
+diagnostics = []
+
+[[case]]
+id = "masters.regions-nest"
+requirement = """
+A task that calls a subprogram which declares a task of its own waits for it
+before returning, and the task that called waits in turn. Written so the answer
+does not depend on the quantum: each step appends a letter, and what the case
+pins is the order the regions close in.
+"""
+script = "Order : String := \"\"; procedure Inner is task Deep; task body Deep is begin Order := Order & \"d\"; end Deep; begin Order := Order & \"i\"; end Inner; procedure Outer_One is task Shallow; task body Shallow is begin Inner; Order := Order & \"s\"; end Shallow; begin Order := Order & \"o\"; end Outer_One; Outer_One; put_line (Order);\nquit (0);"
+exit_status = 0
+output = ["oids"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-task-body-is-one"
+requirement = "A task body is a region like any other: it does not end while a task it declared is still running."
+script = "Order : String := \"\"; task Holder; task body Holder is task Inner_One; task body Inner_One is begin for Step in 1 .. 2000 loop null; end loop; Order := Order & \"i\"; end Inner_One; begin Order := Order & \"h\"; end Holder;\nput_line (Order);\nquit (0);"
+exit_status = 0
+output = ["hi"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-dependent-that-cannot-end-is-reported"
+requirement = "A region waiting for something that will never happen is a program that cannot go on, and is said so about rather than hung on."
+script = "procedure Wedged is task Waiter is entry Never; end Waiter; task body Waiter is begin accept Never; end Waiter; begin put_line (\"inside\"); end Wedged; Wedged; put_line (\"after\");\nquit (0);"
+exit_status = 0
+output = ["inside"]
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.tasks_stuck!}!"]
+
+[[case]]
+id = "masters.a-block-is-one"
+requirement = """
+Ada makes a block statement a master, and so does this. A block makes no frame,
+so the frame alone cannot say which of the regions inside it a task belongs to:
+each block is a numbered region of its frame, and a task started in one belongs
+to it.
+"""
+script = "Total : Integer := 0; declare task Helper; task body Helper is begin Total := Total + 7; end Helper; begin null; end; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["7"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-block-may-hold-a-body-at-all"
+requirement = """
+A block holds declarations, and a body among them is a body like any other --
+at the level around it, because a block makes no frame. Bodies are found by
+walking declarative parts and a block is a *statement*, so one written inside a
+loop or an `if` is found by the walk over statements instead. It was refused as
+something this build could not run before, which named a limitation rather than
+the gap it was.
+"""
+script = "declare function Doubled (Of_It : Integer) return Integer is begin return Of_It * 2; end Doubled; begin put_line (Trim (Doubled (21)'Image)); end;\nquit (0);"
+exit_status = 0
+output = ["42"]
+diagnostics = []
+
+[[case]]
+id = "masters.every-turn-of-a-loop-waits-for-its-own"
+requirement = """
+A block in a loop is one region per turn, not one for the loop: each turn waits
+for what that turn started. Regions are numbered rather than counted for
+exactly this -- a depth would make the second turn look like the first.
+"""
+script = "Total : Integer := 0; for Round in 1 .. 3 loop declare task Bump; task body Bump is begin Total := Total + 1; end Bump; begin null; end; put_line (Trim (Round'Image) & \" \" & Trim (Total'Image)); end loop;\nquit (0);"
+exit_status = 0
+output = ["1 1", "2 2", "3 3"]
+diagnostics = []
+
+[[case]]
+id = "masters.blocks-nest"
+requirement = "An inner block completes before the statements after it, and the outer one completes after those -- each waiting for its own."
+script = "Order : String := \"\"; declare task Outer_Task; task body Outer_Task is begin for Step in 1 .. 4000 loop null; end loop; Order := Order & \"o\"; end Outer_Task; begin declare task Inner_Task; task body Inner_Task is begin Order := Order & \"i\"; end Inner_Task; begin null; end; Order := Order & \"m\"; end; put_line (Order);\nquit (0);"
+exit_status = 0
+output = ["imo"]
+diagnostics = []
+
+[[case]]
+id = "masters.an-exit-completes-the-blocks-it-jumps-out-of"
+requirement = """
+Falling off the end is not the only way out of a block. An `exit` leaves
+however many blocks stand between it and the loop, and completes each of them
+-- a master whose wait only stood at its end would be one that some ways out
+did not answer to.
+"""
+script = "Total : Integer := 0; for Round in 1 .. 3 loop declare task Bump; task body Bump is begin Total := Total + 1; end Bump; begin exit when Round = 2; end; end loop; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["2"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-return-out-of-a-block-waits-too"
+requirement = "By the frame rather than by the block: leaving a frame leaves every region inside it, and waits for all of them."
+script = "Total : Integer := 0; procedure Try_It is begin declare task Helper; task body Helper is begin Total := Total + 4; end Helper; begin return; end; end Try_It; Try_It; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["4"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-raise-completes-what-it-leaves"
+requirement = """
+An exception on its way out of a block completes it, and completing a master
+waits for its dependents -- so the handler runs after them, not beside them.
+That is Ada's rule, and the handler sees what the abandoned block started.
+
+The unwind itself cannot wait: it is reached from inside whatever raised, and
+waiting means giving up the turn. The wait stands where the unwind lands
+instead, which is the same moment from the program's point of view and a place
+a strand can be set aside from.
+"""
+script = "Total : Integer := 0; declare Zero : Integer := 0; begin declare task Helper; task body Helper is begin Total := Total + 3; end Helper; begin put_line (Trim (Integer'Image (7 / Zero))); end; exception when others => put_line (\"caught \" & Trim (Total'Image)); end; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["caught 3", "3"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-raise-out-of-a-frame-completes-it-too"
+requirement = """
+A raise may leave several masters at once -- blocks and the frames around them
+-- and each of them is one that never reached its own way out. All of them are
+waited for before the handler runs.
+"""
+script = "Total : Integer := 0; procedure Fails_It is Zero : Integer := 0; task Helper; task body Helper is begin for Step in 1 .. 3000 loop null; end loop; Total := Total + 6; end Helper; begin put_line (Trim (Integer'Image (7 / Zero))); end Fails_It; begin Fails_It; exception when others => put_line (\"caught \" & Trim (Total'Image)); end;\nquit (0);"
+exit_status = 0
+output = ["caught 6"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-handler-in-the-block-itself-does-not-wait"
+requirement = """
+The other side of the same rule. A block whose own handler catches has not
+completed -- the exception never left it -- so its dependents are not waited
+for before the handler runs, only at its end. Ada's rule read the other way
+round, and the difference is visible.
+"""
+script = "Total : Integer := 0; declare Zero : Integer := 0; task Helper; task body Helper is begin Total := Total + 9; end Helper; begin put_line (Trim (Integer'Image (7 / Zero))); exception when others => put_line (\"caught \" & Trim (Total'Image)); end; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["caught 0", "9"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-block-in-a-task-body-is-one-too"
+requirement = "Nothing about a block depends on where it stands: one inside a task body waits for what it started before the task goes on."
+script = "Total : Integer := 0; task Holder; task body Holder is begin declare task Inner_One; task body Inner_One is begin Total := Total + 6; end Inner_One; begin null; end; put_line (Trim (Total'Image)); end Holder;\nquit (0);"
+exit_status = 0
+output = ["6"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-strand-is-free-once-its-region-has-waited"
+requirement = """
+The bound on strands is how many may run *at once*, not how many a run may ever
+start. A strand goes back to being nobody when the region that declared it has
+waited for it, which is the moment nothing can still name it: the task object
+holding its number goes out of scope with the region, and a strand recycled
+while a value still named it could be aborted or called by mistake.
+
+Forty turns of a loop, each starting a task, on a machine that runs fifteen at
+once. It reported that the program had run away on the sixteenth before, which
+it had not.
+"""
+script = "Total : Integer := 0; for Round in 1 .. 40 loop declare task Bump; task body Bump is begin Total := Total + 1; end Bump; begin null; end; end loop; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["40"]
+diagnostics = []
+
+[[case]]
+id = "masters.an-accept-body-is-one"
+requirement = """
+Ada makes an accept body a master, and what makes it worth being one here is
+that this language accepts a declaration wherever a statement may stand: a task
+declared inside a rendezvous is finished with before the caller is let go,
+which is what the caller is entitled to assume of a rendezvous.
+
+The wait stands before the caller is released rather than after, which is where
+the difference is visible: the caller reads what the accept's own task wrote.
+"""
+script = "Total : Integer := 0; task Server is entry Go; end Server; task body Server is begin accept Go do task Slow_One; task body Slow_One is begin for Step in 1 .. 5000 loop null; end loop; Total := Total + 5; end Slow_One; end Go; for Step in 1 .. 20000 loop null; end loop; end Server; Server.Go; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["5"]
+diagnostics = []
+
+[[case]]
+id = "masters.an-accept-body-may-hold-a-body-at-all"
+requirement = """
+The same gap a block had: bodies are found by walking declarative parts, and an
+accept body holds statements. One written there was refused as something this
+build could not run, which named a limitation rather than the gap it was.
+"""
+script = "Total : Integer := 0; task Server is entry Go; end Server; task body Server is begin accept Go do declare task Inner_One; task body Inner_One is begin Total := Total + 3; end Inner_One; begin null; end; Total := Total + 1; end Go; end Server; Server.Go; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["4"]
+diagnostics = []
+
+[[case]]
+id = "masters.each-rendezvous-waits-for-its-own"
+requirement = "Two objects of one task type share the accept and not what it starts: each rendezvous waits for the task that rendezvous declared."
+script = "Total : Integer := 0; task type Server (Which : Integer) is entry Go; end Server; task body Server is begin accept Go do task Helper; task body Helper is begin Total := Total + Which; end Helper; end Go; end Server; A : Server (2); B : Server (30); A.Go; B.Go; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["32"]
+diagnostics = []
+
+[[case]]
+id = "masters.an-accept-in-a-select-is-one-too"
+requirement = "Nothing about an accept body depends on how it was reached: one accept and a select over several run the same body once a caller has been taken, and it is a master in both."
+script = "Total : Integer := 0; task Server is entry Go; end Server; task body Server is begin select accept Go do task Helper; task body Helper is begin Total := Total + 8; end Helper; end Go; or delay 30.0; put_line (\"gave up\"); end select; end Server; Server.Go; put_line (Trim (Total'Image));\nquit (0);"
+exit_status = 0
+output = ["8"]
+diagnostics = []
+
+[[case]]
+id = "masters.a-rendezvous-waiting-for-what-cannot-end-is-reported"
+requirement = "A region waiting for something that will never happen is a program that cannot go on, wherever the region is."
+script = "task Server is entry Go; end Server; task body Server is begin accept Go do task Waiter is entry Never; end Waiter; task body Waiter is begin accept Never; end Waiter; put_line (\"inside the rendezvous\"); end Go; end Server; Server.Go; put_line (\"caller went on\");\nquit (0);"
+exit_status = 0
+output = ["inside the rendezvous"]
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.tasks_stuck!}!"]
+
+[[case]]
+id = "masters.a-body-inside-a-body-sees-what-encloses-it"
+requirement = """
+A name inside a body means that body's member before the enclosing one's, and
+what a body encloses it can see -- which is what a task or a package written
+inside another is for. Names resolve outward through the enclosing prefixes,
+innermost first.
+
+Trying only the innermost and the bare name left everything between them
+unreachable: a task declared inside a task body could not read that body's own
+variables, because they are declared under the outer body's name and the lookup
+was under the inner one's. It reported them undeclared, which was a true
+statement about the wrong scope.
+"""
+script = "task Holder; task body Holder is Mine : Integer := 1; task Inner_One; task body Inner_One is begin Mine := Mine + 5; end Inner_One; begin null; end Holder;\nput_line (\"holder ran\");\nquit (0);"
+exit_status = 0
+output = ["holder ran"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.a-failed-accept-body-reaches-the-caller"
+requirement = """
+Ada re-raises at the point of an entry call what the accept body failed with,
+and releases the caller. It asked for a piece of work and is owed the answer,
+and being left queued for ever is not one -- which is what happened before: the
+acceptor handled its own failure and the caller waited for a rendezvous that
+had already ended.
+
+Both sides get it, and each answers for it where it stands.
+"""
+script = "task Server is entry Go; end Server; task body Server is Zero : Integer := 0; begin accept Go do put_line (Trim (Integer'Image (7 / Zero))); end Go; exception when others => put_line (\"the server handled it\"); end Server; begin Server.Go; put_line (\"not reached\"); exception when others => put_line (\"the caller got it too\"); end; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["the server handled it", "the caller got it too", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.the-caller-is-carried-the-exception-where-it-resumes"
+requirement = """
+Carried rather than raised, because the caller is not running: what is set
+aside cannot raise, so the exception waits with it and is raised where it
+resumes -- which is the point of the call, the same place a caller would have
+raised it had the entry been a procedure.
+
+Its `out` argument keeps what it held. The accept body never completed the
+write, which is Ada's answer too: what a rendezvous did not finish saying, it
+did not say.
+"""
+script = "task Server is entry Go (Which : out Integer); end Server; task body Server is Zero : Integer := 0; begin accept Go (Which : out Integer) do Which := 7 / Zero; end Go; exception when others => null; end Server; task Caller_One; task body Caller_One is Got : Integer := 3; begin begin Server.Go (Got); put_line (\"no exception\"); exception when others => put_line (\"caught, Got is \" & Trim (Got'Image)); end; end Caller_One;\nquit (0);"
+exit_status = 0
+output = ["caught, Got is 3"]
+diagnostics = []
+
+[[case]]
+id = "rendezvous.it-reaches-the-caller-through-a-select-too"
+requirement = "Nothing about it depends on how the accept was reached: one accept and a select over several run the same body, and a failure in it is the caller's either way."
+script = "task Server is entry Go; end Server; task body Server is Zero : Integer := 0; begin select accept Go do put_line (Trim (Integer'Image (7 / Zero))); end Go; or delay 30.0; put_line (\"gave up\"); end select; exception when others => put_line (\"server handled it\"); end Server; begin Server.Go; exception when others => put_line (\"caller got it\"); end; put_line (\"done\");\nquit (0);"
+exit_status = 0
+output = ["server handled it", "caller got it", "done"]
+diagnostics = []
+
+[[case]]
+id = "attributes.a-task-says-whether-it-has-ended"
+requirement = """
+`T'Terminated` and `T'Callable`: Ada's two questions about one task. Questions
+about a strand rather than about a type, so both are asked of the task's own
+value -- which is what a task object holds.
+"""
+script = "task Worker is entry Go; end Worker; task body Worker is begin accept Go; end Worker; put_line (Boolean'Image (Worker'Terminated) & \" \" & Boolean'Image (Worker'Callable)); Worker.Go; for Step in 1 .. 4000 loop null; end loop; put_line (Boolean'Image (Worker'Terminated) & \" \" & Boolean'Image (Worker'Callable));\nquit (0);"
+exit_status = 0
+output = ["FALSE TRUE", "TRUE FALSE"]
+diagnostics = []
+
+[[case]]
+id = "attributes.the-two-are-not-each-others-negation"
+requirement = """
+A task that has run its body out and is waiting for what depends on it has
+*completed* without having *terminated*: it has ended nothing and will meet
+nobody, so both questions answer False. That is the whole of why Ada asks two,
+and why this machine records that a body has been run out as well as that a
+strand is over.
+"""
+script = "task Holder is entry Look; end Holder; task body Holder is task Dependent_One; task body Dependent_One is begin for Step in 1 .. 40000 loop null; end loop; end Dependent_One; begin null; end Holder; for Step in 1 .. 8000 loop null; end loop; put_line (Boolean'Image (Holder'Terminated) & \" \" & Boolean'Image (Holder'Callable));\nquit (0);"
+exit_status = 0
+output = ["FALSE FALSE"]
+diagnostics = []
+
+[[case]]
+id = "attributes.an-aborted-task-has-ended"
+requirement = "Ada calls an aborted task abnormal and neither callable nor waiting to be: it is over, and says so."
+script = "task Worker is entry Never; end Worker; task body Worker is begin accept Never; end Worker; abort Worker; put_line (Boolean'Image (Worker'Terminated) & \" \" & Boolean'Image (Worker'Callable));\nquit (0);"
+exit_status = 0
+output = ["TRUE FALSE"]
+diagnostics = []
+
+[[case]]
+id = "attributes.each-object-of-a-task-type-answers-for-itself"
+requirement = "Two objects of one task type are two tasks, and the question is about the strand rather than about what they share."
+script = "task type Runner is entry Go; end Runner; task body Runner is begin accept Go; end Runner; A : Runner; B : Runner; A.Go; for Step in 1 .. 4000 loop null; end loop; put_line (Boolean'Image (A'Terminated) & \" \" & Boolean'Image (B'Terminated)); B.Go;\nquit (0);"
+exit_status = 0
+output = ["TRUE FALSE"]
+diagnostics = []
+
+[[case]]
+id = "attributes.only-a-task-has-them"
+requirement = """
+Named by what they are asked of. Refused once, too: an attribute whose type
+could not be determined says nothing about what an expression around it
+expected, because a second complaint naming no type at all is the cascade this
+pass exists to avoid.
+"""
+script = "X : Integer := 1; put_line (Boolean'Image (X'Terminated));\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.attribute_not_defined{attribute=Terminated,found=Integer}!"]
+
+[[case]]
+id = "attributes.an-entry-says-how-many-are-queued"
+requirement = """
+`E'Count` is the length of an entry's queue. Written inside the body of the
+task that declares the entry, which is Ada's rule and not fussiness: a count is
+a queue's length at an instant, and a caller reading it from outside would be
+told something that had already changed by the time it acted.
+
+Three callers arrive, and each accept takes one and leaves the rest.
+"""
+script = "task Server is entry Put (Which : Integer); entry Report; end Server; task body Server is begin accept Report do put_line (Trim (Put'Count'Image)); end Report; for Round in 1 .. 3 loop accept Put (Which : Integer) do put_line (Trim (Which'Image) & \" \" & Trim (Put'Count'Image)); end Put; end loop; end Server; task First_Caller; task Second_Caller; task Third_Caller; task body First_Caller is begin Server.Put (1); end First_Caller; task body Second_Caller is begin Server.Put (2); end Second_Caller; task body Third_Caller is begin Server.Put (3); end Third_Caller; for Step in 1 .. 4000 loop null; end loop; Server.Report;\nquit (0);"
+exit_status = 0
+output = ["3", "1 2", "2 1", "3 0"]
+diagnostics = []
+
+[[case]]
+id = "attributes.a-protected-entry-has-a-count-too"
+requirement = """
+The same question about the other kind of queue. A task's caller waits for a
+rendezvous and a protected object's waits on a barrier, and `'Count` means the
+same thing about either.
+
+A strand is in the queue from the moment it asks until the moment it is through
+the barrier -- longer than it is asleep on one. Leaving the object wakes
+everyone waiting so that each asks the barrier again, and a count that only saw
+the sleepers would report an empty queue at exactly the moment the queue is
+being served.
+"""
+script = "protected Gate is procedure Open_It; entry Pass; entry Ask; end Gate; protected body Gate is Opened : Boolean := False; procedure Open_It is begin Opened := True; end Open_It; entry Pass when Opened is begin put_line (\"through \" & Trim (Pass'Count'Image)); end Pass; entry Ask when True is begin put_line (\"queued \" & Trim (Pass'Count'Image)); end Ask; end Gate; task First_One; task Second_One; task body First_One is begin Gate.Pass; end First_One; task body Second_One is begin Gate.Pass; end Second_One; for Step in 1 .. 4000 loop null; end loop; Gate.Ask; Gate.Open_It;\nquit (0);"
+exit_status = 0
+output = ["queued 2", "through 1", "through 0"]
+diagnostics = []
+
+[[case]]
+id = "attributes.a-count-is-asked-from-inside"
+requirement = """
+Ada allows `E'Count` only inside the body of the unit that declares the entry.
+Refused by name where it is written, rather than answered with a number about
+the wrong strand: the count is kept against whoever is asking, and asking from
+outside would be a question about the asker's own queue.
+"""
+script = "task Server is entry Go; end Server; task body Server is begin accept Go; end Server; put_line (Trim (Server.Go'Count'Image));\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.count_outside_its_unit{name=Server.Go}!"]
+
+[[case]]
+id = "protected-types.several-objects-are-several-objects"
+requirement = """
+`protected type Counter is ... end Counter;` declares a type whose objects each
+have state and a lock of their own.
+
+An object is made by copying the type's declaration and body with the type's
+name replaced by the object's -- which is what a generic instantiation already
+does here, and it leaves everything below the analyser seeing what it has
+always seen: one protected object per declaration. What it costs is a copy of
+the code per object; what it buys is that nothing else had to learn about
+protected types at all.
+"""
+script = "protected type Counter is procedure Bump; function Value return Integer; end Counter; protected body Counter is Held : Integer := 0; procedure Bump is begin Held := Held + 1; end Bump; function Value return Integer is begin return Held; end Value; end Counter; Left : Counter; Right : Counter; Left.Bump; Left.Bump; Right.Bump; put_line (Trim (Left.Value'Image) & \" \" & Trim (Right.Value'Image));\nquit (0);"
+exit_status = 0
+output = ["2 1"]
+diagnostics = []
+
+[[case]]
+id = "protected-types.each-object-has-a-lock-of-its-own"
+requirement = """
+And a barrier of its own. Opening one object releases what waits at that
+object, and says nothing about any other.
+"""
+script = "protected type Gate is procedure Open_It; entry Pass; end Gate; protected body Gate is Opened : Boolean := False; procedure Open_It is begin Opened := True; end Open_It; entry Pass when Opened is begin put_line (\"through\"); end Pass; end Gate; Left : Gate; Right : Gate; task Waiter_One; task body Waiter_One is begin Left.Pass; end Waiter_One; for Step in 1 .. 3000 loop null; end loop; put_line (\"opening the other one\"); Right.Open_It; for Step in 1 .. 3000 loop null; end loop; put_line (\"now this one\"); Left.Open_It;\nquit (0);"
+exit_status = 0
+output = ["opening the other one", "now this one", "through"]
+diagnostics = []
+
+[[case]]
+id = "protected-types.one-object-still-excludes"
+requirement = "Two tasks and one object of a protected type: the operations exclude each other exactly as an object written out in full does."
+script = "protected type Counter is procedure Bump; function Value return Integer; end Counter; protected body Counter is Held : Integer := 0; procedure Bump is begin Held := Held + 1; end Bump; function Value return Integer is begin return Held; end Value; end Counter; Shared : Counter; task A_One; task B_One; task body A_One is begin for Step in 1 .. 100 loop Shared.Bump; end loop; end A_One; task body B_One is begin for Step in 1 .. 100 loop Shared.Bump; end loop; end B_One;\nput_line (Trim (Shared.Value'Image));\nquit (0);"
+exit_status = 0
+output = ["200"]
+diagnostics = []
+
+[[case]]
+id = "protected-types.an-object-may-stand-inside-a-subprogram"
+requirement = "Each call makes one, with state of its own, and it is gone with the frame that declared it."
+script = "protected type Holder is procedure Set_It (Which : Integer); function Fetch return Integer; end Holder; protected body Holder is Held : Integer := 0; procedure Set_It (Which : Integer) is begin Held := Which; end Set_It; function Fetch return Integer is begin return Held; end Fetch; end Holder; procedure Use_One is Mine : Holder; begin Mine.Set_It (9); put_line (Trim (Mine.Fetch'Image)); end Use_One; Use_One; Use_One;\nquit (0);"
+exit_status = 0
+output = ["9", "9"]
+diagnostics = []
+
+[[case]]
+id = "protected-types.an-object-of-one-needs-a-body"
+requirement = "A type declared and never given a body has nothing for an object to be copied from, and is said so rather than left to make an object whose operations do nothing."
+script = "protected type Counter is procedure Bump; end Counter; A : Counter;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.body_missing{name=Counter}!"]
+
+[[case]]
+id = "protected-types.the-type-itself-has-no-operations"
+requirement = """
+A type is not a value, and an object of it is what has operations. Said as what
+it is rather than as its opposite: this reported that a type was *not* a type,
+which is the complaint a misspelled type mark gets and reads as nonsense here.
+"""
+script = "protected type Counter is procedure Bump; end Counter; protected body Counter is Held : Integer := 0; procedure Bump is begin Held := Held + 1; end Bump; end Counter; Counter.Bump;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.is_a_type{name=Counter}!"]
+
+[[case]]
+id = "protected-types.a-member-may-be-called-what-the-shell-calls-something"
+requirement = """
+`Holder.Put` is one name with a dot in it, and nothing that resolves `Put` can
+reach it -- so an operation named after one the shell provides is no clash. It
+was refused as one, for a protected object written out in full as much as for
+an object of a type: the check read the member's simple name where the whole
+name is what is declared.
+"""
+script = "protected Holder is procedure Put (Which : Integer); function Fetch return Integer; end Holder; protected body Holder is Held : Integer := 0; procedure Put (Which : Integer) is begin Held := Which; end Put; function Fetch return Integer is begin return Held; end Fetch; end Holder; Holder.Put (5); put_line (Trim (Holder.Fetch'Image));\nquit (0);"
+exit_status = 0
+output = ["5"]
+diagnostics = []
+
+[[case]]
+id = "protected-types.a-type-takes-discriminants"
+requirement = """
+`protected type Capped (Limit : Integer; Called : String)` takes at elaboration
+what a subprogram takes at a call, and `Small : Capped (5, "the small one")` is
+where they are given.
+
+They arrive as *constants at the head of the object's own body*, which is what
+a discriminant is here: something the type is written against and the object
+fixes. The body reads one by name like any other of its own declarations, so
+nothing below the analyser had a new idea to learn -- the same trick that makes
+an object of a protected type an ordinary protected object.
+"""
+script = "protected type Capped (Limit : Integer; Called : String) is procedure Add (This_Many : Integer); function Total return Integer; end Capped; protected body Capped is Held : Integer := 0; procedure Add (This_Many : Integer) is begin if Held + This_Many <= Limit then Held := Held + This_Many; else put_line (Called & \" is full\"); end if; end Add; function Total return Integer is begin return Held; end Total; end Capped; Small : Capped (5, \"the small one\"); Large : Capped (100, \"the large one\"); Small.Add (4); Small.Add (4); Large.Add (40); put_line (Trim (Small.Total'Image) & \" \" & Trim (Large.Total'Image));\nquit (0);"
+exit_status = 0
+output = ["the small one is full", "4 40"]
+diagnostics = []
+
+[[case]]
+id = "protected-types.a-discriminant-may-be-what-a-barrier-asks"
+requirement = "A discriminant is an ordinary constant in the body, so a barrier may be written against one: what each object waits for is what it was elaborated with."
+script = "protected type Gate (Needed : Integer) is procedure Add; entry Pass; end Gate; protected body Gate is Held : Integer := 0; procedure Add is begin Held := Held + 1; end Add; entry Pass when Held >= Needed is begin put_line (\"through at \" & Trim (Needed'Image)); end Pass; end Gate; Early : Gate (1); Late : Gate (3); task Waiting_Early; task Waiting_Late; task body Waiting_Early is begin Early.Pass; end Waiting_Early; task body Waiting_Late is begin Late.Pass; end Waiting_Late; for Step in 1 .. 3000 loop null; end loop; Early.Add; Late.Add; Late.Add; Late.Add;\nquit (0);"
+exit_status = 0
+output = ["through at 1", "through at 3"]
+diagnostics = []
+
+[[case]]
+id = "protected-types.every-discriminant-must-be-given"
+requirement = "By position, all of them, for the same reason a task type's are: there are no defaults here, and an object with one missing would run with a value nobody wrote."
+script = "protected type Capped (Limit : Integer) is procedure Add; end Capped; protected body Capped is Held : Integer := 0; procedure Add is begin Held := Held + 1; end Add; end Capped; A : Capped;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.discriminants_wrong_count{name=Capped,expected= 1,found= 0}!"]
+
+[[case]]
+id = "protected-types.one-object-has-nowhere-to-be-given-them"
+requirement = "The same rule a single task follows, and the same reason: it is elaborated where it is declared, and there is nowhere to write what it would take."
+script = "protected Solo (Limit : Integer) is procedure Add; end Solo; protected body Solo is procedure Add is begin null; end Add; end Solo;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.discriminants_need_a_type{name=Solo}!"]
+
+[[case]]
+id = "protected-types.a-constant-member-comes-back-by-being-elaborated"
+requirement = """
+What declares a constant member is the body it stands in, and that is carried
+between submissions as the text it was written as and elaborated again -- so
+its value comes back by being computed rather than by being handed over.
+
+Handing it over was an assignment to something that cannot be assigned to, and
+the complaint said so: a constant declared inside a protected body was lost the
+moment a second submission wanted it.
+"""
+script = "protected Held is function Limit return Integer; end Held; protected body Held is Cap : constant Integer := 7; function Limit return Integer is begin return Cap; end Limit; end Held;\nput_line (Trim (Held.Limit'Image));\nquit (0);"
+exit_status = 0
+output = ["7"]
+diagnostics = []
+
+[[case]]
+id = "discriminants.a-type-may-say-what-they-default-to"
+requirement = """
+`task type Worker (Number : Integer := 5)` says what one of its objects gets
+when the object does not say. Ada calls a type whose discriminants all default
+unconstrained, and lets an object of it stand without a constraint.
+
+The defaults are analysed where the *type* stands rather than at each object: a
+default belongs to the type, and what a name in one means is settled by what is
+in scope where the type was written.
+"""
+script = "task type Worker (Number : Integer := 5; Called : String := \"a worker\") is entry Report; end Worker; task body Worker is begin accept Report do put_line (Called & \" \" & Trim (Number'Image)); end Report; end Worker; Plain : Worker; Named : Worker (9, \"the ninth\"); Plain.Report; Named.Report;\nquit (0);"
+exit_status = 0
+output = ["a worker 5", "the ninth 9"]
+diagnostics = []
+
+[[case]]
+id = "discriminants.a-protected-type-may-default-them-too"
+requirement = "The same rule for the other kind of type, and by the same route: an object that gave nothing takes what the type says one is, copied into its own body like any it was given."
+script = "protected type Capped (Limit : Integer := 3; Called : String := \"the default one\") is procedure Add; procedure Say_It; end Capped; protected body Capped is Held : Integer := 0; procedure Add is begin if Held < Limit then Held := Held + 1; end if; end Add; procedure Say_It is begin put_line (Called & \" holds \" & Trim (Held'Image) & \" of \" & Trim (Limit'Image)); end Say_It; end Capped; Plain : Capped; Wide : Capped (10, \"the wide one\"); for Step in 1 .. 6 loop Plain.Add; Wide.Add; end loop; Plain.Say_It; Wide.Say_It;\nquit (0);"
+exit_status = 0
+output = ["the default one holds 3 of 3", "the wide one holds 6 of 10"]
+diagnostics = []
+
+[[case]]
+id = "discriminants.all-of-them-or-none-of-them"
+requirement = """
+A constraint constrains the whole of a type. An object gives every discriminant
+or none, and giving none needs every one to have a default -- a partial
+constraint would leave a program saying which ones it meant to leave out by
+counting.
+"""
+script = "task type Worker (Number : Integer; Called : String := \"x\") is entry Report; end Worker; task body Worker is begin accept Report; end Worker; A : Worker;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.discriminants_wrong_count{name=Worker,expected= 2,found= 0}!"]
+
+[[case]]
+id = "discriminants.a-default-must-fit-what-it-defaults"
+requirement = "Checked where the type is written, which is where the mistake is, rather than at an object that never mentioned it."
+script = "task type Worker (Number : Integer := \"no\") is entry Report; end Worker; task body Worker is begin accept Report; end Worker;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.type_mismatch{found=String,expected=Integer}!"]
+
+[[case]]
+id = "discriminants.a-default-need-not-be-a-literal"
+requirement = """
+A default is an expression, evaluated where the object is elaborated. Its names
+are the *type's* -- resolved where the type was written -- and its value is the
+object's, which is what Ada means by evaluating a default at elaboration.
+"""
+script = "Base : Integer := 20; task type Worker (Number : Integer := Base + 2) is entry Report; end Worker; task body Worker is begin accept Report do put_line (Trim (Number'Image)); end Report; end Worker; A : Worker; A.Report;\nquit (0);"
+exit_status = 0
+output = ["22"]
+diagnostics = []
+
+[[case]]
+id = "discriminants.a-default-is-not-shadowed-by-the-body"
+requirement = """
+A discriminant's default belongs to the type's scope and not to the body's. A
+protected object's discriminants stand at the head of its own body, before
+anything the body declares, so a body that declares a name the default used
+does not change what the default meant -- which is Ada's rule and, here, a
+consequence of where the constants are put.
+"""
+script = "Base : Integer := 20; protected type Capped (Limit : Integer := Base) is procedure Say_It; end Capped; protected body Capped is Base : Integer := 999; procedure Say_It is begin put_line (Trim (Limit'Image) & \" \" & Trim (Base'Image)); end Say_It; end Capped; A : Capped; A.Say_It;\nquit (0);"
+exit_status = 0
+output = ["20 999"]
+diagnostics = []
+
+[[case]]
+id = "discriminants.the-short-form-takes-them-too"
+requirement = "`task type Worker (Number : Integer := 5);` -- a task type with discriminants and no entries, which Ada writes without an `is` at all."
+script = "task type Worker (Number : Integer := 5); task body Worker is begin put_line (Trim (Number'Image)); end Worker; A : Worker; B : Worker (7);\nquit (0);"
+exit_status = 0
+output = ["5", "7"]
+diagnostics = []
+
+[[case]]
+id = "requeue.a-caller-is-moved-to-another-entry"
+requirement = """
+Ada's `requeue`: the caller being served is put on another entry's queue and
+the body it was being served by is left. The caller does not resume and is not
+told -- from its own point of view it is still waiting for the call it made,
+which is the whole of what makes a requeue different from returning and being
+called again.
+"""
+script = "task Server is entry Put (Which : Integer); entry Wait_Again; end Server; task body Server is begin accept Put (Which : Integer) do put_line (\"asked with \" & Trim (Which'Image)); requeue Wait_Again; end Put; put_line (\"the body ended\"); accept Wait_Again do put_line (\"served at last\"); end Wait_Again; end Server; Server.Put (7); put_line (\"the caller went on\");\nquit (0);"
+exit_status = 0
+output = ["asked with 7", "the body ended", "served at last", "the caller went on"]
+diagnostics = []
+
+[[case]]
+id = "requeue.a-protected-entry-may-move-one-too"
+requirement = """
+The other kind of queue, and the other way of joining it. A caller of a
+protected entry queues by being *inside* that entry's own body, parked at its
+barrier -- so moving it to another entry is a matter of leaving this body and
+entering that one, keeping the place the call came from. A tail call, which is
+what a requeue of this kind is.
+"""
+script = "protected Gate is procedure Open_It; entry Try_It; entry Wait_For_It; end Gate; protected body Gate is Opened : Boolean := False; procedure Open_It is begin Opened := True; end Open_It; entry Try_It when True is begin if not Opened then put_line (\"moving the caller along\"); requeue Wait_For_It; else put_line (\"open already\"); end if; end Try_It; entry Wait_For_It when Opened is begin put_line (\"through at last\"); end Wait_For_It; end Gate; task Caller_One; task body Caller_One is begin Gate.Try_It; put_line (\"the caller went on\"); end Caller_One; for Step in 1 .. 3000 loop null; end loop; put_line (\"opening\"); Gate.Open_It;\nquit (0);"
+exit_status = 0
+output = ["moving the caller along", "opening", "through at last", "the caller went on"]
+diagnostics = []
+
+[[case]]
+id = "requeue.a-moved-caller-is-in-the-queue-it-was-moved-to"
+requirement = "It arrived there, so `'Count` says so -- of a task's queue and of a protected object's alike."
+script = "task Server is entry Put (Which : Integer); entry Later; entry Report; end Server; task body Server is begin accept Put (Which : Integer) do requeue Later; end Put; accept Report do put_line (Trim (Later'Count'Image)); end Report; accept Later do put_line (\"served later\"); end Later; end Server; task Asking; task body Asking is begin Server.Put (1); end Asking; for Step in 1 .. 3000 loop null; end loop; Server.Report;\nquit (0);"
+exit_status = 0
+output = ["1", "served later"]
+diagnostics = []
+
+[[case]]
+id = "requeue.with-abort-is-accepted-and-means-the-same-here"
+requirement = """
+Ada's `with abort` says whether the requeued call may still be cancelled while
+it waits. Nothing here can cancel a queued call: a timed entry call waits its
+whole duration and asks again rather than queuing, and an abort stops the
+caller outright either way. So both spellings are accepted and both do the same
+thing, said here rather than left to be discovered.
+"""
+script = "task Server is entry Put (Which : Integer); entry Later; end Server; task body Server is begin accept Put (Which : Integer) do requeue Later with abort; end Put; accept Later do put_line (\"served later\"); end Later; end Server; Server.Put (1); put_line (\"went on\");\nquit (0);"
+exit_status = 0
+output = ["served later", "went on"]
+diagnostics = []
+
+[[case]]
+id = "requeue.the-target-is-an-entry-of-this-unit"
+requirement = """
+Ada lets a requeue name any entry at all. Here it names one of the same task or
+protected object, because what the caller is moved to has to be a queue this
+unit can put it on -- another object's is reached through a name the body may
+not even have.
+"""
+script = "task Server is entry Put; end Server; task body Server is Nope : Integer := 0; begin accept Put do requeue Nope; end Put; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.requeue_not_an_entry{name=Nope}!"]
+
+[[case]]
+id = "requeue.the-target-takes-nothing"
+requirement = """
+Ada's rule is that the target takes nothing or takes what the caller already
+gave. Only the first is possible here: what the caller gave sits in a run of
+its own slots, laid out by the entry it called, and a target with a profile of
+its own would be reading it by somebody else's layout.
+"""
+script = "task Server is entry Put (Which : Integer); entry Later (Which : Integer); end Server; task body Server is begin accept Put (Which : Integer) do requeue Later; end Put; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.requeue_takes_nothing{name=Later}!"]
+
+[[case]]
+id = "then-abort.a-protected-entry-may-be-the-trigger"
+requirement = """
+A trigger is something that happens on somebody else's terms, and a protected
+entry is one: the select waits at the barrier while the abortable part runs,
+and the barrier opening is what fires it.
+"""
+script = "protected Gate is procedure Open_It; entry Pass; end Gate; protected body Gate is Opened : Boolean := False; procedure Open_It is begin Opened := True; end Open_It; entry Pass when Opened is begin null; end Pass; end Gate; task Opener; task body Opener is begin delay 0.05; Gate.Open_It; end Opener; Counted : Integer := 0; select Gate.Pass; put_line (\"the gate opened\"); then abort for Step in 1 .. 10000000 loop Counted := Counted + 1; end loop; end select; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["the gate opened", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.a-barrier-trigger-is-cancelled-too"
+requirement = """
+The other direction, for the other kind of queue. When the abortable part
+finishes first the trigger is cancelled, and a trigger parked at a *barrier* is
+parked inside that entry's own body rather than in a queue -- so cancelling it
+is returning from that body without running it, which is the same unwind a
+return does, done to a strand that is not the one running.
+
+It waited for a barrier that nothing was going to open, and the run reported
+that every task was waiting for something no task would do.
+"""
+script = "protected Gate is procedure Open_It; entry Pass; end Gate; protected body Gate is Opened : Boolean := False; procedure Open_It is begin Opened := True; end Open_It; entry Pass when Opened is begin put_line (\"the body ran\"); end Pass; end Gate; select Gate.Pass; put_line (\"took it\"); then abort put_line (\"finished first\"); end select; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["finished first", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "then-abort.a-cancelled-barrier-trigger-leaves-the-object-alone"
+requirement = """
+The entry's body never ran, its queue is empty again, and the object is what it
+was: a cancelled trigger is a call that did not happen, not one that half did.
+"""
+script = "protected Gate is procedure Open_It; entry Pass; function Is_Open return Boolean; function Queued return Integer; end Gate; protected body Gate is Opened : Boolean := False; procedure Open_It is begin Opened := True; end Open_It; entry Pass when Opened is begin put_line (\"the body ran\"); end Pass; function Is_Open return Boolean is begin return Opened; end Is_Open; function Queued return Integer is begin return Pass'Count; end Queued; end Gate; select Gate.Pass; put_line (\"took it\"); then abort put_line (\"finished first\"); end select; put_line (Trim (Gate.Queued'Image)); Gate.Open_It; put_line (Boolean'Image (Gate.Is_Open));\nquit (0);"
+exit_status = 0
+output = ["finished first", "0", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "families.an-entry-may-be-a-run-of-them"
+requirement = """
+`entry Request (Priority);` declares one entry per value of Priority, and a
+caller says which by writing `Request (High)`. A family is a run of entries
+rather than one, which is what makes it worth having: an acceptor can serve one
+member and leave the rest queued, so a task can decide what to serve rather
+than only when.
+
+A member's number is the family's own plus which member it is, and which member
+is a value the program computes -- so the machine takes it off the stack rather
+than reading it out of the instruction.
+"""
+script = "type Priority is (Low, High); task Server is entry Request (Priority); end Server; task body Server is begin accept Request (High) do put_line (\"the high one first\"); end Request; accept Request (Low) do put_line (\"and then the low one\"); end Request; end Server; task Low_Caller; task body Low_Caller is begin Server.Request (Low); end Low_Caller; for Step in 1 .. 3000 loop null; end loop; Server.Request (High);\nquit (0);"
+exit_status = 0
+output = ["the high one first", "and then the low one"]
+diagnostics = []
+
+[[case]]
+id = "families.the-member-may-be-computed"
+requirement = """
+On both sides. A constrained subtype indexes a family from its own first value
+rather than from zero, so what the machine adds is the value less that first
+one -- which is the same arithmetic an array index needs and for the same
+reason.
+"""
+script = "subtype Lane is Integer range 1 .. 3; task Server is entry Queue_Up (Lane); end Server; task body Server is begin for Round in 1 .. 3 loop accept Queue_Up (4 - Round) do put_line (Trim (Integer'Image (4 - Round))); end Queue_Up; end loop; end Server; task One_Lane; task Two_Lane; task body One_Lane is begin Server.Queue_Up (1); end One_Lane; task body Two_Lane is begin Server.Queue_Up (2); end Two_Lane; for Step in 1 .. 3000 loop null; end loop; Server.Queue_Up (3);\nquit (0);"
+exit_status = 0
+output = ["3", "2", "1"]
+diagnostics = []
+
+[[case]]
+id = "families.a-member-has-a-count-of-its-own"
+requirement = "Each member of a family is an entry, so each has a queue and each can be asked how long it is."
+script = "type Priority is (Low, High); task Server is entry Request (Priority); entry Report; end Server; task body Server is begin accept Report do put_line (Trim (Request (Low)'Count'Image) & \" \" & Trim (Request (High)'Count'Image)); end Report; accept Request (Low); end Server; task Low_Caller; task body Low_Caller is begin Server.Request (Low); end Low_Caller; for Step in 1 .. 3000 loop null; end loop; Server.Report;\nquit (0);"
+exit_status = 0
+output = ["1 0"]
+diagnostics = []
+
+[[case]]
+id = "families.an-index-is-discrete-and-bounded"
+requirement = """
+A family is a run of entries, and a run is counted: what indexes it has to be
+countable, and short enough to be a run. `entry E (Integer)` would ask for as
+many entries as an Integer has values.
+"""
+script = "task Server is entry Request (Float); end Server; task body Server is begin null; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.family_index_not_discrete{found=Float}!"]
+
+[[case]]
+id = "families.one-entry-has-no-members"
+requirement = "Named for what it is: an entry that is not a family has no member to write, and a family named without one is a name that does not say which entry it means."
+script = "task Server is entry Plain; end Server; task body Server is begin accept Plain (1) do null; end Plain; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.not_a_family{name=Plain}!"]
+
+[[case]]
+id = "families.a-family-is-named-with-a-member"
+requirement = "The other way round, and the same rule: which member is what the parentheses say."
+script = "type Priority is (Low, High); task Server is entry Request (Priority); end Server; task body Server is begin accept Request do null; end Request; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.family_needs_a_member{name=Request}!"]
+
+[[case]]
+id = "families.a-protected-object-has-them-too"
+requirement = """
+A protected entry's body is one routine with one barrier, so a family of them
+is one routine taking which member it is running for -- and a barrier that can
+ask. `entry Pass (for Which in Level) when ... is` is how Ada writes it and how
+this does: a barrier that could not ask which member it was would make a family
+no different from one entry.
+
+Each member has a queue of its own, and opening one says nothing about the
+others.
+"""
+script = "type Level is (Quiet, Loud); protected Gate is procedure Allow (Which : Level); entry Pass (Level); end Gate; protected body Gate is Open_Quiet : Boolean := False; Open_Loud : Boolean := False; procedure Allow (Which : Level) is begin if Which = Quiet then Open_Quiet := True; else Open_Loud := True; end if; end Allow; entry Pass (for Which in Level) when (Which = Quiet and Open_Quiet) or (Which = Loud and Open_Loud) is begin null; end Pass; end Gate; task Quiet_One; task Loud_One; task body Quiet_One is begin Gate.Pass (Quiet); put_line (\"the quiet one passed\"); end Quiet_One; task body Loud_One is begin Gate.Pass (Loud); put_line (\"the loud one passed\"); end Loud_One; for Step in 1 .. 3000 loop null; end loop; put_line (\"the loud one only\"); Gate.Allow (Loud); for Step in 1 .. 3000 loop null; end loop; put_line (\"and now the quiet one\"); Gate.Allow (Quiet);\nquit (0);"
+exit_status = 0
+output = ["the loud one only", "the loud one passed", "and now the quiet one", "the quiet one passed"]
+diagnostics = []
+
+[[case]]
+id = "families.a-member-takes-nothing"
+requirement = """
+The arguments of a rendezvous are laid out by the entry that was called, and
+Ada writes a family member with parameters as two parenthesised lists -- a
+second shape for a call, where this language has one.
+"""
+script = "type Priority is (Low, High); task Server is entry Request (Priority) (Which : Integer); end Server; task body Server is begin null; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.family_takes_nothing{name=Request}!"]
+
+[[case]]
+id = "families.a-protected-member-has-a-count-of-its-own"
+requirement = "Each member of a protected family is queued at separately, so each has a length of its own to be asked for."
+script = "type Level is (Quiet, Loud); protected Gate is procedure Allow; entry Pass (Level); function Waiting_Loud return Integer; end Gate; protected body Gate is Opened : Boolean := False; procedure Allow is begin Opened := True; end Allow; entry Pass (for Which in Level) when Opened is begin null; end Pass; function Waiting_Loud return Integer is begin return Pass (Loud)'Count; end Waiting_Loud; end Gate; task Loud_One; task Loud_Two; task body Loud_One is begin Gate.Pass (Loud); end Loud_One; task body Loud_Two is begin Gate.Pass (Loud); end Loud_Two; for Step in 1 .. 3000 loop null; end loop; put_line (Trim (Gate.Waiting_Loud'Image)); Gate.Allow;\nquit (0);"
+exit_status = 0
+output = ["2"]
+diagnostics = []
+
+[[case]]
+id = "families.a-requeue-to-a-family-says-which-member"
+requirement = """
+A family is a run of entries, so naming one without saying which member does
+not say where the caller is to be moved. The same rule a call follows, at the
+other end of the same question.
+"""
+script = "type Level is (Quiet, Loud); protected Gate is entry Pass (Level); entry Later (Level); end Gate; protected body Gate is entry Pass (for Which in Level) when True is begin requeue Later; end Pass; entry Later (for Which in Level) when False is begin null; end Later; end Gate;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.family_needs_a_member{name=Later}!"]
+
+[[case]]
+id = "requeue.a-caller-may-be-moved-to-a-family-member"
+requirement = """
+`requeue Later (Which);` -- Ada's spelling, and now this one's. Either end of a
+requeue may be a member of a family, and a member's number is one the body
+works out, so both are computed and handed to the machine rather than written
+into the instruction.
+"""
+script = "type Level is (Quiet, Loud); task Server is entry Ask (Level); entry Later (Level); end Server; task body Server is begin accept Ask (Loud) do put_line (\"not ready\"); requeue Later (Loud); end Ask; put_line (\"the accept ended\"); accept Later (Loud) do put_line (\"served at last\"); end Later; end Server; Server.Ask (Loud); put_line (\"the caller went on\");\nquit (0);"
+exit_status = 0
+output = ["not ready", "the accept ended", "served at last", "the caller went on"]
+diagnostics = []
+
+[[case]]
+id = "requeue.a-protected-family-member-may-be-the-target"
+requirement = """
+The other kind of queue, and the same spelling. A protected entry family is one
+routine taking which member it is running for, so moving a caller to a member is
+a tail call carrying that member -- the same way a call to one carries it.
+"""
+script = "type Level is (Quiet, Loud); protected Gate is procedure Allow; entry Ask (Level); entry Later (Level); end Gate; protected body Gate is Opened : Boolean := False; procedure Allow is begin Opened := True; end Allow; entry Ask (for Which in Level) when True is begin put_line (\"moving it along\"); requeue Later (Which); end Ask; entry Later (for Which in Level) when Opened is begin put_line (\"through at \" & Level'Image (Which)); end Later; end Gate; task Caller_One; task body Caller_One is begin Gate.Ask (Loud); put_line (\"the caller went on\"); end Caller_One; for Step in 1 .. 3000 loop null; end loop; put_line (\"allowing\"); Gate.Allow;\nquit (0);"
+exit_status = 0
+output = ["moving it along", "allowing", "through at Loud", "the caller went on"]
+diagnostics = []
+
+[[case]]
+id = "requeue.either-end-may-be-a-member-or-not"
+requirement = "A family member may be moved to a plain entry, and the two ends are asked separately: what the caller was taken from and where it goes are two numbers, each computed the way its own entry needs."
+script = "type Level is (Quiet, Loud); task Server is entry Ask (Level); entry Plain; end Server; task body Server is begin accept Ask (Quiet) do requeue Plain; end Ask; accept Plain do put_line (\"served on the plain one\"); end Plain; end Server; Server.Ask (Quiet); put_line (\"went on\");\nquit (0);"
+exit_status = 0
+output = ["served on the plain one", "went on"]
+diagnostics = []
+
+[[case]]
+id = "requeue.a-plain-entry-has-no-member"
+requirement = "The other way round: an entry that is not a family has no member to name, wherever the name is written."
+script = "task Server is entry Ask; entry Plain; end Server; task body Server is begin accept Ask do requeue Plain (1); end Ask; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.not_a_family{name=Plain}!"]
+
+[[case]]
+id = "attributes.a-task-has-an-identity"
+requirement = """
+`A'Identity` is which task, as something a program can hold. Ada needs the
+attribute because a task object is not a value there; here a task *is* a value
+-- what it holds is which strand runs it -- so this is a spelling of the same
+thing, and two identities compare exactly when they are one task.
+
+It has a type of its own, Task_Id, because a task object cannot be copied: an
+identity that could be compared and never kept would be most of the way to
+useless.
+"""
+script = "task type Worker is entry Go; end Worker; task body Worker is begin accept Go; end Worker; A : Worker; B : Worker; Held : Task_Id := A'Identity; put_line (Boolean'Image (Held = A'Identity) & \" \" & Boolean'Image (Held = B'Identity)); A.Go; B.Go;\nquit (0);"
+exit_status = 0
+output = ["TRUE FALSE"]
+diagnostics = []
+
+[[case]]
+id = "attributes.two-tasks-are-the-same-task-or-not"
+requirement = """
+Two tasks compare equal when they are the same task and not otherwise. A cell
+with no discrete value answered zero and zero equals zero, so every task was
+every other -- which no program would have noticed until it asked.
+"""
+script = "task type Worker; task body Worker is begin null; end Worker; A : Worker; B : Worker; put_line (Boolean'Image (A = A) & \" \" & Boolean'Image (A = B));\nquit (0);"
+exit_status = 0
+output = ["TRUE FALSE"]
+diagnostics = []
+
+[[case]]
+id = "attributes.an-identity-answers-what-a-task-answers"
+requirement = """
+Whether it has ended and whether a call to it would be met: the same two
+questions, asked of the same value. Ada spells them as functions on a Task_Id
+and as attributes on a task; this language has one spelling for asking
+something about a value, and uses it for both.
+"""
+script = "task type Worker is entry Go; end Worker; task body Worker is begin accept Go; end Worker; A : Worker; Held : Task_Id := A'Identity; put_line (Boolean'Image (Held'Terminated) & \" \" & Boolean'Image (Held'Callable)); A.Go;\nquit (0);"
+exit_status = 0
+output = ["FALSE TRUE"]
+diagnostics = []
+
+[[case]]
+id = "attributes.tasks-are-not-ordered"
+requirement = "What a task holds is which strand runs it, and one strand is not less than another: the numbers say which task, not which came first."
+script = "task type Worker; task body Worker is begin null; end Worker; A : Worker; B : Worker; put_line (Boolean'Image (A < B));\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.operator_not_defined{operator=<,left=Worker,right=Worker}!"]
+
+[[case]]
+id = "attributes.a-task-cannot-be-copied"
+requirement = """
+Limited, in Ada's sense and for Ada's reason: what one *is* is the thing that
+runs, and a second name for it would be a second of it or a lie about which
+one. A protected object is limited for the same reason -- what it is is the
+state that is shared.
+
+It was accepted before, and started a third task where a program meant to name
+the first.
+"""
+script = "task type Worker; task body Worker is begin null; end Worker; A : Worker; B : Worker := A;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.cannot_be_copied{name=Worker}!"]
+
+[[case]]
+id = "attributes.a-protected-object-cannot-be-copied-either"
+requirement = "The same rule, said of the other kind: what a protected object is is the state that is shared, and a second name for it would be a second of it."
+script = "protected type Guard is procedure Nothing; end Guard; protected body Guard is procedure Nothing is begin null; end Nothing; end Guard; A : Guard; B : Guard := A;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.cannot_be_copied{name=Guard}!"]
+
+[[case]]
+id = "attributes.an-identity-names-a-task"
+requirement = """
+An identity with nothing in it names no task. Ada's answer is Null_Task_Id, a
+value that names none on purpose; this build has no way to write one, so an
+identity is declared with the task it means.
+"""
+script = "X : Task_Id;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.identity_needs_a_task{name=X}!"]
+
+[[case]]
+id = "attributes.how-much-room-something-takes"
+requirement = """
+`'Size` is how many slots a value takes: one for a scalar, one per component
+for a record, one per element for an array.
+
+Slots rather than bits, which is what Ada counts. A slot here holds a value of
+any type, so a bit count would be a number nothing in this machine means -- and
+a plausible wrong answer is worse than an honest different one.
+"""
+script = "type Reading is record Label : String; Value : Integer; end record; type Window is array (1 .. 4) of Integer; put_line (Trim (Integer'Size'Image) & \" \" & Trim (Reading'Size'Image) & \" \" & Trim (Window'Size'Image));\nquit (0);"
+exit_status = 0
+output = ["1 2 4"]
+diagnostics = []
+
+[[case]]
+id = "attributes.a-protected-object-takes-what-its-state-takes"
+requirement = """
+An object of a protected type is not a value, so asking its type for a width
+would answer about the wrong thing. What it takes is the run of slots its body
+declares -- and the answer comes from the analyser, which is the pass that has
+been through that body: the lowering pushes the number rather than working it
+out a second way.
+"""
+script = "protected type Counter is procedure Bump; end Counter; protected body Counter is Held : Integer := 0; Times : Integer := 0; procedure Bump is begin Held := Held + 1; Times := Times + 1; end Bump; end Counter; One : Counter; put_line (Trim (One'Size'Image));\nquit (0);"
+exit_status = 0
+output = ["2"]
+diagnostics = []
+
+[[case]]
+id = "attributes.a-task-is-given-a-region-to-run-in"
+requirement = """
+`T'Storage_Size` is how much room one task gets: a region of the store and a
+region of the stack, in slots. Ada counts storage elements, which is a host's
+bytes; a byte count here would be a number nothing in this machine means.
+
+Only a task has one. Nothing else is given a region of its own, so nothing else
+has one to report.
+"""
+script = "task type Worker; task body Worker is begin null; end Worker; put_line (Boolean'Image (Worker'Storage_Size > 0));\nX : Integer := 1; put_line (Trim (X'Storage_Size'Image));\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = ["!error.attribute_not_defined{attribute=Storage_Size,found=Integer}!"]
+
+[[case]]
+id = "priority.a-task-may-say-what-it-runs-at"
+requirement = """
+`pragma Priority (N);` inside a task declaration says what one runs at, and a
+strand of higher priority is preferred whenever the machine chooses which runs
+next.
+
+Chosen, not pre-empted: this machine changes strand at defined points, so a
+priority decides who goes next rather than interrupting who is going. Ada's
+model is pre-emptive; what is faithful here is the preference.
+"""
+script = "Order : String := \"\"; task type Low_One is pragma Priority (2); end Low_One; task body Low_One is begin for Step in 1 .. 400 loop null; end loop; Order := Order & \"l\"; end Low_One; task type High_One is pragma Priority (28); end High_One; task body High_One is begin for Step in 1 .. 400 loop null; end loop; Order := Order & \"h\"; end High_One; declare A : Low_One; B : Low_One; C : High_One; begin null; end; put_line (Order);\nquit (0);"
+exit_status = 0
+output = ["hll"]
+diagnostics = []
+
+[[case]]
+id = "priority.equal-priorities-interleave-as-they-did"
+requirement = """
+The same program with nothing to choose between the tasks runs them in the
+order they were started. Ties go to whichever comes first in the scan, which is
+what the machine did before priorities existed -- so a program that mentions
+none is unaffected by their being there at all.
+"""
+script = "Order : String := \"\"; task type Low_One is pragma Priority (2); end Low_One; task body Low_One is begin for Step in 1 .. 400 loop null; end loop; Order := Order & \"l\"; end Low_One; task type Other_One is pragma Priority (2); end Other_One; task body Other_One is begin for Step in 1 .. 400 loop null; end loop; Order := Order & \"h\"; end Other_One; declare A : Low_One; B : Low_One; C : Other_One; begin null; end; put_line (Order);\nquit (0);"
+exit_status = 0
+output = ["llh"]
+diagnostics = []
+
+[[case]]
+id = "priority.what-something-runs-at-can-be-asked"
+requirement = """
+`'Priority` of a task or of a protected object. Ada gives a protected object
+the attribute and a task a function; this language has one spelling for asking
+something about a value and uses it for both. A task that says nothing runs at
+the default, which is the middle of the range.
+"""
+script = "task type Urgent is pragma Priority (25); end Urgent; task body Urgent is begin null; end Urgent; task Plain; task body Plain is begin null; end Plain; protected Guarded_One is pragma Priority (20); procedure Nothing; end Guarded_One; protected body Guarded_One is procedure Nothing is begin null; end Nothing; end Guarded_One; Fast : Urgent; put_line (Trim (Fast'Priority'Image) & \" \" & Trim (Plain'Priority'Image) & \" \" & Trim (Guarded_One'Priority'Image));\nquit (0);"
+exit_status = 0
+output = ["25 15 20"]
+diagnostics = []
+
+[[case]]
+id = "priority.a-caller-above-the-ceiling-is-told"
+requirement = """
+A protected object's priority is its ceiling: the highest a task may be and
+still call it. Ada's reason for the rule is that a task inside a protected
+operation runs at the ceiling, so a caller above it would be *lowered* by
+calling; here nothing changes strand inside one, so the ceiling has nothing to
+raise -- and what is left is the rule, which a program that breaks it is told
+about rather than left thinking it was honoured.
+"""
+script = "protected Low_Ceiling is pragma Priority (10); procedure Touch; end Low_Ceiling; protected body Low_Ceiling is procedure Touch is begin put_line (\"touched\"); end Touch; end Low_Ceiling; task type Loud is pragma Priority (28); end Loud; task body Loud is begin Low_Ceiling.Touch; end Loud; declare A : Loud; begin null; end;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.above_ceiling!}!"]
+
+[[case]]
+id = "priority.a-caller-below-it-is-let-in"
+requirement = "The other side of the same rule, and the ordinary case: a task at or below the ceiling calls it as any other would."
+script = "protected Low_Ceiling is pragma Priority (10); procedure Touch; end Low_Ceiling; protected body Low_Ceiling is procedure Touch is begin put_line (\"touched\"); end Touch; end Low_Ceiling; task type Quiet is pragma Priority (5); end Quiet; task body Quiet is begin Low_Ceiling.Touch; end Quiet; declare A : Quiet; begin null; end; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["touched", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "priority.a-priority-is-written-where-it-stands"
+requirement = """
+What a task runs at is decided when it starts, so a number worked out later
+would be a priority the scheduler had already acted without. Out of range is
+refused the same way and for the same reason: the range is Ada's, and one
+outside it is not a priority.
+"""
+script = "task type Runner is pragma Priority (99); end Runner; task body Runner is begin null; end Runner;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.priority_not_static!"]
+
+[[case]]
+id = "priority.there-is-one-pragma"
+requirement = """
+A mechanism that took any name would be a second place to configure things, and
+what a program can say about itself belongs in the language rather than beside
+it. So the analyser knows the one pragma there is, and says so about any other.
+"""
+script = "task type Runner is pragma Nonsense (1); end Runner; task body Runner is begin null; end Runner;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.unknown_pragma{name=Nonsense}!"]
+
+[[case]]
+id = "priority.a-task-may-be-given-a-new-one"
+requirement = """
+`A'Priority := 28;` changes what a task runs at while the program runs. Ada
+calls Set_Priority for a task and assigns to a protected object's `'Priority`;
+this language has one spelling for asking something about a value, and this is
+that spelling written the other way.
+
+What it changes is what the scheduler prefers from the next choice onwards. A
+running strand is not interrupted by it -- this machine changes strand at
+defined points -- so a task raised while it is running keeps its turn and is
+preferred at the next one.
+"""
+script = "Order : String := \"\"; task type Runner; task body Runner is begin for Step in 1 .. 400 loop null; end loop; Order := Order & \"r\"; end Runner; task type Raised_One; task body Raised_One is begin for Step in 1 .. 400 loop null; end loop; Order := Order & \"R\"; end Raised_One; declare A : Runner; B : Runner; C : Raised_One; begin C'Priority := 28; end; put_line (Order);\nquit (0);"
+exit_status = 0
+output = ["Rrr"]
+diagnostics = []
+
+[[case]]
+id = "priority.a-ceiling-may-be-raised"
+requirement = """
+A protected object's ceiling lives with the object rather than in the
+instruction that takes its lock, because a program may change it and every
+operation has to be asking the same question. Raised, a task that could not
+call it can.
+"""
+script = "protected Gate is pragma Priority (20); procedure Touch; procedure Raise_It; end Gate; protected body Gate is procedure Touch is begin put_line (\"touched at \" & Trim (Gate'Priority'Image)); end Touch; procedure Raise_It is begin Gate'Priority := 30; end Raise_It; end Gate; task type Loud is pragma Priority (28); end Loud; task body Loud is begin Gate.Touch; end Loud; Gate.Raise_It; declare A : Loud; begin null; end; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["touched at 30", "carried on"]
+diagnostics = []
+
+[[case]]
+id = "priority.and-without-raising-it-the-caller-is-refused"
+requirement = "The same program with the ceiling left where it was declared: the rule is the rule, and what changed the outcome was changing the ceiling."
+script = "protected Gate is pragma Priority (20); procedure Touch; end Gate; protected body Gate is procedure Touch is begin put_line (\"touched\"); end Touch; end Gate; task type Loud is pragma Priority (28); end Loud; task body Loud is begin Gate.Touch; end Loud; declare A : Loud; begin null; end;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.above_ceiling!}!"]
+
+[[case]]
+id = "priority.it-is-read-back-as-it-is-now"
+requirement = """
+Either may be changed while the program runs, so `'Priority` asks the machine
+rather than the declaration -- which would be answering about the past.
+"""
+script = "task type Urgent is pragma Priority (25); end Urgent; task body Urgent is begin null; end Urgent; Fast : Urgent; put_line (Trim (Fast'Priority'Image)); Fast'Priority := 8; put_line (Trim (Fast'Priority'Image));\nquit (0);"
+exit_status = 0
+output = ["25", "8"]
+diagnostics = []
+
+[[case]]
+id = "priority.it-is-the-one-attribute-that-can-be-assigned-to"
+requirement = "An attribute is a question about something, and most questions have no answer to put back."
+script = "X : Integer := 5; X'Size := 3;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.not_assignable{name=Size}!"]
+
+[[case]]
+id = "timing.a-program-can-read-the-clock"
+requirement = """
+`Clock` is the seconds on the session's own clock, monotonic rather than
+calendar: a program that measures an interval measures one whatever somebody
+does to the system time.
+
+Counted from when the session began rather than from when a submission did, so
+a program that reads it, is interrupted by the next line being typed, and reads
+it again sees time having passed rather than having gone back to nothing.
+"""
+script = "Began : Float := Clock; delay 0.05; put_line (Boolean'Image (Clock > Began));\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "timing.a-delay-may-be-until-rather-than-for"
+requirement = """
+Ada has both because a loop that delays *for* a tenth of a second drifts by
+however long its own body takes, and one that delays *until* the next tenth
+does not. `until` is what tells them apart, the way a parameter's node records
+its mode.
+"""
+script = "Next_At : Float := Clock + 0.05; delay until Next_At; put_line (Boolean'Image (Clock >= Next_At));\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "timing.a-task-knows-how-long-it-has-run"
+requirement = """
+`T'Execution_Time` is how long a task has had *turns* for, which is not how
+long it has existed: a task that spends its life at a barrier or in a delay has
+used almost none of it, and that is what makes this worth asking rather than
+reading the clock twice.
+
+Ada puts it in a package and this language asks it of the task, which is the
+spelling it uses for asking anything about a value.
+"""
+script = "task type Busy_One; task body Busy_One is Total : Integer := 0; begin for Step in 1 .. 200000 loop Total := Total + 1; end loop; end Busy_One; task type Waiting_One; task body Waiting_One is begin delay 0.2; end Waiting_One; declare Worker : Busy_One; Waiter : Waiting_One; begin delay 0.25; put_line (Boolean'Image (Worker'Execution_Time > Waiter'Execution_Time) & \" \" & Boolean'Image (Waiter'Execution_Time < 0.05)); end;\nquit (0);"
+exit_status = 0
+output = ["TRUE TRUE"]
+diagnostics = []
+
+[[case]]
+id = "timing.a-delay-until-a-time-already-past-waits-for-nothing"
+requirement = "Ada's rule for the relative form said the other way round: a time that has been and gone is no wait at all, not a wait for ever."
+script = "Began : Float := Clock; delay until Began - 1.0; put_line (Boolean'Image (Clock - Began < 0.05));\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "blocking.an-operation-that-may-wait-is-caught"
+requirement = """
+`pragma Detect_Blocking;` asks for what Ada calls a potentially blocking
+operation inside a protected action to be caught. What they have in common is
+that each may set the strand aside, and a strand set aside while it holds a
+lock is holding it against everybody -- which is deadlock waiting to be
+written.
+
+A configuration pragma: it says something about the whole program rather than
+about the point it stands at, so it is a property of the program rather than an
+instruction in it.
+"""
+script = "pragma Detect_Blocking; protected Gate is procedure Nap; end Gate; protected body Gate is procedure Nap is begin delay 0.01; end Nap; end Gate; Gate.Nap; put_line (\"not reached\");\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.blocking_in_protected!}!"]
+
+[[case]]
+id = "blocking.an-entry-call-inside-one-is-caught-too"
+requirement = "The list is Ada's: a delay, an entry call, an accept, a select, starting a task, waiting for one, an abort. Asked in one place, because what makes an operation blocking is not something each has to say about itself."
+script = "pragma Detect_Blocking; task Server is entry Go; end Server; task body Server is begin accept Go; end Server; protected Gate is procedure Reach_Out; end Gate; protected body Gate is procedure Reach_Out is begin Server.Go; end Reach_Out; end Gate; Gate.Reach_Out;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.blocking_in_protected!}!"]
+
+[[case]]
+id = "blocking.starting-a-task-inside-one-is-caught"
+requirement = "Ada counts task creation among them, and so does this: what a new task needs is room and a turn, and taking either while holding a lock is what the rule is about."
+script = "pragma Detect_Blocking; protected Gate is procedure Spawn_It; end Gate; protected body Gate is procedure Spawn_It is task Helper; task body Helper is begin null; end Helper; begin null; end Spawn_It; end Gate; Gate.Spawn_It;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.blocking_in_protected!}!"]
+
+[[case]]
+id = "blocking.a-barrier-and-a-requeue-are-not-blocking"
+requirement = """
+An entry's own barrier is how a protected entry is *meant* to wait, and it
+gives the lock up to do so. A requeue is Ada's answer to wanting to wait
+without holding anything. Neither is on the list, and a program built out of
+them runs with the pragma in force.
+"""
+script = "pragma Detect_Blocking; protected Gate is procedure Open_It; entry Pass; entry Later; end Gate; protected body Gate is Opened : Boolean := False; procedure Open_It is begin Opened := True; end Open_It; entry Pass when True is begin requeue Later; end Pass; entry Later when Opened is begin put_line (\"through\"); end Later; end Gate; task Caller_One; task body Caller_One is begin Gate.Pass; end Caller_One; for Step in 1 .. 3000 loop null; end loop; Gate.Open_It;\nquit (0);"
+exit_status = 0
+output = ["through"]
+diagnostics = []
+
+[[case]]
+id = "blocking.without-the-pragma-nothing-is-checked"
+requirement = "Ada makes it a pragma rather than a rule, because the check costs something on every instruction and a program that does not want it should not pay."
+script = "protected Gate is procedure Nap; end Gate; protected body Gate is procedure Nap is begin delay 0.01; end Nap; end Gate; Gate.Nap; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["carried on"]
+diagnostics = []
+
+[[case]]
+id = "blocking.the-pragma-takes-nothing"
+requirement = "It says something about the whole program, and there is nothing to say it about."
+script = "pragma Detect_Blocking (1);\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.wrong_argument_count{name=Detect_Blocking,expected= 0,found= 1}!"]
+
+[[case]]
+id = "restrictions.a-program-may-forbid-itself-something"
+requirement = """
+`pragma Restrictions (No_Abort_Statements);` -- the point of one is that a
+program says what it will not do, so that a reader and this pass can rely on
+it. Each restriction this language knows is a *statement* given up, which is
+what makes it checkable where it is written rather than hoped for.
+"""
+script = "pragma Restrictions (No_Abort_Statements); task Worker; task body Worker is begin null; end Worker; abort Worker;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Abort_Statements}!"]
+
+[[case]]
+id = "restrictions.it-holds-for-the-whole-program"
+requirement = """
+A configuration pragma says something about the whole program rather than about
+the point it stands at, so what it says is read before the first statement is
+looked at. Written after what it forbids, it forbids it still -- which is what
+makes it a configuration pragma rather than a switch.
+"""
+script = "task Worker; task body Worker is begin null; end Worker; abort Worker; pragma Restrictions (No_Abort_Statements);\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Abort_Statements}!"]
+
+[[case]]
+id = "restrictions.several-may-be-given-at-once"
+requirement = "One pragma, a list of what the program gives up. Ada writes them this way and so does this."
+script = "pragma Restrictions (No_Delay, No_Select_Statements); delay 0.01;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Delay}!"]
+
+[[case]]
+id = "restrictions.the-set-is-closed"
+requirement = """
+A name this language does not know is refused rather than ignored. A
+restriction nobody checks is worse than none: a program would be told it had
+given something up and go on doing it.
+"""
+script = "pragma Restrictions (No_Such_Thing);\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.unknown_restriction{name=No_Such_Thing}!"]
+
+[[case]]
+id = "restrictions.what-is-not-forbidden-still-runs"
+requirement = "A program that forbids itself one thing is not forbidden the rest, and one that forbids itself nothing is what it always was."
+script = "pragma Restrictions (No_Abort_Statements); task Worker; task body Worker is begin put_line (\"worked\"); end Worker; delay 0.01;\nquit (0);"
+exit_status = 0
+output = ["worked"]
+diagnostics = []
+
+[[case]]
+id = "restrictions.every-task-may-be-made-to-depend-on-the-outermost-region"
+requirement = """
+`No_Task_Hierarchy` says no task is declared inside a subprogram, a task body,
+a block or an accept body. What it buys a reader is that the whole shape of a
+program's concurrency is written where the program begins, rather than
+appearing whenever something is called.
+
+Checked where a task is declared, because that is where the master is decided.
+"""
+script = "pragma Restrictions (No_Task_Hierarchy); task type Worker; task body Worker is begin null; end Worker; Top : Worker; procedure Nested is Inner : Worker; begin null; end Nested;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Task_Hierarchy}!"]
+
+[[case]]
+id = "restrictions.a-block-is-a-master-so-a-task-in-one-breaks-it"
+requirement = "A block is a master here, so a task declared in one depends on something other than the outermost region -- which is exactly what the restriction is about."
+script = "pragma Restrictions (No_Task_Hierarchy); task type Worker; task body Worker is begin null; end Worker; declare Inner : Worker; begin null; end;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Task_Hierarchy}!"]
+
+[[case]]
+id = "restrictions.and-one-at-the-outermost-level-is-fine"
+requirement = "The point of the restriction is where a task stands, not that there are none."
+script = "pragma Restrictions (No_Task_Hierarchy); task type Worker; task body Worker is begin put_line (\"ran\"); end Worker; Top : Worker;\nquit (0);"
+exit_status = 0
+output = ["ran"]
+diagnostics = []
+
+[[case]]
+id = "restrictions.a-program-may-bound-how-many-tasks-it-runs"
+requirement = """
+`Max_Tasks => 2` is the one restriction here that carries a number, and the one
+checked while the program runs rather than where it is written: what a loop
+starts is not something a reader can count. The analyser reads the number and
+the machine keeps the count.
+
+A strand that has gone back to being nobody is not one of them, so a program
+that starts tasks one after another stays within a bound that a program
+starting them all at once would break.
+"""
+script = "pragma Restrictions (Max_Tasks => 2); task type Worker; task body Worker is begin for Step in 1 .. 2000 loop null; end loop; end Worker; declare A : Worker; B : Worker; C : Worker; begin null; end; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Storage_Error,detail=!error.machine.too_many_allowed!}!"]
+
+[[case]]
+id = "restrictions.and-within-the-bound-it-runs"
+requirement = "Two at once where two were allowed."
+script = "pragma Restrictions (Max_Tasks => 2); task type Worker; task body Worker is begin for Step in 1 .. 2000 loop null; end loop; end Worker; declare A : Worker; B : Worker; begin null; end; put_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["carried on"]
+diagnostics = []
+
+[[case]]
+id = "restrictions.one-at-a-time-stays-within-a-bound"
+requirement = """
+A strand that has gone back to being nobody is not one of the tasks running, so
+a loop that starts one, waits for it, and starts another stays within a bound
+of one -- which is what "at once" means and what makes the bound worth having.
+"""
+script = "pragma Restrictions (Max_Tasks => 1); task type Worker; task body Worker is begin null; end Worker; for Round in 1 .. 4 loop declare A : Worker; begin null; end; end loop; put_line (\"four, one at a time\");\nquit (0);"
+exit_status = 0
+output = ["four, one at a time"]
+diagnostics = []
+
+[[case]]
+id = "restrictions.a-delay-may-be-required-to-be-absolute"
+requirement = "Ravenscar's `No_Relative_Delay`, and its reason is the one Ada has for `delay until` at all: a loop delaying *for* a length drifts by however long its own body takes."
+script = "pragma Restrictions (No_Relative_Delay); delay 0.01;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Relative_Delay}!"]
+
+[[case]]
+id = "restrictions.and-until-is-what-it-leaves"
+requirement = "The restriction is about which delay, not about waiting."
+script = "pragma Restrictions (No_Relative_Delay); delay until Clock + 0.01; put_line (\"waited\");\nquit (0);"
+exit_status = 0
+output = ["waited"]
+diagnostics = []
+
+[[case]]
+id = "restrictions.priorities-may-be-required-to-be-fixed"
+requirement = "`No_Dynamic_Priorities`: what everything runs at is settled where it is declared, so a reader can see the whole of it."
+script = "pragma Restrictions (No_Dynamic_Priorities); task type Worker; task body Worker is begin null; end Worker; A : Worker; A'Priority := 20;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Dynamic_Priorities}!"]
+
+[[case]]
+id = "restrictions.a-protected-object-may-be-required-to-be-outermost"
+requirement = "What `No_Local_Protected_Objects` buys is what `No_Task_Hierarchy` buys about tasks: the whole shape of a program's concurrency is written where the program begins."
+script = "pragma Restrictions (No_Local_Protected_Objects); procedure Inner is protected Gate is procedure Nothing; end Gate; protected body Gate is procedure Nothing is begin null; end Nothing; end Gate; begin null; end Inner;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Local_Protected_Objects}!"]
+
+[[case]]
+id = "restrictions.a-barrier-may-be-required-to-be-simple"
+requirement = """
+`Simple_Barriers` asks that a barrier be a name and nothing else. What it buys
+is that reading one is reading a variable, so what opens an entry can be seen
+rather than worked out -- and a barrier is asked at moments the program did not
+choose, which is why being able to see it matters.
+"""
+script = "pragma Restrictions (Simple_Barriers); protected Gate is entry Pass; end Gate; protected body Gate is Ready : Boolean := False; Count : Integer := 0; entry Pass when Ready and Count > 2 is begin null; end Pass; end Gate;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=Simple_Barriers}!"]
+
+[[case]]
+id = "restrictions.and-a-name-is-what-it-leaves"
+requirement = "A barrier that is a variable of the object is what the restriction is for, not what it forbids."
+script = "pragma Restrictions (Simple_Barriers); protected Gate is procedure Open_It; entry Pass; end Gate; protected body Gate is Ready : Boolean := False; procedure Open_It is begin Ready := True; end Open_It; entry Pass when Ready is begin put_line (\"through\"); end Pass; end Gate; Gate.Open_It; Gate.Pass;\nquit (0);"
+exit_status = 0
+output = ["through"]
+diagnostics = []
+
+[[case]]
+id = "restrictions.entries-may-be-counted"
+requirement = "`Max_Protected_Entries` and `Max_Task_Entries` are counted where the entries are declared, which is the one place they are all together."
+script = "pragma Restrictions (Max_Protected_Entries => 1); protected Gate is entry One; entry Two; end Gate; protected body Gate is entry One when True is begin null; end One; entry Two when True is begin null; end Two; end Gate;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=Max_Protected_Entries}!"]
+
+[[case]]
+id = "restrictions.a-queue-may-be-bounded"
+requirement = """
+`Max_Entry_Queue_Length` is counted while the program runs, for the reason
+`Max_Tasks` is: what a program queues is not something a reader can count.
+Counted where a caller joins, which is the moment the queue grows.
+"""
+script = "pragma Restrictions (Max_Entry_Queue_Length => 1); task Server is entry Go; end Server; task body Server is begin delay 0.1; accept Go; accept Go; end Server; task One_Caller; task Two_Caller; task body One_Caller is begin Server.Go; end One_Caller; task body Two_Caller is begin Server.Go; end Two_Caller;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.queue_too_long!}!"]
+
+[[case]]
+id = "restrictions.a-task-may-be-required-not-to-run-out"
+requirement = """
+Ravenscar's tasks do not end: a program whose concurrency is fixed when it
+starts has nothing to gain by a task ending, and something to lose in what it
+leaves behind. Said where one does end, which is the only place it can be.
+"""
+script = "pragma Restrictions (No_Task_Termination); task Worker; task body Worker is begin null; end Worker;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.task_ran_out!}!"]
+
+[[case]]
+id = "policy.a-turn-may-be-kept"
+requirement = """
+`Task_Dispatching_Policy (FIFO_Within_Priorities)` means a strand keeps its
+turn until it waits for something. Ada's policy on one processor, and
+Ravenscar's: an interleaving nobody slices is one a reader can follow.
+"""
+script = "pragma Task_Dispatching_Policy (FIFO_Within_Priorities); task First; task Second; task body First is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"first\" & I'Image); end if; end loop; end First; task body Second is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"second\" & I'Image); end if; end loop; end Second;\nquit (0);"
+exit_status = 0
+output = ["first 30", "first 60", "second 30", "second 60"]
+diagnostics = []
+
+[[case]]
+id = "policy.or-shared-out"
+requirement = """
+`Round_Robin_Within_Priorities` is what the machine does when nobody says: a
+turn of a fixed number of instructions. The same program interleaves, which is
+what makes the other policy worth naming.
+"""
+script = "pragma Task_Dispatching_Policy (Round_Robin_Within_Priorities); task First; task Second; task body First is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"first\" & I'Image); end if; end loop; end First; task body Second is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"second\" & I'Image); end if; end loop; end Second;\nquit (0);"
+exit_status = 0
+output = ["first 30", "second 30", "first 60", "second 60"]
+diagnostics = []
+
+[[case]]
+id = "policy.locking-is-what-it-already-does"
+requirement = """
+`Locking_Policy (Ceiling_Locking)` is a program saying what this machine
+already does: a caller above an object's ceiling is refused, and no strand is
+set aside inside a protected operation. Accepted because it is true, which is
+the only reason to accept a policy.
+"""
+script = "pragma Locking_Policy (Ceiling_Locking); protected Gate is procedure Open_It; end Gate; protected body Gate is procedure Open_It is begin put_line (\"through\"); end Open_It; end Gate; Gate.Open_It;\nquit (0);"
+exit_status = 0
+output = ["through"]
+diagnostics = []
+
+[[case]]
+id = "policy.and-another-is-refused"
+requirement = """
+A policy this machine does not implement is refused rather than accepted and
+ignored. A policy is a claim about how a program runs; one nobody implements
+is a false one.
+"""
+script = "pragma Locking_Policy (Concurrent_Readers_Locking);\npragma Task_Dispatching_Policy (EDF_Across_Priorities);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.unknown_policy{name=Concurrent_Readers_Locking}!",
+  "!error.unknown_policy{name=EDF_Across_Priorities}!",
+]
+
+[[case]]
+id = "policy.and-a-policy-is-named"
+requirement = "A policy is named. A string spelling one is not one, and a policy takes exactly one argument."
+script = "pragma Locking_Policy (\"ceiling_locking\");\npragma Task_Dispatching_Policy;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.unknown_policy{name=ceiling_locking}!",
+  "!error.wrong_argument_count{name=Task_Dispatching_Policy,expected= 1,found= 0}!",
+]
+
+[[case]]
+id = "profile.is-a-name-for-all-of-it"
+requirement = """
+`pragma Profile (Ravenscar)` is a name for the restrictions and policies said
+at once. A program shaped for it passes every one of them: one protected entry
+with a barrier that is a name, no task entries, nothing declared inside
+anything.
+"""
+script = "pragma Profile (Ravenscar); protected Gate is entry Wait_Now; procedure Open_It; end Gate; protected body Gate is Ready : Boolean := False; procedure Open_It is begin Ready := True; end Open_It; entry Wait_Now when Ready is begin put_line (\"through\"); end Wait_Now; end Gate; task Worker; task body Worker is begin Gate.Wait_Now; end Worker; Gate.Open_It;\nquit (0);"
+exit_status = 0
+output = ["through"]
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.task_ran_out!}!"]
+
+[[case]]
+id = "profile.and-what-it-gives-up-it-gives-up"
+requirement = "What the profile names is what a `pragma Restrictions` naming the same thing would say, and it is said where the program breaks it."
+script = "pragma Profile (Ravenscar); task Worker; task body Worker is begin abort Worker; end Worker;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=No_Abort_Statements}!"]
+
+[[case]]
+id = "profile.but-a-time-is-not-a-length"
+requirement = """
+The profile gives up `delay` *for* a length and keeps `delay until` a time,
+which is what `No_Relative_Delay` says and not what `No_Delay` would: a loop
+delaying for a length drifts and one waiting for a time does not.
+"""
+script = "pragma Profile (Ravenscar); delay until Clock + 0.01; put_line (\"waited\");\nquit (0);"
+exit_status = 0
+output = ["waited"]
+diagnostics = []
+
+[[case]]
+id = "profile.brings-the-blocking-check"
+requirement = "`pragma Detect_Blocking` is part of the profile, so an operation that may wait inside a protected operation is caught without it being written."
+script = "pragma Profile (Ravenscar); protected Gate is procedure Hold_On; end Gate; protected body Gate is procedure Hold_On is begin delay until Clock + 0.01; end Hold_On; end Gate; Gate.Hold_On;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.blocking_in_protected!}!"]
+
+[[case]]
+id = "profile.and-the-dispatching-policy"
+requirement = """
+`FIFO_Within_Priorities` is part of the profile too, so a strand keeps its turn
+until it waits for something. Written out, the same program named the policy;
+here it named the profile and runs the same way.
+"""
+script = "pragma Profile (Ravenscar); task First; task Second; task body First is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"first\" & I'Image); end if; end loop; end First; task body Second is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"second\" & I'Image); end if; end loop; end Second;\nquit (0);"
+exit_status = 0
+output = ["first 30", "first 60"]
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.task_ran_out!}!"]
+
+[[case]]
+id = "profile.and-another-profile-is-refused"
+requirement = """
+A profile this language does not have is refused rather than accepted, for the
+reason an unknown restriction is: a program would be told it had given
+something up and go on doing it. A profile is named, and it is one name.
+"""
+script = "pragma Profile (Restricted);\npragma Profile (\"ravenscar\");\npragma Profile;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.unknown_profile{name=Restricted}!",
+  "!error.unknown_profile{name=ravenscar}!",
+  "!error.wrong_argument_count{name=Profile,expected= 1,found= 0}!",
+]
+
+[[case]]
+id = "profile.jorvik-gives-four-things-back"
+requirement = """
+`pragma Profile (Jorvik)` is Ada's Ravenscar with four things given back: a
+barrier worked out rather than read, more than one entry on a protected
+object, more than one caller queued at one, and a delay for a length. Each was
+given up for a reason about analysis rather than about safety.
+"""
+script = "pragma Profile (Jorvik); protected Gate is entry One; entry Two; end Gate; protected body Gate is Count : Integer := 0; entry One when Count = 0 is begin put_line (\"one\"); end One; entry Two when Count = 0 is begin put_line (\"two\"); end Two; end Gate; Gate.One; Gate.Two; delay 0.01; put_line (\"and a length\");\nquit (0);"
+exit_status = 0
+output = ["one", "two", "and a length"]
+diagnostics = []
+
+[[case]]
+id = "profile.but-keeps-what-ravenscar-keeps"
+requirement = "What Jorvik does not give back it keeps: no abort, no select, no requeue, no task entries, no task declared inside anything, and a task that ends is still an error."
+script = "pragma Profile (Jorvik); task Worker; task body Worker is begin abort Worker; end Worker;\npragma Profile (Jorvik); task Server is entry Go; end Server; task body Server is begin accept Go; end Server;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.restriction_broken{name=No_Abort_Statements}!",
+  "!error.restriction_broken{name=Max_Task_Entries}!",
+]
+
+[[case]]
+id = "restrictions.a-barrier-may-be-worked-out"
+requirement = """
+`Pure_Barriers` asks that working a barrier out cannot do anything and cannot
+fail: no call, and no operation that raises. A barrier is asked at moments the
+program did not choose, so it has to be answerable at any of them.
+"""
+script = "pragma Restrictions (Pure_Barriers); protected Gate is entry Pass; procedure Open_It; end Gate; protected body Gate is Ready : Boolean := False; Count : Integer := 0; procedure Open_It is begin Ready := True; Count := 3; end Open_It; entry Pass when Ready and Count - 1 > 1 is begin put_line (\"worked out\"); end Pass; end Gate; Gate.Open_It; Gate.Pass;\nquit (0);"
+exit_status = 0
+output = ["worked out"]
+diagnostics = []
+
+[[case]]
+id = "restrictions.but-not-one-that-can-fail"
+requirement = "A division can raise, so a barrier holding one is not pure: it would fail where nothing asked it to."
+script = "pragma Restrictions (Pure_Barriers); protected Gate is entry Pass; end Gate; protected body Gate is Count : Integer := 6; entry Pass when Count / 2 > 2 is begin null; end Pass; end Gate;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.restriction_broken{name=Pure_Barriers}!"]
+
+[[case]]
+id = "restrictions.and-a-call-is-a-call-without-parentheses"
+requirement = """
+A function called without parentheses is a name to the parser and a call to
+everybody else, so what the name denotes is what decides. Under the stricter
+restriction as well: a barrier that is a name is one that is read, and a call
+is not read.
+"""
+script = "pragma Restrictions (Pure_Barriers); protected Gate is entry Pass; end Gate; protected body Gate is function Ready return Boolean is begin return True; end Ready; entry Pass when Ready is begin null; end Pass; end Gate;\npragma Restrictions (Simple_Barriers); protected Latch is entry Pass; end Latch; protected body Latch is function Ready return Boolean is begin return True; end Ready; entry Pass when Ready is begin null; end Pass; end Latch;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.restriction_broken{name=Pure_Barriers}!",
+  "!error.restriction_broken{name=Simple_Barriers}!",
+]
+
+[[case]]
+id = "dispatching.a-policy-may-be-given-to-a-range"
+requirement = """
+`pragma Priority_Specific_Dispatching` gives a policy to a range of priorities
+rather than to all of them. The two at 25 keep their turns and finish one after
+the other; the two at 5 are shared out and interleave. One program, two
+answers, which is the whole of what the pragma is for.
+"""
+script = "pragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 20, 30); pragma Priority_Specific_Dispatching (Round_Robin_Within_Priorities, 0, 19); task High is pragma Priority (25); end High; task body High is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"high\" & I'Image); end if; end loop; end High; task Also_High is pragma Priority (25); end Also_High; task body Also_High is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"also high\" & I'Image); end if; end loop; end Also_High; task Low is pragma Priority (5); end Low; task body Low is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"low\" & I'Image); end if; end loop; end Low; task Also_Low is pragma Priority (5); end Also_Low; task body Also_Low is Total : Integer := 0; begin for I in 1 .. 60 loop Total := Total + I; if I mod 30 = 0 then put_line (\"also low\" & I'Image); end if; end loop; end Also_Low;\nquit (0);"
+exit_status = 0
+output = ["high 30", "high 60", "also high 30", "also high 60", "low 30", "also low 30", "low 60", "also low 60"]
+diagnostics = []
+
+[[case]]
+id = "dispatching.but-a-priority-runs-under-one"
+requirement = """
+Two pragmas giving one priority two policies is refused: a reader would have to
+guess which the machine took. Saying the same thing twice is not that, and a
+configuration pragma repeated is Ada's own.
+"""
+script = "pragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 20, 30); pragma Priority_Specific_Dispatching (Round_Robin_Within_Priorities, 25, 28);\npragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 20, 30); pragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 25, 28); put_line (\"said twice\");\nquit (0);"
+exit_status = 0
+output = ["said twice"]
+diagnostics = ["!error.dispatching_twice{name=Priority_Specific_Dispatching}!"]
+
+[[case]]
+id = "dispatching.and-a-whole-program-policy-covers-everything"
+requirement = "`pragma Task_Dispatching_Policy` says its policy about every priority, and a profile says one too, so either leaves nothing for a range to be given."
+script = "pragma Task_Dispatching_Policy (Round_Robin_Within_Priorities); pragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 20, 30);\npragma Profile (Ravenscar); pragma Priority_Specific_Dispatching (Round_Robin_Within_Priorities, 0, 10);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.dispatching_twice{name=Priority_Specific_Dispatching}!",
+  "!error.dispatching_twice{name=Priority_Specific_Dispatching}!",
+]
+
+[[case]]
+id = "dispatching.a-range-is-a-range"
+requirement = """
+A range that runs backwards names no priority at all, so a program that wrote
+one meant something it did not get. The bounds are priorities, written where
+they stand, and the pragma takes a policy and two of them.
+"""
+script = "pragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 30, 20);\npragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 0, 99);\npragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 20);\npragma Priority_Specific_Dispatching (EDF_Across_Priorities, 0, 10);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.empty_priority_range{first= 30,last= 20}!",
+  "!error.priority_not_static!",
+  "!error.wrong_argument_count{name=Priority_Specific_Dispatching,expected= 3,found= 2}!",
+  "!error.unknown_policy{name=EDF_Across_Priorities}!",
+]
+
+[[case]]
+id = "queuing.callers-arrive-in-an-order-and-are-taken-in-it"
+requirement = """
+`FIFO_Queuing` is what the machine does when nobody says: the caller that
+arrived first goes through first, whatever it runs at. Written out here so the
+policy that changes it has something to be different from.
+"""
+script = "protected Gate is pragma Priority (30); entry Pass; procedure Open_It; end Gate; protected body Gate is Ready : Boolean := False; procedure Open_It is begin Ready := True; end Open_It; entry Pass when Ready is begin null; end Pass; end Gate; task Low_First is pragma Priority (5); end Low_First; task body Low_First is begin Gate.Pass; put_line (\"low through\"); end Low_First; task High_Second is pragma Priority (25); end High_Second; task body High_Second is begin delay 0.02; Gate.Pass; put_line (\"high through\"); end High_Second; delay 0.05; Gate.Open_It;\nquit (0);"
+exit_status = 0
+output = ["low through", "high through"]
+diagnostics = []
+
+[[case]]
+id = "queuing.or-in-the-order-of-what-they-run-at"
+requirement = """
+`Priority_Queuing` takes the highest-priority caller first, though it arrived
+second. The same program, one pragma apart: what changes is the queue and not
+the barrier, which is asked the same way either way.
+"""
+script = "pragma Queuing_Policy (Priority_Queuing); protected Gate is pragma Priority (30); entry Pass; procedure Open_It; end Gate; protected body Gate is Ready : Boolean := False; procedure Open_It is begin Ready := True; end Open_It; entry Pass when Ready is begin null; end Pass; end Gate; task Low_First is pragma Priority (5); end Low_First; task body Low_First is begin Gate.Pass; put_line (\"low through\"); end Low_First; task High_Second is pragma Priority (25); end High_Second; task body High_Second is begin delay 0.02; Gate.Pass; put_line (\"high through\"); end High_Second; delay 0.05; Gate.Open_It;\nquit (0);"
+exit_status = 0
+output = ["high through", "low through"]
+diagnostics = []
+
+[[case]]
+id = "queuing.a-rendezvous-queue-is-a-queue-too"
+requirement = "The policy is the program's, not one kind of entry's: callers waiting for a rendezvous are taken in the same order as callers waiting on a barrier."
+script = "pragma Queuing_Policy (Priority_Queuing); task Server is entry Go (Who : String); end Server; task body Server is begin delay 0.05; for Turn in 1 .. 2 loop accept Go (Who : String) do put_line (\"served \" & Who); end Go; end loop; end Server; task Low_First is pragma Priority (5); end Low_First; task body Low_First is begin Server.Go (\"low\"); end Low_First; task High_Second is pragma Priority (25); end High_Second; task body High_Second is begin delay 0.02; Server.Go (\"high\"); end High_Second;\nquit (0);"
+exit_status = 0
+output = ["served high", "served low"]
+diagnostics = []
+
+[[case]]
+id = "queuing.and-a-program-has-one-policy"
+requirement = """
+Two queuing policies would leave the reader to guess which the machine took, so
+the second is refused. Saying the same thing twice is not that. A policy is
+named, and it is one name.
+"""
+script = "pragma Queuing_Policy (Priority_Queuing); pragma Queuing_Policy (Priority_Queuing); put_line (\"said twice\");\npragma Queuing_Policy (Priority_Queuing); pragma Queuing_Policy (FIFO_Queuing);\npragma Queuing_Policy (Lottery_Queuing);\npragma Queuing_Policy (\"fifo_queuing\");\nquit (0);"
+exit_status = 0
+output = ["said twice"]
+diagnostics = [
+  "!error.queuing_twice{name=Queuing_Policy}!",
+  "!error.unknown_policy{name=Lottery_Queuing}!",
+  "!error.unknown_policy{name=fifo_queuing}!",
+]
+
+[[case]]
+id = "select.serves-the-alternative-holding-the-best-caller"
+requirement = """
+Under `Priority_Queuing` a selective accept serves the alternative whose queue
+holds the caller who comes first, not the alternative written first. Ada asks
+for this where it asks for the queues to be ordered at all, and the two answers
+have to agree or the policy would stop at the edge of a select.
+"""
+script = "pragma Queuing_Policy (Priority_Queuing); task Server is entry First_Written (Who : String); entry Second_Written (Who : String); end Server; task body Server is begin delay 0.05; for Turn in 1 .. 2 loop select accept First_Written (Who : String) do put_line (\"served first-written for \" & Who); end First_Written; or accept Second_Written (Who : String) do put_line (\"served second-written for \" & Who); end Second_Written; end select; end loop; end Server; task Low_At_First is pragma Priority (5); end Low_At_First; task body Low_At_First is begin Server.First_Written (\"low\"); end Low_At_First; task High_At_Second is pragma Priority (25); end High_At_Second; task body High_At_Second is begin delay 0.02; Server.Second_Written (\"high\"); end High_At_Second;\nquit (0);"
+exit_status = 0
+output = ["served second-written for high", "served first-written for low"]
+diagnostics = []
+
+[[case]]
+id = "select.and-the-written-order-when-nobody-said"
+requirement = """
+Under order of arrival Ada leaves the choice among open alternatives arbitrary,
+and this machine's arbitrary answer is the one written first. The same program
+as above without the pragma, so that what the policy changes is visible and
+what it costs a program that says nothing is nothing.
+"""
+script = "task Server is entry First_Written (Who : String); entry Second_Written (Who : String); end Server; task body Server is begin delay 0.05; for Turn in 1 .. 2 loop select accept First_Written (Who : String) do put_line (\"served first-written for \" & Who); end First_Written; or accept Second_Written (Who : String) do put_line (\"served second-written for \" & Who); end Second_Written; end select; end loop; end Server; task Low_At_First is pragma Priority (5); end Low_At_First; task body Low_At_First is begin Server.First_Written (\"low\"); end Low_At_First; task High_At_Second is pragma Priority (25); end High_At_Second; task body High_At_Second is begin delay 0.02; Server.Second_Written (\"high\"); end High_At_Second;\nquit (0);"
+exit_status = 0
+output = ["served first-written for low", "served second-written for high"]
+diagnostics = []
+
+[[case]]
+id = "select.a-closed-alternative-offers-nobody"
+requirement = """
+A guard that is closed keeps its alternative out of the choice, whoever is
+queued behind it. The higher-priority caller waits for the round in which its
+alternative is open, which is what a guard means.
+"""
+script = "pragma Queuing_Policy (Priority_Queuing); task Server is entry Shut_At_First (Who : String); entry Open_Throughout (Who : String); end Server; task body Server is Ready : Boolean := False; begin delay 0.05; for Round in 1 .. 2 loop select when Ready => accept Shut_At_First (Who : String) do put_line (\"took the guarded one for \" & Who); end Shut_At_First; or accept Open_Throughout (Who : String) do put_line (\"took the open one for \" & Who); end Open_Throughout; end select; Ready := True; end loop; end Server; task At_The_Guarded_One is pragma Priority (25); end At_The_Guarded_One; task body At_The_Guarded_One is begin Server.Shut_At_First (\"high\"); end At_The_Guarded_One; task At_The_Open_One is pragma Priority (5); end At_The_Open_One; task body At_The_Open_One is begin Server.Open_Throughout (\"low\"); end At_The_Open_One;\nquit (0);"
+exit_status = 0
+output = ["took the open one for low", "took the guarded one for high"]
+diagnostics = []
+
+[[case]]
+id = "select.a-family-member-is-an-alternative-too"
+requirement = """
+A member of a family is an alternative like any other, and a bounded wait
+beside them does not change which is chosen. The server waits a moment of its
+own first so that both callers are queued when it looks: priority orders the
+callers who are there at that instant, and a caller arriving at a select that
+is already waiting is taken as it arrives.
+"""
+script = "pragma Queuing_Policy (Priority_Queuing); type Lane is (Slow, Fast); task Server is entry Plain (Who : String); entry Lanes (Lane); end Server; task body Server is begin delay 0.1; for Turn in 1 .. 2 loop select accept Plain (Who : String) do put_line (\"plain for \" & Who); end Plain; or accept Lanes (Fast) do put_line (\"fast lane taken\"); end Lanes; or delay 0.5; put_line (\"nobody came\"); end select; end loop; end Server; task Low_Plain is pragma Priority (5); end Low_Plain; task body Low_Plain is begin Server.Plain (\"low\"); end Low_Plain; task High_Fast is pragma Priority (25); end High_Fast; task body High_Fast is begin delay 0.02; Server.Lanes (Fast); end High_Fast;\nquit (0);"
+exit_status = 0
+output = ["fast lane taken", "plain for low"]
+diagnostics = []
+
+[[case]]
+id = "select.a-call-to-a-task-entry-may-be-bounded"
+requirement = """
+`select E; ... or delay D; ... end select;` where E is a *task* entry. What
+bounds the wait is the call itself: it joins the queue with a deadline, and a
+rendezvous that starts before the deadline is a rendezvous like any other --
+arguments carried in, results carried back.
+"""
+script = "task Server is entry Meet (X : Integer; Back : out Integer); end Server; task body Server is begin delay 0.05; accept Meet (X : Integer; Back : out Integer) do Back := X * 2; end Meet; end Server; Got : Integer := 0; select Server.Meet (21, Got); put_line (\"doubled to \" & Trim (Got'Image)); or delay 0.5; put_line (\"gave up\"); end select;\nquit (0);"
+exit_status = 0
+output = ["doubled to 42"]
+diagnostics = []
+
+[[case]]
+id = "select.and-the-caller-leaves-the-queue-when-it-runs-out"
+requirement = """
+A call that runs out is cancelled: the caller leaves the queue, so the entry
+has nobody at it and the actual it was going to be given back is untouched.
+Ada cancels a call the rendezvous has not *started*, which is why the acceptor
+that arrives late finds nothing there.
+"""
+script = "task Server is entry Meet (X : Integer; Back : out Integer); end Server; task body Server is begin delay 0.2; select accept Meet (X : Integer; Back : out Integer) do Back := X; end Meet; or delay 0.2; put_line (\"nobody was there, and the queue holds\" & Meet'Count'Image); end select; end Server; Got : Integer := 7; select Server.Meet (21, Got); put_line (\"met\"); or delay 0.05; put_line (\"ran out, and Got is still \" & Trim (Got'Image)); end select;\nquit (0);"
+exit_status = 0
+output = ["ran out, and Got is still 7", "nobody was there, and the queue holds 0"]
+diagnostics = []
+
+[[case]]
+id = "select.and-a-call-may-refuse-to-wait-at-all"
+requirement = """
+`select E; ... else ... end select;` on a task entry makes the call only if a
+rendezvous can start at once. What answers is the task called: one waiting at
+an accept wrote down what it would take, and one doing anything else is waiting
+for nobody.
+"""
+script = "task Server is entry Meet (X : Integer; Back : out Integer); end Server; task body Server is begin accept Meet (X : Integer; Back : out Integer) do Back := X + 1; end Meet; end Server; delay 0.1; Got : Integer := 0; select Server.Meet (41, Got); put_line (\"met at once, with \" & Trim (Got'Image)); else put_line (\"nobody there\"); end select;\nquit (0);"
+exit_status = 0
+output = ["met at once, with 42"]
+diagnostics = []
+
+[[case]]
+id = "select.and-does-not-wait-when-nobody-is-there"
+requirement = """
+A task that is not waiting at an accept for this entry is not waiting for
+anybody, so the call is not made at all -- the else part runs and the caller
+carries on. The task is left where it was, with nothing queued at it.
+"""
+script = "task Server is entry Meet; end Server; task body Server is begin delay 0.3; select accept Meet; or delay 0.2; put_line (\"and nobody had knocked: \" & Trim (Meet'Count'Image)); end select; end Server; select Server.Meet; put_line (\"met\"); else put_line (\"busy, so not waiting\"); end select;\nquit (0);"
+exit_status = 0
+output = ["busy, so not waiting", "and nobody had knocked: 0"]
+diagnostics = []
+
+[[case]]
+id = "select.and-a-closed-alternative-is-not-somebody-waiting"
+requirement = """
+What a task waiting at a *select* would take is what its guards left open, so a
+conditional call to a closed alternative is not made while a call to an open
+one is. The same question either way: what is this task waiting for now.
+"""
+script = "task Gate is entry Shut_One; entry Open_One (X : Integer; Back : out Integer); end Gate; task body Gate is Ready : Boolean := False; begin select when Ready => accept Shut_One; or accept Open_One (X : Integer; Back : out Integer) do Back := X + 1; end Open_One; end select; end Gate; delay 0.1; select Gate.Shut_One; put_line (\"took the shut one\"); else put_line (\"the closed one is nobody waiting\"); end select; Got : Integer := 0; select Gate.Open_One (41, Got); put_line (\"through the open one, with \" & Trim (Got'Image)); else put_line (\"no\"); end select;\nquit (0);"
+exit_status = 0
+output = ["the closed one is nobody waiting", "through the open one, with 42"]
+diagnostics = []
+
+[[case]]
+id = "select.a-task-waiting-a-bounded-time-is-still-waiting-for-a-caller"
+requirement = """
+`select ... or delay D;` waits for a caller *or* the clock, so a task in one is
+waiting for somebody -- a conditional call to it is made and taken. It was not
+always: the wait was slept through whole, and being asleep looked like not
+waiting. What a select is open for is now written down across its wait.
+"""
+script = "task Napper is entry Knock; end Napper; task body Napper is begin select accept Knock do put_line (\"answered\"); end Knock; or delay 0.2; put_line (\"gave up waiting\"); end select; end Napper; delay 0.05; select Napper.Knock; put_line (\"let in at once, though it was mid-wait\"); else put_line (\"answered not-now\"); end select;\nquit (0);"
+exit_status = 0
+output = ["answered", "let in at once, though it was mid-wait"]
+diagnostics = []
+
+[[case]]
+id = "select.and-a-caller-cuts-the-wait-short"
+requirement = """
+A caller arriving at a select that is waiting is taken as it arrives rather
+than when the wait runs out. The ticker is what shows it: served before the
+tick, where a wait slept through whole would have served after it -- two
+seconds after.
+"""
+script = "task Napper is entry Knock; end Napper; task body Napper is begin select accept Knock do put_line (\"answered\"); end Knock; or delay 2.0; put_line (\"gave up waiting\"); end select; end Napper; task Ticker; task body Ticker is begin delay 0.3; put_line (\"tick\"); end Ticker; delay 0.05; Napper.Knock;\nquit (0);"
+exit_status = 0
+output = ["answered", "tick"]
+diagnostics = []
+
+[[case]]
+id = "select.and-the-wait-still-runs-out-when-nobody-comes"
+requirement = "The clock is still the other thing it waits for: nobody calls, and the delay alternative is taken at the time it said."
+script = "task Napper is entry Knock; end Napper; task body Napper is begin select accept Knock; or delay 0.1; put_line (\"the wait ran out, as it should when nobody comes\"); end select; end Napper; delay 0.3; put_line (\"and the program carries on\");\nquit (0);"
+exit_status = 0
+output = ["the wait ran out, as it should when nobody comes", "and the program carries on"]
+diagnostics = []
+
+[[case]]
+id = "requeue.moves-a-call-out-of-reach-of-its-deadline"
+requirement = """
+`requeue E;` without `with abort` makes the call uncancellable: the caller was
+moved to a queue it never asked for, so the deadline it was made with stops
+applying and it waits to be served. The requeueing body says whether the caller
+keeps its way out, which is the whole of what the two spellings differ by.
+"""
+script = "task Mover is entry First_Door; entry Second_Door; end Mover; task body Mover is begin accept First_Door do requeue Second_Door; end First_Door; delay 0.3; select accept Second_Door do put_line (\"moved on and served\"); end Second_Door; or delay 0.2; put_line (\"nobody was still waiting\"); end select; end Mover; select Mover.First_Door; put_line (\"the call was met\"); or delay 0.05; put_line (\"the call gave up\"); end select;\nquit (0);"
+exit_status = 0
+output = ["moved on and served", "the call was met"]
+diagnostics = []
+
+[[case]]
+id = "requeue.or-leaves-it-within-reach"
+requirement = """
+`requeue E with abort;` keeps the caller's way out, so the same program gives up
+at the same deadline it would have. The two spellings differ in this and in
+nothing else, which is why one of them has to be written.
+"""
+script = "task Mover is entry First_Door; entry Second_Door; end Mover; task body Mover is begin accept First_Door do requeue Second_Door with abort; end First_Door; delay 0.3; select accept Second_Door do put_line (\"moved on and served\"); end Second_Door; or delay 0.2; put_line (\"nobody was still waiting\"); end select; end Mover; select Mover.First_Door; put_line (\"the call was met\"); or delay 0.05; put_line (\"the call gave up\"); end select;\nquit (0);"
+exit_status = 0
+output = ["the call gave up", "nobody was still waiting"]
+diagnostics = []
+
+[[case]]
+id = "requeue.and-a-trigger-that-cannot-be-taken-back"
+requirement = """
+The same flag answers for `then abort`. The abortable part finishes first and
+the trigger call is pulled out of its queue -- unless it was requeued without
+`with abort`, and then it cannot be, so the select waits for the call to be
+served and leaves without running the triggering alternative's statements: the
+abortable part had already completed, and running them would say the trigger
+won a race it lost.
+"""
+script = "task Server is entry Trigger; entry Later; end Server; task body Server is begin accept Trigger do requeue Later; end Trigger; delay 0.3; select accept Later do put_line (\"the moved call was served at last\"); end Later; or delay 0.2; put_line (\"the moved call had been pulled out\"); end select; end Server; select Server.Trigger; put_line (\"the trigger completed\"); then abort delay 0.05; put_line (\"the abortable part finished first\"); end select; put_line (\"past the select\");\nquit (0);"
+exit_status = 0
+output = ["the abortable part finished first", "the moved call was served at last", "past the select"]
+diagnostics = []
+
+[[case]]
+id = "requeue.and-one-that-can"
+requirement = "Requeued `with abort`, the trigger is pulled out when the abortable part finishes first, and the task that was going to serve it finds nobody there."
+script = "task Server is entry Trigger; entry Later; end Server; task body Server is begin accept Trigger do requeue Later with abort; end Trigger; delay 0.3; select accept Later do put_line (\"the moved call was served at last\"); end Later; or delay 0.2; put_line (\"the moved call had been pulled out\"); end select; end Server; select Server.Trigger; put_line (\"the trigger completed\"); then abort delay 0.05; put_line (\"the abortable part finished first\"); end select; put_line (\"past the select\");\nquit (0);"
+exit_status = 0
+output = ["the abortable part finished first", "past the select", "the moved call had been pulled out"]
+diagnostics = []
+
+[[case]]
+id = "tasks.tasking-error-can-be-handled"
+requirement = """
+`Tasking_Error` is one of the exceptions this machine raises, so a handler may
+name it. The list a handler may name is exactly the list the machine raises:
+one missing from it is an exception a program can be given and cannot catch.
+"""
+script = "task Gone is entry Knock; end Gone; task body Gone is begin null; end Gone; delay 0.1; begin Gone.Knock; put_line (\"met\"); exception when Tasking_Error => put_line (\"caught: a task that has ended cannot be called\"); end; put_line (\"and the program carries on\");\nquit (0);"
+exit_status = 0
+output = ["caught: a task that has ended cannot be called", "and the program carries on"]
+diagnostics = []
+
+[[case]]
+id = "tasks.and-where-the-caller-is-the-one-left-waiting"
+requirement = "The other way it is raised: a task ends while somebody is queued at one of its entries, and the caller is resumed where it called with Tasking_Error to handle."
+script = "task Leaver is entry Never_Accepted; end Leaver; task body Leaver is begin delay 0.1; end Leaver; task Waiter; task body Waiter is begin begin Leaver.Never_Accepted; put_line (\"met\"); exception when Tasking_Error => put_line (\"caught in the caller: the task it waited for ended\"); end; end Waiter;\nquit (0);"
+exit_status = 0
+output = ["caught in the caller: the task it waited for ended"]
+diagnostics = []
+
+[[case]]
+id = "tasks.and-a-handler-for-something-else-does-not-take-it"
+requirement = "Naming it is naming it: `others` catches it and a handler for another exception does not, which is what makes the name worth having."
+script = "task A1 is entry E; end A1; task body A1 is begin null; end A1; delay 0.05; begin A1.E; exception when others => put_line (\"others caught it\"); end;\ntask A2 is entry E; end A2; task body A2 is begin null; end A2; delay 0.05; begin A2.E; exception when Constraint_Error => put_line (\"wrongly caught\"); end;\nquit (0);"
+exit_status = 0
+output = ["others caught it"]
+diagnostics = ["!error.program_raised_detail{exception=Tasking_Error,detail=!error.machine.task_finished!}!"]
+
+[[case]]
+id = "select.a-task-may-end-instead-of-waiting"
+requirement = """
+`or terminate;` is how a server task ends: it serves callers for as long as
+there are any, and when the master it depends on has finished and nobody is
+left who could call, it ends rather than waiting for a caller who will never
+come. Without it the same loop is a task waiting for something no task will do.
+"""
+script = "task Server is entry Serve (What : Integer); end Server; task body Server is Total : Integer := 0; begin loop select accept Serve (What : Integer) do Total := Total + What; put_line (\"served\" & What'Image & \", running total\" & Total'Image); end Serve; or terminate; end select; end loop; end Server; Server.Serve (2); Server.Serve (40); put_line (\"and the submission is done\");\nquit (0);"
+exit_status = 0
+output = ["served 2, running total 2", "served 40, running total 42", "and the submission is done"]
+diagnostics = []
+
+[[case]]
+id = "select.and-only-when-nobody-is-left-who-could-call"
+requirement = """
+A task that is sleeping is a task that will run again, so it is somebody who
+could still call and nothing ends while it is there. The late caller is served
+and the server ends after it, which is the whole of what the alternative means.
+"""
+script = "task Server is entry Serve; end Server; task body Server is begin loop select accept Serve do put_line (\"served\"); end Serve; or terminate; end select; end loop; end Server; task Late_Caller; task body Late_Caller is begin delay 0.2; Server.Serve; put_line (\"the late one got through\"); end Late_Caller; put_line (\"the submission is done but somebody is still to call\");\nquit (0);"
+exit_status = 0
+output = ["the submission is done but somebody is still to call", "served", "the late one got through"]
+diagnostics = []
+
+[[case]]
+id = "select.two-that-can-only-end-together"
+requirement = """
+Each of them could be called by the other, so neither may end on its own. They
+end together, which is what makes this the scheduler's decision rather than any
+one task's.
+"""
+script = "task First_One is entry Ping; end First_One; task Second_One is entry Pong; end Second_One; task body First_One is begin loop select accept Ping do put_line (\"first served\"); end Ping; or terminate; end select; end loop; end First_One; task body Second_One is begin loop select accept Pong do put_line (\"second served\"); end Pong; or terminate; end select; end loop; end Second_One; First_One.Ping; Second_One.Pong; put_line (\"both idle now\");\nquit (0);"
+exit_status = 0
+output = ["first served", "second served", "both idle now"]
+diagnostics = []
+
+[[case]]
+id = "select.a-closed-terminate-alternative-is-not-willing"
+requirement = "A guard closes this alternative like any other, and a task whose only way out is closed waits for a caller who never comes -- which is reported rather than ended quietly."
+script = "task Shy is entry E; end Shy; task body Shy is Ready : Boolean := False; begin select when Ready => terminate; or accept E; end select; end Shy;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.tasks_stuck!}!"]
+
+[[case]]
+id = "select.terminate-belongs-to-a-select-that-is-waiting"
+requirement = """
+`terminate;` says a task may end instead of waiting for a caller, so it belongs
+to a select that is waiting for one -- and to no more than one alternative of
+it. Beside an `else` or a delay it would have to decide which it meant: those
+say what to do when nothing can be accepted now, this says there is nothing
+left to wait for at all.
+"""
+script = "terminate;\ntask A is entry E; end A; task body A is begin select accept E; or terminate; else put_line (\"x\"); end select; end A;\ntask B is entry E; end B; task body B is begin select accept E; or terminate; or delay 0.1; null; end select; end B;\ntask C is entry E; end C; task body C is begin select accept E; or terminate; or terminate; end select; end C;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.terminate_outside_select!",
+  "!error.select_waits_twice!",
+  "!error.select_waits_twice!",
+  "!error.select_waits_twice!",
+]
+
+[[case]]
+id = "select.a-bounded-call-to-a-barrier-takes-it-when-it-opens"
+requirement = """
+A caller of a protected entry queues by being inside the entry's own body,
+parked at its barrier, so a deadline has to reach that parking. It does: the
+barrier opens partway through a two-second wait and the caller is let through
+then, not when the wait would have ended. The ticker is what shows it.
+"""
+script = "protected Gate is entry Pass; procedure Open_It; end Gate; protected body Gate is Ready : Boolean := False; procedure Open_It is begin Ready := True; end Open_It; entry Pass when Ready is begin put_line (\"through\"); end Pass; end Gate; task Opener; task body Opener is begin delay 0.05; Gate.Open_It; end Opener; task Ticker; task body Ticker is begin delay 0.3; put_line (\"tick\"); end Ticker; select Gate.Pass; put_line (\"let through\"); or delay 2.0; put_line (\"gave up\"); end select;\nquit (0);"
+exit_status = 0
+output = ["through", "let through", "tick"]
+diagnostics = []
+
+[[case]]
+id = "select.and-leaves-the-queue-when-it-does-not"
+requirement = """
+A barrier that never opens is given up on at the deadline, and giving up is
+leaving the entry body without running it -- so the object has nobody waiting
+at that entry afterwards, which is what `'Count` is asked to show.
+"""
+script = "protected Gate is entry Pass; procedure Say_Who_Waits; end Gate; protected body Gate is Ready : Boolean := False; procedure Say_Who_Waits is begin put_line (\"waiting at the gate:\" & Pass'Count'Image); end Say_Who_Waits; entry Pass when Ready is begin put_line (\"through\"); end Pass; end Gate; select Gate.Pass; put_line (\"let through\"); or delay 0.05; put_line (\"gave up, and rightly\"); end select; Gate.Say_Who_Waits;\nquit (0);"
+exit_status = 0
+output = ["gave up, and rightly", "waiting at the gate: 0"]
+diagnostics = []

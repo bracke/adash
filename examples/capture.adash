@@ -1,0 +1,47 @@
+--  Reading what a program wrote.
+--
+--  A shell whose language could run programs could not, until this existed,
+--  read what any of them said: everything a program wrote went to the terminal
+--  and nothing could be computed from it. `Output_Of` runs a program and
+--  answers with what it wrote to standard output.
+--
+--  The newline it ended with is dropped -- the convention every shell follows,
+--  and the reason `cd (Output_Of ("pwd"))` works. Only from the end: what is in
+--  the middle is what the program wrote.
+--
+--  What a program writes to standard *error* is not collected. It belongs to
+--  the user: a program explaining why it failed should be heard, not swallowed
+--  into a value the script is about to compare against something.
+
+put_line ("[" & Output_Of ("echo", "hello world") & "]");
+
+--  Arguments arrive as they were written. There is no word-splitting here and
+--  no re-scanning of what a String holds, so one argument with a space in it
+--  is one argument.
+put_line ("[" & Output_Of ("echo", "one two", "three") & "]");
+
+--  A program that wrote nothing answers with the empty string rather than
+--  failing, so a script can compare it.
+if Output_Of ("true") = "" then
+   put_line ("that one said nothing");
+end if;
+
+--  Running a program for its output is still running a program, so `Status`
+--  says what became of it.
+Ignored : String := Output_Of ("false");
+
+put_line (f"and it exited {Status'Image}");
+
+--  Which makes the two together a way to use a program only when it worked.
+function Reported (Program : String) return String is
+   Said : String := Output_Of (Program);
+begin
+   if Status /= 0 then
+      return "(it failed)";
+   end if;
+
+   return Said;
+end Reported;
+
+put_line (Reported ("true"));
+put_line (Reported ("false"));

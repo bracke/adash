@@ -1,0 +1,101 @@
+--  Types a program declares for itself.
+--
+--  Until these existed the five built-in types were the whole model, and a
+--  script that wanted to say "this is a colour, and there are three of them"
+--  had to say "this is an Integer, and I promise it is 0, 1 or 2". Nothing
+--  checked that promise: `case` could not tell whether it had covered every
+--  value, a wrong constant read as a plausible number, and the reader had to
+--  keep the mapping in their head.
+
+--  An enumeration names a type and its values in one line. The values are
+--  names, so a value outside the type cannot be written at all.
+type Verdict is (Worked, Failed, Not_Runnable, Killed);
+
+--  They are ordered by the order they were written in, which is Ada's rule and
+--  what makes a range of them mean something.
+put_line ("Worked comes before Killed: " & Trim (Boolean'Image (Worked < Killed)));
+
+--  This is what an enumeration is for. A `case` over one can say whether every
+--  value is accounted for, and a value left out is reported now rather than
+--  becoming a branch nobody notices.
+function Explain (What : Verdict) return String is
+begin
+   case What is
+      when Worked       => return "it worked";
+      when Failed       => return "it ran and failed";
+      when Not_Runnable => return "it could not be run";
+      when Killed       => return "something killed it";
+   end case;
+end Explain;
+
+--  `for X in T loop` walks the whole type. `Verdict'First .. Verdict'Last`
+--  says the same thing three times as long.
+for What in Verdict loop
+   put_line (Explain (What));
+end loop;
+
+--  A *range* walks the part a program means, over whatever type its bounds
+--  are: an enumeration here, and a Character, a Boolean or an Integer
+--  elsewhere. The loop counts in positions and the variable holds a value of
+--  its type, which is why the two are different slots for the types where
+--  they differ.
+for What in reverse Failed .. Killed loop
+   put_line ("and backwards: " & Explain (What));
+end loop;
+
+--  Two enumerations may name one value. A literal is a parameterless function
+--  returning its own type, so it overloads like one, and which is meant is
+--  what the context expects: the type of what is being declared, the other
+--  side of a comparison, the type a `case` is over, what a subprogram takes.
+--  Where nothing says -- `put_line (Killed'Image);` with two types naming a
+--  Killed -- it is ambiguous, and refused rather than settled by which type
+--  was written last.
+type Outcome is (Worked, Killed, Ignored);
+
+Ended : Outcome := Killed;
+Ruled : Verdict := Killed;
+
+put_line ("the same word in two types: " & Ended'Image & " and " & Ruled'Image);
+put_line ("and at different positions:"
+          & Outcome'Pos (Killed)'Image & Verdict'Pos (Killed)'Image);
+
+--  An enumeration does not concatenate with a String: Ada does not define `&`
+--  between them either, and `'Image` is how a value becomes text. `put_line`
+--  takes one directly, which is why the loop above needs no attribute.
+--
+--  Every attribute a discrete type has: `'Pos` and `'Val` between a value and
+--  its position, `'Succ` and `'Pred` for the next and the one before,
+--  `'First` and `'Last` for the ends, and `'Image` and `'Value` for the name.
+put_line ("Failed sits at " & Trim (Verdict'Pos (Failed)'Image));
+put_line ("and position 3 is " & Verdict'Image (Verdict'Val (3)));
+put_line ("after Worked comes " & Verdict'Image (Verdict'Succ (Worked)));
+put_line ("the last one is " & Verdict'Image (Verdict'Last));
+put_line ("read back: " & Verdict'Image (Verdict'Value ("killed")));
+
+--  A subtype narrows what a variable may hold, and says so where the value
+--  arrives rather than where it is read -- so the line that is wrong is the
+--  line that reports.
+subtype Percent is Integer range 0 .. 100;
+
+Progress : Percent := 0;
+
+Progress := 100;
+put_line ("progress is " & Trim (Progress'Image));
+
+--  A subtype is the same *type* as what it names, which is Ada's rule: a
+--  Percent goes where an Integer is wanted and comes back again.
+Doubled : Integer := Progress * 2;
+
+put_line ("doubled is " & Trim (Doubled'Image));
+
+--  A range narrows any discrete type, an enumeration included.
+subtype Ran is Verdict range Worked .. Failed;
+
+for What in Ran loop
+   put_line ("a program that ran: " & Verdict'Image (What));
+end loop;
+
+--  What is deliberately not here: records, arrays and access types. A record
+--  would need aggregates to build one, component selection to reach into it,
+--  and a type model open at both ends -- which is a compiler, and this is a
+--  shell. `ROADMAP.md` says so under "Where the subset ends".

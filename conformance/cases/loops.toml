@@ -1,0 +1,408 @@
+# Loops that end when something leaves them, and leaving the program early.
+#
+# Every case here is written so that a loop which failed to leave would produce
+# no output and hang rather than fail. The runner has no timeout, so a case that
+# hangs stops the suite. That is not hypothetical: making the bare loop lower
+# turned an existing test from a failure into a hang, because the program it
+# named -- `loop null; end loop;` -- now runs and never ends.
+
+suite = "loops"
+
+[[case]]
+id = "loops.bare-with-exit-when"
+requirement = "A bare loop runs until a condition holds."
+script = "N : Integer := 0; loop N := N + 1; exit when N = 3; end loop; put_line (N);"
+exit_status = 0
+output = ["3"]
+diagnostics = []
+
+[[case]]
+id = "loops.bare-with-plain-exit"
+requirement = "A plain exit leaves a bare loop."
+script = "N : Integer := 0; loop N := N + 1; if N = 4 then exit; end if; end loop; put_line (N);"
+exit_status = 0
+output = ["4"]
+diagnostics = []
+
+[[case]]
+id = "loops.exit-from-a-for-loop"
+requirement = "exit is legal in any loop, not only a bare one. A loop that took the statement without leaving would be worse than one that refused it."
+script = "T : Integer := 0; for I in 1 .. 10 loop T := T + I; exit when T > 5; end loop; put_line (T);"
+exit_status = 0
+output = ["6"]
+diagnostics = []
+
+[[case]]
+id = "loops.exit-leaves-one-loop"
+requirement = "exit leaves the innermost loop and no more, so the inner loop runs once per turn of the outer."
+script = "C : Integer := 0; for Outer in 1 .. 3 loop loop C := C + 1; exit; end loop; end loop; put_line (C);"
+exit_status = 0
+output = ["3"]
+diagnostics = []
+
+[[case]]
+id = "loops.exit-outside-a-loop-is-refused"
+requirement = "An exit with nothing to leave is a fault in the program, so the analyser refuses it rather than the lowering reporting that this build cannot run it -- which would say Adash is incomplete when what is wrong is the exit."
+script = "exit;"
+exit_status = 0
+output = []
+diagnostics = ["!error.exit_outside_loop!"]
+
+[[case]]
+id = "loops.return-stops-the-program"
+requirement = "return leaves the program where it stands. A submission is lowered as one procedure, so there is no frame above to return into."
+script = "put_line (\"before\"); return; put_line (\"never\");"
+exit_status = 0
+output = ["before"]
+diagnostics = []
+
+[[case]]
+id = "loops.return-with-a-value-is-refused"
+requirement = "A return carrying a value is a function's, and this subset has no functions to write one in. Refused rather than treated as a bare return with the value discarded."
+script = "return 1;"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.not_lowerable{construct=!lower.return_with_value!}!",
+]
+
+[[case]]
+id = "loops.bound-evaluated-once"
+requirement = """
+Ada evaluates a for loop's range once, before the loop. The body here raises
+the bound faster than the parameter climbs to it, so a loop that re-evaluated
+would never end -- the `exit when` is what makes the difference observable as a
+count rather than as a hang.
+"""
+script = "N : Integer := 3; Runs : Integer := 0; for I in 1 .. N loop Runs := Runs + 1; N := N + 1; exit when Runs > 10; end loop; put_line (Runs);"
+exit_status = 0
+output = ["3"]
+diagnostics = []
+
+[[case]]
+id = "loops.bound-side-effect-once"
+requirement = "A bound with a side effect says out loud how many times it was evaluated."
+script = "function Bound return Integer is begin put_line (\"evaluated\"); return 2; end Bound; for I in 1 .. Bound loop null; end loop; put_line (\"done\");"
+exit_status = 0
+output = ["evaluated", "done"]
+diagnostics = []
+
+[[case]]
+id = "loops.null-range"
+requirement = "A range whose lower bound exceeds its upper runs the body no times."
+script = "Runs : Integer := 0; for I in 3 .. 1 loop Runs := Runs + 1; end loop; put_line (Runs);"
+exit_status = 0
+output = ["0"]
+diagnostics = []
+
+[[case]]
+id = "loops.reaches-the-largest-value"
+requirement = """
+A loop whose bound is the largest value the type holds finishes. Incrementing
+past the bound and testing afterwards raises Constraint_Error instead.
+"""
+script = "Runs : Integer := 0; for I in 9223372036854775806 .. 9223372036854775807 loop Runs := Runs + 1; end loop; put_line (Runs);"
+exit_status = 0
+output = ["2"]
+diagnostics = []
+
+[[case]]
+id = "loops.nested-bounds-are-separate"
+requirement = "Nested loops each keep their own bound; one shared slot would leave the outer testing against the inner's."
+script = "Runs : Integer := 0; for I in 1 .. 2 loop for J in 1 .. 3 loop Runs := Runs + 1; end loop; end loop; put_line (Runs);"
+exit_status = 0
+output = ["6"]
+diagnostics = []
+
+[[case]]
+id = "case.chooses-by-value"
+requirement = """
+A case statement runs the one alternative whose choices cover the value, and
+runs nothing else. Values, alternatives of several choices, ranges and `others`
+are the four forms Ada writes.
+"""
+script = "for N in 1 .. 8 loop case N is when 1 => put_line (\"one\"); when 2 | 3 => put_line (\"few\"); when 4 .. 6 => put_line (\"some\"); when others => put_line (\"many\"); end case; end loop; quit (0);"
+exit_status = 0
+output = ["one", "few", "few", "some", "some", "some", "many", "many"]
+diagnostics = []
+
+[[case]]
+id = "case.examines-its-value-once"
+requirement = """
+The value is evaluated once, whatever the alternatives do. A case that asked
+again for every alternative it tested would run a command per test, and the
+difference is observable as soon as asking has an effect.
+"""
+script = "set (\"CASE_N=3\"); case Argument_Count + 3 is when 1 => put_line (\"one\"); when 3 => put_line (\"three\"); when others => put_line (\"other\"); end case; quit (0);"
+exit_status = 0
+output = ["three"]
+diagnostics = []
+
+[[case]]
+id = "case.covers-boolean-without-others"
+requirement = "Two alternatives cover a Boolean, so no others is needed -- and none is required, because completeness is what the rule asks for rather than the word."
+script = "B : Boolean := True; case B is when True => put_line (\"yes\"); when False => put_line (\"no\"); end case; quit (0);"
+exit_status = 0
+output = ["yes"]
+diagnostics = []
+
+[[case]]
+id = "case.covers-characters-by-range"
+requirement = "A Character is a discrete value like any other, and a range of them is a range."
+script = "C : Character := 'q'; case C is when 'a' .. 'p' => put_line (\"early\"); when 'q' => put_line (\"q\"); when others => put_line (\"late\"); end case; quit (0);"
+exit_status = 0
+output = ["q"]
+diagnostics = []
+
+[[case]]
+id = "case.must-cover-every-value"
+requirement = """
+Ada requires every value to be accounted for and so does this. A case that
+silently did nothing for a value nobody thought about is the mistake the rule
+exists to prevent, and an Integer has too many values for anything but `others`
+to finish the job.
+"""
+script = "X : Integer := 2; case X is when 1 => null; end case; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.case.incomplete{found=Integer}!",
+]
+
+[[case]]
+id = "case.refuses-a-value-covered-twice"
+requirement = "Two alternatives covering one value would make which runs depend on the order they were written."
+script = "X : Integer := 2; case X is when 1 .. 3 => null; when 2 => null; when others => null; end case; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.case.choice_covered_twice!",
+]
+
+[[case]]
+id = "case.refuses-a-choice-that-is-not-static"
+requirement = """
+A choice is decided when the program is analysed, not when it runs: that is what
+lets the coverage rules mean anything. This build reads literals, ranges of them
+and `others`, so a variable as a choice is refused by name rather than accepted
+and compared at run time.
+"""
+script = "X : Integer := 2; Y : Integer := 3; case X is when Y => null; when others => null; end case; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.case.choice_not_static!",
+]
+
+[[case]]
+id = "case.refuses-others-out-of-place"
+requirement = "others covers what is left, so anything after it would cover nothing."
+script = "X : Integer := 2; case X is when others => null; when 1 => null; end case; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.case.others_not_last!",
+]
+
+[[case]]
+id = "case.refuses-a-backwards-range"
+requirement = "A range whose first value is past its last covers nothing, which is never what somebody writing one meant."
+script = "X : Integer := 2; case X is when 5 .. 1 => null; when others => null; end case; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.case.range_is_empty!",
+]
+
+[[case]]
+id = "case.refuses-what-is-not-discrete"
+requirement = "A String has no successor and a Float has no next value, so neither can be covered. Ada says the same."
+script = "S : String := \"a\"; case S is when \"a\" => null; when others => null; end case; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.case.not_discrete{found=String}!",
+]
+
+[[case]]
+id = "case.must-be-finished"
+requirement = """
+`end case;` is required rather than accepted if present. Without it, `case X is`
+on its own parses as a case with no alternatives and the reader is told it does
+not cover every value of Integer -- which is true, and is not what is wrong
+with it.
+"""
+script = "X : Integer := 3; case X is"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.syntax.missing{expected=end}!",
+]
+
+[[case]]
+id = "loops.reverse-counts-down"
+requirement = """
+`for I in reverse L .. H` is Ada, and every shell script that walks a list
+backwards needs it. Without it the only way down was a `while` with a counter
+the writer maintained, which is the loop this construct exists to remove.
+"""
+script = "for Index in reverse 1 .. 4 loop put_line (Integer'Image (Index)); end loop; quit (0);"
+exit_status = 0
+output = [" 4", " 3", " 2", " 1"]
+diagnostics = []
+
+[[case]]
+id = "loops.reverse-of-a-null-range-runs-no-times"
+requirement = "A range whose low bound is above its high one is null whichever way it is walked, so the body runs no times rather than counting away from it forever."
+script = "for Index in reverse 3 .. 1 loop put_line (\"never\"); end loop; put_line (\"done\"); quit (0);"
+exit_status = 0
+output = ["done"]
+diagnostics = []
+
+[[case]]
+id = "loops.reverse-reaches-both-ends"
+requirement = """
+The last turn has the parameter equal to the low bound, and the step is taken
+only after the test says there is another turn. A loop that decremented first
+would run past the end of the range -- and at Integer'First it would not stop,
+which is the same defect the forward loop was fixed for.
+"""
+script = "for Index in reverse 7 .. 7 loop put_line (Integer'Image (Index)); end loop; quit (0);"
+exit_status = 0
+output = [" 7"]
+diagnostics = []
+
+[[case]]
+id = "loops.reverse-evaluates-its-bounds-in-order"
+requirement = "The bounds are evaluated left to right, as written, whichever direction the loop then runs. Starting from the upper bound must change where the counting starts and not what order the two expressions are run in."
+script = "Order : String := \"\"; function Say (Which : String; Value : Integer) return Integer is begin Order := Order & Which; return Value; end Say; for Index in reverse Say (\"low\", 1) .. Say (\"high\", 2) loop null; end loop; put_line (Order); quit (0);"
+exit_status = 0
+output = ["lowhigh"]
+diagnostics = []
+
+[[case]]
+id = "membership.a-value-inside-a-range"
+requirement = """
+`X in L .. H` is how Ada asks whether a value is in a range, and it is the
+question a shell script asks about an exit status, a count or a character all
+day. Written out it is `X >= L and then X <= H`, which is longer, easier to get
+backwards, and evaluates X twice.
+"""
+script = "put_line (3 in 1 .. 5); put_line (9 in 1 .. 5); put_line (9 not in 1 .. 5); quit (0);"
+exit_status = 0
+output = ["TRUE", "FALSE", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "membership.works-for-every-ordered-type"
+requirement = "A Character and a String are ordered, so they answer the same question. The instruction differs by type -- the value lives in a different part of the cell -- and getting that wrong would compare the field that is not being used and answer confidently."
+script = "put_line ('c' in 'a' .. 'z'); put_line (\"m\" in \"a\" .. \"z\"); put_line (2.5 in 1.0 .. 3.0); quit (0);"
+exit_status = 0
+output = ["TRUE", "TRUE", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "membership.evaluates-its-value-once"
+requirement = """
+Ada evaluates the value once. A lowering that compared the expression against
+each bound separately would call a function in it twice, and everything else
+that call does would happen twice with it.
+"""
+script = "Calls : Integer := 0; function Counted return Integer is begin Calls := Calls + 1; return 3; end Counted; if Counted in 1 .. 5 then put_line (\"inside\"); end if; put_line (Integer'Image (Calls)); quit (0);"
+exit_status = 0
+output = ["inside", " 1"]
+diagnostics = []
+
+[[case]]
+id = "membership.bounds-must-match-the-value"
+requirement = "The value settles what the bounds must be, and a bound of another type is reported against the bound. Complaining about the value instead would name the one thing that is not in doubt."
+script = "put_line (3 in \"a\" .. \"z\"); quit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.type_mismatch{found=String,expected=Integer}!",
+  "!error.type_mismatch{found=String,expected=Integer}!",
+]
+
+[[case]]
+id = "branches.two-elsifs-close-with-one-end"
+requirement = """
+`if / elsif / elsif / end if;` is one statement and closes with one `end if;`.
+It had asked for one per `elsif` since the chain was written: an `elsif` hands
+the rest of the chain to the next one, which consumes the closing `end if;`,
+and then consumed a second on the way back out. One `elsif` worked, because the
+`if` above it returns rather than consuming, and two never did.
+"""
+script = "Code : Integer := 2; if Code = 0 then put_line (\"zero\"); elsif Code = 1 then put_line (\"one\"); elsif Code = 2 then put_line (\"two\"); end if; put_line (\"after\"); quit (0);"
+exit_status = 0
+output = ["two", "after"]
+diagnostics = []
+
+[[case]]
+id = "branches.a-long-chain-ends-in-else"
+requirement = "The same with an `else` at the end and four conditions before it, so that the chain is walked rather than the first two being a special case."
+script = "Code : Integer := 9; if Code = 1 then put_line (\"a\"); elsif Code = 2 then put_line (\"b\"); elsif Code = 3 then put_line (\"c\"); elsif Code = 4 then put_line (\"d\"); else put_line (\"none\"); end if; quit (0);"
+exit_status = 0
+output = ["none"]
+diagnostics = []
+
+[[case]]
+id = "branches.a-chain-inside-a-function"
+requirement = "Where the defect was found: a function classifying an exit status, which is the commonest use a chain of this length has in a shell."
+script = "function Verdict (Code : Integer) return String is begin if Code = 0 then return \"worked\"; elsif Code in 1 .. 125 then return \"failed\"; elsif Code in 126 .. 127 then return \"could not be run\"; end if; return \"was killed\"; end Verdict; put_line (Verdict (0)); put_line (Verdict (2)); put_line (Verdict (127)); put_line (Verdict (139)); quit (0);"
+exit_status = 0
+output = ["worked", "failed", "could not be run", "was killed"]
+diagnostics = []
+
+[[case]]
+id = "loops.a-range-counts-over-any-discrete-type"
+requirement = """
+`for X in L .. H loop` counts over whatever its bounds are, which is Ada's rule:
+an enumeration, a Character, a Boolean or an Integer. Naming the type walks the
+whole of it; a range walks the part a program means.
+"""
+script = "type Verdict is (Worked, Failed, Not_Runnable, Killed); for What in Failed .. Killed loop put_line (\"forwards \" & What'Image); end loop; for What in reverse Failed .. Not_Runnable loop put_line (\"backwards \" & What'Image); end loop; for C in 'a' .. 'c' loop Put (C); end loop; New_Line; for B in False .. True loop put_line (\"boolean \" & B'Image); end loop; for I in 1 .. 2 loop put_line (\"integer\" & I'Image); end loop;\nquit (0);"
+exit_status = 0
+output = [
+  "forwards Failed",
+  "forwards Not_Runnable",
+  "forwards Killed",
+  "backwards Not_Runnable",
+  "backwards Failed",
+  "abc",
+  "boolean FALSE",
+  "boolean TRUE",
+  "integer 1",
+  "integer 2",
+]
+diagnostics = []
+
+[[case]]
+id = "loops.and-a-null-range-of-one-runs-no-times"
+requirement = "A range whose first value is after its last runs the body no times, whatever the type -- the test comes before the body rather than after it."
+script = "type Verdict is (Worked, Failed, Killed); for What in Killed .. Worked loop put_line (\"never\"); end loop; for C in 'z' .. 'a' loop put_line (\"never\"); end loop; put_line (\"neither ran\");\nquit (0);"
+exit_status = 0
+output = ["neither ran"]
+diagnostics = []
+
+[[case]]
+id = "loops.but-a-range-of-them-must-still-be-countable"
+requirement = "A Float has no next value, so a range of them cannot be counted through, and two bounds of different types are not a range at all."
+script = "for X in 1.0 .. 2.0 loop null; end loop;\ntype Verdict is (Worked, Killed); for X in 1 .. Killed loop null; end loop;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.case.not_discrete{found=Float}!",
+  "!error.type_mismatch{found=Verdict,expected=Integer}!",
+]
+
+[[case]]
+id = "types.a-subtypes-ends-are-its-own"
+requirement = """
+`'First` and `'Last` on a subtype mark answer with the subtype's bounds, not
+its base type's. They answered with the base type's, so `Percent'First` was
+Integer'First -- a number the subtype refuses, handed back as its own first
+value.
+"""
+script = "subtype Small is Integer range 1 .. 3; put_line (Small'First'Image & Small'Last'Image); type V is (A, B, C); subtype Two is V range A .. B; put_line (Two'First'Image & \" \" & Two'Last'Image); for X in Small'First .. Small'Last loop put_line (X'Image); end loop;\nquit (0);"
+exit_status = 0
+output = [" 1 3", "A B", " 1", " 2", " 3"]
+diagnostics = []

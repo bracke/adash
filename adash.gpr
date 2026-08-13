@@ -1,0 +1,52 @@
+with "config/adash_config.gpr";
+
+--  Adash: the shell binary.
+--
+--  There are no per-host source directories here, and there will not be any.
+--  Everything that exists only because operating systems differ belongs to
+--  hostkit, which has a body per host; Adash.Platform is an adapter over it
+--  and is ordinary portable Ada. A `src/platform/linux` appearing in this
+--  file would mean that rule had been broken somewhere.
+project Adash is
+
+   for Source_Dirs use ("src/library", "src/main", "config");
+   for Object_Dir use "obj/" & Adash_Config.Build_Profile;
+   for Exec_Dir use "bin";
+   for Main use ("adash_main.adb");
+   for Languages use ("Ada");
+
+   --  The root library package is named Adash, so the main subprogram cannot
+   --  be. It is renamed to the published executable name here.
+   package Builder is
+      for Executable ("adash_main.adb") use "adash";
+   end Builder;
+
+   package Compiler is
+      --  The build profile's switches come first, then this project's own.
+      --  Leaving them out silently discards the optimization level, so every
+      --  profile compiles at -O0 and a measurement comparing profiles
+      --  compares nothing.
+      for Default_Switches ("Ada") use
+        Adash_Config.Ada_Compiler_Switches
+        & ("-gnat2022", "-gnata", "-gnatwa", "-gnatw.X", "-g",
+           --  This project documents a 120 column limit; the generated
+           --  profile would otherwise impose 79.
+           "-gnatyM120");
+   end Compiler;
+
+   --  Bytes out as bytes in. Alire's generated switches carry -gnatW8 and the
+   --  binder takes its run-time encoding from the same place, which makes
+   --  Ada.Text_IO encode every byte above 127 a second time on the way out:
+   --  text that was already UTF-8 -- a localized message, a filename, a byte
+   --  a child process wrote -- comes out doubled. -Wb is the compiler default
+   --  and leaves the bytes alone. A shell moves other programs' bytes through
+   --  itself, so this matters more here than in most crates.
+   package Binder is
+      for Switches ("Ada") use ("-Es", "-Wb"); --  Symbolic traceback
+   end Binder;
+
+   package Install is
+      for Artifacts ("share/adash") use ("resources/messages");
+   end Install;
+
+end Adash;

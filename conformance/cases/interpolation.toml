@@ -1,0 +1,98 @@
+# Interpolated string literals, Ada 2022's f"...{expr}...".
+#
+# Rewritten to concatenation, which is exactly what it means: f"a{X}b" is
+# ("a" & X) & "b". That is why the expression has to be a String -- Ada 2022
+# expects one there, and `&` requires one here, so a number needs 'Image and is
+# refused with the same message as `"n" & N` would be.
+#
+# The lexer emits the literal pieces and the expressions as separate tokens, so
+# the expressions are lexed in place and carry their own spans. A diagnostic
+# about something inside the braces points at what the user typed.
+
+suite = "interpolation"
+
+[[case]]
+id = "interp.basic"
+requirement = "An expression's value appears where it was written."
+script = "W : String := \"world\"; put_line (f\"hello {W}!\");"
+exit_status = 0
+output = ["hello world!"]
+diagnostics = []
+
+[[case]]
+id = "interp.two-expressions"
+requirement = "More than one expression, with text between them."
+script = "A : String := \"x\"; B : String := \"y\"; put_line (f\"{A} and {B}\");"
+exit_status = 0
+output = ["x and y"]
+diagnostics = []
+
+[[case]]
+id = "interp.adjacent"
+requirement = "Two expressions with no text between them, where a rewrite might insert a piece that is not there."
+script = "A : String := \"x\"; B : String := \"y\"; put_line (f\"{A}{B}\");"
+exit_status = 0
+output = ["xy"]
+diagnostics = []
+
+[[case]]
+id = "interp.no-expressions"
+requirement = "An interpolated literal with nothing to interpolate is the text itself."
+script = "put_line (f\"plain\");"
+exit_status = 0
+output = ["plain"]
+diagnostics = []
+
+[[case]]
+id = "interp.with-image"
+requirement = """
+A number goes in through 'Image. The two features make a pair: neither is much
+use without the other.
+"""
+script = "N : Integer := 5; put_line (f\"n is{N'Image}\");"
+exit_status = 0
+output = ["n is 5"]
+diagnostics = []
+
+[[case]]
+id = "interp.nested"
+requirement = "An interpolated string inside an interpolated expression, which is what the lexer's depth counter is for."
+script = "X : String := \"in\"; put_line (f\"a{f\"b{X}b\"}c\");"
+exit_status = 0
+output = ["abinbc"]
+diagnostics = []
+
+[[case]]
+id = "interp.escaped-braces"
+requirement = "A literal brace is written with a backslash, since braces are the delimiters."
+script = "A : String := \"x\"; put_line (f\"\\{{A}\\}\");"
+exit_status = 0
+output = ["{x}"]
+diagnostics = []
+
+[[case]]
+id = "interp.needs-a-string"
+requirement = """
+Ada 2022 expects a String in the braces. This rewrites to concatenation, so the
+rule and the message are the ones `&` already had.
+"""
+script = "N : Integer := 5; put_line (f\"n is {N}\");"
+exit_status = 0
+output = []
+diagnostics = ["!error.operator_not_defined{operator=&,left=String,right=Integer}!"]
+
+[[case]]
+id = "interp.unknown-escape"
+requirement = """
+An escape Ada 2022 does not define. `\\e` is an escape in other languages and
+not in this one; GNAT rejects it, and so does this.
+"""
+script = "put_line (f\"a \\e b\");"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.lexical.bad_escape{text=\\e}!",
+  "!error.lexical.unterminated_string!",
+  "!error.syntax.missing{expected=)}!",
+  "!error.syntax.missing{expected=;}!",
+]

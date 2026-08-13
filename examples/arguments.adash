@@ -1,0 +1,42 @@
+--  What a script was invoked with.
+--
+--  `adash build.adash release --quiet` gives the script three things to read:
+--  Argument_Count says how many, and Argument says which. Before they existed
+--  the shell ran the script and discarded everything after its path, silently,
+--  which is worse than refusing it.
+--
+--  Anything after the path belongs to the script, options included. A script's
+--  own `-v` is the script's business and not the shell's, which is why the
+--  shell stops reading options at the first name it sees.
+--
+--  This file is checked against a fixed output, so it is run with nothing.
+--  Everything below is what a script does when it was given nothing, which is
+--  the case a script has to handle first.
+
+put_line (f"given {Argument_Count'Image}");
+
+--  Reading past either end is the empty string rather than a failure, so a
+--  script can ask whether it was given something without counting first.
+if Argument (1) = "" then
+   put_line ("no first argument");
+end if;
+
+--  Which makes a default expressible in the language, as it was for Env_Value.
+function Positional (Position : Integer; Fallback : String) return String is
+   Found : String := Argument (Position);
+begin
+   if Found = "" then
+      return Fallback;
+   end if;
+
+   return Found;
+end Positional;
+
+put_line (Positional (1, "release"));
+
+--  And the whole list, in order. Nothing is split and nothing is re-scanned:
+--  an argument with a space in it is one argument, because a String here is a
+--  value rather than source waiting to be interpreted again.
+for Position in 1 .. Argument_Count loop
+   put_line (f"{Position'Image}: {Argument (Position)}");
+end loop;

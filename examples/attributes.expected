@@ -1,0 +1,19 @@
+found 3 of them
+found 3 of them
+ratio is 1.50000000000000000E+00, ready: TRUE
+in braces: { 3}
+ratio is 1.50000000000000000E+00
+ready: TRUE
+marker is '*'
+doubled: 6
+width = 80
+height = 24
+measured 10
+caller sees 10
+read back 42 and one more is 43
+A is at 65
+and 66 is B
+after a comes b
+7 is at 7
+the largest Integer is 9223372036854775807
+the last Character is at 255

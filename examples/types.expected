@@ -1,0 +1,19 @@
+Worked comes before Killed: TRUE
+it worked
+it ran and failed
+it could not be run
+something killed it
+and backwards: something killed it
+and backwards: it could not be run
+and backwards: it ran and failed
+the same word in two types: Killed and Killed
+and at different positions: 1 3
+Failed sits at 1
+and position 3 is Killed
+after Worked comes Failed
+the last one is Killed
+read back: Killed
+progress is 100
+doubled is 200
+a program that ran: Worked
+a program that ran: Failed

@@ -1,0 +1,69 @@
+--  Computing something, saying what it was, and asking the shell too.
+--
+--  A program's own output and a command's output go to the same place in the
+--  order they were written. That reads as obvious and was not: the two take
+--  different routes -- a program writes as the machine runs it, a command
+--  produces structured lines the frontend renders -- and the second used to be
+--  held back until the submission had finished.
+--
+--  put_line writes every type the language has: String, Integer, Character,
+--  Boolean and Float. A computed value goes on its own line here; see
+--  attributes.adash for putting one inside a sentence with 'Image.
+--
+--  A Float is written the way HAC writes one, which is Ada's own default form
+--  rather than a shorter one: the same program means the same thing under
+--  either, and a shorter form would drop digits the number was carrying.
+
+Word  : String := "ab";
+Built : String := "";
+Count : Integer := 0;
+
+for Index in 1 .. 3 loop
+   Built := Built & Word;
+   Count := Count + 1;
+end loop;
+
+put_line ("built:");
+put_line (Built);
+
+put_line ("repetitions:");
+put_line (Count);
+
+--  A Boolean writes as Ada writes one, in upper case.
+put_line ("long enough:");
+put_line (Count > 2);
+
+--  And a Character.
+Marker : Character := '*';
+put_line (Marker);
+
+--  And a Float, in Ada's form.
+Ratio : Float := 1.5;
+put_line ("ratio doubled:");
+put_line (Ratio * 2.0);
+
+--  abs works on both numeric types.
+Drift : Float := -0.25;
+put_line ("drift, ignoring direction:");
+put_line (abs Drift);
+
+--  A bare loop ends when something leaves it. Nothing bounds it but the exit,
+--  so a loop written without one runs for ever -- see ROADMAP.md.
+Doubling : Integer := 1;
+
+loop
+   Doubling := Doubling * 2;
+   exit when Doubling > 50;
+end loop;
+
+put_line ("first power of two past fifty:");
+put_line (Doubling);
+
+--  A command in the middle of the program's own output, where it was written.
+put_line ("this shell is:");
+version;
+
+--  put writes without a newline, so a line can be assembled from parts.
+put ("done");
+put (" ");
+put_line ("here");

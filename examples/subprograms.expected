@@ -1,0 +1,34 @@
+== subprograms
+42
+7
+== factorial of 5
+120
+== scaled, then the outer Total
+24
+100
+== halved twice
+10
+== swapped
+2
+1
+== overloads
+an integer: 42
+a string: text
+ 3 copies of 7
+== nested
+tally to 3 is 6
+tally to 4 is 10
+== parity by mutual recursion
+even
+odd
+== this shell is
+!line.version{name=adash,version=0.1.0-dev}!
+plain
+SHOUT
+named
+twice
+twice
+BOTH
+BOTH
+  two spaces in
+      six spaces in

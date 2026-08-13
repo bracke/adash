@@ -1,0 +1,443 @@
+# Types a program declares.
+#
+# Until these existed the five built-in types were the whole model, and a
+# script that wanted to say "this is a colour, and there are three of them"
+# had to say "this is an Integer, and I promise it is 0, 1 or 2". The compiler
+# checked nothing about that promise, `case` could not tell whether it covered
+# every value, and a wrong constant read as a plausible number.
+
+suite = "types"
+
+[[case]]
+id = "types.an-enumeration-declares-its-values"
+requirement = """
+`type Colour is (Red, Green, Blue);` names a type and its values in one line.
+The literals are names rather than numbers: a program says what it means, and
+a value outside the type cannot be written at all.
+"""
+script = "type Colour is (Red, Green, Blue); C : Colour := Green; put_line (C); C := Blue; put_line (C); quit (0);"
+exit_status = 0
+output = ["Green", "Blue"]
+diagnostics = []
+
+[[case]]
+id = "types.two-enumerations-are-two-types"
+requirement = """
+Ada's rule, and the reason a declaration carries an identity rather than being
+compared by its literals: two enumerations that look alike are still two types,
+and a value of one is not a value of the other.
+"""
+script = "type A is (Low, High); type B is (Small, Large); X : A := Low; X := Small; quit (0);"
+exit_status = 0
+diagnostics = ["!error.type_mismatch{found=B,expected=A}!"]
+
+[[case]]
+id = "types.a-case-over-an-enumeration-must-be-complete"
+requirement = """
+This is what an enumeration is for. `case` can say whether every value is
+accounted for, and a colour left out is a compile error rather than a branch
+nobody notices -- which is exactly what an Integer standing in for a colour
+cannot give you.
+"""
+script = "type Colour is (Red, Green, Blue); C : Colour := Red; case C is when Red => put_line (\"r\"); when Green => put_line (\"g\"); end case; quit (0);"
+exit_status = 0
+diagnostics = ["!error.case.incomplete{found=Colour}!"]
+
+[[case]]
+id = "types.an-enumeration-is-ordered-by-its-declaration"
+requirement = "Ada orders an enumeration by the order its literals were written in, which is what makes a range of them meaningful."
+script = "type Colour is (Red, Green, Blue); put_line (Red < Blue); put_line (Blue > Green); put_line (Green in Red .. Blue); quit (0);"
+exit_status = 0
+output = ["TRUE", "TRUE", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "types.an-enumeration-has-the-attributes"
+requirement = "`'Pos`, `'Val`, `'Succ`, `'Pred`, `'First`, `'Last`, `'Image` and `'Value`, as Ada defines them for a discrete type."
+script = "type Colour is (Red, Green, Blue); put_line (Trim (Colour'Pos (Blue)'Image)); put_line (Colour'Val (0)); put_line (Colour'Succ (Red)); put_line (Colour'Pred (Blue)); put_line (Colour'First); put_line (Colour'Last); put_line (Colour'Image (Green)); put_line (Colour'Value (\"blue\")); quit (0);"
+exit_status = 0
+output = ["2", "Red", "Green", "Green", "Red", "Blue", "Green", "Blue"]
+diagnostics = []
+
+[[case]]
+id = "types.a-position-outside-an-enumeration-raises"
+requirement = "Checked in one place, the conversion back from a position, so `'Val`, `'Succ` and `'Pred` cannot each remember it differently."
+script = "type Colour is (Red, Green, Blue); put_line (Colour'Succ (Blue)); quit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.position_outside{position=3,type=Colour}!}!"]
+
+[[case]]
+id = "types.a-loop-can-walk-a-type"
+requirement = """
+`for C in Colour loop` is Ada's form and the only readable way to walk a whole
+type -- `Colour'First .. Colour'Last` says the same thing three times as long.
+It works for every discrete type, including the built-in ones.
+"""
+script = "type Colour is (Red, Green, Blue); for C in Colour loop put_line (C); end loop; for B in reverse Boolean loop put_line (B'Image); end loop; quit (0);"
+exit_status = 0
+output = ["Red", "Green", "Blue", "TRUE", "FALSE"]
+diagnostics = []
+
+[[case]]
+id = "types.a-loop-parameter-is-not-a-literal"
+requirement = """
+A loop parameter over an enumeration is a *constant of* that type, not one of
+its literals, and pushing its position rather than reading its slot would make
+every turn of the loop the first one. That is what the two kinds of symbol are
+for.
+"""
+script = "type Colour is (Red, Green, Blue); for C in Colour loop put_line (Trim (Colour'Pos (C)'Image)); end loop; quit (0);"
+exit_status = 0
+output = ["0", "1", "2"]
+diagnostics = []
+
+[[case]]
+id = "types.a-subtype-narrows-what-a-variable-holds"
+requirement = """
+`subtype Percent is Integer range 0 .. 100;` says what a variable may hold, and
+the check happens where a value arrives rather than where it is read -- so the
+line that is wrong is the line that reports.
+"""
+script = "subtype Percent is Integer range 0 .. 100; P : Percent := 50; put_line (Trim (P'Image)); P := 101; quit (0);"
+exit_status = 0
+output = ["50"]
+diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=101,type=Percent}!}!"]
+
+[[case]]
+id = "types.a-subtype-is-its-base-type"
+requirement = """
+Ada's rule: a subtype is the same *type* as what it names, so a Percent goes
+where an Integer is wanted and back again. A type model that compared bounds
+would answer no to every one of those, and a subtype would stop being usable
+anywhere its base is.
+"""
+script = "subtype Percent is Integer range 0 .. 100; P : Percent := 40; N : Integer := P + 2; put_line (Trim (N'Image)); P := N; put_line (Trim (P'Image)); quit (0);"
+exit_status = 0
+output = ["42", "42"]
+diagnostics = []
+
+[[case]]
+id = "types.a-subtype-checks-an-argument"
+requirement = "A value arriving in a parameter is a value arriving somewhere, and the check belongs there for the same reason it belongs on an assignment."
+script = "subtype Percent is Integer range 0 .. 100; procedure Take (P : Percent) is begin put_line (Trim (P'Image)); end Take; Take (40); Take (400); quit (0);"
+exit_status = 0
+output = ["40"]
+diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=400,type=Percent}!}!"]
+
+[[case]]
+id = "types.a-subtype-checks-what-was-written-back"
+requirement = """
+The fourth place a value arrives: a callee wrote through an address and knows
+nothing about the constraint on the other end. Ada checks on the copy back, and
+without this a variable would quietly hold a value it says it cannot.
+"""
+script = "subtype Small is Integer range 0 .. 3; procedure Wide (X : out Integer) is begin X := 99; end Wide; S : Small := 1; Wide (S); quit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=99,type=Small}!}!"]
+
+[[case]]
+id = "types.a-subtype-of-an-enumeration"
+requirement = "A range narrows any discrete type, and a value outside it is reported as the name somebody wrote rather than as a position."
+script = "type Colour is (Red, Green, Blue, White); subtype Warm is Colour range Red .. Green; W : Warm := Red; for C in Warm loop put_line (C); end loop; W := Blue; quit (0);"
+exit_status = 0
+output = ["Red", "Green"]
+diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=Blue,type=Warm}!}!"]
+
+[[case]]
+id = "types.a-subtype-bound-must-be-known-before-it-runs"
+requirement = "The check the lowering emits is two numbers in an instruction. A bound computed at run time would be a different mechanism, and half-supporting one is worse than refusing it."
+script = "N : Integer := 3; subtype Bad is Integer range 1 .. N; quit (0);"
+exit_status = 0
+diagnostics = ["!error.subtype.bound_not_static!"]
+
+[[case]]
+id = "types.a-subtype-that-admits-nothing-is-refused"
+requirement = "Ada allows a null subtype; this refuses one, because every value would fail the check and a declaration nothing can satisfy is a mistake rather than an intention."
+script = "subtype Bad is Integer range 5 .. 1; quit (0);"
+exit_status = 0
+diagnostics = ["!error.subtype.range_is_empty!"]
+
+[[case]]
+id = "types.only-a-discrete-type-can-be-narrowed"
+requirement = "Ada allows a range on a Float; admitting one here without the check would be a constraint that does nothing, which is worse than saying so."
+script = "subtype Bad is Float range 1.0 .. 2.0; quit (0);"
+exit_status = 0
+diagnostics = ["!error.subtype.not_discrete{found=Float}!"]
+
+[[case]]
+id = "types.a-declared-type-survives-the-line-that-declared-it"
+requirement = """
+An interactive session builds up a vocabulary, and a type is part of one. It is
+carried forward as the source that declared it -- the same road a subprogram
+takes -- because replaying what the user wrote is the only way to get the
+literals back with it.
+"""
+script = "type Colour is (Red, Green, Blue);\nC : Colour := Green;\nput_line (C);\nfor X in Colour loop put_line (X); end loop;\nquit (0);"
+exit_status = 0
+output = ["Green", "Red", "Green", "Blue"]
+diagnostics = []
+
+[[case]]
+id = "types.a-type-may-be-declared-in-a-block"
+requirement = """
+A block's declarative part takes declarations, and a type is one. It was
+refused there for as long as types have existed here, because the list of what
+may stand before `begin` was written when the only answers were an object and a
+subprogram.
+"""
+script = "declare type Local is (Here, There); subtype Only_Here is Local range Here .. Here; L : Local := There; H : Only_Here := Here; begin put_line (L); put_line (H); end; quit (0);"
+exit_status = 0
+output = ["There", "Here"]
+diagnostics = []
+
+[[case]]
+id = "types.a-type-may-be-declared-in-a-body"
+requirement = "The same, inside a subprogram, where the type is gone again with the body that declared it."
+script = "procedure Show is type Local is (One, Two); L : Local := Two; begin put_line (L); end Show; Show; quit (0);"
+exit_status = 0
+output = ["Two"]
+diagnostics = []
+
+[[case]]
+id = "types.an-enumeration-literal-can-be-a-default"
+requirement = """
+`procedure P (C : Colour := Green)` is the natural way to write one, and the
+default travels as the literal's *position* -- which is what a literal written
+at the call site pushes, so the two reach the machine by one path.
+"""
+script = "type Colour is (Red, Green, Blue); procedure Note (C : Colour := Green) is begin put_line (C); end Note; Note; Note (Red); quit (0);"
+exit_status = 0
+output = ["Green", "Red"]
+diagnostics = []
+
+[[case]]
+id = "types.a-default-of-the-wrong-type-says-so"
+requirement = """
+Reported as the mismatch it is rather than as not being a literal. The default
+is analysed before it is judged, which is also what lets a name in it resolve
+to the symbol Static_Default asks about.
+"""
+script = "type A is (Low); type B is (High); procedure P (C : A := High) is begin null; end P; quit (0);"
+exit_status = 0
+diagnostics = ["!error.type_mismatch{found=B,expected=A}!"]
+
+[[case]]
+id = "types.an-enumeration-does-not-concatenate"
+requirement = "Ada does not define `&` between a String and an enumeration either. `'Image` is how a value becomes text, and `put_line` takes one directly."
+script = "type Colour is (Red); put_line (\"it is \" & Red); quit (0);"
+exit_status = 0
+diagnostics = ["!error.operator_not_defined{operator=&,left=String,right=Colour}!"]
+
+[[case]]
+id = "types.an-enumeration-can-be-overloaded-on"
+requirement = "A declared type takes part in overload resolution like any other, because resolution asks whether a candidate accepts the arguments and a declared type answers that question the same way."
+script = "type Colour is (Red); procedure P (X : Colour) is begin put_line (\"colour\"); end P; procedure P (X : Integer) is begin put_line (\"number\"); end P; P (Red); P (1); quit (0);"
+exit_status = 0
+output = ["colour", "number"]
+diagnostics = []
+
+[[case]]
+id = "types.a-function-keeps-the-word-its-subtype-gave"
+requirement = """
+The fifth place a value arrives, and the last: a result. A function declared to
+return a subtype has to keep its word, and without the check it could hand back
+something it says it cannot hold -- which the caller would then store into a
+variable of that subtype without a second thought.
+"""
+script = "subtype Digit is Integer range 0 .. 9; function Half (N : Integer) return Digit is begin return N / 2; end Half; put_line (Trim (Half (8)'Image)); put_line (Trim (Half (40)'Image)); quit (0);"
+exit_status = 0
+output = ["4"]
+diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=20,type=Digit}!}!"]
+
+[[case]]
+id = "types.a-record-groups-what-belongs-together"
+requirement = """
+`type Line is record ... end record;` is how a script says that a number and a
+piece of text are one thing. Without it a subprogram taking both had to take
+two arguments and trust the caller to keep them in step.
+"""
+script = "type Line is record Number : Integer; Text : String; end record; L : Line := (1, \"first\"); put_line (Trim (L.Number'Image) & \" \" & L.Text); L.Number := 7; put_line (Trim (L.Number'Image)); quit (0);"
+exit_status = 0
+output = ["1 first", "7"]
+diagnostics = []
+
+[[case]]
+id = "types.an-aggregate-can-name-its-components"
+requirement = "The same shape a call takes, and told apart the same way: a name and an arrow, or position. Naming lets a reader see which value is which without counting."
+script = "type Line is record Number : Integer; Text : String; end record; L : Line := (Text => \"named\", Number => 3); put_line (Trim (L.Number'Image) & \" \" & L.Text); quit (0);"
+exit_status = 0
+output = ["3 named"]
+diagnostics = []
+
+[[case]]
+id = "types.a-whole-record-is-copied"
+requirement = """
+Assigning one record to another copies every component. A composite is a run of
+slots and the copy walks it, which is also why assigning a value to itself is
+safe: the copy chooses its direction from which way the two overlap.
+"""
+script = "type Line is record Number : Integer; Text : String; end record; A : Line := (1, \"one\"); B : Line := (2, \"two\"); B := A; put_line (Trim (B.Number'Image) & \" \" & B.Text); quit (0);"
+exit_status = 0
+output = ["1 one"]
+diagnostics = []
+
+[[case]]
+id = "types.two-records-compare-by-every-component"
+requirement = """
+Ada compares a record component by component. Comparing the first cell of each
+-- which is what an ordinary comparison of two runs of slots would do -- called
+two different records equal whenever their first components matched, which is a
+confident wrong answer rather than a refusal.
+"""
+script = "type Line is record Number : Integer; Text : String; end record; A : Line := (1, \"one\"); B : Line := (1, \"other\"); C : Line := (1, \"one\"); put_line (A = B); put_line (A = C); put_line (A /= B); quit (0);"
+exit_status = 0
+output = ["FALSE", "TRUE", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "types.an-array-holds-many-of-one-thing"
+requirement = """
+`type Counts is array (1 .. 4) of Integer;` and `C (2)`. Indexing is written the
+way a call is written, and which one was meant is settled by what the name
+denotes rather than by the shape of the text.
+"""
+script = "type Counts is array (1 .. 4) of Integer; C : Counts := (10, 20, 30, 40); put_line (Trim (C (2)'Image)); C (3) := 99; put_line (Trim (C (3)'Image)); quit (0);"
+exit_status = 0
+output = ["20", "99"]
+diagnostics = []
+
+[[case]]
+id = "types.an-array-says-where-it-begins-and-ends"
+requirement = "`'First`, `'Last` and `'Length`, as Ada defines them for any array. An array here may begin anywhere, so a loop over one has to be able to ask."
+script = "type Counts is array (5 .. 8) of Integer; C : Counts := (1, 2, 3, 4); put_line (Trim (C'First'Image)); put_line (Trim (C'Last'Image)); put_line (Trim (C'Length'Image)); for I in C'First .. C'Last loop put_line (Trim (C (I)'Image)); end loop; quit (0);"
+exit_status = 0
+output = ["5", "8", "4", "1", "2", "3", "4"]
+diagnostics = []
+
+[[case]]
+id = "types.an-index-outside-the-array-raises"
+requirement = """
+Checked on a read as well as on a write: an index past the end would hand back
+whatever the next variable holds, which is worse than stopping. The message
+names the array and the index that was asked for.
+"""
+script = "type Counts is array (1 .. 3) of Integer; C : Counts := (1, 2, 3); put_line (Trim (C (9)'Image)); quit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Index_Error,detail=!error.machine.outside_array{position=9,type=Counts}!}!"]
+
+[[case]]
+id = "types.a-composite-is-passed-by-reference"
+requirement = """
+A record or an array travels as where its run of slots starts, whatever mode it
+was declared with: a parameter is one slot and a composite is many. An `out`
+parameter is how a program hands one back, which is also why a function cannot
+return one.
+"""
+script = "type Line is record Number : Integer; Text : String; end record; procedure Fill (L : out Line) is begin L.Number := 9; L.Text := \"set\"; end Fill; procedure Show (L : Line) is begin put_line (Trim (L.Number'Image) & \" \" & L.Text); end Show; V : Line := (0, \"\"); Fill (V); Show (V); quit (0);"
+exit_status = 0
+output = ["9 set"]
+diagnostics = []
+
+[[case]]
+id = "types.an-array-parameter-can-be-walked"
+requirement = "What an array parameter is for. The bounds come from the type, so a body can loop over one without being told how long it is."
+script = "type Counts is array (1 .. 3) of Integer; function Total (Of_Them : Counts) return Integer is Sum : Integer := 0; begin for Index in Of_Them'First .. Of_Them'Last loop Sum := Sum + Of_Them (Index); end loop; return Sum; end Total; C : Counts := (1, 2, 3); put_line (Trim (Total (C)'Image)); quit (0);"
+exit_status = 0
+output = ["6"]
+diagnostics = []
+
+[[case]]
+id = "types.a-composite-holds-simple-values-only"
+requirement = """
+A record inside a record, or an array of records, is refused. Reaching into one
+would need an offset made of two offsets, and every place that walks a value
+would have to recur. Said plainly rather than half-supported.
+"""
+script = "type Inner is record N : Integer; T : String; end record; type Outer is record Part : Inner; Also : Integer; end record; quit (0);"
+exit_status = 0
+diagnostics = ["!error.part_not_simple{name=Part,found=Inner}!"]
+
+[[case]]
+id = "types.a-function-does-not-return-a-composite"
+requirement = "A function's result is what it leaves on the stack, and a composite is a run of slots rather than a value: there is nowhere for one to be left."
+script = "type Line is record Number : Integer; Text : String; end record; function Make return Line is L : Line := (1, \"x\"); begin return L; end Make; quit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.result_not_simple{name=Make,found=Line}!",
+  # And then the body is a procedure as far as everything after this is
+  # concerned, so its `return L;` is a value returned from one. Two
+  # diagnostics about one mistake, which is honest: the second is what the
+  # body now is rather than a second opinion about the first.
+  "!error.return_with_value!",
+]
+
+[[case]]
+id = "types.a-composite-has-no-text-form"
+requirement = """
+`put_line` writes what a value is, and a composite is its parts: each of those
+has a text form where the whole has none. Refused by the analyser rather than
+by the lowering, so the message is a decision rather than a gap.
+"""
+script = "type Line is record Number : Integer; Text : String; end record; L : Line := (1, \"x\"); put_line (L); quit (0);"
+exit_status = 0
+diagnostics = ["!error.cannot_write{name=put_line,found=Line}!"]
+
+[[case]]
+id = "types.an-aggregate-needs-a-composite-to-build"
+requirement = "An aggregate has no type of its own: what it builds is what the context asked for, which is Ada's rule and why one cannot stand where nothing is expected."
+script = "X : Integer := (1, 2); quit (0);"
+exit_status = 0
+diagnostics = ["!error.aggregate_not_expected{found=Integer}!"]
+
+[[case]]
+id = "types.an-aggregate-fills-every-component"
+requirement = "One value per component, no more and no fewer. A record half-filled would leave slots holding whatever the frame held before."
+script = "type Line is record Number : Integer; Text : String; end record; L : Line := (1, \"x\", 2); quit (0);"
+exit_status = 0
+diagnostics = ["!error.aggregate_wrong_count{name=Line,expected= 2,found= 3}!"]
+
+[[case]]
+id = "types.an-array-bound-must-be-known-before-it-runs"
+requirement = "An array is a run of slots in a frame whose size is decided when the program is built."
+script = "N : Integer := 3; type Bad is array (1 .. N) of Integer; quit (0);"
+exit_status = 0
+diagnostics = ["!error.array_bound_not_static!"]
+
+[[case]]
+id = "types.a-record-with-no-components-is-refused"
+requirement = "Ada writes one as `null record`, a spelling this language does not have. A record holding nothing cannot be told from any other, so there is no reading of it worth accepting."
+script = "type Nothing is record end record; quit (0);"
+exit_status = 0
+diagnostics = ["!error.record_is_empty{name=Nothing}!"]
+
+[[case]]
+id = "types.a-composite-survives-the-line-that-made-it"
+requirement = """
+An interactive session builds up state, and a record is part of one. A
+composite is the one survivor that has to be *assembled*: it has no single
+value on the stack, so it is written out as the aggregate that rebuilds it,
+part by part, each in the form this language reads back. A String component
+comes back in quotes, which is what `Quote_Text` is for -- Ada's own image of
+a String is the text with its non-graphic characters bracketed, and that does
+not read back.
+"""
+script = "type Reading is record Label : String; Value : Integer; end record;\nR : Reading := (\"a b\", 1);\nR.Value := 42;\nput_line (R.Label & \" \" & Trim (R.Value'Image));\nquit (0);"
+exit_status = 0
+output = ["a b 42"]
+diagnostics = []
+
+[[case]]
+id = "types.an-array-survives-too"
+requirement = "The same road, and the same aggregate. An array's parts have positions rather than names, so it comes back positionally."
+script = "type Counts is array (1 .. 3) of Integer;\nC : Counts := (7, 8, 9);\nC (2) := 55;\nput_line (Trim (C (1)'Image) & \" \" & Trim (C (2)'Image) & \" \" & Trim (C (3)'Image));\nquit (0);"
+exit_status = 0
+output = ["7 55 9"]
+diagnostics = []
+
+[[case]]
+id = "types.a-quoted-component-comes-back-whole"
+requirement = "A String holding a quote has to survive being written down and read back, which is what doubling it is for."
+script = "type Held is record Text : String; N : Integer; end record;\nH : Held := (\"say \"\"hi\"\" now\", 1);\nput_line (H.Text);\nquit (0);"
+exit_status = 0
+output = ["say \"hi\" now"]
+diagnostics = []

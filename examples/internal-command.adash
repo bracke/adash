@@ -1,0 +1,12 @@
+--  Calling an internal command.
+--
+--  An internal command is called the way Ada calls a procedure: a name, then a
+--  semicolon. Not a bare word. That is the difference a user notices first,
+--  and it is deliberate -- there is one grammar here, and commands live inside
+--  it rather than beside it.
+--
+--  A submission is either commands or program statements, never both. Joining
+--  the two is the largest thing this language still owes its users; see
+--  ROADMAP.md.
+
+version;

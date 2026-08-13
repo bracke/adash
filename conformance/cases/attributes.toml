@@ -1,0 +1,235 @@
+# The 'Image attribute, and what a program can do with text once it has one.
+#
+# This is what string formatting was waiting for. Until 'Image was lowered a
+# computed number could not be joined to text at all: it had to go on a line of
+# its own, and every message a program wrote was either a fixed string or a
+# bare value.
+#
+# The images themselves are Ada's own, leading space and all. An image that
+# dropped the space for non-negative numbers, or wrote a float in a shorter
+# form, would be a different language wearing Ada's syntax.
+
+suite = "attributes"
+
+[[case]]
+id = "image.integer"
+requirement = "Integer'Image is Ada's, including the space before a non-negative value."
+script = "X : Integer := 42; put_line (X'Image);"
+exit_status = 0
+output = [" 42"]
+diagnostics = []
+
+[[case]]
+id = "image.negative"
+requirement = "A negative value carries its sign and no space."
+script = "X : Integer := -7; put_line (X'Image);"
+exit_status = 0
+output = ["-7"]
+diagnostics = []
+
+[[case]]
+id = "image.boolean"
+requirement = "Boolean'Image is upper case, as Ada writes one."
+script = "B : Boolean := True; put_line (B'Image);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "image.character"
+requirement = "Character'Image is quoted, as Ada writes one."
+script = "C : Character := 'z'; put_line (C'Image);"
+exit_status = 0
+output = ["'z'"]
+diagnostics = []
+
+[[case]]
+id = "image.float"
+requirement = "Float'Image is Ada's own form rather than a shorter one that would drop digits."
+script = "F : Float := 1.5; put_line (F'Image);"
+exit_status = 0
+output = [" 1.50000000000000000E+00"]
+diagnostics = []
+
+[[case]]
+id = "image.joins-text"
+requirement = """
+What the attribute was wanted for: a computed value inside a sentence, which
+was impossible before it.
+"""
+script = "X : Integer := 3; put_line (\"count is\" & X'Image & \" today\");"
+exit_status = 0
+output = ["count is 3 today"]
+diagnostics = []
+
+[[case]]
+id = "image.of-a-call"
+requirement = "The prefix is an expression to evaluate, not merely a slot to read."
+script = "function F return Integer is begin return 9; end F; put_line (F'Image);"
+exit_status = 0
+output = [" 9"]
+diagnostics = []
+
+[[case]]
+id = "image.string-is-refused"
+requirement = """
+Ada 2022 defines S'Image for a String as the text in quotes with non-graphic
+characters bracketed -- not the text itself. Returning the text would be the
+plausible wrong answer.
+"""
+script = "S : String := \"hi\"; put_line (S'Image);"
+exit_status = 0
+output = []
+diagnostics = ["!error.attribute_not_defined{attribute=Image,found=String}!"]
+
+[[case]]
+id = "image.unknown-attribute"
+requirement = """
+An attribute the type does not have is reported as an attribute, not as an
+undeclared name.
+
+`'Size` was this example until a program could ask it: how many slots a value
+takes is a question this machine can answer, so the example is one it still
+cannot.
+"""
+script = "X : Integer := 5; put_line (X'Alignment);"
+exit_status = 0
+output = []
+diagnostics = ["!error.attribute_not_defined{attribute=Alignment,found=Integer}!"]
+
+[[case]]
+id = "attributes.reads-a-number-back-from-text"
+requirement = """
+`Integer'Value` turns text into a number, which is what a program that has just
+read a line needs before it can do anything but compare it. Ada's own spelling
+and HAC's own builtin, so what it accepts is what Ada accepts.
+"""
+script = "N : Integer := Integer'Value (\"42\"); put_line (N + 1); quit (0);"
+exit_status = 0
+output = ["43"]
+diagnostics = []
+
+[[case]]
+id = "attributes.reads-back-every-scalar"
+requirement = "The four scalar types, each with its own builtin: what a type can be written as it can be read back from."
+script = "F : Float := Float'Value (\"1.5\"); B : Boolean := Boolean'Value (\"true\"); C : Character := Character'Value (\"'q'\"); put_line (F); put_line (B); put_line (C); quit (0);"
+exit_status = 0
+output = [" 1.50000000000000000E+00", "TRUE", "q"]
+diagnostics = []
+
+[[case]]
+id = "attributes.image-of-a-type-takes-its-value"
+requirement = """
+`Integer'Image (N)` is how Ada has always written it, and refusing it while
+accepting `N'Image` would be accepting half of one thing.
+"""
+script = "put_line (Integer'Image (42)); quit (0);"
+exit_status = 0
+output = [" 42"]
+diagnostics = []
+
+[[case]]
+id = "attributes.text-that-is-not-a-value-raises"
+requirement = "What Ada does: reading a number from text that does not hold one raises rather than answering with a number nobody wrote."
+script = "N : Integer := Integer'Value (\"nope\"); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.bad_value_text{text=nope}!}!",
+]
+
+[[case]]
+id = "attributes.a-type-attribute-needs-its-argument"
+requirement = """
+`Integer'Value` on its own is the attribute without the thing it applies to.
+Analysing the prefix as a value would have said `Integer is not a type`, which
+is both wrong and baffling.
+"""
+script = "N : Integer := Integer'Value; quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.wrong_argument_count{name=Value,expected= 1,found= 0}!",
+]
+
+[[case]]
+id = "attributes.a-string-has-no-value-attribute"
+requirement = "Reading a String back from a String is not defined in Ada and is not invented here."
+script = "S : String := String'Value (\"x\"); quit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.attribute_not_defined{attribute=Value,found=String}!",
+]
+
+[[case]]
+id = "attributes.position-and-back"
+requirement = """
+`Character'Pos` and `Character'Val` are how a script gets at a character code
+and back, and there was no other way: a tab, a newline outside an interpolated
+literal, or a comparison against a byte value could not be written at all.
+"""
+script = "put_line (Trim (Character'Pos ('A')'Image)); put_line (Character'Val (66) & \"\"); quit (0);"
+exit_status = 0
+output = ["65", "B"]
+diagnostics = []
+
+[[case]]
+id = "attributes.an-integer-is-its-own-position"
+requirement = "Ada says so, and the lowering emits nothing for either direction: the value on the stack is already the answer. A no-op that went through a conversion would be a place for one to be wrong."
+script = "put_line (Trim (Integer'Pos (7)'Image)); put_line (Trim (Integer'Val (7)'Image)); quit (0);"
+exit_status = 0
+output = ["7", "7"]
+diagnostics = []
+
+[[case]]
+id = "attributes.next-and-previous"
+requirement = "`'Succ` and `'Pred` are a position, an addition and a position back -- which is what Ada defines them as -- so they need no instruction of their own and cannot disagree with `'Pos` and `'Val`."
+script = "put_line (Character'Succ ('a') & \"\"); put_line (Character'Pred ('b') & \"\"); put_line (Boolean'Succ (False)'Image); quit (0);"
+exit_status = 0
+output = ["b", "a", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "attributes.past-the-end-raises"
+requirement = """
+Going past the last value raises rather than wrapping or answering with
+something nobody wrote. Checked in one place -- the conversion back from a
+position -- so `'Val`, `'Succ` and `'Pred` cannot each remember it differently.
+"""
+script = "put_line (Character'Val (300) & \"\"); quit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.position_outside{position=300,type=Character}!}!"]
+
+[[case]]
+id = "attributes.succ-past-the-last-raises-too"
+requirement = "The same check, reached the other way, which is the point of having only one."
+script = "put_line (Character'Succ (Character'Last) & \"\"); quit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.position_outside{position=256,type=Character}!}!"]
+
+[[case]]
+id = "attributes.a-type-has-bounds"
+requirement = """
+`Integer'First` and `Integer'Last` are the type's own bounds and take no
+argument. A script that clamps a value or guards an addition has to be able to
+name them, and asking for one used to report that Integer is not an Integer.
+"""
+script = "put_line (Trim (Integer'Last'Image)); put_line (Boolean'First'Image); put_line (Trim (Character'Pos (Character'Last)'Image)); quit (0);"
+exit_status = 0
+output = ["9223372036854775807", "FALSE", "255"]
+diagnostics = []
+
+[[case]]
+id = "attributes.only-discrete-types-have-positions"
+requirement = "Ada's rule: a Float has no next value and a String has no position. Refused by name rather than answered with something plausible."
+script = "put_line (Float'Pos (1.0)'Image); quit (0);"
+exit_status = 0
+diagnostics = ["!error.attribute_not_defined{attribute=Pos,found=Float}!"]
+
+[[case]]
+id = "attributes.a-string-has-no-type-bounds"
+requirement = "`String'First` is not this language's question. A String's bounds belong to a String that exists, and `S'First` on one is answered; the type has none to give."
+script = "put_line (String'First'Image); quit (0);"
+exit_status = 0
+diagnostics = ["!error.attribute_not_defined{attribute=First,found=String}!"]

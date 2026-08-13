@@ -1,0 +1,81 @@
+# Separate subprogram specifications: the profile, then a semicolon where `is`
+# would be, with the body further down.
+#
+# What they buy is a name that exists before its code does. Without one, two
+# subprograms cannot call each other -- whichever is written first calls
+# something undeclared -- and that is the case these are mostly about.
+#
+# A specification with no body is refused rather than left alone. The name is
+# perfectly visible and calls to it would resolve; what is missing is anything
+# to jump to.
+
+suite = "specifications"
+
+[[case]]
+id = "spec.mutual-recursion"
+requirement = """
+Two subprograms calling each other, which is what a specification is for.
+Neither can be written first without one.
+"""
+script = "procedure Odd (N : Integer); procedure Even (N : Integer) is begin if N = 0 then put_line (\"even\"); else Odd (N - 1); end if; end Even; procedure Odd (N : Integer) is begin if N = 0 then put_line (\"odd\"); else Even (N - 1); end if; end Odd; Even (4); Even (7);"
+exit_status = 0
+output = ["even", "odd"]
+diagnostics = []
+
+[[case]]
+id = "spec.call-before-body"
+requirement = """
+A call written between the specification and the body reaches the body. The
+call is emitted before the body has an address, so this is where a lowering
+that resolved by position rather than by declaration would fail.
+"""
+script = "procedure P (N : Integer); P (5); procedure P (N : Integer) is begin put_line (N); end P;"
+exit_status = 0
+output = ["5"]
+diagnostics = []
+
+[[case]]
+id = "spec.function"
+requirement = "A function may be specified separately too."
+script = "function F return Integer; function F return Integer is begin return 3; end F; put_line (F);"
+exit_status = 0
+output = ["3"]
+diagnostics = []
+
+[[case]]
+id = "spec.nested"
+requirement = "A specification and its body inside another body's declarative part."
+script = "procedure Outer is procedure Inner (N : Integer); procedure Inner (N : Integer) is begin put_line (N); end Inner; begin Inner (9); end Outer; Outer;"
+exit_status = 0
+output = ["9"]
+diagnostics = []
+
+[[case]]
+id = "spec.body-missing"
+requirement = "A name with nothing behind it is refused rather than run up to the point it is called."
+script = "procedure P (N : Integer); put_line (\"after\");"
+exit_status = 0
+output = []
+diagnostics = ["!error.body_missing{name=P}!"]
+
+[[case]]
+id = "spec.body-of-another-profile"
+requirement = """
+A body whose profile differs is a second subprogram, not this one's body, so
+the specification is still waiting.
+"""
+script = "procedure P (N : Integer); procedure P (S : String) is begin null; end P;"
+exit_status = 0
+output = []
+diagnostics = ["!error.body_missing{name=P}!"]
+
+[[case]]
+id = "spec.duplicate"
+requirement = "Two specifications of one profile: the second is a redeclaration."
+script = "procedure P (N : Integer); procedure P (N : Integer);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.body_missing{name=P}!",
+  "!error.name_already_declared{name=P,line= 11}!",
+]

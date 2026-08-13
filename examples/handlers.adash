@@ -1,0 +1,64 @@
+--  Answering for what went wrong.
+--
+--  Until a block could carry handlers, anything raised ended the submission:
+--  a division by zero, a text that held no number, an index past the end of a
+--  String. Each of them stopped the program, and there was no way to say what
+--  should happen instead.
+--
+--  A handler answers for the exceptions it names. `others` answers for what is
+--  left, exactly as it does among a case's choices -- and anything nobody
+--  answers for goes outwards to a block that does.
+
+--  The one every script wants: text that was supposed to hold a number.
+function Read_Count (From : String) return Integer is
+begin
+   return Integer'Value (From);
+exception
+   when Constraint_Error =>
+      return 0;
+end Read_Count;
+
+put_line (Read_Count ("42"));
+put_line (Read_Count ("not a number"));
+
+--  Chosen by name. Only the handler that names what was raised runs.
+begin
+   Word : String := "abc";
+   Past : Character := Word (9);
+exception
+   when Constraint_Error =>
+      put_line ("this one does not run");
+
+   when Index_Error =>
+      put_line ("that position is not there");
+end;
+
+--  A handler catches what a call raised, however deep: by the time it runs,
+--  every frame between it and the raise is gone.
+function Divide (By : Integer) return Integer is
+begin
+   return 100 / By;
+end Divide;
+
+begin
+   put_line (Divide (0));
+exception
+   when Constraint_Error =>
+      put_line ("cannot divide by that");
+end;
+
+--  And what a block does not answer for goes outwards. A handler that looked
+--  at an exception and matched nothing must not swallow it.
+begin
+   begin
+      Wrong : Integer := 1 / 0;
+   exception
+      when Index_Error =>
+         put_line ("this one does not run either");
+   end;
+exception
+   when others =>
+      put_line ("the outer block answered for it");
+end;
+
+put_line ("and the program carried on");

@@ -1,0 +1,49 @@
+with "config/adash_tests_config.gpr";
+with "../adash.gpr";
+with "aunit.gpr";
+with "project_tools.gpr";
+
+--  The tooling and test crate.
+--
+--  Two source directories with a deliberate split: `src` holds reusable
+--  tooling packages and the thin mains that drive them, `tests` holds the
+--  AUnit cases. A check that is worth running is worth being callable from a
+--  test, so the logic lives in src and both a main and a case can reach it --
+--  which is why adash_check and Adash_Tests.Repository_Cases run the same
+--  code rather than two copies that drift.
+project Adash_Tests is
+
+   for Source_Dirs use ("src", "tests", "config");
+   for Object_Dir use "obj/" & Adash_Tests_Config.Build_Profile;
+   for Exec_Dir use "bin";
+   --  The two companions are shipped, not borrowed from the host: a pipeline
+   --  test needs a program that reads its input and one that writes known
+   --  output, and the system utilities that would do differ per host or are
+   --  absent on Windows.
+   for Main use
+     ("adash_tests_main.adb", "adash_check_main.adb",
+      "adash_conformance_main.adb", "adash_bench_main.adb",
+      "adash_test_emit.adb", "adash_test_upcase.adb");
+   for Languages use ("Ada");
+
+   --  The root package of this crate is named Adash_Tests, so the main
+   --  subprogram cannot be. Each main is renamed to its published name.
+   package Builder is
+      for Executable ("adash_tests_main.adb") use "adash_tests";
+      for Executable ("adash_check_main.adb") use "adash_check";
+      for Executable ("adash_conformance_main.adb") use "adash_conformance";
+      for Executable ("adash_bench_main.adb") use "adash_bench";
+   end Builder;
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        Adash_Tests_Config.Ada_Compiler_Switches
+        & ("-gnat2022", "-gnata", "-gnatwa", "-gnatw.X", "-g", "-gnatyM120");
+   end Compiler;
+
+   --  Bytes out as bytes in; see the same package in adash.gpr.
+   package Binder is
+      for Switches ("Ada") use ("-Es", "-Wb");
+   end Binder;
+
+end Adash_Tests;

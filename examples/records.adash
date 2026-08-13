@@ -1,0 +1,92 @@
+--  Records and arrays: saying that several things are one thing, and that one
+--  thing happens many times.
+--
+--  A shell script that tracked a number and a piece of text together had to
+--  carry two variables and keep them in step by hand, and a subprogram taking
+--  both had to take two arguments and trust the caller. A script that wanted
+--  ten of something had to write ten variables or squeeze them into one String
+--  with a separator nobody agreed on.
+
+--  A record groups what belongs together. The components have their own types.
+type Reading is record
+   Label : String;
+   Value : Integer;
+end record;
+
+--  An aggregate builds one. Positionally, or by naming the components, which
+--  lets a reader see which value is which without counting.
+First  : Reading := ("load", 42);
+Second : Reading := (Value => 7, Label => "queue");
+
+put_line (First.Label & " = " & Trim (First.Value'Image));
+put_line (Second.Label & " = " & Trim (Second.Value'Image));
+
+--  A component is assigned to like any other variable.
+First.Value := 43;
+put_line ("now " & Trim (First.Value'Image));
+
+--  A whole record is copied by one assignment, and compared component by
+--  component. Comparing only the first would call two different readings equal
+--  whenever their labels matched, which is worse than refusing to compare.
+Copy : Reading := First;
+
+put_line ("the copy matches: " & Boolean'Image (Copy = First));
+put_line ("and differs from the other: " & Boolean'Image (Copy /= Second));
+
+--  An array holds many of one thing, reached by position. It may begin
+--  anywhere, so `'First`, `'Last` and `'Length` are how a loop asks.
+type Window is array (1 .. 4) of Integer;
+
+Samples : Window := (12, 8, 30, 5);
+
+put_line ("there are " & Trim (Samples'Length'Image) & " samples");
+
+--  Indexing is written the way a call is written. Which one was meant is
+--  settled by what the name denotes, not by the shape of the text.
+Samples (2) := 99;
+
+for Index in Samples'First .. Samples'Last loop
+   put_line ("sample " & Trim (Index'Image) & " is "
+             & Trim (Samples (Index)'Image));
+end loop;
+
+--  An index outside the array raises rather than handing back whatever the
+--  next variable holds.
+
+--  A composite travels to a subprogram as where its run of slots starts,
+--  whatever mode it was declared with. An `out` parameter is how a program
+--  hands one back.
+function Largest (Of_Them : Window) return Integer is
+   Best : Integer := Of_Them (Of_Them'First);
+begin
+   for Index in Of_Them'First .. Of_Them'Last loop
+      if Of_Them (Index) > Best then
+         Best := Of_Them (Index);
+      end if;
+   end loop;
+
+   return Best;
+end Largest;
+
+put_line ("the largest is " & Trim (Largest (Samples)'Image));
+
+procedure Relabel (Which : out Reading; To : String) is
+begin
+   Which.Label := To;
+end Relabel;
+
+Relabel (First, "cpu");
+put_line ("relabelled to " & First.Label);
+
+--  What a composite is not: it holds simple values only. A record inside a
+--  record, or an array of records, is refused -- reaching into one would need
+--  an offset made of two offsets, and every place that walks a value would
+--  have to recur.
+--
+--  A function does not return one either. A function's result is what it
+--  leaves on the stack, and a composite is a run of slots rather than a value;
+--  `Relabel` above is the shape that hands one back.
+--
+--  And a composite has no text form. `put_line` writes what a value is, and a
+--  record is its parts: each of those has a text form where the whole has
+--  none.

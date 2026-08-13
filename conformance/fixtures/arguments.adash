@@ -1,0 +1,12 @@
+--  Read by a conformance case. Its output must be the same on every machine,
+--  so it reports what it was given and nothing about where it is.
+
+put_line (Argument_Count);
+
+for Position in 1 .. Argument_Count loop
+   put_line (Argument (Position));
+end loop;
+
+--  Past the end is the empty string rather than a failure, so a script can ask
+--  whether it was given something without having to count first.
+put_line ("[" & Argument (Argument_Count + 1) & "]");

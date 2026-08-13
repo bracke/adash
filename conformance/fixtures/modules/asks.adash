@@ -1,0 +1,2 @@
+source ("greeting");
+put_line ("and the script that asked for it");

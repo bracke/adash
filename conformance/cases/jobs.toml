@@ -1,0 +1,199 @@
+# Job control: starting a program, listing what is running, waiting, stopping.
+#
+# `start` is what makes the rest reachable. Nothing else in this language runs
+# an external program, so before it `jobs` had nothing to list and the
+# subsystem beneath it could not be reached from a script at all.
+#
+# The program and its arguments are named separately rather than as a command
+# line. A filename with a space in it is one argument, and splitting a string
+# here would invent a quoting rule this language does not have.
+
+suite = "jobs"
+
+[[case]]
+id = "jobs.none"
+requirement = "A session that has started nothing lists nothing."
+script = "jobs;"
+exit_status = 0
+output = []
+diagnostics = []
+
+[[case]]
+id = "jobs.start-and-wait"
+requirement = "A started program is recorded as a job, and waiting for it gives its status."
+script = "start (\"true\"); wait (1);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what=true}!",
+  "!line.job_finished{id=1,status=0}!",
+]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "jobs.status-is-the-programs"
+requirement = "Waiting reports what the program chose, not merely that it ended."
+script = "start (\"false\"); wait (1);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what=false}!",
+  "!line.job_finished{id=1,status=1}!",
+]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "jobs.arguments-are-separate"
+requirement = """
+The argument reaches the program. `sleep` with no argument fails, so a status
+of zero here is only possible if the second value was passed on -- a program
+that merely printed something would have raced its own output against the job
+line and proved nothing.
+"""
+script = "start (\"sleep\", \"0\"); wait (1);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what=sleep 0}!",
+  "!line.job_finished{id=1,status=0}!",
+]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "jobs.stop-ends-it"
+requirement = """
+A stopped job ends by signal, and says so rather than reporting an exit status
+it never chose.
+"""
+script = "start (\"sleep\", \"30\"); stop (1); wait (1);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what=sleep 30}!",
+  "!line.job_signalled{id=1,signal=!signal.terminate!}!",
+]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "jobs.unknown"
+requirement = "A job number this session never issued is reported, not guessed at."
+script = "wait (9);"
+exit_status = 0
+output = []
+diagnostics = ["!error.job_unknown{job=9}!"]
+
+[[case]]
+id = "jobs.missing-program"
+requirement = "A program that is not there is reported when the job is started."
+script = "start (\"adash-no-such-program\");"
+exit_status = 0
+output = []
+diagnostics = ["!error.command_not_found{command=adash-no-such-program}!"]
+
+[[case]]
+id = "run.waits-for-the-program"
+requirement = """
+`run` starts a program and waits for it, which is the thing a shell is for.
+Before it, running something took two commands and a job number: `start` and
+then `wait`.
+"""
+script = "run (\"echo\", \"hello\"); put_line (\"after\");"
+exit_status = 0
+output = ["hello", "after"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "run.leaves-no-job"
+requirement = """
+A program run in the foreground is not a job a user tracks, so it is forgotten
+once its status has been taken. A background job started beside it is not.
+"""
+script = "run (\"echo\", \"a\"); jobs;"
+exit_status = 0
+output = ["a"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "run.missing-program"
+requirement = "A program that is not there is reported, and the rest of the submission still runs."
+script = "run (\"adash-no-such-program\"); put_line (\"after\");"
+exit_status = 0
+output = ["after"]
+diagnostics = ["!error.command_not_found{command=adash-no-such-program}!"]
+
+[[case]]
+id = "jobs.state-is-said-in-words"
+requirement = """
+A job's state reaches the user as words from the catalog rather than as the
+enumeration literal `JOB_RUNNING`, which is what `jobs` printed for as long as
+`jobs` has existed. The identifier appears here only because these cases are run
+with the catalog pointed at a path that does not exist -- and it appears as a
+message key, which is what shows that nothing turned it into text early.
+"""
+script = "start (\"sleep\", \"30\"); jobs; stop (1); wait (1); quit (0);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what=sleep 30}!",
+  "!line.job{job=1,description=sleep 30,state=!job.state.running!}!",
+  "!line.job_signalled{id=1,signal=!signal.terminate!}!",
+]
+diagnostics = []
+
+[[case]]
+id = "jobs.suspend-and-resume"
+requirement = """
+A job can be suspended and resumed. `Adash.Execution.Jobs.Resume_In_Background`
+was complete and tested and nothing called it -- and nothing could have used it
+if it had, because nothing in the shell could stop a job and the pipeline layer
+could not see a stopped one.
+"""
+script = """
+start ("sleep", "5");
+suspend (1);
+jobs;
+resume (1);
+jobs;
+stop (1);
+wait (1);
+quit (0);"""
+exit_status = 0
+platforms = ["linux", "macos"]
+output = [
+  "!line.job_started{id=1,what=sleep 5}!",
+  "!line.job{job=1,description=sleep 5,state=!job.state.stopped!}!",
+  "!line.job{job=1,description=sleep 5,state=!job.state.stopped!}!",
+  "!line.job{job=1,description=sleep 5,state=!job.state.running!}!",
+  "!line.job{job=1,description=sleep 5,state=!job.state.running!}!",
+  "!line.job_signalled{id=1,signal=!signal.terminate!}!",
+]
+diagnostics = []
+
+[[case]]
+id = "jobs.a-suspended-job-is-not-waited-for"
+requirement = """
+Waiting for a suspended job would wait for an ending it cannot reach while it is
+stopped. The host reports a stop once, so a blocking wait afterwards has no
+event left to return and never comes back -- which is what this did the first
+time a job could be suspended at all.
+"""
+script = """
+start ("sleep", "5");
+suspend (1);
+wait (1);
+resume (1);
+stop (1);
+wait (1);
+quit (0);"""
+exit_status = 0
+platforms = ["linux", "macos"]
+output = [
+  "!line.job_started{id=1,what=sleep 5}!",
+  "!line.job{job=1,description=sleep 5,state=!job.state.stopped!}!",
+  "!line.job{job=1,description=sleep 5,state=!job.state.running!}!",
+  "!line.job_signalled{id=1,signal=!signal.terminate!}!",
+]
+diagnostics = [
+  "!error.job_is_suspended{job=1}!",
+]

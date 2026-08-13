@@ -1,0 +1,232 @@
+--  Giving a name to something the program does more than once.
+--
+--  Until these were lowered, every name a program could call belonged to
+--  somebody else: put_line and its siblings, or one of the shell's internal
+--  commands. A program could compute and report, and could not name anything
+--  of its own.
+--
+--  What makes a call work is not the jump but the frame. Each call gets an
+--  activation record of its own, which is why the recursion below computes
+--  rather than overwriting itself, and why Scale's locals do not land on top
+--  of the variables declared out here.
+--
+--  Parameters come in three modes. `in` is a value the body reads and may not
+--  assign to; `out` and `in out` are the caller's own variable, which the body
+--  writes through. That last part is why an `out` argument has to be a
+--  variable and not any expression -- there would be nowhere for the write to
+--  go.
+
+procedure Banner (Text : String) is
+begin
+   put_line ("== " & Text);
+end Banner;
+
+Banner ("subprograms");
+
+--  A function returns a value, and can be called from an expression.
+function Doubled (N : Integer) return Integer is
+begin
+   return N * 2;
+end Doubled;
+
+put_line (Doubled (21));
+
+--  Arguments arrive in the order they were written. Subtraction rather than
+--  addition on purpose: a commutative operation cannot tell swapped
+--  positions apart, so it would pass either way round.
+function Difference (Left : Integer; Right : Integer) return Integer is
+begin
+   return Left - Right;
+end Difference;
+
+put_line (Difference (10, 3));
+
+--  Recursion. Every call needs storage of its own; one shared frame would
+--  give a wrong answer here rather than failing outright.
+function Factorial (N : Integer) return Integer is
+begin
+   if N <= 1 then
+      return 1;
+   end if;
+
+   return N * Factorial (N - 1);
+end Factorial;
+
+Banner ("factorial of 5");
+put_line (Factorial (5));
+
+--  A body has its own declarations, in its own frame.
+Total : Integer := 100;
+
+procedure Scale is
+   Total : Integer := 1;
+begin
+   for Step in 1 .. 4 loop
+      Total := Total * Step;
+   end loop;
+
+   put_line (Total);
+end Scale;
+
+Banner ("scaled, then the outer Total");
+Scale;
+put_line (Total);
+
+--  A subprogram that answers through its parameters rather than by returning.
+--  Written by value this would run, print the old number, and lose the write.
+procedure Halve (N : in out Integer) is
+begin
+   N := N / 2;
+end Halve;
+
+Steps : Integer := 40;
+Halve (Steps);
+Halve (Steps);
+
+Banner ("halved twice");
+put_line (Steps);
+
+--  Two of them at once, each reaching its own variable.
+procedure Swap (A : in out Integer; B : in out Integer) is
+   Held : Integer := A;
+begin
+   A := B;
+   B := Held;
+end Swap;
+
+Left  : Integer := 1;
+Right : Integer := 2;
+Swap (Left, Right);
+
+Banner ("swapped");
+put_line (Left);
+put_line (Right);
+
+--  One name can denote several subprograms. Which one a call means is decided
+--  by its arguments -- their number and their types -- and by nothing else.
+--  Ada also overloads on what a function returns; this does not, so two
+--  differing only in that are refused rather than guessed between.
+procedure Describe (Value : Integer) is
+begin
+   put_line (f"an integer:{Value'Image}");
+end Describe;
+
+procedure Describe (Value : String) is
+begin
+   put_line (f"a string: {Value}");
+end Describe;
+
+procedure Describe (Value : Integer; Times : Integer) is
+begin
+   put_line (f"{Times'Image} copies of{Value'Image}");
+end Describe;
+
+Banner ("overloads");
+Describe (42);
+Describe ("text");
+Describe (7, 3);
+
+--  A subprogram can be declared inside another, where it can see the frame of
+--  the body that declared it. Tally is not visible outside Count_Up, and each
+--  call to Count_Up gets a Tally of its own.
+procedure Count_Up (Limit : Integer) is
+   Tally : Integer := 0;
+
+   procedure Add (N : Integer) is
+   begin
+      Tally := Tally + N;
+   end Add;
+
+begin
+   for Step in 1 .. Limit loop
+      Add (Step);
+   end loop;
+
+   put_line (f"tally to{Limit'Image} is{Tally'Image}");
+end Count_Up;
+
+Banner ("nested");
+Count_Up (3);
+Count_Up (4);
+
+--  A subprogram can be named before it is written. The profile, then a
+--  semicolon where `is` would go. Without it these two could not be written at
+--  all: whichever came first would call something undeclared.
+procedure Report_Odd (N : Integer);
+
+procedure Report_Even (N : Integer) is
+begin
+   if N = 0 then
+      put_line ("even");
+   else
+      Report_Odd (N - 1);
+   end if;
+end Report_Even;
+
+procedure Report_Odd (N : Integer) is
+begin
+   if N = 0 then
+      put_line ("odd");
+   else
+      Report_Even (N - 1);
+   end if;
+end Report_Odd;
+
+Banner ("parity by mutual recursion");
+Report_Even (4);
+Report_Even (7);
+
+--  A subprogram can call another, and can call an internal command -- which
+--  is how a command gets a name and a parameter list of its own.
+procedure Describe is
+begin
+   Banner ("this shell is");
+   version;
+end Describe;
+
+Describe;
+
+--  Naming an argument, and leaving one out.
+--
+--  A call with several arguments of the same type says nothing about what they
+--  mean: `Line ("x", True, 3)` is three values and a guess. Naming them says
+--  all of it, and Ada lets a call name any of them and reorder them freely.
+--
+--  A parameter with a default may be left out. The default is a literal, on
+--  purpose: an arbitrary expression would have to be evaluated at each call in
+--  the scope of the declaration, and a name resolved at the call site is
+--  exactly what cannot do that.
+procedure Announce
+  (Text  : String;
+   Loud  : Boolean := False;
+   Times : Integer := 1) is
+begin
+   for Turn in 1 .. Times loop
+      if Loud then
+         put_line (To_Upper (Text));
+      else
+         put_line (Text);
+      end if;
+   end loop;
+end Announce;
+
+Announce ("plain");
+Announce ("shout", True);
+Announce (Text => "named");
+Announce ("twice", Times => 2);
+Announce (Times => 2, Loud => True, Text => "both");
+
+--  Ada allows a parameter without a default after one with a default. It can
+--  then only be given by name, which is exactly what such a call looks like.
+procedure Indent (Depth : Integer := 2; Text : String) is
+   Space : String := "";
+begin
+   for Step in 1 .. Depth loop
+      Space := Space & " ";
+   end loop;
+
+   put_line (Space & Text);
+end Indent;
+
+Indent (Text => "two spaces in");
+Indent (6, "six spaces in");
