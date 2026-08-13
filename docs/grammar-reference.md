@@ -182,7 +182,9 @@ Ada settles it too.
     expression ::= relation { ( 'and' | 'and' 'then' | 'or' | 'or' 'else'
                               | 'xor' ) relation }           -- Node_Binary_Operation
     relation   ::= simple [ ( '=' | '/=' | '<' | '<=' | '>' | '>=' ) simple ]
-                 | simple [ 'not' ] 'in' simple '..' simple  -- Node_Membership
+                 | simple [ 'not' ] 'in'
+                   ( simple '..' simple | type_mark
+                   | name ''' 'range' )                      -- Node_Membership
     simple     ::= [ '+' | '-' ] term { ( '+' | '-' | '&' ) term }
     term       ::= factor { ( '*' | '/' | 'mod' | 'rem' ) factor }
     factor     ::= primary [ '**' primary ]                  -- Node_Unary_Operation

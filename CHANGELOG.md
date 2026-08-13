@@ -277,6 +277,26 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **Membership against a type mark**: `X in Small`, `X not in Colour`, and a
+  mark that may carry dots. The bounds are the type's own, so this emits the
+  two comparisons the range form emits with constants from the declaration
+  rather than from an expression, and the value is evaluated once as before. A
+  mark that names something other than a discrete type is refused where it
+  stands -- a variable is not a type, and `X in String` has no first value to
+  compare against. Ada admits `X in Float` and answers True always; this
+  refuses it rather than emitting a test that cannot fail.
+
+  Doing it the way a `for` loop over a named type already does it -- parser
+  records the shape, semantics decides what the name denotes -- found a defect
+  in the loop: `for C in P.Verdict loop` reported an undeclared name with
+  nothing in it, because a type mark naming a package member is one name with a
+  dot in it and the loop handed over an expression's reach into a value. Both
+  fold it to a name now.
+
+  This one was documented as a deliberate boundary, with the reason "there are
+  no subtypes to name". That was true when written and stopped being true when
+  subtypes arrived. It was found by probing the documented limits, not by a
+  test failing, which is what a claim about behaviour is: a test nothing runs.
 - **Every conformance case now runs on every host.** The gap the entry above
   admits is closed, and closed the way it said: by giving the cases a program
   they can name anywhere rather than by dropping the key. `adash_test_emit`

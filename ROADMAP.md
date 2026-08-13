@@ -75,7 +75,7 @@ below.
 | Asking about a path: `Exists`, `Is_Directory`, `Is_Executable` | **complete** |
 | Saving what a script computed: `write_file`, `append_file` | **complete** |
 | Counting backwards: `for I in reverse L .. H` | **complete** |
-| Membership: `X in L .. H`, `X not in L .. H` | **complete** |
+| Membership: `X in L .. H`, `X in Small`, and `not in` for either | **complete** |
 | Tasks: `task T;` and `task body T is ... end T` | **complete** |
 | `delay`, in real time | **complete** |
 | `select` on a protected entry, conditional and timed | **complete** |
@@ -2364,13 +2364,25 @@ the two comparisons out, which is longer, easy to get backwards, and evaluates
 the value twice. Membership keeps the value in a slot and compares that, so a
 call inside it happens once, as Ada says.
 
-Only the range form of membership. Ada also writes `X in Integer` and `X in
-Small` -- a type or subtype mark -- and that is refused where it is written.
-The reason first given for it was that the language had no subtypes to name;
-it has had them since, and the sentence outlived its truth. What is true now is
-narrower and less flattering: a subtype's bounds are two constants the build
-already knows, and a membership against them is the same instruction the range
-form emits, so this is a gap rather than a boundary.
+**Both forms of membership.** `X in L .. H` and `X in Small`, with `not in` for
+the other answer either way.
+
+The type mark came later than the range, and its history is worth keeping. It
+was documented as a boundary -- "there are no subtypes to name" -- which was
+true when it was written and stopped being true when subtypes arrived; the
+sentence outlived its reason by long enough to be found by probing rather than
+by anything failing. What it cost to close was small, which is the point: a
+subtype's bounds are two constants the build already holds, so the type-mark
+form emits the same two comparisons the range form does, with the constants
+coming from the declaration instead of from an expression.
+
+Which of the two was written is a question about what the name denotes, so the
+parser records the shape -- two children rather than three -- and semantics
+decides, the division a `for` loop over a named type already made. Following
+that division found a defect in the loop: `for C in P.Verdict loop` reported an
+undeclared name with nothing in it, because a type mark that names a package
+member is one name with a dot in it and the loop was handing over an
+expression's reach into a value. Both read it as a name now.
 
 Writing the example for those found a defect underneath them: **an `if` with
 two or more `elsif` branches had never parsed.** An `elsif` hands the rest of
@@ -2896,9 +2908,11 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   what a declaration and an assignment have in common is a run to fill. One
   component is `(A => 1)` and not `(1)`, which is Ada's rule as well: a
   parenthesised expression is what the second one is.
-- **Membership is against a range**, `X in L .. H`, and not against a type or
-  subtype mark. This one is a gap rather than a boundary: the bounds are known
-  and the instruction is the same one. See the section above.
+- **Membership against a type mark admits a discrete type only.** `X in Small`
+  and `X in Colour` are written; `X in Float` and `X in String` are refused,
+  where Ada takes both and answers True. What the check compares is two bounds,
+  and a type with no first value has none to compare against -- the rule a
+  `for` loop over a named type applies, for the same reason.
 - **An object declaration names a type**, so `A : array (1 .. 3) of Integer;`
   is refused and the array type is declared first. Ada's anonymous array type
   would be a type with no name for a symbol to carry, and every symbol carries

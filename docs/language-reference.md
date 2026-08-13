@@ -137,7 +137,10 @@ scoped to the loop.
 A **block** — `declare … begin … end;` — is a scope and a master: what it
 declares is gone after it, and it waits for what it started.
 
-**Membership** is `X in L .. H` and `X not in L .. H`, against a range.
+**Membership** is `X in L .. H` and `X not in L .. H` against a range, and
+`X in Small` against a type or subtype mark — the bounds are then the type's
+own, and a mark that names something other than a discrete type is refused
+where it stands. The value is evaluated once either way.
 
 ## Subprograms
 

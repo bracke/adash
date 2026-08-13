@@ -3592,11 +3592,73 @@ package body Adash.Language.Evaluation is
                   Of_Type : constant Ty.Type_Kind :=
                     Sem.Type_Of (Analysis, Value);
 
+                  --  Two children is a type mark, `X in Small`, and the bounds
+                  --  are then the type's own -- known here without evaluating
+                  --  anything, which is why the type-mark form emits two
+                  --  constants where the range form emits two expressions.
+                  Marked : constant Boolean :=
+                    S.Child_Count (Tree, Node) = 2;
+
+                  Admits : constant Ty.Type_Kind :=
+                    (if Marked
+                     then Sem.Type_Of (Analysis, S.Second (Tree, Node))
+                     else Ty.Type_None);
+
                   --  The value is kept, not evaluated twice. `F (X) in 1 .. 9`
                   --  calls F once in Ada, and a lowering that compared the
                   --  expression against each bound would call it twice and run
                   --  whatever else F does a second time.
                   Kept : constant Natural := New_Temporary;
+
+                  --  One bound of the type a mark named. The same answer the
+                  --  `for` loop over a named type needs, and for the same
+                  --  reason: a subtype is bounded by what it admits, and an
+                  --  unconstrained type by what its shape holds.
+                  procedure Emit_Admitted (Lowest : Boolean);
+
+                  procedure Emit_Admitted (Lowest : Boolean) is
+                     Base  : Positive;
+                     Count : Natural;
+                  begin
+                     if Ty.Has_Bounds (Admits) then
+                        Emit_1
+                          (VM.Push_Whole,
+                           VM.Whole_Number
+                             (if Lowest then Ty.Low_Bound (Admits)
+                              else Ty.High_Bound (Admits)));
+                        return;
+                     end if;
+
+                     case Ty.Shape (Admits) is
+                        when Ty.Shape_Enumeration =>
+                           if Names_Of (Admits, Base, Count) then
+                              Emit_1
+                                (VM.Push_Whole,
+                                 (if Lowest then 0
+                                  else VM.Whole_Number (Count - 1)));
+                           end if;
+
+                        when Ty.Shape_Boolean =>
+                           Emit_1 (VM.Push_Whole, (if Lowest then 0 else 1));
+
+                        when Ty.Shape_Character =>
+                           Emit_1
+                             (VM.Push_Whole, (if Lowest then 0 else 255));
+
+                        when Ty.Shape_Integer =>
+                           Emit_1
+                             (VM.Push_Whole,
+                              (if Lowest then VM.Whole_Number'First
+                               else VM.Whole_Number'Last));
+
+                        when others =>
+                           Refuse
+                             (Node,
+                              Adash.Messages.Msg_Lower_Argument_Of_Type,
+                              [1 => Adash.Messages.Named
+                                      ("type", Ty.Name (Admits))]);
+                     end case;
+                  end Emit_Admitted;
 
                   --  Which comparison instruction the two bounds need.
                   procedure Emit_At_Least;
@@ -3639,11 +3701,23 @@ package body Adash.Language.Evaluation is
                   --  `and then` here would make a bound with a call in it run
                   --  or not depending on the value.
                   Emit_2 (VM.Load, 0, VM.Whole_Number (Kept));
-                  Emit_Expression (S.Second (Tree, Node));
+
+                  if Marked then
+                     Emit_Admitted (Lowest => True);
+                  else
+                     Emit_Expression (S.Second (Tree, Node));
+                  end if;
+
                   Emit_At_Least;
 
                   Emit_2 (VM.Load, 0, VM.Whole_Number (Kept));
-                  Emit_Expression (S.Third (Tree, Node));
+
+                  if Marked then
+                     Emit_Admitted (Lowest => False);
+                  else
+                     Emit_Expression (S.Third (Tree, Node));
+                  end if;
+
                   Emit_At_Most;
 
                   Emit (VM.And_Truth);

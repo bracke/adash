@@ -97,6 +97,20 @@ for What in Ran loop
    put_line ("a program that ran: " & Verdict'Image (What));
 end loop;
 
+--  `X in T` asks whether a value is one the type admits, which is the reason
+--  to declare the subtype rather than repeat its two numbers. A subtype
+--  narrows and an unconstrained type answers what its shape holds; the bounds
+--  are the declaration's, so nothing here is evaluated at all.
+Reading : Integer := 120;
+
+if Reading not in Percent then
+   put_line (Trim (Reading'Image) & " is not a percentage");
+end if;
+
+if Killed not in Ran then
+   put_line ("and a killed program did not run");
+end if;
+
 --  Records and arrays are in `records.adash`, which is where the aggregates
 --  that build them are shown as well.
 --

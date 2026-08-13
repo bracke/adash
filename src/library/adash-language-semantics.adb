@@ -2956,6 +2956,50 @@ package body Adash.Language.Semantics is
                end;
 
             when S.Node_Membership =>
+               --  Two children is a type mark, `X in Small`, and the bounds
+               --  are then the type's own. The name settles the value here
+               --  rather than the other way round: a type mark is not in
+               --  doubt, so it is what an open call on the left resolves
+               --  against.
+               if S.Child_Count (Tree, Node) = 2 then
+                  declare
+                     Marked : constant Types.Type_Kind :=
+                       Named_Type (S.Second (Tree, Node));
+
+                     Value : constant Types.Type_Kind :=
+                       Analyse_Expression (S.First (Tree, Node), Marked);
+                  begin
+                     if Marked /= Types.Type_None
+                       and then not Types.Is_Discrete (Marked)
+                     then
+                        --  What the check compares is two bounds, and a type
+                        --  with no first value has none to compare against.
+                        --  Ada admits `X in Float`, where the answer is always
+                        --  True; this refuses it rather than emitting a test
+                        --  that cannot fail.
+                        Complain
+                          (Adash.Errors.Error_Case_Not_Discrete,
+                           S.Second (Tree, Node),
+                           [1 => Adash.Messages.Named
+                                   ("found", Types.Name (Marked))]);
+
+                     elsif Marked /= Types.Type_None
+                       and then Value /= Types.Type_None
+                       and then not Types.Is_Acceptable (Value, Marked)
+                     then
+                        Complain
+                          (Adash.Errors.Error_Type_Mismatch,
+                           S.First (Tree, Node),
+                           [Adash.Messages.Named ("found", Types.Name (Value)),
+                            Adash.Messages.Named
+                              ("expected", Types.Name (Marked))]);
+                     end if;
+
+                     Note (Node, Types.Type_Boolean);
+                     return Types.Type_Boolean;
+                  end;
+               end if;
+
                declare
                   --  The value settles the bounds, not the other way round.
                   --  `X in 1 .. 5` where X is a Character has two Integer

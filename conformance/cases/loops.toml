@@ -324,6 +324,65 @@ diagnostics = [
 ]
 
 [[case]]
+id = "membership.a-type-mark-instead-of-a-range"
+requirement = """
+Ada writes `X in Small` as well as `X in L .. H`, and the type mark is the form
+a script wants: a subtype is declared once with its bounds and every question
+about them then names it, rather than repeating two numbers that can drift
+apart. The bounds are the type's own and known before the program runs, so this
+is the same two comparisons the range form emits, with the constants coming
+from the declaration instead of from the expression.
+
+A subtype narrows; an unconstrained type is asked about too, and answers what
+its shape holds.
+"""
+script = "subtype Small is Integer range 1 .. 9; type Colour is (Red, Green, Blue); subtype Warm is Colour range Red .. Green; X : Integer := 4; C : Colour := Blue; put_line (X in Small); put_line (20 not in Small); put_line (C in Warm); put_line (Green in Warm); put_line (X in Integer); put_line ('q' in Character); quit (0);"
+exit_status = 0
+output = ["TRUE", "TRUE", "FALSE", "TRUE", "TRUE", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "membership.a-type-mark-is-a-name-that-may-carry-dots"
+requirement = """
+A package's type is one name with a dot in it, not a reach into a value, and a
+type mark in a membership is read that way -- as it is in a declaration. The
+`for` loop over a named type had the same question and had been answering it
+wrong: `for C in P.Verdict loop` reported an undeclared name with nothing in
+it, because the loop handed an expression's reach to a lookup that wanted a
+spelling.
+"""
+script = "package P is subtype Small is Integer range 1 .. 9; type Verdict is (Yes, No); end P; put_line (4 in P.Small); for V in P.Verdict loop put_line (V'Image); end loop; quit (0);"
+exit_status = 0
+output = ["TRUE", "Yes", "No"]
+diagnostics = []
+
+[[case]]
+id = "membership.a-type-mark-names-a-type"
+requirement = """
+What follows `in` without a `..` is a type mark, so a name that denotes
+something else is refused where it stands. A variable is not a type; a type
+with no first value has no bounds to compare against, which is the rule a `for`
+loop over a named type applies and for the same reason. Ada admits `X in Float`
+and answers True always -- this refuses it rather than emitting a test that
+cannot fail.
+"""
+script = "Y : Integer := 2; put_line (1 in Y);\nput_line (1 in String);\nsubtype Small is Integer range 1 .. 9; put_line ('c' in Small);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_a_type{name=Y}!",
+  "!error.case.not_discrete{found=String}!",
+  "!error.type_mismatch{found=Character,expected=Small}!",
+]
+
+[[case]]
+id = "membership.a-value-once-against-a-type-mark"
+requirement = "The value is evaluated once here too. The bounds are constants rather than expressions, which changes what is compared against and not how many times the value is worked out."
+script = "Calls : Integer := 0; subtype Small is Integer range 1 .. 9; function Counted return Integer is begin Calls := Calls + 1; return 3; end Counted; if Counted in Small then put_line (\"inside\"); end if; put_line (Integer'Image (Calls)); quit (0);"
+exit_status = 0
+output = ["inside", " 1"]
+diagnostics = []
+
+[[case]]
 id = "branches.two-elsifs-close-with-one-end"
 requirement = """
 `if / elsif / elsif / end if;` is one statement and closes with one `end if;`.

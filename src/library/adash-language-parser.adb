@@ -61,6 +61,15 @@ package body Adash.Language.Parser is
       --  stands for. Declared here because the expression parser reads a
       --  membership's bounds before the body below is reached.
       function Expanded_Range (Node : S.Node_Id) return S.Node_Id;
+
+      --  A name written where a type mark may stand, as one name.
+      --
+      --  An expression reads `P.Small` as a reach into something, which is
+      --  what it is everywhere else; a type mark that names a package member
+      --  is one name with a dot in it, which is how the declaration parser
+      --  builds it and how the scope holds it. This folds the one shape into
+      --  the other, and hands anything else back untouched.
+      function Folded_Name (Node : S.Node_Id) return S.Node_Id;
       function Parse_Interpolation return S.Node_Id;
       function Parse_Statement return S.Node_Id;
       function Parse_Sequence (Stop_Words : T.Reserved_Word) return S.Node_Id;
@@ -800,6 +809,31 @@ package body Adash.Language.Parser is
                   end if;
                end;
 
+               --  `X in Small`: a type mark instead of a range, which is what
+               --  Ada writes when the question is whether a value is one the
+               --  type admits. Which of the two was written is a question
+               --  about what the name denotes, so the parser records the shape
+               --  -- two children rather than three -- and semantics decides,
+               --  the same division a `for` loop over a named type makes.
+               --
+               --  A name is required for it. `X in 1` is a missing `..` and
+               --  is reported as one, because nothing about it reads as a
+               --  type.
+               if not Is_Symbol (T.Delim_Double_Dot) then
+                  declare
+                     Mark : constant S.Node_Id := Folded_Name (Low);
+                  begin
+                     if S."=" (S.Kind (Into, Mark), S.Node_Name) then
+                        return S.Add_Node
+                          (Into, S.Node_Membership,
+                           Adash.Source.Join (Start, S.Extent (Into, Mark)),
+                           [Left, Mark],
+                           Operator =>
+                             (if Negated then S.Op_Not_In else S.Op_In));
+                     end if;
+                  end;
+               end if;
+
                if not Expect_Symbol (T.Delim_Double_Dot) then
                   return Error_Node
                     (Adash.Source.Join (Start, Just_Consumed));
@@ -954,6 +988,45 @@ package body Adash.Language.Parser is
                    [Prefix, S.Add_Leaf (Into, S.Node_Name, Where, "Last")])]);
          end;
       end Expanded_Range;
+
+      --  A name written where a type mark may stand, as one name.
+      --
+      --  @param Node What was just parsed.
+      --  @return One Node_Name holding the whole spelling, or Node itself.
+      function Folded_Name (Node : S.Node_Id) return S.Node_Id is
+      begin
+         if not S.Is_Present (Node) then
+            return Node;
+         end if;
+
+         if S."=" (S.Kind (Into, Node), S.Node_Name) then
+            return Node;
+         end if;
+
+         if not S."=" (S.Kind (Into, Node), S.Node_Selected) then
+            return Node;
+         end if;
+
+         declare
+            Reached : constant S.Node_Id := Folded_Name (S.First (Into, Node));
+            Part    : constant S.Node_Id := S.Second (Into, Node);
+         begin
+            --  Only a name reaching into a name. `R.Field` where R is a
+            --  variable is a reach into a value and has to stay one; what
+            --  tells them apart is what the name denotes, which is not a
+            --  question the parser can ask -- so this builds the spelling and
+            --  leaves the deciding to whoever looks the name up.
+            if not S."=" (S.Kind (Into, Reached), S.Node_Name)
+              or else not S."=" (S.Kind (Into, Part), S.Node_Name)
+            then
+               return Node;
+            end if;
+
+            return S.Add_Leaf
+              (Into, S.Node_Name, S.Extent (Into, Node),
+               S.Text (Into, Reached) & "." & S.Text (Into, Part));
+         end;
+      end Folded_Name;
 
       function Parse_Statement return S.Node_Id is
          Start : constant Adash.Source.Span := Here;
@@ -1479,12 +1552,15 @@ package body Adash.Language.Parser is
                      null;
                   end;
 
+                  --  `for C in P.Colour loop` names a package's type, which is
+                  --  one name with a dot in it rather than a reach into a
+                  --  value -- the same fold a membership's type mark needs.
                   return S.Add_Node
                     (Into,
                      (if Backwards then S.Node_For_Reverse_Loop
                       else S.Node_For_Loop),
                      Adash.Source.Join (Start, Just_Consumed),
-                     [Variable, Low, Body_Part]);
+                     [Variable, Folded_Name (Low), Body_Part]);
                end if;
 
                if not Ranged then
