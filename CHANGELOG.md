@@ -268,6 +268,15 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **CI runs on three hosts**, which is what a crate built on hostkit has to do:
+  ubuntu, macos-15-intel and windows-latest, with the conformance suite added
+  to what each runs. Making that honest needed two fixes. The conformance
+  runner built the path to the shell as `bin/adash` with no suffix, so on
+  Windows it would have spawned nothing -- it asks the host now. And ten cases
+  spawned `cat`, `echo`, `true`, `sh` or `sleep` without saying which hosts
+  they hold on; they carry a `platforms` key now, which means capture,
+  redirection and job states are checked on two hosts of the three. The
+  workflow says so rather than leaving it to be discovered.
 - **The last three guides**: `user-guide.md`, `interactive-guide.md` and
   `scripting-guide.md`. The interactive one is why they waited: editing,
   completion, the prompt and the interrupt cannot be checked by running a

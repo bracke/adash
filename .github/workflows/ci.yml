@@ -4,10 +4,27 @@
 # -- what to check, in what order, what counts as a failure -- lives in the Ada
 # tools instead, so that a maintainer runs locally exactly what CI runs and
 # gets the same answer. The rule against non-Ada repository tooling is why this
-# file only ever invokes `alr` and the two programs in adash_tests.
+# file only ever invokes `alr` and the programs in adash_tests.
 #
 # Adash is developed alongside its sibling crates, which Alire finds through
 # path pins. CI has to reproduce that layout before it can resolve anything.
+#
+# Three hosts, and that is the point rather than a nicety. Adash depends on
+# hostkit, whose whole reason to exist is that operating systems differ:
+# Windows has no process groups and no pseudo-terminals, macOS answers some
+# questions differently from Linux, and a change validated on one of them has
+# not been validated. The conformance cases say which hosts each of them holds
+# on, so the suite runs everywhere and skips what a host cannot do.
+#
+# macOS must be the x86_64 image: the pinned gnat_native ships no
+# aarch64-darwin binary. Never reduce the matrix to make a run green.
+#
+# What Windows does not check, and it is worth knowing: thirty-two
+# conformance cases name a POSIX utility or a POSIX path -- `cat`, `echo`, `true`, `sh` -- and
+# carry a `platforms` key that keeps them off a host without one. Capturing a
+# program's output, redirection and job states are therefore checked on two
+# hosts of the three. Closing that means Windows equivalents of those cases,
+# not dropping the key.
 
 name: ci
 
@@ -19,7 +36,26 @@ on:
 
 jobs:
   build-and-check:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            suffix: ""
+          - os: macos-15-intel
+            suffix: ""
+          - os: windows-latest
+            suffix: ".exe"
+
+
+    runs-on: ${{ matrix.os }}
+
+    # One shell on every host, so a step reads the same way everywhere and a
+    # path written with forward slashes keeps working. Windows runners carry
+    # bash; using it is cheaper than three spellings of every step.
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Check out adash
@@ -53,10 +89,22 @@ jobs:
         working-directory: Ada/adash/adash_tests
         run: alr -n build
 
+      # The suite runs the conformance cases and the examples as routines of
+      # its own, so this one command covers all three. The separate runs below
+      # exist because a per-case report is what a failure needs, and because a
+      # check that only ever runs inside another is one nobody reads the output
+      # of.
+      # The suffix rather than bash's own guess: MSYS will often find
+      # `foo.exe` for `./foo`, and a step that depends on it is a step that
+      # breaks when somebody changes the shell.
       - name: Run the AUnit suite
         working-directory: Ada/adash/adash_tests
-        run: ./bin/adash_tests
+        run: ./bin/adash_tests${{ matrix.suffix }}
+
+      - name: Run the conformance suite
+        working-directory: Ada/adash/adash_tests
+        run: ./bin/adash_conformance${{ matrix.suffix }}
 
       - name: Check the repository invariants
         working-directory: Ada/adash/adash_tests
-        run: ./bin/adash_check
+        run: ./bin/adash_check${{ matrix.suffix }}

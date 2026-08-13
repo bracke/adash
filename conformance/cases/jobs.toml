@@ -140,6 +140,7 @@ output = [
   "!line.job_signalled{id=1,signal=!signal.terminate!}!",
 ]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "jobs.suspend-and-resume"

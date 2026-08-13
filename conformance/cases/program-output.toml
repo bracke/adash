@@ -211,6 +211,7 @@ script = "put_line (\"[\" & Output_Of (\"echo\", \"hello world\") & \"]\"); quit
 exit_status = 0
 output = ["[hello world]"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "capture.drops-the-final-newline"
@@ -223,6 +224,7 @@ script = "put_line (\"[\" & Output_Of (\"printf\", \"a\\nb\\n\") & \"]\"); quit 
 exit_status = 0
 output = ["[a", "b]"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "capture.answers-empty-for-a-program-that-said-nothing"
@@ -231,6 +233,7 @@ script = "if Output_Of (\"true\") = \"\" then put_line (\"nothing\"); end if; qu
 exit_status = 0
 output = ["nothing"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "capture.records-the-status"
@@ -239,6 +242,7 @@ script = "S : String := Output_Of (\"false\"); put_line (Status); quit (0);"
 exit_status = 0
 output = ["1"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "capture.a-program-that-will-not-start"
@@ -261,6 +265,7 @@ script = "put_line (\"[\" & Output_Of (\"sh\", \"-c\", \"echo out; echo err >&2\
 exit_status = 0
 output = ["[out]"]
 diagnostics = ["err"]
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "capture.needs-a-program"
@@ -490,6 +495,7 @@ script = "write_file (\"alpha\", \"{store}/out.txt\"); put_line (Output_Of (\"ca
 exit_status = 0
 output = ["alpha"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "files.appends-to-the-end"
@@ -498,6 +504,7 @@ script = "for Index in 1 .. 3 loop append_file (\"line\", \"{store}/log.txt\"); 
 exit_status = 0
 output = ["linelineline"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "files.replaces-rather-than-adds"
@@ -506,6 +513,7 @@ script = "write_file (\"first\", \"{store}/r.txt\"); write_file (\"second\", \"{
 exit_status = 0
 output = ["second"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "files.a-path-that-cannot-be-written-is-refused"

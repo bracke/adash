@@ -58,6 +58,7 @@ script = "run (\"false\"); put_line (Status); run (\"true\"); put_line (Status);
 exit_status = 0
 output = ["1", "0"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "status.names-a-program-that-was-not-found"

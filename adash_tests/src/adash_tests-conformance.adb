@@ -827,6 +827,27 @@ package body Adash_Tests.Conformance is
       end;
    end Run_File;
 
+   --  The shell to test, under a root.
+   --
+   --  Windows names an executable with a suffix and the other two do not, so a
+   --  path built without one is a path that exists only on the machine it was
+   --  written on. Asking the host rather than assuming is the rule this
+   --  workspace exists to follow, and a suite that spawns the shell is the
+   --  last place to break it.
+   --
+   --  @param Root The repository root.
+   --  @return The path to the built shell.
+   function Shell_In (Root : String) return String;
+
+   function Shell_In (Root : String) return String is
+      Plain : constant String :=
+        Hostkit.Fs.Join (Hostkit.Fs.Join (Root, "bin"), "adash");
+      use type Hostkit.Host.Kind;
+   begin
+      return (if Hostkit.Host.Current = Hostkit.Host.Windows
+              then Plain & ".exe" else Plain);
+   end Shell_In;
+
    ---------
    -- Run --
    ---------
@@ -834,8 +855,7 @@ package body Adash_Tests.Conformance is
    procedure Run (Root : String; Into : in out Report) is
       Directory : constant String :=
         Hostkit.Fs.Join (Hostkit.Fs.Join (Root, "conformance"), "cases");
-      Binary : constant String :=
-        Hostkit.Fs.Join (Hostkit.Fs.Join (Root, "bin"), "adash");
+      Binary : constant String := Shell_In (Root);
    begin
       if not Ada.Directories.Exists (Directory) then
          Record_Result
@@ -902,8 +922,7 @@ package body Adash_Tests.Conformance is
 
    procedure Run_Examples (Root : String; Into : in out Report) is
       Directory : constant String := Hostkit.Fs.Join (Root, "examples");
-      Binary    : constant String :=
-        Hostkit.Fs.Join (Hostkit.Fs.Join (Root, "bin"), "adash");
+      Binary    : constant String := Shell_In (Root);
 
       Names : Hostkit.String_Vectors.Vector;
    begin
