@@ -157,3 +157,104 @@ output = [
   "!line.command_entry{name=save_settings,summary=!command.save_settings.doc!}!",
 ]
 diagnostics = []
+
+[[case]]
+id = "environment.env-lists-what-children-inherit-and-unset-removes-one"
+requirement = """
+`env` lists the variables a child would be given, and `unset` takes one away.
+Written together because neither can be observed without the other: what `set`
+did is only visible through `env`, and what `unset` did is only visible as an
+absence from the same list.
+
+The case clears what the runner itself put in the environment first, so what
+`env` prints is exactly what the script asked for -- otherwise it would list
+the sandbox's own HOME and PATH, which differ per case.
+"""
+script = "unset (\"HOME\"); unset (\"XDG_DATA_HOME\"); unset (\"XDG_CONFIG_HOME\"); unset (\"PATH\"); unset (\"ADASH_MESSAGE_CATALOG\"); set (\"ONE=1\"); set (\"TWO=2\"); env; unset (\"ONE\"); put_line (\"and after removing one:\"); env;\nquit (0);"
+exit_status = 0
+output = [
+  "!line.variable{name=ONE,value=1}!",
+  "!line.variable{name=TWO,value=2}!",
+  "and after removing one:",
+  "!line.variable{name=TWO,value=2}!",
+]
+diagnostics = []
+
+[[case]]
+id = "redirection.run_into-replaces-and-run_append-adds"
+requirement = """
+`run_into` writes a program's output to a file, replacing what was there;
+`run_append` adds to the end. The pair is how a script collects what several
+programs said, and the difference between them is the whole of why there are
+two commands rather than one with a flag.
+"""
+script = "run_into (\"{store}/a.txt\", \"echo\", \"one\"); run_append (\"{store}/a.txt\", \"echo\", \"two\"); run_into (\"{store}/b.txt\", \"echo\", \"first\"); run_into (\"{store}/b.txt\", \"echo\", \"second\"); put_line (Output_Of (\"cat\", \"{store}/a.txt\")); put_line (\"and the replaced one holds: \" & Output_Of (\"cat\", \"{store}/b.txt\"));\nquit (0);"
+exit_status = 0
+output = ["one", "two", "and the replaced one holds: second"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "redirection.run_new-refuses-a-file-that-is-there"
+requirement = """
+`run_new` writes to a file that must not already exist, which is how a script
+says it is producing something rather than replacing it. The second attempt
+fails and says which path it would not open, and the failure is a status rather
+than the end of the script.
+"""
+script = "run_new (\"{store}/b.txt\", \"echo\", \"x\"); put_line (\"first status\" & Status'Image); run_new (\"{store}/b.txt\", \"echo\", \"y\"); put_line (\"second status\" & Status'Image); put_line (\"and the file still holds: \" & Output_Of (\"cat\", \"{store}/b.txt\"));\nquit (0);"
+exit_status = 0
+output = [
+  "first status 0",
+  "second status 1",
+  "and the file still holds: x",
+]
+diagnostics = ["!error.redirection_open_failed{path={store}/b.txt}!"]
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "redirection.run_from-feeds-a-program-its-input"
+requirement = "`run_from` gives a program a file as its input, which is the other half of the redirection pair: a script that wrote something can hand it to the next program without a pipeline."
+script = "write_file (\"hello from a file\", \"{store}/in.txt\"); run_from (\"{store}/in.txt\", \"cat\");\nquit (0);"
+exit_status = 0
+output = ["hello from a file"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "pipelines.two-stages-run-as-one"
+requirement = """
+`pipe` adds a stage and `pipe_run` runs what was built, so a pipeline is
+assembled by statements rather than written as punctuation. What the last stage
+prints is what the session sees.
+"""
+script = "pipe (\"echo\", \"hello\"); pipe (\"tr\", \"a-z\", \"A-Z\"); pipe_run;\nquit (0);"
+exit_status = 0
+output = ["HELLO"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "pipelines.and-the-status-is-the-last-stage-s"
+requirement = "A pipeline reports what its last stage reported, which is the convention every shell follows and what a script testing a pipeline is asking about."
+script = "pipe (\"echo\", \"a\"); pipe (\"false\"); pipe_run; put_line (\"status\" & Status'Image); pipe (\"echo\", \"b\"); pipe (\"true\"); pipe_run; put_line (\"and now\" & Status'Image);\nquit (0);"
+exit_status = 0
+output = ["status 1", "and now 0"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "settings.save_settings-writes-what-was-changed"
+requirement = """
+`save_settings` writes the current settings to the configuration file. What it
+prints is the path it wrote, which differs per machine, so the case checks the
+*file* instead and carries its assertion in the exit status: a script that
+found the wrong content quits with 3, and a status of 0 is the assertion
+passing.
+
+What this does not show is a later session reading it back -- a case is one
+process, and that is a unit test's question.
+"""
+script = "settings (\"history.limit\", \"42\"); save_settings; if Output_Of (\"grep\", \"-c\", \"limit = 42\", Env_Value (\"XDG_CONFIG_HOME\") & \"/adash/config.toml\") /= \"1\" then quit (3); end if;\nquit (0);"
+exit_status = 0
+platforms = ["linux", "macos"]

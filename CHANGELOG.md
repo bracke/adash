@@ -268,6 +268,16 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **Nine internal commands had no conformance case**: `unset`, `env`,
+  `run_into`, `run_from`, `run_append`, `run_new`, `pipe`, `pipe_run` and
+  `save_settings`. Some were covered by AUnit cases, but none was exercised
+  through a submission -- the suite that runs the shell as a user meets it did
+  not touch redirection or pipelines at all. Seven cases now do, and each of
+  them had to solve the same problem: an assertion that is the same on every
+  machine. `env` clears the sandbox's own variables first so the list is what
+  the script asked for; the redirection cases name files through `{store}`;
+  `save_settings` prints a path that differs per machine, so its case checks the
+  file and carries the assertion in the exit status instead.
 - The sweep reached `docs/`. `package-map.md` opened with "every package that
   exists today" and named 18 of 54, closing with a list of subsystems that "do
   not exist yet" -- the language, the machine, execution, the interactive
