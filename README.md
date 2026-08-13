@@ -160,6 +160,9 @@ accept B; … end select;` is a task saying whichever of these happens first, wi
 `select … then abort …  end select;` abandons work when something else happens
 first.
 
+Overloading is resolved by what a context expects and, where both ends of a
+comparison or a call are open, by the one type they could share.
+
 What the subset leaves out, deliberately: access types, composites inside
 composites, derived types, generic packages and generic formals that are not
 types, child packages and `private` parts, a message attached to a raise,

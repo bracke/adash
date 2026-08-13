@@ -249,3 +249,43 @@ script = "type Warm is (Red, Amber); type Signal is (Red, Green); for Each in Re
 exit_status = 0
 output = ["warm Red", "warm Amber", "signal Red", "signal Green"]
 diagnostics = []
+
+[[case]]
+id = "overloading.two-open-ends-with-one-type-between-them"
+requirement = """
+Where both ends of a comparison are open, neither settles the other by being
+analysed first. What settles it is that only one type is possible for both:
+two functions of each name sharing one result, or a literal two enumerations
+name beside one that only one of them names.
+"""
+script = "function F return Integer is begin return 1; end F; function F return Float is begin return 2.0; end F; function G return Integer is begin return 9; end G; function G return String is begin return \"x\"; end G; if F = G then put_line (\"equal\"); else put_line (\"settled on Integer, and not equal\"); end if;\ntype W is (Red, Amber); type S is (Red, Green); type T is (Amber, Blue); if Red = Amber then put_line (\"never\"); else put_line (\"settled on W\"); end if;\nquit (0);"
+exit_status = 0
+output = ["settled on Integer, and not equal", "settled on W"]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-an-open-argument-to-an-open-call"
+requirement = """
+A call whose candidates disagree about what a parameter takes used to leave the
+argument with nothing expected of it. Where the argument could itself be only
+one of the types they ask for, that is the answer whichever candidate wins --
+which settles the call and the argument together.
+"""
+script = "function F return Integer is begin return 1; end F; function F return Float is begin return 2.0; end F; procedure Show (X : Integer) is begin put_line (\"an integer:\" & X'Image); end Show; procedure Show (X : String) is begin put_line (\"a string\"); end Show; Show (F);\nquit (0);"
+exit_status = 0
+output = ["an integer: 1"]
+diagnostics = []
+
+[[case]]
+id = "overloading.but-two-combinations-are-still-two"
+requirement = """
+Both readings existing is what ambiguous means, and Ada refuses it too: two
+functions of each name sharing *both* results say nothing about each other, and
+neither does the operator between them.
+"""
+script = "function F return Integer is begin return 1; end F; function F return Float is begin return 2.0; end F; function G return Integer is begin return 9; end G; function G return Float is begin return 1.0; end G; if F = G then put_line (\"never\"); end if;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.ambiguous_call{name=F,count= 2}!",
+  "!error.ambiguous_call{name=G,count= 2}!",
+]

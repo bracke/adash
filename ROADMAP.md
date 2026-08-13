@@ -1312,6 +1312,26 @@ in the loop variable: a `Character` loop counts 0 .. 255 and the variable holds
 a Character, and writing the position into it would hand the body a number
 wearing a Character's name.
 
+**Two open ends, and the one type between them.** `F = G` where each name
+belongs to two subprograms and they share one result; `Red = Amber` where two
+enumerations name a `Red` and only one of them names an `Amber`; `Show (F)`
+where the call and the argument are each several things. None of these could be
+settled by what a context expected, because both ends were open, and none by
+analysing one first, because neither said anything about the other.
+
+What settles them is asking what an expression *could* be without choosing:
+the candidate set of a name is already there for resolution, and reading the
+types out of it costs a lookup and reports nothing. Two open ends share
+exactly one type, so that type is what each is analysed with. A call whose
+candidates disagree about a parameter asks the same question of the argument
+written there, and where only one of the types they ask for is possible for it,
+that is the answer whichever candidate wins.
+
+Two combinations fitting is still ambiguous, which is Ada's answer too: both
+readings exist and nothing chooses between them. What this does not do is carry
+a choice further than one pair -- three things resolving together is the case
+Ada's own algorithm exists for, and this is not that algorithm.
+
 **An attribute is a value known before the program runs.** `Integer'Last`,
 `Verdict'First`, `Colour'Succ (Red)`, `Integer'Pos (7)` and `Integer'Size`
 answer from the declaration, and nothing between there and running can change
@@ -2865,16 +2885,14 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
 
 ### What is inside the subset and imperfect
 
-- **Overload resolution is outside-in, not simultaneous.** What a context
-  expects reaches into it -- an object's type, a parameter's, a case's, a
-  return's -- and settles a call or a literal that several declarations could
-  answer. Between the two operands of a comparison or a membership it works
-  sideways as well: when exactly one of them is open, the other is analysed
-  first and its type settles it. What it does not do is try *every* combination
-  when both ends are open: `Red = Red` with `Red` in two types is refused,
-  which is what Ada does with it too, but so is anything else needing two
-  choices made together. Ada resolves a call and everything around it at once;
-  this resolves from the outside in and from the closed end sideways.
+- **Overload resolution settles one pair at a time, not a whole statement.**
+  What a context expects reaches into it; between two open ends it asks which
+  single type both could have. What it does not do is carry a choice further
+  than one pair: a program whose meaning depends on resolving three things
+  together -- an argument that settles a call that settles *another*
+  argument -- is refused where Ada would take it. Ada resolves a complete
+  context at once by enumerating its interpretations; this asks a narrower
+  question in the two places the answer usually lives.
 - **Nothing at submission level can be named after a predefined entity or an
   internal command.** For a subprogram the reason is resolution: those accept
   any type, so a user's version would fit every call the original does and every

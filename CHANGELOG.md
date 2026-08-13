@@ -268,6 +268,12 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **Overload resolution reaches both open ends.** `F = G` where each name
+  belongs to two subprograms sharing one result, `Red = Amber` where two
+  enumerations name a `Red` but only one an `Amber`, and `Show (F)` where the
+  call and its argument are each several things -- all settled by asking which
+  single type both ends could have, without choosing and without reporting. Two
+  combinations fitting is still ambiguous, which is Ada's answer as well.
 - **An attribute is a value known before the program runs.** `Integer'Last`,
   `Verdict'First`, `Colour'Succ (Red)`, `Integer'Pos (7)` and `Integer'Size`
   may now stand where a case choice, a subtype bound or an aggregate's index

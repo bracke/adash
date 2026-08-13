@@ -1011,6 +1011,137 @@ package body Adash.Language.Semantics is
          Given   : in out Symbols.Parameter_Defaults;
          Has     : in out Symbols.Parameter_Has_Default);
 
+      --  What types an expression could have, without settling which.
+      --
+      --  Resolution reaches inward from what a context expects, and sideways
+      --  from whichever end of a pair is closed. Where *both* ends are open
+      --  neither of those helps, and what settles it is that only one type is
+      --  possible for both -- which needs the possibilities without choosing
+      --  between them, and so without reporting anything.
+      --
+      --  Only the shapes that can be open answer: a name several declarations
+      --  could satisfy, and a call to one of several subprograms. Anything
+      --  else is closed and answers with nothing, which the callers read as
+      --  "ask the ordinary way".
+      --
+      --  @param Node The expression.
+      --  @param Found The types it could have.
+      --  @param Count How many, zero when it is not open.
+      --  As many as a name could have meanings, which is what the scope
+      --  chain hands back at once.
+      type Possible_List is
+        array (1 .. Adash.Language.Scopes.Max_Overloads)
+          of Types.Type_Kind;
+
+      procedure Possible_Types
+        (Node  : S.Node_Id;
+         Found : out Possible_List;
+         Count : out Natural);
+
+      procedure Possible_Types
+        (Node  : S.Node_Id;
+         Found : out Possible_List;
+         Count : out Natural)
+      is
+         Pool   : Adash.Language.Scopes.Symbol_List;
+         Offers : Natural := 0;
+
+         --  The name a call or a bare name spells, or "" for anything else.
+         function Spelt return String is
+           (case S.Kind (Tree, Node) is
+               when S.Node_Name => S.Text (Tree, Node),
+               when S.Node_Call => Dotted (Tree, S.First (Tree, Node)),
+               when others => "");
+
+         --  How many arguments a call was given, which decides whether a
+         --  candidate could answer it at all.
+         Args : constant Natural :=
+           (if S.Kind (Tree, Node) = S.Node_Call
+              and then S.Is_Present (S.Second (Tree, Node))
+            then S.Child_Count (Tree, S.Second (Tree, Node)) else 0);
+      begin
+         Found := [others => Types.Type_None];
+         Count := 0;
+
+         if S.Kind (Tree, Node) = S.Node_Parenthesized then
+            Possible_Types (S.First (Tree, Node), Found, Count);
+            return;
+         end if;
+
+         if Spelt = "" then
+            return;
+         end if;
+
+         Chain.Candidates (Visible_Name (Spelt), Pool, Offers);
+
+         if Offers <= 1 then
+            --  One meaning, or none. Either way there is nothing to choose
+            --  between, and the ordinary path says what is wrong with it.
+            return;
+         end if;
+
+         for Index in 1 .. Offers loop
+            declare
+               About : constant Signature := Signature_Of (Spelt, Pool (Index));
+               Gives : constant Types.Type_Kind :=
+                 Symbols.Of_Type (Pool (Index));
+               Known : Boolean := False;
+            begin
+               --  A candidate that could not answer a call of this shape says
+               --  nothing about what the expression could be.
+               if Gives /= Types.Type_None
+                 and then (not Symbols.Is_Callable (Pool (Index))
+                           or else (About.Known
+                                    and then Args >= About.Minimum
+                                    and then Args <= About.Maximum))
+               then
+                  for Taken in 1 .. Count loop
+                     if Found (Taken) = Gives then
+                        Known := True;
+                     end if;
+                  end loop;
+
+                  if not Known and then Count < Found'Last then
+                     Count := Count + 1;
+                     Found (Count) := Gives;
+                  end if;
+               end if;
+            end;
+         end loop;
+      end Possible_Types;
+
+      --  The one type two open expressions could both have, or Type_None.
+      --
+      --  @param Left One expression.
+      --  @param Right The other.
+      --  @return The type they share, when they share exactly one.
+      function Shared_Type (Left, Right : S.Node_Id) return Types.Type_Kind is
+         Ours   : Possible_List;
+         Theirs : Possible_List;
+         Mine   : Natural;
+         Yours  : Natural;
+         Answer : Types.Type_Kind := Types.Type_None;
+         Shared : Natural := 0;
+      begin
+         Possible_Types (Left, Ours, Mine);
+         Possible_Types (Right, Theirs, Yours);
+
+         if Mine = 0 or else Yours = 0 then
+            return Types.Type_None;
+         end if;
+
+         for One in 1 .. Mine loop
+            for Two in 1 .. Yours loop
+               if Ours (One) = Theirs (Two) then
+                  Shared := Shared + 1;
+                  Answer := Ours (One);
+               end if;
+            end loop;
+         end loop;
+
+         return (if Shared = 1 then Answer else Types.Type_None);
+      end Shared_Type;
+
       --------------------
       -- Is_Open_Call --
       --------------------
@@ -2795,15 +2926,36 @@ package body Adash.Language.Semantics is
                       and then Is_Open_Call (S.First (Tree, Node))
                       and then not Is_Open_Call (S.Second (Tree, Node));
 
+                  --  Both ends open, and neither says anything about the
+                  --  other by being analysed first. What settles it is that
+                  --  only one type is possible for both: `F = G` where each
+                  --  names two subprograms and they share one result, or a
+                  --  literal two enumerations name beside one only one of
+                  --  them names. Asked without choosing, so nothing is
+                  --  reported for an expression that is about to be resolved.
+                  Between : constant Types.Type_Kind :=
+                    (if Op in S.Op_Equal | S.Op_Not_Equal | S.Op_Less
+                            | S.Op_Less_Equal | S.Op_Greater
+                            | S.Op_Greater_Equal
+                       and then Is_Open_Call (S.First (Tree, Node))
+                       and then Is_Open_Call (S.Second (Tree, Node))
+                     then Shared_Type (S.First (Tree, Node),
+                                       S.Second (Tree, Node))
+                     else Types.Type_None);
+
                   --  Evaluated in the order the two declarations are written,
                   --  which is what chooses which operand goes first.
                   First_Type : constant Types.Type_Kind :=
-                    (if Settle_Right_First
+                    (if Between /= Types.Type_None
+                     then Analyse_Expression (S.First (Tree, Node), Between)
+                     elsif Settle_Right_First
                      then Analyse_Expression (S.Second (Tree, Node), Wanted)
                      else Analyse_Expression (S.First (Tree, Node), Wanted));
 
                   Second_Type : constant Types.Type_Kind :=
-                    (if Settle_Right_First
+                    (if Between /= Types.Type_None
+                     then Analyse_Expression (S.Second (Tree, Node), Between)
+                     elsif Settle_Right_First
                      then Analyse_Expression (S.First (Tree, Node), First_Type)
                      else Analyse_Expression
                             (S.Second (Tree, Node),
@@ -2813,9 +2965,11 @@ package body Adash.Language.Semantics is
                               then First_Type else Wanted)));
 
                   Left  : constant Types.Type_Kind :=
-                    (if Settle_Right_First then Second_Type else First_Type);
+                    (if Settle_Right_First and then Between = Types.Type_None
+                     then Second_Type else First_Type);
                   Right : constant Types.Type_Kind :=
-                    (if Settle_Right_First then First_Type else Second_Type);
+                    (if Settle_Right_First and then Between = Types.Type_None
+                     then First_Type else Second_Type);
                   Result : Types.Type_Kind := Types.Type_None;
                begin
                   case Op is
@@ -2939,6 +3093,57 @@ package body Adash.Language.Semantics is
                   --  one candidate, or several agreeing at this position --
                   --  and leaves the rest to be settled by the arguments' own
                   --  types, as before.
+                  --  The one type both the candidates and the argument
+                  --  written at this position could have, or Type_None.
+                  function Only_Fitting
+                    (Position : Positive) return Types.Type_Kind
+                  is
+                     Pool   : Adash.Language.Scopes.Symbol_List;
+                     Count  : Natural;
+                     Could  : Possible_List;
+                     Many   : Natural;
+                     Answer : Types.Type_Kind := Types.Type_None;
+                     Shared : Natural := 0;
+                  begin
+                     if Position > S.Child_Count (Tree, Arguments) then
+                        return Types.Type_None;
+                     end if;
+
+                     Possible_Types
+                       (S.Child (Tree, Arguments, Position), Could, Many);
+
+                     if Many = 0 then
+                        return Types.Type_None;
+                     end if;
+
+                     Chain.Candidates (Visible_Name (Name), Pool, Count);
+
+                     for Index in 1 .. Count loop
+                        declare
+                           About : constant Signature :=
+                             Signature_Of (Name, Pool (Index));
+                        begin
+                           if About.Known
+                             and then Given >= About.Minimum
+                             and then Given <= About.Maximum
+                             and then Position <= Natural'Min
+                                        (About.Maximum, Symbols.Max_Parameters)
+                           then
+                              for Taken in 1 .. Many loop
+                                 if Could (Taken) = About.Of_Type (Position)
+                                   and then Answer /= Could (Taken)
+                                 then
+                                    Shared := Shared + 1;
+                                    Answer := Could (Taken);
+                                 end if;
+                              end loop;
+                           end if;
+                        end;
+                     end loop;
+
+                     return (if Shared = 1 then Answer else Types.Type_None);
+                  end Only_Fitting;
+
                   function Agreed_Parameter
                     (Position : Positive) return Types.Type_Kind
                   is
@@ -2965,7 +3170,14 @@ package body Adash.Language.Semantics is
                                  Seen := True;
 
                               elsif Wanted /= About.Of_Type (Position) then
-                                 return Types.Type_None;
+                                 --  They disagree, so what this position
+                                 --  requires depends on which candidate wins.
+                                 --  Unless the argument written there could
+                                 --  only be one of the types they ask for:
+                                 --  then that is the answer whichever wins,
+                                 --  which is what settles `Show (F)` where
+                                 --  both the call and its argument are open.
+                                 return Only_Fitting (Position);
                               end if;
                            end if;
                         end;
