@@ -54,11 +54,10 @@ A program can tell whether what it ran succeeded. Commands are procedures --
 afterwards could not act on a failure at all, which is most of what a shell
 script does. Every shell has this and spells it `$?`.
 """
-script = "run (\"false\"); put_line (Status); run (\"true\"); put_line (Status); quit (0);"
+script = "run (\"{emit}\", \"--exit=1\"); put_line (Status); run (\"{emit}\"); put_line (Status); quit (0);"
 exit_status = 0
 output = ["1", "0"]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "status.names-a-program-that-was-not-found"

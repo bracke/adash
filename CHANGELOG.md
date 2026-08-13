@@ -277,6 +277,19 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **Every conformance case now runs on every host.** The gap the entry above
+  admits is closed, and closed the way it said: by giving the cases a program
+  they can name anywhere rather than by dropping the key. `adash_test_emit`
+  gained `--exit`, `--error`, `--sleep` and `--file`, so one shipped companion
+  covers a program that fails, one that complains where nobody collects it, one
+  that is still running, and one that shows what a file holds;
+  `adash_test_upcase` covers pipelines and `run_from`. The runner expands
+  `{emit}` and `{upcase}` -- in expectations as well as in scripts, which is
+  what lets a job case assert the command line it reports -- and `{os}` and
+  `{arch}`, which is what lets the two `--version` cases stop being Linux-only.
+  Thirty-two cases lost their `platforms` key; no case carries one now. The key
+  stays supported, because the next case that genuinely cannot hold on a host
+  should say so.
 - **The last three guides**: `user-guide.md`, `interactive-guide.md` and
   `scripting-guide.md`. The interactive one is why they waited: editing,
   completion, the prompt and the interrupt cannot be checked by running a

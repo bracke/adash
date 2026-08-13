@@ -109,9 +109,11 @@ dependencies in shell source.
 CI runs all four on **three hosts** -- ubuntu, macos-15-intel and
 windows-latest -- because Adash depends on hostkit, whose reason to exist is
 that operating systems differ. A change validated on one host has not been
-validated. Thirty-two conformance cases carry a `platforms` key because they
-name a POSIX utility or path; those are checked on two hosts of the three, and
-closing that gap means Windows equivalents rather than dropping the key.
+validated. **Every conformance case runs on every host**: the cases that used to
+name a POSIX utility -- and so carried a `platforms` key that kept them off
+Windows -- name `{emit}` or `{upcase}` instead, the two companion programs this
+crate ships for that purpose. Capture, redirection, pipelines and job states are
+therefore checked on all three hosts rather than two.
 
 `adash_bench` covers cost: what each stage of the pipeline takes, reported as a
 median and a fastest of many in-process runs. `benchmark-guide.md` says what its

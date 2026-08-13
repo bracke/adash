@@ -112,7 +112,8 @@ Four binaries come out of this crate: `adash_tests` runs the AUnit suite,
 `adash_conformance` runs the cases in `conformance/cases/`, `adash_check` runs
 the repository checks, and `adash_bench` measures. Two more, `adash_test_emit`
 and `adash_test_upcase`, exist to be *run by* tests that need a child process
-with known behaviour.
+with known behaviour — which is also what lets every conformance case run on
+Windows, since a case names one of these rather than `cat` or `true`.
 
 Mains are thin and hold no logic: `adash_tests_main` runs the suite,
 `adash_check_main` renders what `Adash_Tests.Repository` found. The checks live

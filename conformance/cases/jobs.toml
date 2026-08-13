@@ -21,26 +21,24 @@ diagnostics = []
 [[case]]
 id = "jobs.start-and-wait"
 requirement = "A started program is recorded as a job, and waiting for it gives its status."
-script = "start (\"true\"); wait (1);"
+script = "start (\"{emit}\"); wait (1);"
 exit_status = 0
 output = [
-  "!line.job_started{id=1,what=true}!",
+  "!line.job_started{id=1,what={emit}}!",
   "!line.job_finished{id=1,status=0}!",
 ]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "jobs.status-is-the-programs"
 requirement = "Waiting reports what the program chose, not merely that it ended."
-script = "start (\"false\"); wait (1);"
+script = "start (\"{emit}\", \"--exit=1\"); wait (1);"
 exit_status = 0
 output = [
-  "!line.job_started{id=1,what=false}!",
+  "!line.job_started{id=1,what={emit} --exit=1}!",
   "!line.job_finished{id=1,status=1}!",
 ]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "jobs.arguments-are-separate"
@@ -50,14 +48,13 @@ of zero here is only possible if the second value was passed on -- a program
 that merely printed something would have raced its own output against the job
 line and proved nothing.
 """
-script = "start (\"sleep\", \"0\"); wait (1);"
+script = "start (\"{emit}\", \"--sleep=0\"); wait (1);"
 exit_status = 0
 output = [
-  "!line.job_started{id=1,what=sleep 0}!",
+  "!line.job_started{id=1,what={emit} --sleep=0}!",
   "!line.job_finished{id=1,status=0}!",
 ]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "jobs.stop-ends-it"
@@ -65,14 +62,13 @@ requirement = """
 A stopped job ends by signal, and says so rather than reporting an exit status
 it never chose.
 """
-script = "start (\"sleep\", \"30\"); stop (1); wait (1);"
+script = "start (\"{emit}\", \"--sleep=30\"); stop (1); wait (1);"
 exit_status = 0
 output = [
-  "!line.job_started{id=1,what=sleep 30}!",
+  "!line.job_started{id=1,what={emit} --sleep=30}!",
   "!line.job_signalled{id=1,signal=!signal.terminate!}!",
 ]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "jobs.unknown"
@@ -97,11 +93,10 @@ requirement = """
 Before it, running something took two commands and a job number: `start` and
 then `wait`.
 """
-script = "run (\"echo\", \"hello\"); put_line (\"after\");"
+script = "run (\"{emit}\", \"hello\"); put_line (\"after\");"
 exit_status = 0
 output = ["hello", "after"]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "run.leaves-no-job"
@@ -109,11 +104,10 @@ requirement = """
 A program run in the foreground is not a job a user tracks, so it is forgotten
 once its status has been taken. A background job started beside it is not.
 """
-script = "run (\"echo\", \"a\"); jobs;"
+script = "run (\"{emit}\", \"a\"); jobs;"
 exit_status = 0
 output = ["a"]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "run.missing-program"
@@ -132,15 +126,14 @@ enumeration literal `JOB_RUNNING`, which is what `jobs` printed for as long as
 with the catalog pointed at a path that does not exist -- and it appears as a
 message key, which is what shows that nothing turned it into text early.
 """
-script = "start (\"sleep\", \"30\"); jobs; stop (1); wait (1); quit (0);"
+script = "start (\"{emit}\", \"--sleep=30\"); jobs; stop (1); wait (1); quit (0);"
 exit_status = 0
 output = [
-  "!line.job_started{id=1,what=sleep 30}!",
-  "!line.job{job=1,description=sleep 30,state=!job.state.running!}!",
+  "!line.job_started{id=1,what={emit} --sleep=30}!",
+  "!line.job{job=1,description={emit} --sleep=30,state=!job.state.running!}!",
   "!line.job_signalled{id=1,signal=!signal.terminate!}!",
 ]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "jobs.suspend-and-resume"
@@ -160,7 +153,6 @@ stop (1);
 wait (1);
 quit (0);"""
 exit_status = 0
-platforms = ["linux", "macos"]
 output = [
   "!line.job_started{id=1,what=sleep 5}!",
   "!line.job{job=1,description=sleep 5,state=!job.state.stopped!}!",
@@ -188,7 +180,6 @@ stop (1);
 wait (1);
 quit (0);"""
 exit_status = 0
-platforms = ["linux", "macos"]
 output = [
   "!line.job_started{id=1,what=sleep 5}!",
   "!line.job{job=1,description=sleep 5,state=!job.state.stopped!}!",

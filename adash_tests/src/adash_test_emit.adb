@@ -1,23 +1,63 @@
 with Ada.Command_Line;
 with Ada.Text_IO;
 
---  Writes each argument on its own line, then exits with the status named by
---  the first argument if that argument is a number.
+--  Writes each argument on its own line, then exits with the status it was
+--  told to.
 --
 --  Shipped rather than borrowed from the host, for the reason hostkit's own
 --  companions are: /bin/echo is absent on Windows, and every stand-in behaves
 --  differently enough to make a test prove something other than what it says.
+--
+--  Four arguments are read rather than written:
+--
+--    --exit=N    exit with status N
+--    --error=T   write T to standard error rather than to standard output
+--    --sleep=S   wait S seconds before finishing
+--    --file=P    write the contents of the file P
+--
+--  Between them a conformance case can have a program that says something, a
+--  program that fails, a program that complains where nobody should be
+--  collecting it, a program that is still running, and a program that shows
+--  what a file holds -- on every host, without naming a utility one of them
+--  does not have.
 procedure Adash_Test_Emit is
    Status : Integer := 0;
+   Waited : Duration := 0.0;
+
+   --  Whether an argument is one of the three, and what it carries.
+   function Introduced_By (Value : String; Flag : String) return Boolean
+   is (Value'Length > Flag'Length
+       and then Value (Value'First .. Value'First + Flag'Length - 1) = Flag);
+
+   function After (Value : String; Flag : String) return String
+   is (Value (Value'First + Flag'Length .. Value'Last));
 begin
    for Index in 1 .. Ada.Command_Line.Argument_Count loop
       declare
          Value : constant String := Ada.Command_Line.Argument (Index);
       begin
-         if Index = 1 and then Value'Length > 6
-           and then Value (Value'First .. Value'First + 5) = "--exit"
-         then
-            Status := Integer'Value (Value (Value'First + 7 .. Value'Last));
+         if Introduced_By (Value, "--exit=") then
+            Status := Integer'Value (After (Value, "--exit="));
+
+         elsif Introduced_By (Value, "--error=") then
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error, After (Value, "--error="));
+
+         elsif Introduced_By (Value, "--sleep=") then
+            Waited := Duration'Value (After (Value, "--sleep="));
+
+         elsif Introduced_By (Value, "--file=") then
+            declare
+               Source : Ada.Text_IO.File_Type;
+            begin
+               Ada.Text_IO.Open
+                 (Source, Ada.Text_IO.In_File, After (Value, "--file="));
+               while not Ada.Text_IO.End_Of_File (Source) loop
+                  Ada.Text_IO.Put_Line (Ada.Text_IO.Get_Line (Source));
+               end loop;
+               Ada.Text_IO.Close (Source);
+            end;
+
          else
             Ada.Text_IO.Put_Line (Value);
          end if;
@@ -25,6 +65,15 @@ begin
    end loop;
 
    Ada.Text_IO.Flush;
+   Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
+
+   if Waited > 0.0 then
+      --  A delay rather than a busy wait: what a case wants from this is a job
+      --  that is still there when it looks, and a spinning process on a shared
+      --  runner is a poor way to provide one.
+      delay Waited;
+   end if;
+
    Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Exit_Status (Status));
 exception
    when others =>

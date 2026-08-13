@@ -605,11 +605,10 @@ put to the shell, a command stub -- and a call to each may name its arguments.
 What pushes them travels by position, so the lowering asks the callee's own
 parameter names and puts each where the callee expects it.
 """
-script = "function F (Left : Integer; Right : Integer) return Integer is begin return Left - Right; end F; put_line (F (Right => 1, Left => 9)'Image); put_line (Index (Piece => \"b\", Whole => \"abc\")'Image); put_line (Output_Of (Program => \"echo\", Argument_1 => \"through\")); Put_Line (Item => \"and a procedure\"); cd (Directory => \"/tmp\"); pwd;\nquit (0);"
+script = "function F (Left : Integer; Right : Integer) return Integer is begin return Left - Right; end F; put_line (F (Right => 1, Left => 9)'Image); put_line (Index (Piece => \"b\", Whole => \"abc\")'Image); put_line (Output_Of (Program => \"{emit}\", Argument_1 => \"through\")); Put_Line (Item => \"and a procedure\"); cd (Directory => \"{store}\"); write_file (\"arrived\", \"landed.txt\"); put_line (Output_Of (\"{emit}\", \"--file={store}/landed.txt\"));\nquit (0);"
 exit_status = 0
-output = [" 8", " 2", "through", "and a procedure", "!line.directory{path=/tmp}!"]
+output = [" 8", " 2", "through", "and a procedure", "arrived"]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "params.and-a-name-that-is-not-a-parameter-is-said-so"

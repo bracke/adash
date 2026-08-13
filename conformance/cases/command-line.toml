@@ -18,11 +18,10 @@ arguments = ["--version"]
 exit_status = 0
 output = [
   "!version.line{version=0.1.0-dev}!",
-  "!version.build{profile=development,os=linux,arch=x86_64}!",
+  "!version.build{profile=development,os={os},arch={arch}}!",
   "!version.prerelease_notice!",
 ]
 diagnostics = []
-platforms = ["linux"]
 
 [[case]]
 id = "cli.version-short"
@@ -31,11 +30,10 @@ arguments = ["-V"]
 exit_status = 0
 output = [
   "!version.line{version=0.1.0-dev}!",
-  "!version.build{profile=development,os=linux,arch=x86_64}!",
+  "!version.build{profile=development,os={os},arch={arch}}!",
   "!version.prerelease_notice!",
 ]
 diagnostics = []
-platforms = ["linux"]
 
 [[case]]
 id = "cli.help-succeeds"

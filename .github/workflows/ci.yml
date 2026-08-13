@@ -13,18 +13,17 @@
 # hostkit, whose whole reason to exist is that operating systems differ:
 # Windows has no process groups and no pseudo-terminals, macOS answers some
 # questions differently from Linux, and a change validated on one of them has
-# not been validated. The conformance cases say which hosts each of them holds
-# on, so the suite runs everywhere and skips what a host cannot do.
+# not been validated.
 #
 # macOS must be the x86_64 image: the pinned gnat_native ships no
 # aarch64-darwin binary. Never reduce the matrix to make a run green.
 #
-# What Windows does not check, and it is worth knowing: thirty-two
-# conformance cases name a POSIX utility or a POSIX path -- `cat`, `echo`, `true`, `sh` -- and
-# carry a `platforms` key that keeps them off a host without one. Capturing a
-# program's output, redirection and job states are therefore checked on two
-# hosts of the three. Closing that means Windows equivalents of those cases,
-# not dropping the key.
+# Every conformance case runs on every host. The cases that need a program to
+# run name `{emit}` or `{upcase}` -- companions adash_tests builds -- rather
+# than `cat` or `true`, so capturing a program's output, redirection,
+# pipelines and job states are checked on Windows too. A case may still gate
+# itself with a `platforms` key, and none does; if one appears, it is a gap
+# rather than a solution.
 
 name: ci
 

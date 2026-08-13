@@ -15,6 +15,7 @@ with Tomllib.Parsers;
 with Adash.Messages;
 with Adash.Messages.Rendering;
 with Adash.Persistence;
+with Adash.Version;
 
 package body Adash_Tests.Conformance is
 
@@ -568,6 +569,40 @@ package body Adash_Tests.Conformance is
                   Marker, With_Text);
    end Filled;
 
+   --  A program a case may run on any host.
+   --
+   --  `{emit}` and `{upcase}` are the two companions this crate ships, named
+   --  with whatever suffix the host puts on an executable. A case that wants a
+   --  program to capture, to fail, to complain, or to still be running says
+   --  one of these instead of naming a utility that half the hosts do not
+   --  have -- which is the same reason the companions exist at all.
+   --
+   --  @param Root The repository root.
+   --  @param Named Which companion.
+   --  @return Its path.
+   function Companion (Root : String; Named : String) return String;
+
+   function Companion (Root : String; Named : String) return String is
+      use type Hostkit.Host.Kind;
+
+      --  Beside this program, not under the root: a case may `cd`, and a
+      --  relative path stops meaning anything the moment one does. The
+      --  companions are built into the same `bin` this runner is in, and
+      --  hostkit answers where that is exactly. The root is the fallback for a
+      --  host that will not say.
+      Beside : constant String := Hostkit.Fs.Own_Executable_Directory;
+
+      Where : constant String :=
+        (if Beside = ""
+         then Hostkit.Fs.Join
+                (Hostkit.Fs.Join (Hostkit.Fs.Join (Root, "adash_tests"), "bin"),
+                 Named)
+         else Hostkit.Fs.Join (Beside, Named));
+   begin
+      return (if Hostkit.Host.Current = Hostkit.Host.Windows
+              then Where & ".exe" else Where);
+   end Companion;
+
    function Expanded (Item : String; Root : String; Files : String)
       return String
    is
@@ -575,8 +610,24 @@ package body Adash_Tests.Conformance is
       --  things, and the store is not inside the repository, so the order is
       --  a matter of reading rather than of result.
       Stored : constant String := Filled (Item, "{store}", Files);
+      Rooted_At : constant String := Filled (Stored, "{root}", Root);
+
+      --  The companions last: their own expansion names the root, and doing
+      --  them first would leave a `{root}` for the line above to fill in
+      --  again -- which works, and reads as though the order did not matter.
+      Emitting : constant String :=
+        Filled (Rooted_At, "{emit}", Companion (Root, "adash_test_emit"));
+      Upcasing : constant String :=
+        Filled (Emitting, "{upcase}", Companion (Root, "adash_test_upcase"));
+
+      --  `{os}` and `{arch}` are how the build identifies itself. A case that
+      --  checks what --version reports would otherwise have to be written per
+      --  host, or gated to one -- and a case gated to one host is a case the
+      --  other two never run.
+      On_This_Os : constant String :=
+        Filled (Upcasing, "{os}", Adash.Version.Host_Operating_System);
    begin
-      return Filled (Stored, "{root}", Root);
+      return Filled (On_This_Os, "{arch}", Adash.Version.Host_Architecture);
    end Expanded;
 
    function Rooted

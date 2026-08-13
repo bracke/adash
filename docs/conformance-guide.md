@@ -23,7 +23,6 @@ message.
     exit_status = 0
     output = ["…"]
     diagnostics = []
-    platforms = ["linux", "macos"]
 
 Every key the runner accepts: `id`, `requirement`, `script`, `arguments`,
 `exit_status`, `output`, `diagnostics`, `platforms`, `input`. **A key it does
@@ -57,9 +56,28 @@ script *or in an expectation* expands to a directory the case may write in, and
 store, so a case that writes history or settings writes them there and not into
 the developer's own.
 
-**`platforms` restricts a case** to the hosts it can hold on. A case that runs
-`sh` or `tr` says `["linux", "macos"]`; one about the language says nothing and
-runs everywhere.
+**A case that needs a program names a companion, not a utility.** `{emit}` and
+`{upcase}` expand to the two programs this crate ships, with whatever suffix the
+host puts on an executable:
+
+| Want | Say |
+| --- | --- |
+| a program that says something | `{emit}` with the words as arguments |
+| a program that fails | `{emit} --exit=3` |
+| a program that complains where nobody collects it | `{emit} --error=text` |
+| a program that is still running | `{emit} --sleep=30` |
+| a program that shows what a file holds | `{emit} --file=path` |
+| a program that transforms its input | `{upcase}` |
+
+`{os}` and `{arch}` expand to how the build identifies itself, for the cases
+that check what `--version` reports.
+
+**`platforms` restricts a case** to the hosts it can hold on — `["linux",
+"macos"]`, say. No case uses it: naming a POSIX utility was the only reason to,
+and the companions removed it. It stays because the next case that genuinely
+cannot hold on a host should say so rather than be quietly deleted, but reach
+for a companion first. **A gated case is a case two hosts of the three never
+run**, so gating to make a run green is the one use that is never right.
 
 ## Writing an expectation you cannot spell
 
