@@ -202,6 +202,8 @@ package body Adash.Messages is
             return "error.terminate_outside_select";
          when Msg_Ambiguous_Literal =>
             return "error.ambiguous_literal";
+         when Msg_Raise_Outside_A_Handler =>
+            return "error.raise_outside_a_handler";
          when Msg_Empty_Priority_Range =>
             return "error.empty_priority_range";
          when Msg_Restriction_Broken =>
@@ -987,7 +989,8 @@ package body Adash.Messages is
             return [N ("found")];
 
          when Msg_Select_Alternative | Msg_Select_Waits_Twice
-            | Msg_Select_Trigger | Msg_Terminate_Outside_Select =>
+            | Msg_Select_Trigger | Msg_Terminate_Outside_Select
+            | Msg_Raise_Outside_A_Handler =>
             return Placeholder_Names'(1 .. 0 => <>);
 
          when Msg_Discriminants_Need_A_Type | Msg_Nothing_To_Constrain

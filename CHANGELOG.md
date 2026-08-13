@@ -268,6 +268,15 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **A program declares its own exceptions and raises them.** `Wrong_Kind :
+  exception;` declares a name, `raise Wrong_Kind;` raises it, a handler naming
+  it catches it, and `raise;` inside a handler passes on what that handler
+  caught. The five the machine raises for itself may be raised by name too. An
+  exception has no type, no value and no storage -- what it is is a name, which
+  is what a raise and a handler have always agreed on, so the existing
+  text-comparison mechanism did the work. A program's own exception carries no
+  detail, and the declaration is carried between submissions the way a type is.
+  Not `raise ... with "a message";`: nothing here can read one back.
 - The sweep continued into the prose around those lists and found two more
   contradictions, both in the section that describes what the language does
   now: `ROADMAP.md` said this shell does not have persistence -- a definition

@@ -58,7 +58,8 @@ What the language has: the five scalar and string types, with a String that can
 be indexed, sliced and measured; declarations,
 assignment and the operators; `if`, `case`, `while`, `for`, bare `loop` with
 `exit`, and `return`; `for I in reverse L .. H`; membership, `X in L .. H` and
-`X not in L .. H`; `declare ... begin ... end;` blocks with exception handlers; subprograms with `in`, `out` and
+`X not in L .. H`; `declare ... begin ... end;` blocks with exception handlers, `Wrong_Kind :
+exception;` and `raise`; subprograms with `in`, `out` and
 `in out` parameters, recursion,
 nesting, overloading, named arguments, default parameters and separate
 specifications; `'Image`; Ada 2022 interpolated
@@ -160,10 +161,9 @@ first.
 
 What the subset leaves out, deliberately: access types, composites inside
 composites, derived types, generic packages and generic formals that are not
-types, child packages and `private` parts, user-declared exceptions and the
-`raise` statement, `goto` and labels, `renames`, loop names, user-defined
-operators, `for ... of`, and representation clauses. `ROADMAP.md` says why for
-each.
+types, child packages and `private` parts, a message attached to a raise,
+`goto` and labels, `renames`, loop names, user-defined operators, `for ... of`,
+and representation clauses. `ROADMAP.md` says why for each.
 
 A construct may be written across as many lines as it takes: the shell asks for
 more until the grammar says the program is whole, and a mistake is reported at

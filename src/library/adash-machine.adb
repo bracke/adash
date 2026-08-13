@@ -2626,6 +2626,10 @@ package body Adash.Machine is
                   end if;
                end;
 
+            when Raise_Named =>
+               Fail (Raised,
+                     To_String (Item.Texts (Positive (Here.Operand))));
+
             when Raise_No_Return =>
                Fail (Raised, "Program_Error", M.Msg_Machine_No_Return_Value);
 

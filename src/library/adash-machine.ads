@@ -738,6 +738,11 @@ package Adash.Machine is
       --  been looked at.
       Raise_Again,
 
+      --  Raise what the program named. Operand is which text, and there is no
+      --  detail: a program's own exception says what its name says, where the
+      --  machine's own carry a message saying what went wrong.
+      Raise_Named,
+
       --  Stop. The program is over and whatever it produced stands.
       Halt);
 

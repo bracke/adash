@@ -520,3 +520,78 @@ requirement = "Leaving out a parameter with no default is a wrong call however i
 script = "procedure Note (Text : String) is begin put_line (Text); end Note; Note; quit (0);"
 exit_status = 0
 diagnostics = ["!error.wrong_argument_count{name=Note,expected= 1,found= 0}!"]
+
+[[case]]
+id = "exceptions.a-program-may-declare-and-raise-its-own"
+requirement = """
+`Wrong_Kind : exception;` declares a name, `raise Wrong_Kind;` raises it, and a
+handler naming it catches it. An exception has no type, no value and no
+storage: what it is is a name, which is what a raise and a handler agree on.
+"""
+script = "Wrong_Kind : exception; begin put_line (\"about to raise\"); raise Wrong_Kind; put_line (\"never\"); exception when Wrong_Kind => put_line (\"caught the program's own\"); end; put_line (\"and carried on\");\nquit (0);"
+exit_status = 0
+output = ["about to raise", "caught the program's own", "and carried on"]
+diagnostics = []
+
+[[case]]
+id = "exceptions.and-it-travels-out-of-a-subprogram"
+requirement = "A raise leaves the subprogram it was written in and every one between, the way the machine's own exceptions do -- there is nothing special about a program's."
+script = "Bad_Input : exception; procedure Check (N : Integer) is begin if N < 0 then raise Bad_Input; end if; put_line (\"checked\" & N'Image); end Check; begin Check (1); Check (-1); put_line (\"never\"); exception when others => put_line (\"others caught it\"); end;\nquit (0);"
+exit_status = 0
+output = ["checked 1", "others caught it"]
+diagnostics = []
+
+[[case]]
+id = "exceptions.a-handler-takes-the-one-it-names"
+requirement = "Naming is naming: a handler for another exception does not run, and one naming this exception does. A predefined exception may be raised by name as well."
+script = "Bad_Input : exception; begin raise Bad_Input; exception when Constraint_Error => put_line (\"wrong\"); when Bad_Input => put_line (\"named handler ran\"); end; begin raise Constraint_Error; exception when Constraint_Error => put_line (\"a predefined one too\"); end;\nquit (0);"
+exit_status = 0
+output = ["named handler ran", "a predefined one too"]
+diagnostics = []
+
+[[case]]
+id = "exceptions.and-a-bare-raise-passes-it-outward"
+requirement = """
+`raise;` inside a handler raises again what that handler caught, so an outer
+one still sees it. Its own guard is already gone, which is what keeps a handler
+from catching what it raises.
+"""
+script = "Bad_Input : exception; begin begin raise Bad_Input; exception when Bad_Input => put_line (\"inner saw it\"); raise; end; exception when Bad_Input => put_line (\"outer caught the re-raise\"); end;\nquit (0);"
+exit_status = 0
+output = ["inner saw it", "outer caught the re-raise"]
+diagnostics = []
+
+[[case]]
+id = "exceptions.an-uncaught-one-is-reported-by-name"
+requirement = """
+Nobody handled it, so the program says which was raised and stops. A program's
+own exception carries no detail -- what it says is what its name says, where
+the machine's own carry a message saying what went wrong.
+"""
+script = "Boom : exception; raise Boom;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.program_raised{exception=Boom}!"]
+
+[[case]]
+id = "exceptions.and-what-is-not-one-is-refused"
+requirement = """
+Only a name that denotes an exception may be raised or handled, and `raise;` on
+its own belongs inside a handler that caught something. A handler for what
+cannot happen is almost always a misremembered name.
+"""
+script = "raise Never_Declared;\nraise;\nX : Integer := 1; raise X;\nbegin null; exception when X => null; end;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_an_exception{name=Never_Declared}!",
+  "!error.raise_outside_a_handler!",
+  "!error.not_an_exception{name=X}!",
+  "!error.not_an_exception{name=X}!",
+]
+
+[[case]]
+id = "exceptions.and-the-name-is-there-on-the-next-line"
+requirement = "An exception declared at the prompt is carried to the next submission the way a type is: there is no value to hand back, and a raise on the next line has to find the same name a handler will."
+script = "Boom : exception;\nbegin raise Boom; exception when Boom => put_line (\"carried across submissions\"); end;\nquit (0);"
+exit_status = 0
+output = ["carried across submissions"]
+diagnostics = []

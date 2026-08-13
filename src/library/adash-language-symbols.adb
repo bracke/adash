@@ -316,7 +316,7 @@ package body Adash.Language.Symbols is
 
          when Symbol_Constant | Symbol_Literal | Symbol_Function
             | Symbol_Procedure | Symbol_Entry | Symbol_Type | Symbol_Package
-            | Symbol_Generic =>
+            | Symbol_Generic | Symbol_Exception =>
             return False;
       end case;
    end Is_Assignable;
@@ -337,7 +337,7 @@ package body Adash.Language.Symbols is
 
          when Symbol_Variable | Symbol_Constant | Symbol_Literal
             | Symbol_Parameter | Symbol_Type | Symbol_Package
-            | Symbol_Generic =>
+            | Symbol_Generic | Symbol_Exception =>
             --  A generic is not callable. What is callable is what an
             --  instantiation of it declared, which is an ordinary subprogram.
             return False;

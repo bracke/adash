@@ -73,7 +73,13 @@ package Adash.Language.Symbols is
       --  where a type is expected and nowhere else -- `X : Integer` is legal
       --  and `X := Integer` is not, and telling them apart needs this to be a
       --  kind rather than a convention about which names are types.
-      Symbol_Type);
+      Symbol_Type,
+
+      --  An exception a program declared. It has no type and no storage: what
+      --  it is is a name, and what a raise and a handler agree on is that
+      --  name -- which is why the machine carries a raised exception as text
+      --  rather than as a number nobody could read back.
+      Symbol_Exception);
 
    --  Largest number of parameters a declared subprogram may have.
    --

@@ -309,6 +309,15 @@ package Adash.Language.Syntax is
       --  *until* the next tenth does not.
       Node_Delay,
 
+      --  `Wrong_Kind : exception;`. One child: the name. What it declares is
+      --  a name a raise and a handler can agree on, and nothing else -- an
+      --  exception has no type, no value and no storage.
+      Node_Exception_Declaration,
+
+      --  `raise Wrong_Kind;` and `raise;`. One child, or none: what to raise,
+      --  where a bare one raises again what the handler it stands in caught.
+      Node_Raise,
+
       --  `terminate;` as an alternative of a selective accept. No children:
       --  what it says is that this task has nothing more to do if nobody will
       --  ever call it again, and everything that decides whether that is so

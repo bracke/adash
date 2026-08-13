@@ -1625,6 +1625,29 @@ results carried back. And a caller whose deadline has passed is no longer there
 to be taken -- an acceptor that arrives late finds the queue empty rather than
 meeting somebody who has already given up.
 
+**A program declares its own exceptions and raises them.** `Wrong_Kind :
+exception;`, `raise Wrong_Kind;`, a handler naming it, and `raise;` inside a
+handler to pass on what it caught. The five the machine raises for itself may
+be raised by name too.
+
+It cost less than it looks because the mechanism was already name-based. A
+handler compares the raised name as *text* -- that is how `when Constraint_Error
+=>` has always worked -- so a user's exception is a name the analyser admits
+and the same comparison finds. `Raise_Named` carries which text; there is no
+detail, and that is the difference a reader sees: the machine's own exceptions
+carry a message saying what went wrong, a program's says what its name says.
+
+`raise;` re-raises what the enclosing handler caught, from the two slots the
+handler already kept it in for the fall-through case -- the path that passes an
+unmatched exception outward. Nested handlers put their outer pair back
+afterwards, so a handler inside a handler raises again what *it* caught. Outside
+a handler there is nothing to raise again, and that is refused by name rather
+than lowered into something that would raise whatever happened to be in a slot.
+
+An exception declaration is carried between submissions the way a type is:
+there is no value to hand back, and a raise typed on the next line has to find
+the same name a handler will.
+
 **`or terminate;`** is how a server task ends, and it was the one shape of
 Ada's tasking a script could not write: a task that serves callers in a loop
 had no way to stop, so the idiom every Ada program uses for a server ended here
@@ -2769,13 +2792,10 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   rather than on the language.
 - **At most fifteen tasks at once**, each with a fixed region of the machine's
   slots and stack.
-- **No user-declared exceptions and no `raise` statement.** The five this build
-  raises -- `Constraint_Error`, `Program_Error`, `Storage_Error`,
-  `Tasking_Error` and `Index_Error` -- are what the machine can raise, and a
-  handler naming anything else is refused rather than never running. The list a
-  handler may name is exactly the list the machine raises, which is a property
-  worth stating because it was once untrue: `Tasking_Error` was raised and
-  could not be caught. A script reports a
+- **No `raise ... with "a message";`.** Ada attaches a string to the
+  occurrence and a handler reads it back with `Exception_Message`; this
+  language has no way to read one back, so the string would be written and
+  never seen. A program's own exception says what its name says. A script reports a
   failure by exiting with a status, which is what a shell script is read by.
 - **No `goto` and no statement labels.** A submission is short by nature, and a
   jump into the middle of one is a thing to read twice.

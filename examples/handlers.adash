@@ -62,3 +62,53 @@ exception
 end;
 
 put_line ("and the program carried on");
+
+--  A program may declare exceptions of its own and raise them. An exception
+--  has no type, no value and no storage: what it is is a *name*, and a raise
+--  and a handler agreeing on that name is the whole of the mechanism. The five
+--  the machine raises for itself -- Constraint_Error, Program_Error,
+--  Storage_Error, Tasking_Error, Index_Error -- may be raised by name too.
+Wrong_Kind : exception;
+
+function Weigh (What : String) return Integer is
+begin
+   if What = "" then
+      --  Better than a status nobody checks: a caller that forgot to handle
+      --  this stops, where a returned -1 would be passed on and arithmetic
+      --  done with it.
+      raise Wrong_Kind;
+   end if;
+
+   return What'Length;
+end Weigh;
+
+begin
+   put_line ("weighed " & Trim (Weigh ("abc")'Image));
+   put_line ("weighed " & Trim (Weigh ("")'Image));
+exception
+   when Wrong_Kind =>
+      put_line ("nothing to weigh");
+end;
+
+--  `raise;` inside a handler raises again what that handler caught, so an
+--  outer one still sees it. What it does not do is catch what it raised: the
+--  handler's own guard is gone by the time its statements run, which is the
+--  same rule that lets a handler report and pass a failure on.
+begin
+   begin
+      raise Wrong_Kind;
+   exception
+      when Wrong_Kind =>
+         put_line ("noticed here");
+         raise;
+   end;
+exception
+   when Wrong_Kind =>
+      put_line ("and answered for further out");
+end;
+
+--  What is deliberately not here: `raise Wrong_Kind with "a message";`. Ada
+--  attaches a string to the occurrence, and a handler reads it back with
+--  Exception_Message. This language has no way to read one back, so the string
+--  would be written and never seen -- and a message that nothing can read is
+--  worse than none.

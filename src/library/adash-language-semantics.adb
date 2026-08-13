@@ -636,6 +636,13 @@ package body Adash.Language.Semantics is
       --  What each restriction that carries a number was given.
       Limits : array (Restriction) of Natural := [others => 0];
 
+      --  How many handlers enclose what is being analysed.
+      --
+      --  A bare `raise` raises again what was caught, so it needs something to
+      --  have been caught: outside a handler there is nothing, and Ada refuses
+      --  it there for that reason rather than for a syntactic one.
+      Handler_Depth : Natural := 0;
+
       --  How many regions that make a master enclose what is being analysed.
       --
       --  A task declared where this is not zero depends on something other
@@ -4646,6 +4653,60 @@ package body Adash.Language.Semantics is
                   Note (Node, Types.Type_None);
                end;
 
+            when S.Node_Exception_Declaration =>
+               declare
+                  Named : constant S.Node_Id := S.First (Tree, Node);
+                  Name  : constant String := S.Text (Tree, Named);
+                  Error : Adash.Errors.Error_Info;
+               begin
+                  if not Chain.Declare_Symbol
+                    (Symbols.Make
+                       (Full_Name (Name), Symbols.Symbol_Exception,
+                        Types.Type_None, Origin, S.Extent (Tree, Named)),
+                     Error)
+                  then
+                     Legal := False;
+                     Report.Emit
+                       (D.From_Error
+                          (Error, D.Severity_Error, D.Category_Semantic,
+                           D.Owner_Language, Origin, S.Extent (Tree, Named)));
+                  end if;
+
+                  Note (Node, Types.Type_None);
+                  Note (Named, Types.Type_None);
+               end;
+
+            when S.Node_Raise =>
+               declare
+                  What : constant S.Node_Id := S.First (Tree, Node);
+               begin
+                  if not S.Is_Present (What) then
+                     --  `raise;` alone, which raises again what the handler it
+                     --  stands in caught. Outside one there is nothing to
+                     --  raise again, and Ada says so.
+                     if Handler_Depth = 0 then
+                        Complain
+                          (Adash.Errors.Error_Raise_Outside_A_Handler, Node,
+                           Adash.Messages.No_Arguments);
+                     end if;
+
+                  elsif not Adash.Predefined.Is_Exception
+                              (S.Text (Tree, What))
+                    and then Symbols."/=" (Symbols.Kind
+                                             (Visible (S.Text (Tree, What))),
+                                           Symbols.Symbol_Exception)
+                  then
+                     Complain
+                       (Adash.Errors.Error_Not_An_Exception, What,
+                        [1 => Adash.Messages.Named
+                                ("name", S.Text (Tree, What))]);
+                  else
+                     Note (What, Types.Type_None);
+                  end if;
+
+                  Note (Node, Types.Type_None);
+               end;
+
             when S.Node_Terminate =>
                --  Reached as a statement rather than through the select that
                --  would give it a meaning. What it says is about a task with
@@ -6689,6 +6750,10 @@ package body Adash.Language.Semantics is
 
                      elsif not Adash.Predefined.Is_Exception
                                  (S.Text (Tree, Which))
+                       and then Symbols."/=" (Symbols.Kind
+                                                (Visible (S.Text (Tree,
+                                                                  Which))),
+                                              Symbols.Symbol_Exception)
                      then
                         Complain
                           (Adash.Errors.Error_Not_An_Exception, Which,
@@ -6698,7 +6763,9 @@ package body Adash.Language.Semantics is
                   end;
                end loop;
 
+               Handler_Depth := Handler_Depth + 1;
                Analyse_Sequence (S.Second (Tree, One));
+               Handler_Depth := Handler_Depth - 1;
             end;
          end loop;
       end Analyse_Handlers;

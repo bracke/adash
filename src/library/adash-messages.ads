@@ -165,6 +165,7 @@ package Adash.Messages is
       Msg_Queuing_Twice,
       Msg_Terminate_Outside_Select,
       Msg_Ambiguous_Literal,
+      Msg_Raise_Outside_A_Handler,
       Msg_Empty_Priority_Range,
       Msg_Restriction_Broken,
       Msg_Priority_Not_Static,

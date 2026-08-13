@@ -338,6 +338,9 @@ package Adash.Errors is
       --  says which is meant.
       Error_Ambiguous_Literal,
 
+      --  `raise;` where nothing was caught to raise again.
+      Error_Raise_Outside_A_Handler,
+
       --  A range of priorities that runs backwards, so names none.
       Error_Empty_Priority_Range,
 

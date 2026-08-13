@@ -755,6 +755,14 @@ package body Adash.Engine is
                                        | S.Node_Protected_Declaration
                                        | S.Node_Protected_Body
                                        | S.Node_Task_Declaration
+
+                                       --  An exception is a name and nothing
+                                       --  else, so what is carried is the
+                                       --  declaration that makes the name --
+                                       --  there is no value to hand back, and
+                                       --  a raise on the next line has to
+                                       --  find the same name a handler will.
+                                       | S.Node_Exception_Declaration
               or else (S.Kind (Tree, Node) = S.Node_Task_Body
                        and then Declares_Task_Type
                                   (S.Text (Tree, S.First (Tree, Node))))

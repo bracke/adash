@@ -856,6 +856,33 @@ package body Adash.Language.Parser is
             end;
          end if;
 
+         --  raise [name];
+         if Is_Word (T.Word_Raise) then
+            Advance;
+
+            declare
+               What : S.Node_Id := S.No_Node;
+            begin
+               --  A name and nothing else: an exception is a name, so there is
+               --  no expression to parse and nothing an expression would add.
+               if T.Kind (Current) = T.Token_Identifier then
+                  What := S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
+                  Advance;
+               end if;
+
+               declare
+                  Ignored : constant Boolean :=
+                    Expect_Symbol (T.Delim_Semicolon);
+                  pragma Unreferenced (Ignored);
+               begin
+                  return S.Add_Node
+                    (Into, S.Node_Raise,
+                     Adash.Source.Join (Start, Just_Consumed),
+                     [1 => What]);
+               end;
+            end;
+         end if;
+
          --  terminate;  -- only ever an alternative of a selective accept,
          --  which is where the analyser holds it to.
          if Is_Word (T.Word_Terminate) then
@@ -2738,6 +2765,25 @@ package body Adash.Language.Parser is
             begin
                Advance;  --  the name
                Advance;  --  the colon
+
+               --  `Wrong_Kind : exception;` -- a declaration with the shape of
+               --  an object's and nothing else in common: no type, no value,
+               --  no storage. Told apart by the one word that can stand where
+               --  a type mark would.
+               if Is_Word (T.Word_Exception) then
+                  Advance;
+
+                  declare
+                     Ignored : constant Boolean :=
+                       Expect_Symbol (T.Delim_Semicolon);
+                     pragma Unreferenced (Ignored);
+                  begin
+                     return S.Add_Node
+                       (Into, S.Node_Exception_Declaration,
+                        Adash.Source.Join (Start, Just_Consumed),
+                        [1 => Name]);
+                  end;
+               end if;
 
                if Is_Word (T.Word_Constant) then
                   Is_Const := True;

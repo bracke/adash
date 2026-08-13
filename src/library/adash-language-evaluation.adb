@@ -797,6 +797,12 @@ package body Adash.Language.Evaluation is
       procedure Emit_Survivors;
       procedure Emit_Handlers (Handlers : S.Node_Id);
 
+      --  Where the exception a handler caught is kept, while that handler's
+      --  statements are being lowered. Zero outside one, which is what the
+      --  analyser has already refused a bare `raise` for.
+      Caught_Named  : Natural := 0;
+      Caught_Detail : Natural := 0;
+
       --  Whether the machine answers this one itself, and with what.
       --
       --  A predefined function is answered by the shell unless it is something
@@ -4468,6 +4474,12 @@ package body Adash.Language.Evaluation is
       --  an exception nobody answered for must not be lost by having been
       --  looked at.
       procedure Emit_Handlers (Handlers : S.Node_Id) is
+         --  What this handler caught, and what a `raise;` inside it raises
+         --  again. Kept while its statements are lowered and put back after,
+         --  so a handler inside a handler raises again what *it* caught.
+         Outer_Named  : constant Natural := Caught_Named;
+         Outer_Detail : constant Natural := Caught_Detail;
+
          Named  : constant Natural := New_Temporary;
          Detail : constant Natural := New_Temporary;
          Total  : constant Natural := S.Child_Count (Tree, Handlers);
@@ -4524,7 +4536,11 @@ package body Adash.Language.Evaluation is
                   Emit_1 (VM.Jump_If_False, 0);
                end if;
 
+               Caught_Named  := Named;
+               Caught_Detail := Detail;
                Emit_Sequence (S.Second (Tree, One));
+               Caught_Named  := Outer_Named;
+               Caught_Detail := Outer_Detail;
 
                Departures := Departures + 1;
                Leaving (Departures) := Here;
@@ -4854,6 +4870,35 @@ package body Adash.Language.Evaluation is
          case S.Kind (Tree, Node) is
             when S.Node_Null_Statement =>
                null;
+
+            when S.Node_Exception_Declaration =>
+               --  Nothing to emit. An exception is a name a raise and a
+               --  handler agree on, and both of them carry it as text.
+               null;
+
+            when S.Node_Raise =>
+               declare
+                  What : constant S.Node_Id := S.First (Tree, Node);
+               begin
+                  if S.Is_Present (What) then
+                     Emit_1 (VM.Raise_Named,
+                             VM.Whole_Number
+                               (Code.Text_Literal (S.Text (Tree, What))));
+
+                  elsif Caught_Named = 0 then
+                     --  Refused by the analyser, so reaching here is a defect
+                     --  rather than a program's mistake.
+                     Refuse (Node, Adash.Messages.Msg_Lower_This_Statement);
+
+                  else
+                     --  What this handler caught, raised again from where the
+                     --  handler is: its own guard is already gone, so an
+                     --  outer one catches it.
+                     Emit_2 (VM.Load, 0, VM.Whole_Number (Caught_Named));
+                     Emit_2 (VM.Load, 0, VM.Whole_Number (Caught_Detail));
+                     Emit (VM.Raise_Again);
+                  end if;
+               end;
 
             when S.Node_Generic_Declaration =>
                --  Nothing to emit. A generic is a template; what runs is what
