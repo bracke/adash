@@ -1,38 +1,75 @@
 # Package map
 
-Every package that exists today, its owning subsystem, and what it depends on.
-`repository.toml` is the authoritative inventory; this document explains it.
-`adash_check` verifies that the two agree with the filesystem in both
-directions.
+Every package that exists, its owning subsystem, and what it depends on.
+`repository.toml` is the authoritative inventory and `adash_check` verifies that
+it agrees with the filesystem in both directions; this document explains the
+shape that inventory has.
+
+Fifty-four packages in the shell crate, in nineteen subsystems. What makes them
+readable as a whole is that the dependencies point one way: a package depends on
+what is below it and never on what is above, and no two subsystems depend on
+each other.
 
 ## Shell crate (`adash`)
 
-```
-Adash                          (root, no state, no behaviour)
- |
- +- Adash.Version              -> Adash_Config
- |
- +- Adash.Messages             -> Ada.Strings.Unbounded
- |   |
- |   +- Adash.Messages.Rendering
- |                             -> messages (Runtime, Arguments, Result)
- |                             -> hostkit (Fs, Host)
- |                             -> Ada.Environment_Variables
- |
- +- Adash.Terminal             -> terminal_styles
-                               -> hostkit (Host)
-```
+### Foundations — no Adash package below them
 
-| Package | Subsystem | Depends on | Depended on by |
-|---|---|---|---|
-| `Adash` | root | — | everything |
-| `Adash.Version` | root | `Adash_Config` | the main |
-| `Adash.Messages` | messages | — | `Rendering`, the main, tooling |
-| `Adash.Messages.Rendering` | messages | `messages`, `hostkit` | the main, tooling |
-| `Adash.Terminal` | terminal | `terminal_styles`, `hostkit` | the main, tooling |
+| Package | Depends on outside Adash |
+|---|---|
+| `Adash` | — (root: no state, no behaviour) |
+| `Adash.Version` | `Adash_Config` |
+| `Adash.Source` | — |
+| `Adash.Diagnostics` | — |
+| `Adash.Errors` | — |
+| `Adash.Messages` | — |
+| `Adash.Messages.Rendering` | `messages`, `hostkit` |
+| `Adash.Terminal` | `terminal_styles`, `hostkit` |
+| `Adash.Display_Width` | — |
+| `Adash.Platform` | `hostkit` |
+| `Adash.Filesystem` | `hostkit` |
 
-No cycles. Dependencies point downward: `Rendering` depends on its parent
-`Messages`, never the reverse; nothing in the foundations depends on the main.
+### The language
+
+`Adash.Language` and ten children: `Tokens`, `Lexer`, `Syntax`, `Parser`,
+`Values`, `Types`, `Symbols`, `Scopes`, `Semantics`, `Evaluation`. None of them
+reaches outside Adash at all -- the language subsystem knows nothing about the
+operating system, and that is deliberate: what differs because the host differs
+belongs to `hostkit`, reached through `Adash.Platform`.
+
+`Adash.Machine` is the virtual machine the evaluation lowers to. It is its own
+subsystem rather than a child of the language, because what it executes is
+instructions rather than syntax, and nothing above it may reach into it.
+
+`Adash.Predefined` names what a program can call without declaring it.
+
+### Running things
+
+| Subsystem | Packages | Outside Adash |
+|---|---|---|
+| `Adash.Execution` | and `Cancellation`, `Commands`, `Environment`, `External`, `Internal_Commands`, `Jobs`, `Pipelines`, `Redirection`, `Signals`, `Streams` | `hostkit` |
+| `Adash.Commands` | and `Builtins` | `hostkit` |
+| `Adash.Engine` | — | `hostkit` |
+| `Adash.Scripting` | and `Modules`, `Startup` | `hostkit` |
+
+`Adash.Engine` is the one place a submission becomes a run: it holds what a
+session carries from one submission to the next, and everything else in this
+group is reached through it.
+
+### The session a user sees
+
+| Subsystem | Packages | Outside Adash |
+|---|---|---|
+| `Adash.Interactive` | and `Completion`, `Editing`, `Highlighting`, `History`, `Notifications`, `Prompt`, `Session` | `hostkit` |
+| `Adash.Persistence` | and `History` | `hostkit`, `jsonlib` |
+| `Adash.Configuration` | and `Files`, `Migration` | `tomllib` |
+
+Each of the three consumer crates appears in exactly one place: `jsonlib` in
+persistence, `tomllib` in configuration, `terminal_styles` in the terminal. A
+second reader for either format anywhere else would be the defect the rule
+exists to prevent.
+
+No cycles. Dependencies point downward, and nothing in the foundations depends
+on anything above it.
 
 ### Why `Adash.Messages.Rendering` is where it is
 
@@ -60,12 +97,22 @@ Adash_Tests                    (root, no state, no behaviour)
  +- Adash_Tests.Repository     -> Adash.Messages
  |                             -> project_tools (Files, Text, TOML)
  |
- +- Adash_Tests.Suite          -> the cases below
-     +- Adash_Tests.Version_Cases      -> Adash.Version
-     +- Adash_Tests.Message_Cases      -> Adash.Messages(.Rendering)
-     +- Adash_Tests.Terminal_Cases     -> Adash.Terminal
-     +- Adash_Tests.Repository_Cases   -> Adash_Tests.Repository
+ +- Adash_Tests.Conformance    -> Adash.Engine, project_tools (TOML)
+ |
+ +- Adash_Tests.Suite          -> the case packages
 ```
+
+Twenty-one case packages, one per subsystem they exercise: `Command`,
+`Configuration`, `Conformance`, `Engine`, `Evaluation`, `Execution`,
+`Filesystem`, `Interactive`, `Language`, `Lexer`, `Machine`, `Message`,
+`Parser`, `Persistence`, `Predefined`, `Repository`, `Scripting`, `Semantics`,
+`Source`, `Terminal`, `Version`.
+
+Four binaries come out of this crate: `adash_tests` runs the AUnit suite,
+`adash_conformance` runs the cases in `conformance/cases/`, `adash_check` runs
+the repository checks, and `adash_bench` measures. Two more, `adash_test_emit`
+and `adash_test_upcase`, exist to be *run by* tests that need a child process
+with known behaviour.
 
 Mains are thin and hold no logic: `adash_tests_main` runs the suite,
 `adash_check_main` renders what `Adash_Tests.Repository` found. The checks live
@@ -77,11 +124,11 @@ Nothing in this crate is reachable from the `adash` binary. AUnit and
 `project_tools` are development dependencies and must never become dependencies
 of the thing users install.
 
-## Packages that do not exist yet
 
-`ARCHITECTURE.md` lists the full intended hierarchy — `Adash.Source`,
-`Adash.Diagnostics`, `Adash.Errors`, the `Adash.Language.*` family,
-`Adash.Engine`, `Adash.Execution.*`, `Adash.Commands.*`, `Adash.Predefined.*`,
-`Adash.Interactive.*`, `Adash.Scripting.*`, `Adash.Persistence.*`,
-`Adash.Configuration` and `Adash.Platform`. None of them exists yet, and none is
-stubbed. `ROADMAP.md` gives the order.
+## What the inventory is for
+
+`repository.toml` lists every package and its owner; `adash_check` fails if a
+source file exists that the inventory does not name, or the reverse. That is
+what keeps this document honest about *what exists*. What it cannot check is the
+prose here, so the prose says as little as it can get away with and points at
+the inventory for the rest.

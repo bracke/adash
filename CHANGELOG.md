@@ -268,6 +268,19 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- The sweep reached `docs/`. `package-map.md` opened with "every package that
+  exists today" and named 18 of 54, closing with a list of subsystems that "do
+  not exist yet" -- the language, the machine, execution, the interactive
+  session, all of which have existed for a long time. It is rewritten from the
+  sources: every package, its subsystem, and which crate it reaches outside
+  Adash for, with the two essays that were still true kept. `test-guide.md`
+  described two tools where there are four, and listed a coverage that predated
+  the conformance suite; it now says what each of the four covers, and that
+  `alr test` runs only the AUnit suite. `docs/README.md` framed fourteen
+  reference documents as scheduled by phase when all sixteen phases are
+  complete: they are owed, not pending, and it says so. `benchmark-guide.md`
+  and `RELEASE.md` were checked against what the tools actually print and do,
+  and needed nothing.
 - The sweep reached the shell-facing examples. Every claim in them was run:
   standard error is not collected, only the trailing newline is dropped, an
   argument with a space in it is one argument, an unset variable reads empty, an

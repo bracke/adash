@@ -5,12 +5,20 @@
 ```
 cd adash_tests
 alr build
-./bin/adash_tests      # AUnit suite
-./bin/adash_check      # repository invariants
+./bin/adash_tests        # AUnit suite
+./bin/adash_conformance  # the cases in conformance/cases/, against the binary
+./bin/adash_check        # repository invariants
+./bin/adash_bench        # what things cost
 ```
 
-Both exit non-zero on failure. `alr test` from the repository root runs the
-suite through the manifest's test action.
+Each exits non-zero on failure. A change is not finished until all four are
+green and both crates build without a style warning.
+
+`alr test` from the repository root runs **only** the AUnit suite -- that is
+what the manifest's test action does -- so it is not the same as the four above.
+The conformance suite runs the built `adash` binary against recorded cases, and
+a manifest action that built the shell to test the shell would be a different
+kind of thing; it is run by hand and by CI instead.
 
 Run them from `adash_tests/`. The suite reads the repository catalog and the
 repository root by relative path — `../resources/messages/catalog.txt` and `..`
@@ -75,18 +83,29 @@ The examples in place today:
   the number of checks executed, so a checker that silently found no files to
   look at cannot report a clean repository.
 
-## What the two tools cover
+## What the four tools cover
 
-`adash_tests` covers behaviour: version derivation, message identifier
-uniqueness and well-formedness, catalog rendering including argument
-substitution, the degradation path when the catalog is absent, styling policy
-across every role and destination, and the repository checks themselves.
+`adash_tests` covers behaviour, one case package per subsystem: the source
+model and diagnostics, every stage of the language -- lexer, parser, semantics,
+evaluation -- the machine, execution and commands, the engine, the interactive
+session, persistence, configuration, predefined entities, messages and styling,
+and the repository checks themselves.
+
+`adash_conformance` covers the language and the shell *as a user meets them*:
+each case is a submission and what it must print, exit with, and report. It
+compares message **identifiers** rather than English, so a case says which
+diagnostic was produced and not how it happened to be worded. The examples in
+`examples/` are cases too, each against its recorded output.
 
 `adash_check` covers structure: required files and directories, version
 agreement between `alire.toml` and `repository.toml`, the package inventory in
 both directions, catalog completeness for every message identifier, absence of
 hand-written terminal escapes, and absence of direct operating-system
 dependencies in shell source.
+
+`adash_bench` covers cost: what each stage of the pipeline takes, reported as a
+median and a fastest of many in-process runs. `benchmark-guide.md` says what its
+numbers are and are not.
 
 The overlap on the catalog is deliberate and the two checks are not the same.
 `adash_check` verifies textually that each key is present. The suite verifies
