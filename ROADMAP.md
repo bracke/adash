@@ -1312,6 +1312,30 @@ in the loop variable: a `Character` loop counts 0 .. 255 and the variable holds
 a Character, and writing the position into it would hand the body a number
 wearing a Character's name.
 
+**An attribute is a value known before the program runs.** `Integer'Last`,
+`Verdict'First`, `Colour'Succ (Red)`, `Integer'Pos (7)` and `Integer'Size`
+answer from the declaration, and nothing between there and running can change
+what they answer -- which is what Ada calls static, and what a case choice, a
+subtype bound and an aggregate's index each require.
+
+They were not read as static, so a program that named the type it meant was
+refused and had to write the number instead. One function answers this question
+for the whole front end, so teaching it attributes paid three times over.
+
+An array's `'First`, `'Last` and `'Length` are its *index range* -- where its
+values sit rather than what they are -- so they are answered from the array
+rather than from the type of the answer, which is Integer and would have said
+the whole of it. A String's are not known before it runs, and are not static.
+
+Doing it found a defect it could not have found before, because nothing could
+write the program that triggers it: **a case naming the whole of `Integer`
+ended the analyser rather than the program.** The coverage count adds up how
+many values each choice spans, and the span from the first value to the last is
+one wider than the largest number there is -- as is the difference between its
+ends, which is where a first attempt at guarding it overflowed in turn. The
+count saturates now, which is enough: all it is for is a comparison against how
+many values the type has.
+
 **An aggregate names its parts, and `others` answers for the rest.** `(1 => 7,
 2 => 8)` fills an array by index the way `(A => 1)` fills a record by
 component, and `(1 => 1, others => 0)` gives every part nothing else named.

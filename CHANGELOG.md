@@ -268,6 +268,17 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **An attribute is a value known before the program runs.** `Integer'Last`,
+  `Verdict'First`, `Colour'Succ (Red)`, `Integer'Pos (7)` and `Integer'Size`
+  may now stand where a case choice, a subtype bound or an aggregate's index
+  stands. One function answers that question for the whole front end, so it
+  paid three times over. An array's `'First`, `'Last` and `'Length` answer
+  about its index range; a String's are not static.
+- **A case naming the whole of `Integer` ended the analyser rather than the
+  program.** Counting how many values the choices covered overflowed on a span
+  one wider than the largest number there is. The count saturates now. Nothing
+  could write that program until attributes became static, which is why it had
+  not been seen.
 - **The stale-claim sweep reached the examples.** Their code is run by the
   conformance suite; their prose is not, and three claims had drifted:
   `subprograms.adash` said this language does not overload on what a function

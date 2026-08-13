@@ -89,9 +89,13 @@ put_line (Sign_Of (3));
 put_line (Sign_Of (0));
 put_line (Sign_Of (0 - 3));
 
---  `when 1 .. Integer'Last =>` would say what the last alternative means, and
---  it is refused: a choice has to be a value this build knows before it runs,
---  and what it reads as one is a literal, a name it declared, or a range of
---  those -- an attribute is worked out later, however fixed its answer looks.
---  So `others` says it instead. That is a limitation of what counts as static
---  rather than of the case statement.
+--  `others` is one way to say "the rest". Naming the end is the other, and an
+--  attribute may say it: `Integer'Last` answers from the declaration, and
+--  nothing between there and running can change what it answers, so a choice
+--  may be written with one.
+Left_To_Do : Integer := 0;
+
+case Left_To_Do is
+   when Integer'First .. 0 => put_line ("nothing left to do");
+   when 1 .. Integer'Last  => put_line ("something is still queued");
+end case;

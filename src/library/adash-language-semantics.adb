@@ -2516,13 +2516,25 @@ package body Adash.Language.Semantics is
                                  Choice : constant S.Node_Id :=
                                    S.First (Tree, One);
                                  Where  : Long_Long_Integer;
+
+                                 --  Looked at before it is asked about: an
+                                 --  index may be written as an attribute --
+                                 --  `Counts'First` -- and what makes that a
+                                 --  value known before the program runs is
+                                 --  what it denotes.
+                                 Of_Choice : constant Types.Type_Kind :=
+                                   Analyse_Expression (Choice);
                               begin
                                  Naming := True;
                                  Value  := S.Second (Tree, One);
                                  Slot   := 0;
 
-                                 if not Static_Choice (Into, Tree, Choice,
-                                                       Where)
+                                 if Of_Choice = Types.Type_None then
+                                    --  Already reported as whatever it is.
+                                    Sound := False;
+
+                                 elsif not Static_Choice (Into, Tree, Choice,
+                                                          Where)
                                  then
                                     Complain
                                       (Adash.Errors.Error_Case_Choice_Not_Static,
@@ -6468,7 +6480,28 @@ package body Adash.Language.Semantics is
 
                      Count := Count + 1;
                      Spans (Count) := (Low => Low, High => High);
-                     Total := Total + (High - Low + 1);
+
+                     --  How many values this span covers, worked out without
+                     --  a number too big to hold at any step. `Integer'First
+                     --  .. Integer'Last` covers every value there is, and both
+                     --  its width and the difference between its ends are one
+                     --  more than the largest -- so a case that named the whole
+                     --  of Integer used to end the analyser rather than the
+                     --  program. Saturating is enough: what the count is for
+                     --  is a comparison against how many values the type has.
+                     declare
+                        Width : constant Long_Long_Integer :=
+                          (if Low <= 0
+                             and then High > Long_Long_Integer'Last + Low - 1
+                           then Long_Long_Integer'Last
+                           else High - Low + 1);
+                     begin
+                        if Width >= Long_Long_Integer'Last - Total then
+                           Total := Long_Long_Integer'Last;
+                        else
+                           Total := Total + Width;
+                        end if;
+                     end;
                   end Cover;
 
                   --  One choice: `others`, a range, or a value.
@@ -7358,6 +7391,50 @@ package body Adash.Language.Semantics is
       Value : out Long_Long_Integer) return Boolean
    is
       package S renames Syntax;
+
+      --  What a discrete type's ends are, when they are known without running
+      --  anything. A subtype's are its own; a base type's are what the shape
+      --  holds.
+      --
+      --  @param Of_Type The type asked about.
+      --  @param Lowest Which end.
+      --  @param Answer Where to put it.
+      --  @return Whether there is an answer.
+      function Ends_Of
+        (Of_Type : Types.Type_Kind;
+         Lowest  : Boolean;
+         Answer  : out Long_Long_Integer) return Boolean
+      is
+      begin
+         Answer := 0;
+
+         if Types.Has_Bounds (Of_Type) then
+            Answer :=
+              (if Lowest then Types.Low_Bound (Of_Type)
+               else Types.High_Bound (Of_Type));
+            return True;
+         end if;
+
+         case Types.Shape (Of_Type) is
+            when Types.Shape_Integer =>
+               --  The machine's own range, which is what an Integer holds
+               --  here -- and what the lowering pushes for the same question.
+               Answer :=
+                 (if Lowest then Long_Long_Integer'First
+                  else Long_Long_Integer'Last);
+               return True;
+
+            when Types.Shape_Boolean | Types.Shape_Character
+               | Types.Shape_Enumeration =>
+               Answer :=
+                 (if Lowest then 0 else Types.Value_Count (Of_Type) - 1);
+               return True;
+
+            when others =>
+               return False;
+         end case;
+      end Ends_Of;
+
    begin
       Value := 0;
 
@@ -7369,6 +7446,101 @@ package body Adash.Language.Semantics is
          when S.Node_Parenthesized =>
             --  Parentheses group and change nothing, here as everywhere.
             return Static_Choice (Item, Tree, S.First (Tree, Node), Value);
+
+         when S.Node_Attribute =>
+            --  `Integer'Last`, `Verdict'First`, `Colour'Size`. Ada calls these
+            --  static and so does this: what they answer is decided by the
+            --  declaration, and nothing between here and running can change
+            --  it. Without this a case choice, a subtype bound and an
+            --  aggregate's index each had to be written as a literal, and a
+            --  program that named the type it meant was refused.
+            declare
+               Asked : constant String :=
+                 Symbols.Fold (S.Text (Tree, S.Second (Tree, Node)));
+               Of_Prefix : constant Types.Type_Kind :=
+                 (if Symbols."=" (Symbols.Kind
+                                    (Symbol_Of (Item, S.First (Tree, Node))),
+                                  Symbols.Symbol_Type)
+                  then Symbols.Of_Type (Symbol_Of (Item, S.First (Tree, Node)))
+                  else Type_Of (Item, S.First (Tree, Node)));
+            begin
+               --  An array's ends are its *index range*, which is where its
+               --  values sit rather than what they are: `Samples'First` is
+               --  one where `Samples (1)` is an Integer. A String's are not
+               --  known before it runs, so they are not static.
+               if Types.Shape (Of_Prefix) = Types.Shape_Array
+                 and then Asked in "first" | "last" | "length"
+               then
+                  declare
+                     How_Many : constant Long_Long_Integer :=
+                       Long_Long_Integer (Part_Count (Item, Of_Prefix));
+                  begin
+                     if How_Many = 0 then
+                        return False;
+                     end if;
+
+                     Value :=
+                       (if Asked = "length" then How_Many
+                        elsif Asked = "first" then First_Index (Item, Of_Prefix)
+                        else First_Index (Item, Of_Prefix) + How_Many - 1);
+                     return True;
+                  end;
+
+               elsif Asked in "first" | "last" then
+                  return Ends_Of (Type_Of (Item, Node), Asked = "first",
+                                  Value);
+
+               elsif Asked = "size" then
+                  if Of_Prefix = Types.Type_None then
+                     return False;
+                  end if;
+
+                  Value := Long_Long_Integer (Types.Width (Of_Prefix));
+                  return True;
+               end if;
+
+               return False;
+            end;
+
+         when S.Node_Call =>
+            --  `Integer'Pos (7)`, `Colour'Val (1)`, `Colour'Succ (Red)`. An
+            --  attribute that takes an argument is a call to the parser, and
+            --  is static when what it is given is.
+            declare
+               Head : constant S.Node_Id := S.First (Tree, Node);
+               Args : constant S.Node_Id := S.Second (Tree, Node);
+            begin
+               if S.Kind (Tree, Head) /= S.Node_Attribute
+                 or else not S.Is_Present (Args)
+                 or else S.Child_Count (Tree, Args) /= 1
+               then
+                  return False;
+               end if;
+
+               declare
+                  Asked : constant String :=
+                    Symbols.Fold (S.Text (Tree, S.Second (Tree, Head)));
+                  Given : Long_Long_Integer;
+               begin
+                  if Asked not in "pos" | "val" | "succ" | "pred"
+                    or else not Static_Choice
+                                  (Item, Tree, S.Child (Tree, Args, 1), Given)
+                  then
+                     return False;
+                  end if;
+
+                  --  A value *is* its position here, so `'Pos` and `'Val` are
+                  --  the number they were given and the two neighbours are
+                  --  one either side of it.
+                  Value :=
+                    (case Asked (Asked'First) is
+                        when 's' => Given + 1,
+                        when 'p' =>
+                          (if Asked = "pred" then Given - 1 else Given),
+                        when others => Given);
+                  return True;
+               end;
+            end;
 
          when S.Node_Integer_Literal =>
             Value := Long_Long_Integer'Value (S.Text (Tree, Node));

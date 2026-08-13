@@ -233,3 +233,41 @@ requirement = "`String'First` is not this language's question. A String's bounds
 script = "put_line (String'First'Image); quit (0);"
 exit_status = 0
 diagnostics = ["!error.attribute_not_defined{attribute=First,found=String}!"]
+
+[[case]]
+id = "attributes.an-attribute-is-a-value-known-before-the-program-runs"
+requirement = """
+`Integer'Last`, `Verdict'First`, `Colour'Succ (Red)` and `Integer'Size` answer
+from the declaration, and nothing between there and running can change what
+they answer -- so they may stand where a case choice, a subtype bound or an
+aggregate's index stands. Ada calls these static and so does this.
+"""
+script = "type V is (A, B, C); X : Integer := 3; case X is when Integer'First .. 0 => put_line (\"low\"); when 1 .. Integer'Last => put_line (\"high\"); end case; W : V := B; case W is when V'First => put_line (\"first\"); when V'Succ (A) .. V'Last => put_line (\"the rest\"); end case; subtype Small is Integer range 1 .. Integer'Last; S : Small := 5; subtype Early is V range V'First .. B; E : Early := B; put_line (\"bounded:\" & S'Image & \" \" & E'Image);\nquit (0);"
+exit_status = 0
+output = ["high", "the rest", "bounded: 5 B"]
+diagnostics = []
+
+[[case]]
+id = "attributes.and-an-arrays-ends-are-its-index-range"
+requirement = """
+An array's `'First`, `'Last` and `'Length` answer about where its values sit
+rather than about what they are, so they name slots when an aggregate asks. A
+String's are not known before it runs, and are not static.
+"""
+script = "type C is array (1 .. 3) of Integer; F : C := (others => 0); G : C := (F'First => 7, F'Last => 9, others => 0); put_line (\"placed:\" & G (1)'Image & G (2)'Image & G (3)'Image);\ntype C2 is array (1 .. 3) of Integer; H : C2 := (others => 0); N : Integer := 3; case N is when H'Length => put_line (\"three long\"); when others => put_line (\"no\"); end case;\nS : String := \"abc\"; M : Integer := 1; case M is when S'Length => put_line (\"no\"); when others => put_line (\"a String's length is not static\"); end case;\nquit (0);"
+exit_status = 0
+output = ["placed: 7 0 9", "three long"]
+diagnostics = ["!error.case.choice_not_static!"]
+
+[[case]]
+id = "attributes.and-a-case-may-name-the-whole-of-integer"
+requirement = """
+A case whose choices span every Integer is complete, and counting that coverage
+must not need a number bigger than the type holds: the span from the first
+value to the last is one wider than the largest, and working it out ended the
+analyser rather than the program.
+"""
+script = "X : Integer := 3; case X is when Integer'First .. Integer'Last => put_line (\"every value\"); end case;\nquit (0);"
+exit_status = 0
+output = ["every value"]
+diagnostics = []
