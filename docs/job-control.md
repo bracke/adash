@@ -1,0 +1,58 @@
+# Job control
+
+A job is a program the shell started and did not wait for.
+
+    start ("sleep", "30");     -- recorded as job 1
+    jobs;                      -- what is running
+    suspend (1);               -- stopped, able to be resumed
+    resume (1);                -- running again, in the background
+    stop (1);                  -- asked to stop
+    wait (1);                  -- wait for it and report how it ended
+
+Jobs are numbered from one in the order they were started, and the number is
+what every other command takes. `start` reports the number it gave; `wait`
+reports how the job ended, which is the same status model a program that ran in
+the foreground reports.
+
+## What each reports
+
+`jobs` lists what the shell is running, one line per job, each carrying the
+number, what was started, and the state — running, stopped, or finished.
+
+`stop` asks a job to stop and reports that it signalled it. What arrives is a
+termination signal, so a program that traps it may still be running afterwards;
+what the shell promises is that it asked.
+
+`wait` on a job that has already finished answers with what it ended as rather
+than waiting for something that will not happen again, and `wait` on a number
+nothing was started with says that number is not a job.
+
+## Foreground and background
+
+A program run with `run` holds the session until it finishes; one started with
+`start` does not. There is no `fg`: a suspended job is resumed **in the
+background**, because bringing one to the foreground means handing it the
+terminal, and that is the part of job control a host may not be able to do.
+
+## Where a host cannot answer
+
+Windows has no process groups and no pseudo-terminals. `Hostkit.Pty` and
+`Supports_Foreground_Group` are False there, and the commands that depend on
+them decline rather than pretending: a "cannot tell" is a deliberate refusal,
+never an optimistic default. The one thing that host *can* do is report Ctrl-C,
+which `Can_Record` answers for.
+
+This is why the job commands report what they *asked for* rather than what they
+achieved. A shell that said "stopped" when it had only signalled would be
+telling the user something the host never confirmed.
+
+## Signals
+
+Ctrl-C interrupts the foreground work: a running program is signalled, and a
+program of the shell's own — a loop in a submission — is stopped between two
+instructions. The machine asks for the interrupt between instructions rather
+than inside one, so a runaway loop is interruptible without any statement being
+half-done.
+
+A job killed by a signal reports 128 + n, which is the convention every shell
+follows and what `Adash.Execution` documents as the one status model.

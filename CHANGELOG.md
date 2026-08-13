@@ -268,6 +268,14 @@ what changed.
   had before it gained tasking; there are seventeen, and the paragraph now
   names them, says which are refused where, and says plainly that `'Size` and
   `'Storage_Size` answer in this machine's own unit rather than in bits.
+- **Six more reference documents**: `execution-model.md`, `job-control.md`,
+  `configuration-reference.md`, `persistence-formats.md`,
+  `conformance-guide.md`, and `diagnostics-catalog.md` -- the last generated
+  from the catalog, all 409 messages by identifier. Two entries in the index
+  turned out not to be owed at all: `release-guide.md` is `RELEASE.md` under
+  another name, and `ai-package-map.md` would be a third copy of what `AI.md`
+  and `package-map.md` already carry. Four remain, and the index says why each
+  is still absent rather than listing it as scheduled.
 - **A call to a predefined entity or an internal command may name its
   arguments**, as a call to a program's own subprogram always could:
   `Index (Piece => "b", Whole => Line)`, `Put_Line (Item => Text)`,

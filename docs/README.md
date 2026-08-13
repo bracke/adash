@@ -15,23 +15,23 @@ the subject existed rather than when the document will. What is written is
 listed under "Available now"; everything else in the table is outstanding, and
 the code it would describe is in the tree today.
 
+Four remain. `ai-package-map.md` is not among them: `AI.md` names the
+authoritative documents in order and `package-map.md` carries the map, so a
+third copy for assistants would be the drift this project keeps finding.
+ Three of them — the user, interactive and scripting guides — are
+about what a person *does* with the shell rather than what it is, and the
+interactive half of that cannot be checked by running a script: editing keys,
+completion and the prompt need a terminal. They are owed, and they will be
+written from a session rather than from the sources. `grammar-reference.md` is
+owed too, and is the one document here that should be *derived* from the parser
+rather than written beside it.
+
 | Document | Describes | Subject existed since phase |
 |---|---|---|
 | `user-guide.md` | Using the shell | 14 |
 | `interactive-guide.md` | Prompt, editing, completion, history, jobs | 14 |
 | `scripting-guide.md` | Writing and running scripts | 13 |
 | `grammar-reference.md` | The grammar, formally | 5 |
-| `configuration-reference.md` | Every setting, generated from the schema metadata | 15 |
-| `persistence-formats.md` | On-disk formats and their migrations | 15 |
-| `execution-model.md` | Commands, pipelines, redirection, exit status | 11 |
-| `job-control.md` | Jobs, foreground and background, signals, degradation | 11 |
-| `diagnostics-catalog.md` | Every diagnostic identifier and what it means | 2 onward |
-| `package-map.md` | Every package, its owner and its dependencies | continuous |
-| `test-guide.md` | How the suites are organised and how to add to them | continuous |
-| `conformance-guide.md` | Writing and running conformance cases | 16 |
-| `benchmark-guide.md` | Methodology, environment recording, interpretation | 16 |
-| `release-guide.md` | The release gates and artifacts | 16 |
-| `ai-package-map.md` | Package and dependency maps for coding assistants | continuous |
 
 Documents marked *continuous* are generated or maintained as the code changes
 rather than arriving in one phase. Generated documentation goes under
@@ -46,6 +46,20 @@ source it is derived from are.
   it takes, what it does and what it reports.
 - [`predefined-functions.md`](predefined-functions.md) — the twenty-eight names
   a program has before it declares anything.
+- [`execution-model.md`](execution-model.md) — what runs a program, what a
+  pipeline is, where redirection happens, what a status means.
+- [`job-control.md`](job-control.md) — jobs, what each command reports, and
+  where a host cannot answer.
+- [`configuration-reference.md`](configuration-reference.md) — the eight
+  settings, their ranges, and the file they are written to.
+- [`conformance-guide.md`](conformance-guide.md) — how a case is written and
+  what makes one deterministic.
+- [`persistence-formats.md`](persistence-formats.md) — the two files a session
+  keeps, and how both are written.
+- [`diagnostics-catalog.md`](diagnostics-catalog.md) — every message this build
+  can produce, by identifier.
+- [`RELEASE.md`](RELEASE.md) — the release gates, in order, and what each is
+  for. This is the document the table called `release-guide.md`.
 - [`package-map.md`](package-map.md) — every package that exists, its
   subsystem, and which crate it reaches outside Adash for.
 - [`test-guide.md`](test-guide.md) — how to run and extend the suites.

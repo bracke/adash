@@ -1,0 +1,71 @@
+# On-disk formats
+
+Two files, both under the user's own directories, both written the same careful
+way.
+
+| File | Holds | Written by |
+|---|---|---|
+| `$XDG_CONFIG_HOME/adash/config.toml` | the settings that differ from the default | `save_settings` |
+| `$XDG_DATA_HOME/adash/history.jsonl` | what was typed, one submission per line | the session, as it goes |
+
+`~/.config` and `~/.local/share` are the fallbacks when those variables are
+unset. A store that cannot be reached is a session with no history — that is a
+perfectly good thing for a session to be, and it is not an error.
+
+## The settings file
+
+TOML, read and written by `tomllib`, which is the exclusive provider of that
+format here.
+
+    schema = 1
+
+    [history]
+    limit = 42
+
+Only what was changed is written; a setting at its default is absent, so a file
+says what a user decided rather than what the build's defaults happened to be
+when it was written. `configuration-reference.md` lists the settings.
+
+The `schema` key says which layout the file was written for. There has been one
+schema, so nothing is renamed yet — the key exists so that a setting *can* be
+renamed later without a file written today becoming unreadable. A file with no
+`schema` key is treated as current, because a hand-written file is the case that
+rule is for.
+
+An unknown key warns and the rest of the file is still read: a key this build
+does not know is likely to be one a later build does.
+
+## The history file
+
+JSON Lines, written through `jsonlib`, which is the exclusive provider of that
+format here. One JSON string per line, one line per submission:
+
+    "version;"
+    "pwd;"
+
+A submission with a newline in it is one line here, because JSON escapes it —
+that is the whole reason the format is JSON rather than raw text. A history file
+of raw lines cannot say whether two lines were one submission or two, and a
+shell that guesses gets it wrong on exactly the multi-line submissions a user
+most wants back.
+
+`history.limit` bounds what is kept; `history.enabled` off means nothing is
+written at all, which is what somebody on a shared machine wants.
+
+With `history.per-session` on, a session writes its own file and merges it into
+the shared one when it ends. Two shells appending to a common file a line at a
+time interleave their commands there; this makes the shared history read as runs
+rather than as fragments.
+
+## How both are written
+
+**Atomically, through `hostkit`**: the new content is written beside the target
+and moved into place, so a reader never sees half a file and a crash leaves the
+previous version intact. A `.lock` file beside each is how two sessions avoid
+writing at the same moment.
+
+Neither file is a format anything else is expected to read, and neither is an
+interface this project promises to keep: they are how *this* shell remembers
+between sessions. What is promised is that a file this build wrote, this build
+reads — and that a file it cannot read leaves the defaults in place and says so
+once, rather than refusing to start.
