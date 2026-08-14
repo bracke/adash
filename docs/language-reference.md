@@ -7,7 +7,7 @@ answers *what happened* and `CHANGELOG.md` answers *when*.
 
 Everything here is checked. The conformance suite in `conformance/cases/` runs
 each construct as a submission and compares what it printed, what it exited
-with, and which diagnostics it produced — 653 cases, including every example in
+with, and which diagnostics it produced — 655 cases, including every example in
 `examples/`. Where this document states a rule, a case holds it; where it states
 a limit, a case holds that too. A sentence here that nothing checks is a defect
 in this document.
@@ -150,7 +150,12 @@ the text itself. The four position attributes are defined for the discrete types
 asked inside the body of the unit that declares the entry.
 
 An attribute is a **value known before the program runs**, so it may stand where
-a case choice, a subtype bound or an aggregate's index stands. The one exception
+a case choice, a subtype bound or an aggregate's index stands.
+
+**A qualified expression** — `Small'(Red)`, `Integer'(Make)` — says which
+reading is meant, and the subtype's constraint applies to what it qualifies.
+It is rarely needed here, because the expected type and the other operand
+settle the ordinary cases; it is what settles the rest. The one exception
 is `'Length` and `'Last` of an unconstrained array parameter, which are asked of
 the value: what was passed is not known until it is.
 

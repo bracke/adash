@@ -4426,6 +4426,14 @@ package body Adash.Language.Evaluation is
                      Sem.Symbol_Of (Analysis, Prefix));
                end;
 
+            when S.Node_Qualified =>
+               --  The expression, and the check the type asks for. A
+               --  qualified expression says which reading is meant and Ada
+               --  applies the subtype's constraint to it, which is the only
+               --  thing here that reaches the machine.
+               Emit_Expression (S.Second (Tree, Node));
+               Emit_Bounds_Check (Sem.Type_Of (Analysis, Node));
+
             when S.Node_Attribute =>
                declare
                   Prefix  : constant S.Node_Id := S.First (Tree, Node);

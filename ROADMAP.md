@@ -2935,10 +2935,11 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   is refused and the array type is declared first. Ada's anonymous array type
   would be a type with no name for a symbol to carry, and every symbol carries
   one.
-- **No qualified expression.** `Small'(Red)` is not written. What it is for in
-  Ada is telling two interpretations apart, and the two places this language
-  resolves from -- the expected type, and the other operand -- are what it
-  offers instead.
+- **A qualified expression is written**, `Small'(Red)`, and applies the
+  subtype's constraint. It is rarely needed -- the expected type and the other
+  operand settle the ordinary cases -- but a reader who writes what Ada writes
+  should not be told the language does not have it, and two functions differing
+  only in what they return need it.
 - **An array's slice is a place and never a value.** `A (2 .. 3) := B (1 .. 2)`
   and `A (2 .. 3) = B (1 .. 2)` are written; a slice handed to a subprogram, or
   used where a value of another length is wanted, is refused where it stands.

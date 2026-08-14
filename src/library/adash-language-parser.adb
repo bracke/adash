@@ -519,28 +519,55 @@ package body Adash.Language.Parser is
                      elsif Is_Symbol (T.Delim_Apostrophe) then
                         Advance;
 
-                        --  `X'Range` is the one attribute whose name is a
-                        --  reserved word, so the token is a word where every
-                        --  other is an identifier. Read as the name it is.
-                        if T.Kind (Current) /= T.Token_Identifier
-                          and then not Is_Word (T.Word_Range)
-                        then
-                           Complain (Adash.Messages.Msg_Expected_Attribute_Name);
-                           return Error_Node (Adash.Source.Join (Start, Here));
-                        end if;
-
-                        declare
-                           Attribute : constant S.Node_Id :=
-                             S.Add_Leaf
-                               (Into, S.Node_Name, Here,
-                                (if Is_Word (T.Word_Range) then "Range"
-                                 else T.Text (Current)));
-                        begin
-                           Node := S.Add_Node
-                             (Into, S.Node_Attribute,
-                              Adash.Source.Join (Start, Just_Consumed), [Node, Attribute]);
+                        --  `Small'(Red)` -- a qualified expression, which is
+                        --  Ada's way of saying which reading is meant. What
+                        --  follows the tick is a parenthesis rather than a
+                        --  name, and nothing else in this language is written
+                        --  that way.
+                        if Is_Symbol (T.Delim_Left_Paren) then
                            Advance;
-                        end;
+
+                           declare
+                              Value : constant S.Node_Id :=
+                                Parse_Expression_Rule;
+                           begin
+                              if not Expect_Symbol (T.Delim_Right_Paren) then
+                                 Recover;
+                                 return Error_Node
+                                   (Adash.Source.Join (Start, Just_Consumed));
+                              end if;
+
+                              Node := S.Add_Node
+                                (Into, S.Node_Qualified,
+                                 Adash.Source.Join (Start, Just_Consumed),
+                                 [Node, Value]);
+                           end;
+
+                        else
+
+                           --  `X'Range` is the one attribute whose name is a
+                           --  reserved word, so the token is a word where every
+                           --  other is an identifier. Read as the name it is.
+                           if T.Kind (Current) /= T.Token_Identifier
+                             and then not Is_Word (T.Word_Range)
+                           then
+                              Complain (Adash.Messages.Msg_Expected_Attribute_Name);
+                              return Error_Node (Adash.Source.Join (Start, Here));
+                           end if;
+
+                           declare
+                              Attribute : constant S.Node_Id :=
+                                S.Add_Leaf
+                                  (Into, S.Node_Name, Here,
+                                   (if Is_Word (T.Word_Range) then "Range"
+                                    else T.Text (Current)));
+                           begin
+                              Node := S.Add_Node
+                                (Into, S.Node_Attribute,
+                                 Adash.Source.Join (Start, Just_Consumed), [Node, Attribute]);
+                              Advance;
+                           end;
+                        end if;
 
                      else
                         exit;

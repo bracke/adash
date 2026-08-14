@@ -198,7 +198,8 @@ Ada settles it too.
     factor     ::= primary [ '**' primary ]                  -- Node_Unary_Operation
 
     primary ::= literal
-              | name { '.' name | ''' attribute | '(' arguments ')' }
+              | name { '.' name | ''' attribute | '(' arguments ')'
+                     | ''' '(' expression ')' }               -- Node_Qualified
               | '(' expression ')'                           -- Node_Parenthesized
               | '(' aggregate ')'                            -- Node_Aggregate
 

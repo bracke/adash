@@ -4309,6 +4309,35 @@ package body Adash.Language.Semantics is
                   return Symbols.Of_Type (Found);
                end;
 
+            when S.Node_Qualified =>
+               declare
+                  Marked : constant Types.Type_Kind :=
+                    Named_Type (S.First (Tree, Node));
+
+                  --  The whole point: the type reaches the expression, which
+                  --  is what settles a call several subprograms could answer
+                  --  or a literal two enumerations declare.
+                  Found : constant Types.Type_Kind :=
+                    Analyse_Expression (S.Second (Tree, Node), Marked);
+               begin
+                  if Marked /= Types.Type_None
+                    and then Found /= Types.Type_None
+                    and then not Types.Is_Acceptable (Found, Marked)
+                  then
+                     Complain
+                       (Adash.Errors.Error_Type_Mismatch,
+                        S.Second (Tree, Node),
+                        [Adash.Messages.Named ("found", Types.Name (Found)),
+                         Adash.Messages.Named
+                           ("expected", Types.Name (Marked))]);
+                     Note (Node, Types.Type_None);
+                     return Types.Type_None;
+                  end if;
+
+                  Note (Node, Marked);
+                  return Marked;
+               end;
+
             when S.Node_Attribute =>
                declare
                   Prefix    : constant S.Node_Id := S.First (Tree, Node);

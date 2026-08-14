@@ -76,6 +76,15 @@ package Adash.Language.Syntax is
       --  Name'Attribute.
       Node_Attribute,
 
+      --  `Small'(Red)`. Two children: the type mark and the expression.
+      --
+      --  Ada writes it to say which of several readings is meant. This
+      --  language resolves from the expected type and from the other operand,
+      --  so a program rarely needs it -- but a reader who writes what Ada
+      --  writes should not be told it is a syntax error, and where the two
+      --  places do not settle an interpretation this is what settles it.
+      Node_Qualified,
+
       ------------------------------------------------------------------
       --  Statements
       ------------------------------------------------------------------

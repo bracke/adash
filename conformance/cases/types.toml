@@ -680,6 +680,37 @@ diagnostics = [
 ]
 
 [[case]]
+id = "qualified.a-type-says-which-reading-is-meant"
+requirement = """
+`Small'(Red)` is Ada's way of saying which of several readings a program means,
+and until now it was a syntax error here -- a reader who wrote what Ada writes
+was told the language did not have it.
+
+It is rarely needed: this language resolves from the expected type and from the
+other operand, which settles the ordinary cases. Where neither does -- two
+functions of the same name differing only in what they return, called where
+nothing says which -- this is what settles it.
+
+Ada applies the subtype's constraint to what is qualified, and so does this: it
+is the one thing about the form that reaches the machine.
+"""
+script = "type Small is (Red, Green); function Make return Integer is begin return 7; end Make; function Make return String is begin return \"seven\"; end Make; put_line (Small'(Red)'Image); put_line (Integer'(Make)'Image); put_line (String'(Make));\nsubtype Narrow is Integer range 1 .. 9; X : Integer := 20; put_line (Narrow'(X)'Image);\nquit (0);"
+exit_status = 0
+output = ["Red", " 7", "seven"]
+diagnostics = [
+  "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=20,type=Narrow}!}!",
+]
+
+[[case]]
+id = "qualified.and-the-type-has-to-fit"
+requirement = "What is qualified has to be a value of the type that qualifies it, which is the check that makes the form worth writing rather than a comment."
+script = "type Small is (Red, Green); put_line (Small'(42)'Image);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.type_mismatch{found=Integer,expected=Small}!",
+]
+
+[[case]]
 id = "types.a-record-with-no-components-is-refused"
 requirement = "Ada writes one as `null record`, a spelling this language does not have. A record holding nothing cannot be told from any other, so there is no reading of it worth accepting."
 script = "type Nothing is record end record; quit (0);"
