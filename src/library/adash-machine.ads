@@ -159,6 +159,17 @@ package Adash.Machine is
             --  followed after the frame it was taken in has moved.
             Place : Natural := 0;
 
+            --  How many elements the run at it holds, for a place that stands
+            --  for an array. Zero for everything else, and unread there.
+            --
+            --  Carried by the place rather than by the type because that is
+            --  what an unconstrained array parameter needs: the callee is
+            --  given a run and has to be told how long it is, and the place is
+            --  the one thing that travels from the caller to it. A second
+            --  slot in every call would say the same thing at the cost of the
+            --  calling convention.
+            Extent : Natural := 0;
+
          when Cell_Detail =>
             Detail : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
             Filled : Natural range 0 .. Max_Detail_Arguments := 0;
@@ -223,6 +234,22 @@ package Adash.Machine is
       --  Push a run of slots as a place, so that a composite value can be
       --  handed on without being taken apart. Operand is the slot.
       Block_At,
+
+      --  Say how long the run at the place on top of the stack is. Operand is
+      --  how many elements. What every place standing for an array of a known
+      --  length carries, so that a callee given one can ask.
+      Run_Of,
+
+      --  Pop a place and push how long the run at it is. What `'Length` is for
+      --  an array whose length is not in its type.
+      Extent_Of,
+
+      --  Move a place along by the number on the stack, after checking that
+      --  the number is within the run the place itself says it has. What
+      --  reaching an element of an unconstrained array parameter is: the
+      --  bound is the value's rather than the type's. Level carries where the
+      --  type's name is, for the message; Operand is how wide one element is.
+      Element_Place_Counted,
 
       --  Pop a place and push what is at it. What reading a component or an
       --  element is, once the place has been worked out.

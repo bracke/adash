@@ -80,6 +80,8 @@ package body Adash_Tests.Machine_Cases is
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Text_Is_Written_Into_And_Lengths_Must_Match
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure A_Place_Says_How_Long_Its_Run_Is
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure The_Shell_Is_Called_And_Can_Stop_It
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
 
@@ -375,6 +377,81 @@ package body Adash_Tests.Machine_Cases is
               "it raised the wrong thing: " & To_String (Answer.Raised_Name));
    end Text_Is_Written_Into_And_Lengths_Must_Match;
 
+   ----------------------------------------
+   -- A_Place_Says_How_Long_Its_Run_Is --
+   ----------------------------------------
+
+   procedure A_Place_Says_How_Long_Its_Run_Is
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Program : M.Program;
+      Answer  : M.Result;
+      Named   : Natural;
+   begin
+      --  A place carries how long the run at it is, which is how a callee
+      --  given an unconstrained array learns its length: the length travels
+      --  with the value rather than with the type.
+      Program.Set_Frame (4);
+      Program.Add (M.Address, 0, M.Whole_Number (3));
+      Program.Add (M.Address, 0, M.Whole_Number (1));
+      Program.Add (M.Run_Of, 0, M.Whole_Number (3));
+      Program.Add (M.Extent_Of);
+      Program.Add (M.Store);
+      Program.Add (M.Halt);
+
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Ran, "the program did not run");
+      Assert (Program.Slot_Value (3).Whole = 3,
+              "the run's length came back wrong");
+
+      --  An element is checked against that length rather than against a
+      --  bound the type carried, and the offset is counted from one.
+      Program.Reset;
+      Program.Set_Frame (4);
+      Named := Program.Text_Literal ("Line");
+
+      Program.Add (M.Address, 0, M.Whole_Number (0));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (7));
+      Program.Add (M.Store);
+      Program.Add (M.Address, 0, M.Whole_Number (1));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (9));
+      Program.Add (M.Store);
+
+      Program.Add (M.Address, 0, M.Whole_Number (3));
+      Program.Add (M.Address, 0, M.Whole_Number (0));
+      Program.Add (M.Run_Of, 0, M.Whole_Number (2));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (2));
+      Program.Add (M.Element_Place_Counted, Named, M.Whole_Number (1));
+      Program.Add (M.Fetch);
+      Program.Add (M.Store);
+      Program.Add (M.Halt);
+
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Ran, "the program did not run");
+      Assert (Program.Slot_Value (3).Whole = 9,
+              "the second element came back wrong");
+
+      --  Past the end of what was passed, which the type could not have said.
+      Program.Reset;
+      Program.Set_Frame (4);
+      Named := Program.Text_Literal ("Line");
+
+      Program.Add (M.Address, 0, M.Whole_Number (0));
+      Program.Add (M.Run_Of, 0, M.Whole_Number (2));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (5));
+      Program.Add (M.Element_Place_Counted, Named, M.Whole_Number (1));
+      Program.Add (M.Halt);
+
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Raised, "an index past the run did not raise");
+      Assert (To_String (Answer.Raised_Name) = "Index_Error",
+              "it raised the wrong thing: " & To_String (Answer.Raised_Name));
+   end A_Place_Says_How_Long_Its_Run_Is;
+
    -------------------------------------------
    -- The_Shell_Is_Called_And_Can_Stop_It --
    -------------------------------------------
@@ -536,6 +613,10 @@ package body Adash_Tests.Machine_Cases is
         (T, Text_Is_Written_Into_And_Lengths_Must_Match'Access,
          "machine : text is written into, and a length that does not match "
          & "raises");
+      Register_Routine
+        (T, A_Place_Says_How_Long_Its_Run_Is'Access,
+         "machine : a place says how long its run is, and an element is "
+         & "checked against that");
       Register_Routine
         (T, A_Handler_Catches_And_Unwinds'Access,
          "machine : a handler catches what a call raised, and unwinds to it");

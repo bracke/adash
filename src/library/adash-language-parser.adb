@@ -2871,6 +2871,68 @@ package body Adash.Language.Parser is
                           (Adash.Source.Join (Start, Just_Consumed));
                      end if;
 
+                     --  `array (Integer range <>) of Element;` -- a type whose
+                     --  values carry their own length, which is what a
+                     --  subprogram taking arrays of several lengths needs.
+                     --  Told apart here rather than by the analyser because
+                     --  the two forms are different text: `<>` stands where a
+                     --  bound would, and nothing else does.
+                     --
+                     --  The middle child says which was written: a range for
+                     --  the constrained form, the index type's name for this
+                     --  one.
+                     if T.Kind (Current) = T.Token_Identifier
+                       and then T.Kind (Ahead) = T.Token_Reserved_Word
+                       and then T.Word (Ahead) = T.Word_Range
+                       and then T.Kind (Ahead (2)) = T.Token_Delimiter
+                       and then T.Symbol (Ahead (2)) = T.Delim_Box
+                     then
+                        declare
+                           Index : constant S.Node_Id :=
+                             S.Add_Leaf (Into, S.Node_Name, Here,
+                                         T.Text (Current));
+                        begin
+                           Advance;
+                           Advance;
+                           Advance;
+
+                           if not Expect_Symbol (T.Delim_Right_Paren)
+                             or else not Expect_Word (T.Word_Of)
+                           then
+                              Recover;
+                              return Error_Node
+                                (Adash.Source.Join (Start, Just_Consumed));
+                           end if;
+
+                           declare
+                              Named : Boolean;
+                           begin
+                              Element := Parse_Type_Mark (Named);
+
+                              if not Named then
+                                 Complain
+                                   (Adash.Messages.Msg_Expected_Type_Name);
+                                 Recover;
+                                 return Error_Node
+                                   (Adash.Source.Join (Start, Just_Consumed));
+                              end if;
+                           end;
+
+                           declare
+                              Ignored : constant Boolean :=
+                                Expect_Symbol (T.Delim_Semicolon);
+                              pragma Unreferenced (Ignored);
+                           begin
+                              null;
+                           end;
+
+                           return S.Add_Node
+                             (Into, S.Node_Array_Declaration,
+                              Adash.Source.Join (Start, Just_Consumed),
+                              [Name, Index, Element]);
+                        end;
+                     end if;
+
                      Low := Parse_Simple_Expression;
 
                      if not Expect_Symbol (T.Delim_Double_Dot) then

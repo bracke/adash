@@ -194,6 +194,19 @@ package Adash.Language.Types is
       Called : String;
       Slots  : Positive) return Type_Kind;
 
+   --  Build the type an unconstrained array declaration introduces.
+   --
+   --  @param Id Which declaration, as the caller identifies them.
+   --  @param Called The name it was declared with.
+   --  @return The type.
+   function Open_Array (Id : Positive; Called : String) return Type_Kind;
+
+   --  Whether this array type's values carry their own length.
+   --
+   --  @param Item Type to ask about.
+   --  @return True for `array (Integer range <>) of T`, and for nothing else.
+   function Is_Open (Item : Type_Kind) return Boolean;
+
    --  Whether a value of this type is more than one thing.
    --
    --  @param Item Type to ask about.
@@ -383,6 +396,12 @@ private
       --  How many machine slots a value takes. One for everything that fits
       --  in a cell; more for a composite, which is its parts end to end.
       Slots : Positive := 1;
+
+      --  An array type whose values carry their own length: `array (Integer
+      --  range <>) of T`. It has no width of its own -- a variable of one says
+      --  how long it is where it is declared, and what a parameter of one
+      --  receives says so at run time, in the place it travels as.
+      Open : Boolean := False;
 
       --  For a subtype with a range: the values it admits, as positions.
       --  Bounded rather than open because that is what a constraint is, and

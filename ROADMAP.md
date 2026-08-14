@@ -67,6 +67,7 @@ below.
 | Taking a String apart: indexing, slicing, `'Length` | **complete** |
 | Writing a part back: `S (2) := 'x'`, `S (2 .. 4) := "xyz"` | **complete** |
 | Slicing an array: `A (2 .. 3) := B (1 .. 2)` | **complete** |
+| Unconstrained arrays: `array (Integer range <>) of T` | **complete** |
 | The block statement: `declare ... begin ... end;` | **complete** |
 | Names below the presentation boundary said in words | **complete** |
 | Suspending and resuming a job: `suspend`, `resume` | **complete** |
@@ -2834,20 +2835,12 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
 - **An array's bounds must be known before the program runs**, and it holds at
   most 4096 elements: it is a run of slots in a frame whose size is decided
   when the program is built.
-- **No unconstrained array type**, so a parameter takes one length. A slice of
+- **A parameter of a *constrained* array type takes one length.** A slice of
   that length goes where the array goes and the callee writes through it --
   `Bump (A (1 .. 4))` changes A -- and a shorter one is refused where it is
-  written. Ada's answer is `array (Integer range <>)`, whose values carry their
-  bounds, and the cost of it here is worth stating rather than leaving to be
-  rediscovered: a composite parameter is *one slot holding a place*, so a
-  length would be a second slot in every call, which is the machine's calling
-  convention. With it would come a `'Length` that is read rather than known --
-  and therefore no longer usable as a case choice, an aggregate's index or a
-  subtype bound -- an element check against a count rather than against a
-  bound entry, and a block copy whose size is a value. Each of those is a
-  reasonable thing to build; none of them is a small one, and doing it to the
-  parameters of a *constrained* type would take that staticness away from
-  programs that have it today. It is a feature, not a fix.
+  written. `array (Integer range <>)` is what a subprogram taking several
+  lengths is written with, and the entry below says what it does and does not
+  do.
 - **No derived types.** `type Count is new Integer;` is not written. A subtype
   is the narrowing a script wants; a *new* type would need its own operators
   and its own literals to be worth anything.
@@ -3010,6 +3003,23 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   written and answered, but it is not in this list of seventeen: it stands
   where a range stands rather than where a value does, so the parser reads it
   as the two ends it gives and no attribute is evaluated.
+- **An unconstrained array's values go element by element inside a subprogram.**
+  `array (Integer range <>) of T` is written, a variable of it says how long it
+  is where it is declared, a parameter of it takes any length, and `'Length`
+  and `'Last` are asked of the value rather than of the type. What such a
+  parameter does *not* do is get assigned as a whole or sliced: how many slots
+  to copy is a number this build writes into an instruction, and here it has
+  none. Refused where it stands, with a message that says element by element
+  instead.
+
+  How the length travels is worth knowing, because it decided the shape of
+  everything else: a composite is passed as where its run of slots starts, so
+  the *place* carries how long the run is. A second slot in every call would
+  have said the same thing at the cost of the calling convention, and every
+  array in the language would have paid for the one that needs it. `'First` is
+  one, as it is for a String and for every part of one -- a place carries a
+  length and nothing else, so there is nowhere to keep a first index that is
+  not one.
 - **A part of a String begins at one, where Ada's slice keeps the index range
   it came from.** `S (2 .. 5) (1 .. 2)` is the first two characters of the
   slice here and an error in Ada, where the slice is indexed 2 .. 5. A String

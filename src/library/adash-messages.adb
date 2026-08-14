@@ -354,6 +354,10 @@ package body Adash.Messages is
             return "error.not_taken_apart";
          when Msg_No_Such_Slice            =>
             return "error.no_such_slice";
+         when Msg_Needs_Bounds             =>
+            return "error.needs_bounds";
+         when Msg_Open_By_Element          =>
+            return "error.open_by_element";
          when Msg_Case_Not_Discrete        =>
             return "error.case.not_discrete";
          when Msg_Case_Choice_Not_Static   =>
@@ -959,6 +963,9 @@ package body Adash.Messages is
 
          when Msg_No_Such_Slice =>
             return [N ("name"), N ("first"), N ("last")];
+
+         when Msg_Needs_Bounds | Msg_Open_By_Element =>
+            return [1 => N ("name")];
 
          when Msg_Machine_Bad_Value_Text =>
             return [1 => N ("text")];

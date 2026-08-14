@@ -38,10 +38,18 @@ package be written at a prompt.
     type_declaration ::=
         'type' name 'is' ( '(' name { ',' name } ')'
                          | 'record' { component } 'end' 'record'
-                         | 'array' '(' range ')' 'of' type_mark ) ';'
+                         | 'array' '(' ( range | name 'range' '<>' )
+                           ')' 'of' type_mark ) ';'
                                                              -- Node_Type_Declaration
                                                              -- Node_Record_Declaration
                                                              -- Node_Array_Declaration
+
+`array (Integer range <>)` is the unconstrained form: its middle child is the
+index type's name where the constrained form has a `Node_Range`, which is how
+the analyser tells them apart without the parser deciding what the text means.
+An object of such a type carries its length in the actual list of
+`object_declaration` — `X : Line (1 .. 4)` — which is the same production a
+task's discriminants use.
 
     subtype_declaration ::=
         'subtype' name 'is' type_mark [ 'range' range ] ';'  -- Node_Subtype_Declaration

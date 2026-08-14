@@ -7,7 +7,7 @@ answers *what happened* and `CHANGELOG.md` answers *when*.
 
 Everything here is checked. The conformance suite in `conformance/cases/` runs
 each construct as a submission and compares what it printed, what it exited
-with, and which diagnostics it produced — 618 cases, including every example in
+with, and which diagnostics it produced — 642 cases, including every example in
 `examples/`. Where this document states a rule, a case holds it; where it states
 a limit, a case holds that too. A sentence here that nothing checks is a defect
 in this document.
@@ -104,8 +104,16 @@ from one, and the array's own first index otherwise.
 
 A slice **stands where the array stands** as an argument: a composite travels as
 where its run starts, so the callee writes through it. Its length has to be the
-parameter's own, because a parameter takes one length — there is no
-unconstrained array type here.
+parameter's own, unless the parameter's type is unconstrained.
+
+**An unconstrained array type** is `type Line is array (Integer range <>) of
+Integer;`. A variable of one says how long it is where it is declared —
+`X : Line (1 .. 4)`, beginning at one — and a parameter of one takes a run of
+any length, asking the value for `'Length` and `'Last` rather than the type.
+`'First` is one. Such a parameter goes **element by element**: it is not
+assigned to as a whole and not sliced, because how many slots to copy is a
+number written into the instruction. Its elements are read and written, and an
+index outside what was passed raises against the length the caller gave.
 
 ### Aggregates
 
@@ -136,7 +144,9 @@ the text itself. The four position attributes are defined for the discrete types
 asked inside the body of the unit that declares the entry.
 
 An attribute is a **value known before the program runs**, so it may stand where
-a case choice, a subtype bound or an aggregate's index stands.
+a case choice, a subtype bound or an aggregate's index stands. The one exception
+is `'Length` and `'Last` of an unconstrained array parameter, which are asked of
+the value: what was passed is not known until it is.
 
 `'Size` and `'Storage_Size` answer in this machine's own unit — slots, and slots
 and stack — rather than in bits. That is not Ada's meaning; the number is not

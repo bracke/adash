@@ -277,6 +277,35 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **The unconstrained array type**: `type Line is array (Integer range <>) of
+  Integer;`, which is what a subprogram taking arrays of several lengths is
+  written with. A variable of one says how long it is where it is declared,
+  `X : Line (1 .. 4)`; a parameter of one takes a run of any length, and
+  `'Length` and `'Last` are asked of the value rather than of the type.
+
+  **The length travels in the place.** A composite is passed as where its run
+  of slots starts, so a place now carries how long the run at it is — three
+  instructions (`Run_Of`, `Extent_Of`, `Element_Place_Counted`) and one field
+  on a place cell. The alternative was a second slot in every call, which is
+  the machine's calling convention, and every array in the language would have
+  paid for the one that needs it.
+
+  `'First` is one, as it is for a String and for every part of one: a place
+  carries a length and nothing else, so there is nowhere to keep a first index
+  that is not one. A variable of such a type is therefore declared from one,
+  and says so if it is not.
+
+  What such a parameter does not do is get assigned as a whole or sliced — how
+  many slots to copy is a number written into an instruction, and there it has
+  none. Both are refused where they stand, with a message that says element by
+  element instead.
+
+  Two things fell out of doing it. An array's elements are now counted from its
+  *width* rather than from what its declaration listed, which is what lets one
+  declaration answer for the array, a slice of it, and a variable of an
+  unconstrained type — the same arithmetic the slice work needed in two places
+  by hand. And `Is_Acceptable` learned that an open type takes any length,
+  beside the length check it learned for slices.
 - **A slice as an argument** is pinned rather than added: a composite travels
   to a subprogram as where its run of slots starts, so a slice of the
   parameter's own length already went where the array goes and the callee wrote

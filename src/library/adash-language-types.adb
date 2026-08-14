@@ -187,6 +187,30 @@ package body Adash.Language.Types is
       return Result;
    end Composite_Array;
 
+   -----------------
+   -- Open_Array --
+   -----------------
+
+   function Open_Array (Id : Positive; Called : String) return Type_Kind is
+      --  One slot, which is never used to size anything: a variable of this
+      --  type says how long it is where it is declared, and that is a type of
+      --  its own with a width. What this width answers for is the places that
+      --  ask every type how wide it is before knowing which one it has.
+      Result : Type_Kind := Composite_Array (Id, Called, 1);
+   begin
+      Result.Open := True;
+      return Result;
+   end Open_Array;
+
+   --------------
+   -- Is_Open --
+   --------------
+
+   function Is_Open (Item : Type_Kind) return Boolean is
+   begin
+      return Item.Open;
+   end Is_Open;
+
    -------------------
    -- Is_Composite --
    -------------------
@@ -375,8 +399,11 @@ package body Adash.Language.Types is
       --  the lengths here are known before the program runs -- so this is
       --  refused where it is written rather than raised where it runs, which
       --  is what Ada does with the same case.
+      --  An open array type takes a run of any length, which is what it is
+      --  for: the length travels with the value rather than with the type.
       if Is_Composite (Found)
         and then Is_Composite (Expected)
+        and then not Expected.Open
         and then Found.Slots /= Expected.Slots
       then
          return False;

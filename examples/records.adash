@@ -134,6 +134,52 @@ end Relabel;
 Relabel (First, "cpu");
 put_line ("relabelled to " & First.Label);
 
+--  An unconstrained array type: `array (Integer range <>) of T`, whose values
+--  carry their own length. It is what a subprogram taking arrays of several
+--  lengths is written with -- Window above is one length, and a body wanting
+--  both would otherwise be written twice.
+type Series is array (Integer range <>) of Integer;
+
+--  A variable of one says how long it is where it is declared, beginning at
+--  one: what a value of such a type carries is a length and nothing else, so
+--  there is nowhere to keep a first index that is not one.
+Short : Series (1 .. 2) := (4, 9);
+Long  : Series (1 .. 5) := (1, 7, 3, 8, 2);
+
+--  Inside, `'Length` and `'Last` are asked of the value rather than of the
+--  type, because what was passed is not known until it is. `'First` is one.
+function Highest (Of_Them : Series) return Integer is
+   Best : Integer := Of_Them (Of_Them'First);
+begin
+   for Index in Of_Them'Range loop
+      if Of_Them (Index) > Best then
+         Best := Of_Them (Index);
+      end if;
+   end loop;
+
+   return Best;
+end Highest;
+
+put_line ("the highest of two is " & Trim (Highest (Short)'Image)
+          & ", of five " & Trim (Highest (Long)'Image)
+          & ", and of a slice of three "
+          & Trim (Highest (Long (2 .. 4))'Image));
+
+--  What such a parameter does not do: it is not assigned to as a whole and not
+--  sliced. How many slots to copy is a number this build writes into an
+--  instruction, and a run whose length is the caller's has none. Element by
+--  element instead, which is checked against the run itself.
+procedure Clear (Of_Them : in out Series) is
+begin
+   for Index in Of_Them'Range loop
+      Of_Them (Index) := 0;
+   end loop;
+end Clear;
+
+Clear (Short);
+
+put_line ("cleared to" & Short (1)'Image & Short (2)'Image);
+
 --  What a composite is not: it holds simple values only. A record inside a
 --  record, or an array of records, is refused -- reaching into one would need
 --  an offset made of two offsets, and every place that walks a value would

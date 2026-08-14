@@ -263,6 +263,8 @@ package Adash.Messages is
       Msg_String_Index_Malformed,
       Msg_Not_Taken_Apart,
       Msg_No_Such_Slice,
+      Msg_Needs_Bounds,
+      Msg_Open_By_Element,
       Msg_Case_Not_Discrete,
       Msg_Case_Choice_Not_Static,
       Msg_Case_Choice_Covered_Twice,

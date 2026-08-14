@@ -2256,6 +2256,8 @@ package body Adash.Language.Evaluation is
                declare
                   Sym : constant Symbols.Symbol :=
                     Sem.Symbol_Of (Analysis, Node);
+                  Of_Type : constant Ty.Type_Kind :=
+                    Sem.Type_Of (Analysis, Node);
                begin
                   if Symbols.Is_Nothing (Sym) then
                      Refuse (Node, Adash.Messages.Msg_Lower_Unresolved_Name);
@@ -2264,6 +2266,20 @@ package body Adash.Language.Evaluation is
                   end if;
 
                   Emit_Address (Place_Of (Sym));
+
+                  --  A run whose length is known says how long it is, so that
+                  --  a callee given it can ask. Not for an open type: what a
+                  --  parameter of one holds was told by its caller, and saying
+                  --  anything here would overwrite that with a length this
+                  --  build does not have.
+                  if Ty.Shape (Of_Type) = Ty.Shape_Array
+                    and then not Ty.Is_Open (Of_Type)
+                  then
+                     Emit_1
+                       (VM.Run_Of,
+                        VM.Whole_Number
+                          (Sem.Part_Count (Analysis, Of_Type)));
+                  end if;
                end;
 
             when S.Node_Selected =>
@@ -2369,6 +2385,12 @@ package body Adash.Language.Evaluation is
                                 (Long_Long_Integer (Ty.Width (Held))
                                  * (Low - First)));
                         end if;
+
+                        Emit_1
+                          (VM.Run_Of,
+                           VM.Whole_Number
+                             (Sem.Part_Count
+                                (Analysis, Sem.Type_Of (Analysis, Node))));
                      end;
 
                      return;
@@ -2388,6 +2410,17 @@ package body Adash.Language.Evaluation is
 
                   Emit_Expression
                     (S.Child (Tree, S.Second (Tree, Node), 1));
+
+                  --  An open type has no bounds to check against, so the
+                  --  run itself is asked: the length travelled with the place
+                  --  from whoever knew it.
+                  if Ty.Is_Open (Of_Type) then
+                     Emit_2
+                       (VM.Element_Place_Counted,
+                        Code.Text_Literal (Ty.Name (Of_Type)),
+                        VM.Whole_Number (Ty.Width (Held)));
+                     return;
+                  end if;
 
                   --  The bounds and the type's name travel together, so an
                   --  index outside the array can say which array and what was
@@ -4565,6 +4598,33 @@ package body Adash.Language.Evaluation is
                   --  three are known when the program is built -- an array
                   --  here has a fixed length and a fixed first index -- so
                   --  each is one push and nothing is evaluated.
+                  --  Unless the array is one whose values carry their own
+                  --  length. Then `'First` is still one -- a value of an
+                  --  unconstrained type begins at one here, as a String does
+                  --  -- and the other two are asked of the run itself, which
+                  --  is the only thing that knows.
+                  if Ty.Is_Open (Of_Type)
+                    and then Asked in "length" | "first" | "last"
+                  then
+                     if Asked = "first" then
+                        Emit_1 (VM.Push_Whole, 1);
+                        return;
+                     end if;
+
+                     declare
+                        Ok : Boolean;
+                     begin
+                        Emit_Place (Prefix, Ok);
+
+                        if not Ok then
+                           return;
+                        end if;
+                     end;
+
+                     Emit (VM.Extent_Of);
+                     return;
+                  end if;
+
                   if Ty.Shape (Of_Type) = Ty.Shape_Array
                     and then Asked in "length" | "first" | "last"
                   then

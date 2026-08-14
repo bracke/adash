@@ -285,6 +285,22 @@ package body Adash.Language.Semantics is
          return 0;
       end if;
 
+      --  An array's elements are counted from its width rather than listed.
+      --  Several types share one declaration's parts -- the array itself, a
+      --  slice of it, and a variable of an unconstrained type -- and what
+      --  tells them apart is how wide they are, not what was written once.
+      if Types.Shape (Of_Type) = Types.Shape_Array then
+         if Types.Is_Open (Of_Type) then
+            --  It has no length of its own; what a value of it holds travels
+            --  with the value.
+            return 0;
+         end if;
+
+         return Types.Width (Of_Type)
+                / Types.Width
+                    (Item.Shapes.Element (Where).Parts.Element (1).Of_Type);
+      end if;
+
       return Natural (Item.Shapes.Element (Where).Parts.Length);
    end Part_Count;
 
@@ -320,9 +336,17 @@ package body Adash.Language.Semantics is
    is
       Where : constant Natural := Shape_Of (Item, Of_Type);
    begin
-      if Where = 0
-        or else Index > Natural (Item.Shapes.Element (Where).Parts.Length)
-      then
+      if Where = 0 then
+         return Types.Type_None;
+      end if;
+
+      --  Every element of an array is the same type, so the one the
+      --  declaration recorded answers for all of them however many there are.
+      if Types.Shape (Of_Type) = Types.Shape_Array then
+         return Item.Shapes.Element (Where).Parts.Element (1).Of_Type;
+      end if;
+
+      if Index > Natural (Item.Shapes.Element (Where).Parts.Length) then
          return Types.Type_None;
       end if;
 
@@ -340,9 +364,19 @@ package body Adash.Language.Semantics is
    is
       Where : constant Natural := Shape_Of (Item, Of_Type);
    begin
-      if Where = 0
-        or else Index > Natural (Item.Shapes.Element (Where).Parts.Length)
-      then
+      if Where = 0 then
+         return 0;
+      end if;
+
+      --  An element's offset is arithmetic, for the same reason its type is
+      --  not looked up: the elements are alike and there may be any number.
+      if Types.Shape (Of_Type) = Types.Shape_Array then
+         return (Index - 1)
+                * Types.Width
+                    (Item.Shapes.Element (Where).Parts.Element (1).Of_Type);
+      end if;
+
+      if Index > Natural (Item.Shapes.Element (Where).Parts.Length) then
          return 0;
       end if;
 
@@ -3351,6 +3385,21 @@ package body Adash.Language.Semantics is
                        First_Index (Into, Of_Array);
                      Ends : constant Long_Long_Integer := Base + Count - 1;
                   begin
+                     --  Not of a run whose length is the caller's. The ends
+                     --  would be known and the length would not, so the check
+                     --  that the slice is within the run could only happen
+                     --  where the program runs -- which is a bound this build
+                     --  does not carry. Element by element instead, which is
+                     --  checked against the run itself.
+                     if Types.Is_Open (Of_Array) and then Ranged then
+                        Complain
+                          (Adash.Errors.Error_Open_By_Element, Node,
+                           [1 => Adash.Messages.Named
+                                   ("name", Types.Name (Of_Array))]);
+                        Note (Node, Types.Type_None);
+                        return Types.Type_None;
+                     end if;
+
                      --  A slice: `A (2 .. 4)`, a run of the array's own
                      --  elements. Its ends are known before the program runs,
                      --  as the array's own bounds and a case choice are,
@@ -6531,18 +6580,56 @@ package body Adash.Language.Semantics is
                         Held   : constant Types.Type_Kind :=
                           Named_Type (S.Third (Tree, Node));
 
+                        --  `array (Integer range <>) of T`: the middle child
+                        --  is the index type's name where the constrained
+                        --  form has a range. Its values carry their own
+                        --  length, so there is nothing to work out here --
+                        --  what a variable of it is long is said where the
+                        --  variable is declared.
+                        Unbounded : constant Boolean :=
+                          S.Kind (Tree, Bounds) /= S.Node_Range;
+
                         Ignored_Low : constant Types.Type_Kind :=
-                          Analyse_Expression (S.First (Tree, Bounds),
-                                              Types.Type_Integer);
+                          (if Unbounded then Types.Type_None
+                           else Analyse_Expression (S.First (Tree, Bounds),
+                                                    Types.Type_Integer));
                         Ignored_High : constant Types.Type_Kind :=
-                          Analyse_Expression (S.Second (Tree, Bounds),
-                                              Types.Type_Integer);
+                          (if Unbounded then Types.Type_None
+                           else Analyse_Expression (S.Second (Tree, Bounds),
+                                                    Types.Type_Integer));
 
                         pragma Unreferenced (Ignored_Low, Ignored_High);
 
                         Low, High : Long_Long_Integer := 0;
                      begin
-                        if not Fits (Held) then
+                        if Unbounded and then Fits (Held) then
+                           --  Indexed by Integer, which is what every array
+                           --  here is indexed by. Ada admits any discrete
+                           --  index type; a second one would need a position
+                           --  where this build has a number.
+                           if Named_Type (Bounds) /= Types.Type_Integer then
+                              Complain
+                                (Adash.Errors.Error_Type_Mismatch, Bounds,
+                                 [Adash.Messages.Named
+                                    ("found",
+                                     Types.Name (Named_Type (Bounds))),
+                                  Adash.Messages.Named
+                                    ("expected",
+                                     Types.Name (Types.Type_Integer))]);
+                              Sound := False;
+                           else
+                              --  One part, which says what an element is. How
+                              --  many there are is not the type's business
+                              --  here: it travels with the value.
+                              Built.First := 1;
+                              Built.Parts.Append
+                                (Part'(Name    => <>,
+                                       Of_Type => Held,
+                                       Offset  => 0));
+                              Introduced := Types.Open_Array (Built.Id, Name);
+                           end if;
+
+                        elsif not Fits (Held) then
                            if Held /= Types.Type_None then
                               Complain
                                 (Adash.Errors.Error_Part_Not_Simple,
@@ -6836,9 +6923,83 @@ package body Adash.Language.Semantics is
                   Type_Node : constant S.Node_Id := S.Second (Tree, Node);
                   Value     : constant S.Node_Id := S.Third (Tree, Node);
                   Actuals   : constant S.Node_Id := S.Child (Tree, Node, 4);
-                  Declared  : constant Types.Type_Kind := Named_Type (Type_Node);
+                  Named_As  : constant Types.Type_Kind := Named_Type (Type_Node);
                   Is_Const  : constant Boolean := S.Text (Tree, Node) = "constant";
                   Error     : Adash.Errors.Error_Info;
+
+                  --  What the variable's type is, which for an unconstrained
+                  --  array is not what its type mark names: `X : Line (1 .. 4)`
+                  --  is a Line of four, and the four is the variable's rather
+                  --  than the type's. Everything below wants that type, so it
+                  --  is worked out here and named Declared as before.
+                  function Bounded return Types.Type_Kind;
+
+                  function Bounded return Types.Type_Kind is
+                     Held : Types.Type_Kind;
+                     Low, High : Long_Long_Integer;
+                  begin
+                     if not Types.Is_Open (Named_As) then
+                        return Named_As;
+                     end if;
+
+                     --  A range, and one beginning at one. A value of an
+                     --  unconstrained type begins at one here, as a String
+                     --  does and as every part of one does: there is nowhere
+                     --  to carry a first index that is not one, since the
+                     --  value carries a length and nothing else.
+                     if S.Child_Count (Tree, Actuals) /= 1
+                       or else S.Kind (Tree, S.First (Tree, Actuals))
+                               /= S.Node_Range
+                       or else not Static_Choice
+                                     (Into, Tree,
+                                      S.First (Tree,
+                                               S.First (Tree, Actuals)), Low)
+                       or else not Static_Choice
+                                     (Into, Tree,
+                                      S.Second (Tree,
+                                                S.First (Tree, Actuals)), High)
+                       or else Low /= 1
+                     then
+                        Complain
+                          (Adash.Errors.Error_Needs_Bounds, Type_Node,
+                           [1 => Adash.Messages.Named
+                                   ("name", Types.Name (Named_As))]);
+                        return Types.Type_None;
+                     end if;
+
+                     if High < Low then
+                        Complain
+                          (Adash.Errors.Error_Array_Is_Empty, Actuals,
+                           [1 => Adash.Messages.Named
+                                   ("name", Types.Name (Named_As))]);
+                        return Types.Type_None;
+                     end if;
+
+                     if High - Low + 1 > Long_Long_Integer (Max_Elements) then
+                        Complain
+                          (Adash.Errors.Error_Array_Too_Long, Actuals,
+                           [Adash.Messages.Named
+                              ("name", Types.Name (Named_As)),
+                            Adash.Messages.Named
+                              ("limit", Natural'Image (Max_Elements))]);
+                        return Types.Type_None;
+                     end if;
+
+                     Held := Part_Type (Into, Named_As, 1);
+
+                     return Types.Composite_Array
+                       (Id     => Types.Identity (Named_As),
+                        Called => Types.Name (Named_As) & " (1 .. "
+                                  & Ada.Strings.Fixed.Trim
+                                      (Long_Long_Integer'Image (High),
+                                       Ada.Strings.Both)
+                                  & ")",
+                        Slots  => Positive
+                                    (Long_Long_Integer (Types.Width (Held))
+                                     * High));
+                  end Bounded;
+
+                  Declared : constant Types.Type_Kind := Bounded;
                begin
                   --  An identity with nothing in it names no task. Ada's
                   --  answer is Null_Task_Id, a value that names none on
@@ -6922,12 +7083,21 @@ package body Adash.Language.Semantics is
                         then Discriminants_Of (Types.Name (Declared))
                         else S.No_Node);
 
+                     --  An unconstrained array's actual is its length, not a
+                     --  discriminant. Bounded has already read it and said
+                     --  what was wrong with it, so nothing below applies.
+                     Constrains_An_Array : constant Boolean :=
+                       Types.Is_Open (Named_As);
+
                      Expected : constant Natural :=
                        S.Child_Count (Tree, Wanted);
                      Offered  : constant Natural :=
                        S.Child_Count (Tree, Actuals);
                   begin
-                     if Declared = Types.Type_None then
+                     if Constrains_An_Array then
+                        null;
+
+                     elsif Declared = Types.Type_None then
                         --  Nothing is known about the type, so nothing can be
                         --  said about what it takes. The undeclared name was
                         --  reported already, and a second complaint naming
@@ -6936,6 +7106,7 @@ package body Adash.Language.Semantics is
 
                      elsif not Types.Is_Task (Declared)
                        and then not Types.Is_Protected (Declared)
+                       and then not Types.Is_Open (Named_As)
                        and then S.Is_Present (Actuals)
                      then
                         Complain
@@ -7085,6 +7256,18 @@ package body Adash.Language.Semantics is
                   then
                      Complain
                        (Adash.Errors.Error_Not_Assignable, Target,
+                        [1 => Adash.Messages.Named
+                                ("name", Root_Name (Target))]);
+                     Note (Node, Types.Type_None);
+                     return;
+                  end if;
+
+                  --  A run whose length is the caller's is not assigned to
+                  --  as a whole: how many slots to copy is a number this
+                  --  build writes into the instruction, and here it has none.
+                  if Types.Is_Open (Left) then
+                     Complain
+                       (Adash.Errors.Error_Open_By_Element, Target,
                         [1 => Adash.Messages.Named
                                 ("name", Root_Name (Target))]);
                      Note (Node, Types.Type_None);
@@ -8257,6 +8440,19 @@ package body Adash.Language.Semantics is
                      How_Many : constant Long_Long_Integer :=
                        Long_Long_Integer (Part_Count (Item, Of_Prefix));
                   begin
+                     --  A type whose values carry their own length knows one
+                     --  of the three: every value of one begins at one, and
+                     --  what it ends at is the caller's business. Part_Count
+                     --  answers zero for such a type, which is what says so.
+                     if Types.Is_Open (Of_Prefix) then
+                        if Asked /= "first" then
+                           return False;
+                        end if;
+
+                        Value := 1;
+                        return True;
+                     end if;
+
                      if How_Many = 0 then
                         return False;
                      end if;

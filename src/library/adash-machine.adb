@@ -1704,8 +1704,9 @@ package body Adash.Machine is
                end;
 
             when Address =>
-               Push ((Kind => Cell_Place,
-                      Place => Slot_At (Here.Level, Natural (Here.Operand))));
+               Push ((Kind   => Cell_Place,
+                      Place  => Slot_At (Here.Level, Natural (Here.Operand)),
+                      Extent => 0));
 
             when Offset_Place =>
                declare
@@ -1714,8 +1715,12 @@ package body Adash.Machine is
                   if Where.Kind /= Cell_Place then
                      Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
                   else
-                     Push ((Kind  => Cell_Place,
-                            Place => Where.Place + Natural (Here.Operand)));
+                     --  The run carries on being however long it was: an
+                     --  offset moves the start and says nothing about the
+                     --  length, which whoever knows it sets with Run_Of.
+                     Push ((Kind   => Cell_Place,
+                            Place  => Where.Place + Natural (Here.Operand),
+                            Extent => Where.Extent));
                   end if;
                end;
 
@@ -1743,11 +1748,68 @@ package body Adash.Machine is
                             Null_Unbounded_String],
                            2);
                   else
-                     Push ((Kind  => Cell_Place,
-                            Place =>
+                     Push ((Kind   => Cell_Place,
+                            Place  =>
                               Where.Place
                               + Natural (Wanted.Whole - Low)
-                                * Natural (Here.Operand)));
+                                * Natural (Here.Operand),
+                            Extent => 0));
+                  end if;
+               end;
+
+            when Run_Of =>
+               declare
+                  Where : constant Cell := Pop;
+               begin
+                  if Where.Kind /= Cell_Place then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
+                  else
+                     Push ((Kind   => Cell_Place,
+                            Place  => Where.Place,
+                            Extent => Natural (Here.Operand)));
+                  end if;
+               end;
+
+            when Extent_Of =>
+               declare
+                  Where : constant Cell := Pop;
+               begin
+                  if Where.Kind /= Cell_Place then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
+                  else
+                     Push ((Cell_Whole, Whole_Number (Where.Extent)));
+                  end if;
+               end;
+
+            when Element_Place_Counted =>
+               declare
+                  Wanted : constant Cell := Pop;
+                  Where  : constant Cell := Pop;
+
+                  Named : constant Natural := Here.Level;
+               begin
+                  if Where.Kind /= Cell_Place then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
+
+                  elsif Wanted.Whole < 1
+                    or else Wanted.Whole > Whole_Number (Where.Extent)
+                  then
+                     --  The run's own length rather than the type's: what a
+                     --  parameter of an unconstrained type was given is the
+                     --  only thing that says how far it goes.
+                     Fail (Raised, "Index_Error",
+                           M.Msg_Machine_Outside_Array,
+                           [Counted (Wanted.Whole),
+                            Item.Texts (Named),
+                            Null_Unbounded_String],
+                           2);
+                  else
+                     Push ((Kind   => Cell_Place,
+                            Place  =>
+                              Where.Place
+                              + Natural (Wanted.Whole - 1)
+                                * Natural (Here.Operand),
+                            Extent => 0));
                   end if;
                end;
 
@@ -1833,8 +1895,9 @@ package body Adash.Machine is
                end;
 
             when Block_At =>
-               Push ((Kind => Cell_Place,
-                      Place => Slot_At (Here.Level, Natural (Here.Operand))));
+               Push ((Kind   => Cell_Place,
+                      Place  => Slot_At (Here.Level, Natural (Here.Operand)),
+                      Extent => 0));
 
             when Copy_Block =>
                declare
@@ -3615,8 +3678,9 @@ package body Adash.Machine is
                      --  around it.
                      Strands (Me).Choosing := False;
 
-                     Push ((Kind  => Cell_Place,
-                            Place => Strands (Taken).Arguments));
+                     Push ((Kind   => Cell_Place,
+                            Place  => Strands (Taken).Arguments,
+                            Extent => 0));
                      Push ((Kind => Cell_Truth, Truth => True));
                   end if;
                end;

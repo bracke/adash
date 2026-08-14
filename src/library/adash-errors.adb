@@ -62,6 +62,8 @@ package body Adash.Errors is
             | Error_String_Index_Malformed
             | Error_Not_Taken_Apart
             | Error_No_Such_Slice
+            | Error_Needs_Bounds
+            | Error_Open_By_Element
             | Error_Case_Not_Discrete
             | Error_Case_Choice_Not_Static
             | Error_Case_Choice_Covered_Twice
@@ -217,6 +219,10 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Not_Taken_Apart;
          when Error_No_Such_Slice          =>
             return Adash.Messages.Msg_No_Such_Slice;
+         when Error_Needs_Bounds           =>
+            return Adash.Messages.Msg_Needs_Bounds;
+         when Error_Open_By_Element        =>
+            return Adash.Messages.Msg_Open_By_Element;
          when Error_Case_Not_Discrete      =>
             return Adash.Messages.Msg_Case_Not_Discrete;
          when Error_Case_Choice_Not_Static =>
