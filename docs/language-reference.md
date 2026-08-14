@@ -254,9 +254,11 @@ function, by what the context expects of its result. What the context expects
 reaches the arguments too, through the subprograms it rules out, as far down as
 the calls nest — and an argument that can only be one thing rules candidates
 out for the arguments beside it, so `P (F, X)` is settled by whichever of the
-two is closed. Where both ends of a comparison or a call are open, the one type
-they could share settles it. Two readings that both fit is ambiguous, as it is
-in Ada.
+two is closed, and a named argument narrows exactly as the position it denotes
+would. An operator does the same for its operands: `F & "x"` reads F as a
+String, because `&` has no other operand to offer. Where both ends of a
+comparison or a call are open, the one type they could share settles it. Two
+readings that both fit is ambiguous, as it is in Ada.
 
 Everything is passed by reference, where Ada passes elementary types by copy. No
 *correct* Ada program can tell the difference.

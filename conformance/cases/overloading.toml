@@ -377,3 +377,47 @@ diagnostics = [
   "!error.ambiguous_call{name=F,count= 2}!",
   "!error.ambiguous_call{name=F,count= 2}!",
 ]
+
+[[case]]
+id = "overloading.and-a-name-written-for-a-parameter-narrows-as-a-position-does"
+requirement = """
+A named argument stands in the position its name denotes rather than the one it
+is written in, so the narrowing has to ask each candidate where the name puts
+it -- two subprograms of one name may call their parameters differently. The
+same call written positionally and by name resolves the same way, which is what
+a reader expects of a notation that is only about clarity.
+"""
+script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F; procedure P (A : Integer; B : Integer) is begin put_line (\"ints\"); end P; procedure P (A : String; B : Float) is begin put_line (\"strfloat \" & A); end P;\nX : Float := 1.0;\nP (B => X, A => F);\nP (A => F, B => X);\nquit (0);"
+exit_status = 0
+output = ["strfloat s", "strfloat s"]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-an-operator-narrows-its-other-operand"
+requirement = """
+An operator is where a value stands too, and its operands relate: most take one
+type on both sides, and `&` takes a String or a Character on either. So a
+closed operand settles an open one even where the context requires nothing --
+`put_line (F & "x")` is a String because the other reading is not an operand
+this operator has. Without it a program had to write the intermediate
+declaration by hand, or qualify what needed no qualifying.
+"""
+script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F;\nput_line (F & \"x\");\nput_line (\"x\" & F);\nput_line (Integer'Image (F * 2));\nquit (0);"
+exit_status = 0
+output = ["sx", "xs", " 14"]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-two-open-operands-still-say-nothing"
+requirement = """
+The narrowing is what a *settled* operand does, so two open ones settle
+nothing: each reading stands and the call is ambiguous, which is Ada's answer
+as well. What rules this in is that both operands are calls several subprograms
+could answer and no context requires anything of the whole.
+"""
+script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F; function G return Float is begin return 1.5; end G; function G return String is begin return \"g\"; end G;\nput_line (F & G);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.ambiguous_call{name=F,count= 2}!",
+  "!error.ambiguous_call{name=G,count= 2}!",
+]

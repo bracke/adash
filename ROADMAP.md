@@ -797,8 +797,19 @@ one thing -- a literal, a variable, a call to a name with one meaning -- is
 asked what it is without anything being decided or reported, and a candidate
 that could not take it is out. `P (F, X)` with X a Float and one P taking
 `(String, Float)` resolves F to String that way, and it works whichever
-argument is the closed one. With every argument open there is nothing to narrow
-with, and the call is ambiguous -- which is Ada's answer too.
+argument is the closed one. A **named** argument stands in the position its
+name denotes rather than the one it is written in, and the narrowing asks each
+candidate where that is -- two subprograms of one name may call their
+parameters differently, so the question has no answer except per candidate.
+With every argument open there is nothing to narrow with, and the call is
+ambiguous -- which is Ada's answer too.
+
+An **operator** narrows the same way. Most take one type on both sides and `&`
+takes a String or a Character on either, so a settled operand says what the
+open one must be even where the context requires nothing: `put_line (F & "x")`
+reads F as the String, because the other reading is not an operand this
+operator has. Two open operands say nothing about each other and stay
+ambiguous.
 
 Where no candidate survives, neither narrowing happens: the call is wrong
 rather than ambiguous, and one report about it beats a cascade about its
@@ -3008,13 +3019,14 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
 
 - **Overload resolution asks narrower questions than Ada's.** What a context
   expects reaches into a call and, through the candidates it rules out, into
-  the call's arguments -- as far down as they nest -- and an argument that can
-  only be one thing rules candidates out for the others beside it. Between two
-  open ends with nothing required of either, it asks which single type both
-  could have. What it does not do is enumerate a whole statement's
-  interpretations the way Ada does: a meaning that needs *two* open arguments
-  read together, each admissible alone and only one pair admissible as a pair,
-  is ambiguous here.
+  the call's arguments -- as far down as they nest -- an argument that can only
+  be one thing rules candidates out for the others beside it, whether it was
+  written positionally or by name, and an operator's settled operand rules out
+  what its open one can be. Between two open ends with nothing required of
+  either, it asks which single type both could have. What it does not do is
+  enumerate a whole statement's interpretations the way Ada does; what is left
+  of the difference is the case where *every* end is open and more than one
+  reading survives, which Ada calls ambiguous as well.
 - **Nothing at submission level can be named after a predefined entity or an
   internal command.** For a subprogram the reason is resolution: those accept
   any type, so a user's version would fit every call the original does and every

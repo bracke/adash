@@ -1242,6 +1242,58 @@ package body Adash.Language.Semantics is
       --  @param Left One expression.
       --  @param Right The other.
       --  @return The type they share, when they share exactly one.
+      --  What an operator leaves an open operand able to be, given what the
+      --  other operand turned out to be.
+      --
+      --  Most operators take one type on both sides, so the answer is the
+      --  other operand's own. `&` is the exception: it takes a String or a
+      --  Character on either side whatever the other one is, so what settles
+      --  the open side is which of those two it could be -- `F & "x"` with an
+      --  F that returns an Integer or a String is a String, because the other
+      --  reading is not an operand this operator has.
+      --
+      --  @param Op The operator.
+      --  @param Other What the settled operand is.
+      --  @param Open The operand that is still open.
+      --  @return What to require of it, or Type_None to require nothing.
+      function Operand_Wanted
+        (Op    : S.Operation;
+         Other : Types.Type_Kind;
+         Open  : S.Node_Id) return Types.Type_Kind;
+
+      function Operand_Wanted
+        (Op    : S.Operation;
+         Other : Types.Type_Kind;
+         Open  : S.Node_Id) return Types.Type_Kind
+      is
+         Could  : Possible_List;
+         Many   : Natural := 0;
+         Answer : Types.Type_Kind := Types.Type_None;
+         Fits   : Natural := 0;
+      begin
+         if Other = Types.Type_None then
+            return Types.Type_None;
+         end if;
+
+         if Op /= S.Op_Concat then
+            return Other;
+         end if;
+
+         Possible_Types (Open, Could, Many);
+
+         for Index in 1 .. Many loop
+            if (Could (Index) = Types.Type_String
+                or else Could (Index) = Types.Type_Character)
+              and then Answer /= Could (Index)
+            then
+               Fits := Fits + 1;
+               Answer := Could (Index);
+            end if;
+         end loop;
+
+         return (if Fits = 1 then Answer else Types.Type_None);
+      end Operand_Wanted;
+
       function Shared_Type (Left, Right : S.Node_Id) return Types.Type_Kind is
          Ours   : Possible_List;
          Theirs : Possible_List;
@@ -3270,11 +3322,26 @@ package body Adash.Language.Semantics is
                   --  Only when exactly one is open. Two ambiguous operands say
                   --  nothing about each other, and neither does the operator,
                   --  so the call stays ambiguous and is reported as such.
+                  --  The same rule for the operators whose result *is* their
+                  --  operands' type, and for the same reason: when the
+                  --  context requires nothing, what the closed operand turns
+                  --  out to be is the only thing that can settle the open one.
+                  --  `put_line (F & "x")` reads that way and no other.
                   Settle_Right_First : constant Boolean :=
-                    Op in S.Op_Equal | S.Op_Not_Equal | S.Op_Less
-                        | S.Op_Less_Equal | S.Op_Greater | S.Op_Greater_Equal
-                      and then Is_Open_Call (S.First (Tree, Node))
-                      and then not Is_Open_Call (S.Second (Tree, Node));
+                    Is_Open_Call (S.First (Tree, Node))
+                      and then not Is_Open_Call (S.Second (Tree, Node))
+                      and then
+                        (Op in S.Op_Equal | S.Op_Not_Equal | S.Op_Less
+                             | S.Op_Less_Equal | S.Op_Greater
+                             | S.Op_Greater_Equal
+                         or else (Wanted = Types.Type_None
+                                  and then Op in S.Op_Multiply | S.Op_Divide
+                                               | S.Op_Add | S.Op_Subtract
+                                               | S.Op_Mod | S.Op_Rem
+                                               | S.Op_Power | S.Op_Concat
+                                               | S.Op_And | S.Op_Or | S.Op_Xor
+                                               | S.Op_And_Then
+                                               | S.Op_Or_Else));
 
                   --  Both ends open, and neither says anything about the
                   --  other by being analysed first. What settles it is that
@@ -3306,13 +3373,20 @@ package body Adash.Language.Semantics is
                     (if Between /= Types.Type_None
                      then Analyse_Expression (S.Second (Tree, Node), Between)
                      elsif Settle_Right_First
-                     then Analyse_Expression (S.First (Tree, Node), First_Type)
+                     then Analyse_Expression
+                            (S.First (Tree, Node),
+                             Operand_Wanted
+                               (Op, First_Type, S.First (Tree, Node)))
                      else Analyse_Expression
                             (S.Second (Tree, Node),
                              (if Op in S.Op_Equal | S.Op_Not_Equal | S.Op_Less
                                      | S.Op_Less_Equal | S.Op_Greater
                                      | S.Op_Greater_Equal
-                              then First_Type else Wanted)));
+                              then First_Type
+                              elsif Wanted = Types.Type_None
+                              then Operand_Wanted
+                                     (Op, First_Type, S.Second (Tree, Node))
+                              else Wanted)));
 
                   Left  : constant Types.Type_Kind :=
                     (if Settle_Right_First and then Between = Types.Type_None
@@ -3683,17 +3757,29 @@ package body Adash.Language.Semantics is
                   --  one candidate, or several agreeing at this position --
                   --  and leaves the rest to be settled by the arguments' own
                   --  types, as before.
-                  --  What the argument at this position can only be, asked
-                  --  without choosing between meanings and so without
-                  --  reporting anything.
+                  --  What this argument can only be, asked without choosing
+                  --  between meanings and so without reporting anything.
                   --
                   --  A literal is its own type, and a name or a call with one
                   --  meaning is that meaning's. Anything that could be several
                   --  things -- or that this cannot read without deciding
                   --  something -- answers with Type_None, which every caller
                   --  reads as "says nothing".
-                  function Settled_Argument
-                    (Position : Positive) return Types.Type_Kind;
+                  function Settled_Value (Value : S.Node_Id)
+                                          return Types.Type_Kind;
+
+                  --  Which parameter of this candidate the argument written
+                  --  at this position denotes, or zero when none does.
+                  --
+                  --  A named argument stands in the position its name denotes
+                  --  rather than the one it is written in, and that position
+                  --  is the candidate's own: two subprograms of one name may
+                  --  call their parameters differently. Ada requires the
+                  --  positional arguments to come first, so a positional one
+                  --  denotes the parameter it is written at.
+                  function Parameter_For
+                    (Candidate : Symbols.Symbol;
+                     Written   : Positive) return Natural;
 
                   --  Whether this candidate could take every argument whose
                   --  type is settled.
@@ -3721,19 +3807,18 @@ package body Adash.Language.Semantics is
                   function Fits_The_Others
                     (Candidate : Symbols.Symbol) return Boolean;
 
-                  function Settled_Argument
-                    (Position : Positive) return Types.Type_Kind
+                  function Settled_Value (Value : S.Node_Id)
+                                          return Types.Type_Kind
                   is
-                     Value : constant S.Node_Id :=
-                       (if Position <= S.Child_Count (Tree, Arguments)
-                        then S.Child (Tree, Arguments, Position)
-                        else S.No_Node);
-
-                     --  What the expression is, once parentheses are past.
+                     --  What the expression is, once parentheses and a name
+                     --  written for a parameter are past.
                      function Beneath (Node : S.Node_Id) return S.Node_Id
-                     is (if S.Is_Present (Node)
-                           and then S.Kind (Tree, Node) = S.Node_Parenthesized
-                         then Beneath (S.First (Tree, Node)) else Node);
+                     is (if not S.Is_Present (Node) then Node
+                         elsif S.Kind (Tree, Node) = S.Node_Parenthesized
+                         then Beneath (S.First (Tree, Node))
+                         elsif S.Kind (Tree, Node) = S.Node_Named_Argument
+                         then Beneath (S.Second (Tree, Node))
+                         else Node);
 
                      Inner : constant S.Node_Id := Beneath (Value);
                      Pool  : Adash.Language.Scopes.Symbol_List;
@@ -3797,7 +3882,33 @@ package body Adash.Language.Semantics is
                         when others =>
                            return Types.Type_None;
                      end case;
-                  end Settled_Argument;
+                  end Settled_Value;
+
+                  function Parameter_For
+                    (Candidate : Symbols.Symbol;
+                     Written   : Positive) return Natural
+                  is
+                     Value : constant S.Node_Id :=
+                       (if Written <= S.Child_Count (Tree, Arguments)
+                        then S.Child (Tree, Arguments, Written)
+                        else S.No_Node);
+                  begin
+                     if not S.Is_Present (Value) then
+                        return 0;
+                     end if;
+
+                     if S.Kind (Tree, Value) = S.Node_Named_Argument then
+                        if not Symbols.Has_Profile (Candidate) then
+                           return 0;
+                        end if;
+
+                        return Symbols.Parameter_At
+                                 (Candidate,
+                                  S.Text (Tree, S.First (Tree, Value)));
+                     end if;
+
+                     return Written;
+                  end Parameter_For;
 
                   function Takes_The_Arguments
                     (Candidate : Symbols.Symbol) return Boolean
@@ -3812,55 +3923,69 @@ package body Adash.Language.Semantics is
                         return False;
                      end if;
 
-                     for Position in 1 .. Natural'Min
-                       (Natural'Min (Given, About.Maximum),
-                        Symbols.Max_Parameters)
-                     loop
-                        if S.Kind (Tree, S.Child (Tree, Arguments, Position))
-                           = S.Node_Named_Argument
-                        then
-                           return True;
-                        end if;
-
+                     for Written in 1 .. Given loop
                         declare
-                           Wanted : constant Types.Type_Kind :=
-                             About.Of_Type (Position);
-                           Only   : constant Types.Type_Kind :=
-                             Settled_Argument (Position);
+                           Value : constant S.Node_Id :=
+                             S.Child (Tree, Arguments, Written);
 
-                           Could : Possible_List;
-                           Many  : Natural := 0;
-                           Fits  : Boolean := False;
+                           Position : constant Natural :=
+                             Parameter_For (Candidate, Written);
                         begin
-                           if Wanted = Types.Type_None then
-                              --  A parameter that takes anything, which the
-                              --  output procedures rely on.
-                              null;
+                           if Position = 0
+                             or else Position > Natural'Min
+                                       (About.Maximum,
+                                        Symbols.Max_Parameters)
+                           then
+                              --  A name this candidate does not have, or a
+                              --  position past its profile: not a call to it
+                              --  whatever the types would say.
+                              return False;
+                           end if;
 
-                           elsif Only /= Types.Type_None then
-                              if not Types.Is_Acceptable (Only, Wanted) then
-                                 return False;
-                              end if;
+                           declare
+                              Wanted : constant Types.Type_Kind :=
+                                About.Of_Type (Position);
+                              Only   : constant Types.Type_Kind :=
+                                Settled_Value (Value);
 
-                           else
-                              Possible_Types
-                                (S.Child (Tree, Arguments, Position),
-                                 Could, Many);
+                              Could : Possible_List;
+                              Many  : Natural := 0;
+                              Fits  : Boolean := False;
+                           begin
+                              if Wanted = Types.Type_None then
+                                 --  A parameter that takes anything, which
+                                 --  the output procedures rely on.
+                                 null;
 
-                              if Many > 0 then
-                                 for Taken in 1 .. Many loop
-                                    if Types.Is_Acceptable
-                                         (Could (Taken), Wanted)
-                                    then
-                                       Fits := True;
-                                    end if;
-                                 end loop;
-
-                                 if not Fits then
+                              elsif Only /= Types.Type_None then
+                                 if not Types.Is_Acceptable (Only, Wanted)
+                                 then
                                     return False;
                                  end if;
+
+                              else
+                                 Possible_Types
+                                   ((if S.Kind (Tree, Value)
+                                        = S.Node_Named_Argument
+                                     then S.Second (Tree, Value)
+                                     else Value),
+                                    Could, Many);
+
+                                 if Many > 0 then
+                                    for Taken in 1 .. Many loop
+                                       if Types.Is_Acceptable
+                                            (Could (Taken), Wanted)
+                                       then
+                                          Fits := True;
+                                       end if;
+                                    end loop;
+
+                                    if not Fits then
+                                       return False;
+                                    end if;
+                                 end if;
                               end if;
-                           end if;
+                           end;
                         end;
                      end loop;
 
@@ -3946,13 +4071,20 @@ package body Adash.Language.Semantics is
                      Many   : Natural;
                      Answer : Types.Type_Kind := Types.Type_None;
                      Shared : Natural := 0;
+
+                     Written : constant S.Node_Id :=
+                       (if Position <= S.Child_Count (Tree, Arguments)
+                        then S.Child (Tree, Arguments, Position)
+                        else S.No_Node);
                   begin
-                     if Position > S.Child_Count (Tree, Arguments) then
+                     if not S.Is_Present (Written) then
                         return Types.Type_None;
                      end if;
 
                      Possible_Types
-                       (S.Child (Tree, Arguments, Position), Could, Many);
+                       ((if S.Kind (Tree, Written) = S.Node_Named_Argument
+                         then S.Second (Tree, Written) else Written),
+                        Could, Many);
 
                      if Many = 0 then
                         return Types.Type_None;
@@ -3964,17 +4096,23 @@ package body Adash.Language.Semantics is
                         declare
                            About : constant Signature :=
                              Signature_Of (Name, Pool (Index));
+
+                           At_Parameter : constant Natural :=
+                             Parameter_For (Pool (Index), Position);
                         begin
                            if About.Known
                              and then Answers_The_Context (Pool (Index))
                              and then Fits_The_Others (Pool (Index))
                              and then Given >= About.Minimum
                              and then Given <= About.Maximum
-                             and then Position <= Natural'Min
-                                        (About.Maximum, Symbols.Max_Parameters)
+                             and then At_Parameter in
+                                        1 .. Natural'Min
+                                               (About.Maximum,
+                                                Symbols.Max_Parameters)
                            then
                               for Taken in 1 .. Many loop
-                                 if Could (Taken) = About.Of_Type (Position)
+                                 if Could (Taken)
+                                    = About.Of_Type (At_Parameter)
                                    and then Answer /= Could (Taken)
                                  then
                                     Shared := Shared + 1;
@@ -4002,20 +4140,25 @@ package body Adash.Language.Semantics is
                         declare
                            About : constant Signature :=
                              Signature_Of (Name, Pool (Index));
+
+                           At_Parameter : constant Natural :=
+                             Parameter_For (Pool (Index), Position);
                         begin
                            if About.Known
                              and then Answers_The_Context (Pool (Index))
                              and then Fits_The_Others (Pool (Index))
                              and then Given >= About.Minimum
                              and then Given <= About.Maximum
-                             and then Position <= Natural'Min
-                                        (About.Maximum, Symbols.Max_Parameters)
+                             and then At_Parameter in
+                                        1 .. Natural'Min
+                                               (About.Maximum,
+                                                Symbols.Max_Parameters)
                            then
                               if not Seen then
-                                 Wanted := About.Of_Type (Position);
+                                 Wanted := About.Of_Type (At_Parameter);
                                  Seen := True;
 
-                              elsif Wanted /= About.Of_Type (Position) then
+                              elsif Wanted /= About.Of_Type (At_Parameter) then
                                  --  They disagree, so what this position
                                  --  requires depends on which candidate wins.
                                  --  Unless the argument written there could
