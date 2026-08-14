@@ -1,3 +1,4 @@
+with Ada.Characters.Latin_1;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Streams;
@@ -459,9 +460,24 @@ package body Adash_Tests.Conformance is
                Stop := Stop + 1;
             end loop;
 
-            if Text (First .. Stop - 1) /= Harness_Notice then
-               Into.Append (To_Unbounded_String (Text (First .. Stop - 1)));
-            end if;
+            declare
+               --  Without the carriage return the host put there. A line ends
+               --  with CR LF on Windows -- Ada.Text_IO writes the host's
+               --  terminator and this splits on the newline -- so every line a
+               --  case compared carried a trailing CR and differed from what
+               --  the case wrote. What a case asserts is the text of a line,
+               --  not how the host ends one.
+               Ends : constant Natural :=
+                 (if Stop - 1 >= First
+                    and then Text (Stop - 1) = Ada.Characters.Latin_1.CR
+                  then Stop - 2 else Stop - 1);
+
+               Line : constant String := Text (First .. Ends);
+            begin
+               if Line /= Harness_Notice then
+                  Into.Append (To_Unbounded_String (Line));
+               end if;
+            end;
 
             First := Stop + 1;
          end;
