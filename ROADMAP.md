@@ -3155,11 +3155,13 @@ sources for a string literal holding two ordinary words, which took a minute,
 and `adash_check` now does it on every run.
 
 
-## Dependency work outstanding
+## What the other crates owe, and what they gave
 
-These block specific phases and are tracked here because no amount of work
-inside Adash resolves them: each is a capability another crate owns, and the
-answer is always to extend that crate rather than to grow a second copy here.
+**Nothing is outstanding.** Everything below was once a capability another crate
+owned and Adash could not proceed without, tracked here because no amount of
+work inside Adash resolved it: the answer is always to extend that crate rather
+than to grow a second copy here. Each entry now says what arrived, and the last
+one says what ended.
 
 **`jsonlib` and `tomllib` now exist**, as sibling crates at
 `../jsonlib` and `../tomllib`. Both are complete, tested and warning-free:
@@ -3221,6 +3223,22 @@ consumer degrades on them explicitly:
   answer is the pseudo-console, a differently shaped API; implementing it
   belongs in hostkit when a consumer needs it.
 
+**`hac` is history, and nothing here depends on it.** Everything from this
+point to the end of the section described a dependency that ended: Adash lowered
+into HAC's p-code interpreter, and `Adash.Machine` is the virtual machine now.
+`alire.toml` names no such crate, no source mentions it, and `../hac` is a
+checkout nothing builds against. `docs/hac-assessment.md` says why the
+dependency ended and what it cost; `docs/command-calls.md` is the other document
+kept for its reasoning rather than its mechanism.
+
+It stays because the reasoning is still worth reading -- what a lowering target
+has to provide, why a parse tree was Adash's own to own, and what the estimate
+got wrong -- and because a section that simply disappeared would leave a reader
+wondering what had been decided.
+
+<details>
+<summary>The HAC-era assessment, kept as written</summary>
+
 **`hac` is vendored at `../hac`, version 0.42.0, with two local changes.** It
 builds, runs, and is now linked into Adash: `hac_lib.gpr` exports `HAC_Sys` as a
 library, and the crate's manifest points at it. Fork change 1 is done.
@@ -3280,6 +3298,7 @@ prompt lines becomes Adash's own, so a line is analysed against the session's
 accumulated scope and only its new statements are lowered and run. HAC never has
 to hold a compilation context across units — which was the substantial change
 the alternative would have required.
+</details>
 
 ## Definition of done
 
