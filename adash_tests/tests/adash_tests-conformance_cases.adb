@@ -50,8 +50,15 @@ package body Adash_Tests.Conformance_Cases is
    begin
       Conf.Run (Root, Results);
 
+      --  How many, not only which. A run on a host nobody can reach reports
+      --  one case and leaves the scale unknown: two failures of six hundred
+      --  and a hundred and fifty of six hundred are different problems, and
+      --  the first line of the report is where that has to be visible.
       Assert (Conf.Passed (Results),
-              "the conformance suite failed: " & First_Problem (Results));
+              "the conformance suite failed:"
+              & Natural'Image (Conf.Count_Of (Results, Conf.Failed))
+              & " of" & Natural'Image (Conf.Count (Results))
+              & " cases; first: " & First_Problem (Results));
    end Suite_Passes;
 
    ----------------------
@@ -68,8 +75,10 @@ package body Adash_Tests.Conformance_Cases is
       --  that lies, and this is the only thing standing between that and a
       --  reader discovering it.
       Assert (Conf.Passed (Results),
-              "an example no longer matches its .expected file: "
-              & First_Problem (Results));
+              "an example no longer matches its .expected file:"
+              & Natural'Image (Conf.Count_Of (Results, Conf.Failed))
+              & " of" & Natural'Image (Conf.Count (Results))
+              & "; first: " & First_Problem (Results));
    end Examples_Pass;
 
    ------------------------------
