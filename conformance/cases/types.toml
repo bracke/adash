@@ -880,3 +880,65 @@ script = "type Measurement_Value is (Low, High);\nA : array (1 .. 2) of Measurem
 exit_status = 0
 output = ["High"]
 diagnostics = []
+
+[[case]]
+id = "expressions.an-if-expression-yields-one-of-two-values"
+requirement = """
+Ada's if expression, written where a value stands and inside the parentheses
+Ada requires. What it saves is the declaration-then-two-assignments a script
+otherwise writes for a choice between two values, which names something no
+reader needs named. Both arms have one type, because an expression whose type
+depended on which arm ran would have none a declaration could be checked
+against.
+"""
+script = "N : Integer := 2;\nS : String := (if N = 1 then \"one\" elsif N = 2 then \"two\" else \"many\");\nput_line (S);\nput_line (Integer'Image (if N > 0 then 1 else 0));\nquit (0);"
+exit_status = 0
+output = ["two", " 1"]
+diagnostics = []
+
+[[case]]
+id = "expressions.and-a-case-expression-covers-every-value"
+requirement = """
+The alternatives are the case statement's, choice for choice: every value
+covered once, the bounds known before the program runs, `others` last. What
+differs is that an alternative holds a value and the alternatives are separated
+by commas -- Ada punctuates each list as what it is.
+"""
+script = "type Colour is (Red, Green, Blue);\nC : Colour := Green;\nput_line ((case C is when Red => \"r\", when Green => \"g\", when Blue => \"b\"));\nquit (0);"
+exit_status = 0
+output = ["g"]
+diagnostics = []
+
+[[case]]
+id = "expressions.and-a-conditional-is-held-to-what-ada-holds-it-to"
+requirement = """
+Three refusals, each Ada's own: a case expression that leaves a value of the
+type unaccounted for has nothing to yield for it; arms of two types give the
+whole no type; and a condition is a Boolean rather than anything that could
+stand in for one. Being an expression rather than a statement changes none of
+them.
+"""
+script = "X : Integer := 2; Y : Integer := (case X is when 1 => 10, when 2 => 20);\nZ : Integer := (if 1 < 2 then 3 else \"four\");\nW : Integer := (if 1 then 3 else 4);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.case.incomplete{found=Integer}!",
+  "!error.type_mismatch{found=String,expected=Integer}!",
+  "!error.condition_not_boolean{found=Integer}!",
+]
+
+[[case]]
+id = "expressions.and-one-argument-may-go-without-its-parentheses"
+requirement = """
+Ada lets a conditional expression go bare when it is a call's only argument,
+and only then. A second argument after one is a syntax error in Ada, and the
+error here says the same thing: what may follow is the parenthesis that closes
+the call.
+"""
+script = "put_line (if 1 < 2 then \"yes\" else \"no\");\nput_line (if 1 < 2 then \"a\" else \"b\", \"c\");"
+exit_status = 0
+output = ["yes"]
+diagnostics = [
+  "!error.syntax.unexpected{found=,,expected=)}!",
+  "!error.syntax.missing{expected=)}!",
+  "!error.syntax.missing{expected=;}!",
+]

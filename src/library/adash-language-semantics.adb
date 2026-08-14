@@ -547,6 +547,16 @@ package body Adash.Language.Semantics is
       --  one; outside every loop it has nothing to leave, which is illegal Ada.
       Loop_Depth : Natural := 0;
 
+      --  What the context wants of a case expression being analysed, and
+      --  Type_None outside one.
+      --
+      --  A case expression's alternatives are the statement's, so they are
+      --  analysed where the statement's are -- and what the context wants has
+      --  to reach the arms, which are where the values stand. Saved and put
+      --  back around each one, so a case expression inside an arm of another
+      --  does not leave the outer one asking for the inner one's type.
+      Wanted_Of_Case : Types.Type_Kind := Types.Type_None;
+
       --  What a declaration in the region being analysed is called, in full.
       --  Empty outside a package; `Config` inside one; `Outer.Inner` inside a
       --  package inside a package.
@@ -1045,6 +1055,11 @@ package body Adash.Language.Semantics is
          Expected : Types.Type_Kind := Types.Type_None) return Types.Type_Kind;
       procedure Analyse_Statement (Node : S.Node_Id);
       procedure Analyse_Sequence (Node : S.Node_Id);
+
+      --  Analyse what stands where a condition does, complaining when it is
+      --  not a Boolean. Declared here because an if *expression* asks it of
+      --  its condition, and expressions are analysed above the statements.
+      procedure Require_Condition (Node : S.Node_Id);
       procedure Analyse_Subprogram (Node : S.Node_Id);
       procedure Analyse_Handlers (Handlers : S.Node_Id);
 
@@ -4388,6 +4403,68 @@ package body Adash.Language.Semantics is
                   return Symbols.Of_Type (Found);
                end;
 
+            when S.Node_If_Expression =>
+               declare
+                  When_True  : Types.Type_Kind;
+                  When_False : Types.Type_Kind;
+               begin
+                  Require_Condition (S.First (Tree, Node));
+
+                  --  What the context wants reaches both arms, and the first
+                  --  arm's type reaches the second: `(if A then F else 0)`
+                  --  settles F against the Integer the other arm is, which is
+                  --  the rule the two sides of a comparison already follow.
+                  When_True := Analyse_Expression (S.Second (Tree, Node),
+                                                   Expected);
+                  When_False :=
+                    Analyse_Expression
+                      (S.Third (Tree, Node),
+                       (if When_True /= Types.Type_None
+                        then When_True else Expected));
+
+                  if When_True = Types.Type_None
+                    or else When_False = Types.Type_None
+                  then
+                     Legal := False;
+                     Note (Node, Types.Type_None);
+                     return Types.Type_None;
+                  end if;
+
+                  if not Types.Is_Acceptable (When_False, When_True) then
+                     --  One type for the whole, as Ada requires: an
+                     --  expression whose type depended on which arm ran would
+                     --  have none a declaration could be checked against.
+                     Complain
+                       (Adash.Errors.Error_Type_Mismatch, S.Third (Tree, Node),
+                        [Adash.Messages.Named
+                           ("found", Types.Name (When_False)),
+                         Adash.Messages.Named
+                           ("expected", Types.Name (When_True))]);
+                     Note (Node, Types.Type_None);
+                     return Types.Type_None;
+                  end if;
+
+                  Note (Node, When_True);
+                  return When_True;
+               end;
+
+            when S.Node_Case_Expression =>
+               --  The alternatives are the statement's, choice for choice --
+               --  every value covered once, the bounds known before the
+               --  program runs, `others` last -- so they are analysed where
+               --  the statement's are rather than in a second copy that could
+               --  drift from it. What the context wants travels there in
+               --  Wanted_Of_Case, because an arm is where a value stands.
+               declare
+                  Outer : constant Types.Type_Kind := Wanted_Of_Case;
+               begin
+                  Wanted_Of_Case := Expected;
+                  Analyse_Statement (Node);
+                  Wanted_Of_Case := Outer;
+               end;
+
+               return Into.Type_Of (Node);
+
             when S.Node_Qualified =>
                declare
                   Marked : constant Types.Type_Kind :=
@@ -7644,12 +7721,68 @@ package body Adash.Language.Semantics is
                   end if;
                end if;
 
-            when S.Node_Case =>
+            when S.Node_Case | S.Node_Case_Expression =>
                declare
                   Subject : constant S.Node_Id := S.First (Tree, Node);
                   Listed  : constant S.Node_Id := S.Second (Tree, Node);
                   Of_Type : constant Types.Type_Kind :=
                     Analyse_Expression (Subject);
+
+                  --  Whether the alternatives hold values rather than
+                  --  statements. Everything about the choices is the same
+                  --  either way, which is why one routine answers for both.
+                  Values : constant Boolean :=
+                    S.Kind (Tree, Node) = S.Node_Case_Expression;
+
+                  --  What the context wants of each arm, taken here because
+                  --  an arm of an inner case expression will overwrite it.
+                  Wanted : constant Types.Type_Kind :=
+                    (if Values then Wanted_Of_Case else Types.Type_None);
+
+                  --  What the whole expression yields: the first arm's type,
+                  --  which every other arm must agree with.
+                  Yields : Types.Type_Kind := Types.Type_None;
+
+                  --  Analyse one alternative's right-hand side, whichever it
+                  --  is, and hold the arms to one type.
+                  procedure Analyse_Arm (Alternative : S.Node_Id);
+
+                  procedure Analyse_Arm (Alternative : S.Node_Id) is
+                     Given : constant S.Node_Id := S.Second (Tree, Alternative);
+                  begin
+                     if not Values then
+                        Analyse_Sequence (Given);
+                        return;
+                     end if;
+
+                     declare
+                        Outer : constant Types.Type_Kind := Wanted_Of_Case;
+                        Arm   : Types.Type_Kind;
+                     begin
+                        Wanted_Of_Case := Wanted;
+                        Arm := Analyse_Expression (Given, Wanted);
+                        Wanted_Of_Case := Outer;
+
+                        if Arm = Types.Type_None then
+                           Legal := False;
+
+                        elsif Yields = Types.Type_None then
+                           Yields := Arm;
+
+                        elsif not Types.Is_Acceptable (Arm, Yields) then
+                           --  Ada holds every arm to one type, and so does
+                           --  this: an expression whose type depended on which
+                           --  arm ran would have no type a declaration could
+                           --  be checked against.
+                           Complain
+                             (Adash.Errors.Error_Type_Mismatch, Given,
+                              [Adash.Messages.Named
+                                 ("found", Types.Name (Arm)),
+                               Adash.Messages.Named
+                                 ("expected", Types.Name (Yields))]);
+                        end if;
+                     end;
+                  end Analyse_Arm;
 
                   --  What the choices so far cover. Kept as ranges rather than
                   --  as a set of values because `when 1 .. 1_000_000 =>` is one
@@ -7837,9 +7970,12 @@ package body Adash.Language.Semantics is
                      --  Still walked, so a mistake inside an alternative is
                      --  reported too rather than waiting for the next run.
                      for Index in 1 .. S.Child_Count (Tree, Listed) loop
-                        Analyse_Sequence
-                          (S.Second (Tree, S.Child (Tree, Listed, Index)));
+                        Analyse_Arm (S.Child (Tree, Listed, Index));
                      end loop;
+
+                     if Values then
+                        Note (Node, Types.Type_None);
+                     end if;
 
                      return;
                   end if;
@@ -7862,18 +7998,25 @@ package body Adash.Language.Semantics is
                                                      (Tree, Listed));
                         end loop;
 
-                        Analyse_Sequence (S.Second (Tree, Alternative));
+                        Analyse_Arm (Alternative);
                      end;
                   end loop;
 
                   --  Ada requires every value to be accounted for, and so does
                   --  this: a case that silently did nothing for a value nobody
-                  --  thought about is the bug the rule exists to prevent.
+                  --  thought about is the bug the rule exists to prevent. For
+                  --  an expression it is worse again -- there would be no
+                  --  value to yield -- which is why Ada refuses an `others`
+                  --  there for a subtype it does not cover either.
                   if not Catch and then Total < Whole then
                      Complain
                        (Adash.Errors.Error_Case_Incomplete, Node,
                         [1 => Adash.Messages.Named
                                 ("found", Types.Name (Of_Type))]);
+                  end if;
+
+                  if Values then
+                     Note (Node, Yields);
                   end if;
                end;
 

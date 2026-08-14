@@ -2945,6 +2945,17 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   it one nobody can write -- the object's, with an apostrophe in it -- while
   the type is *called* what it was written as, which is what carrying the
   variable into the next submission writes out again.
+- **A conditional expression is written**, `(if A then B else C)` and
+  `(case X is when 1 => A, when others => B)`, in the parentheses Ada requires
+  and without them where Ada allows it -- a call's only argument. The `else` is
+  always written: Ada lets a Boolean if expression leave it out and reads True,
+  and a reader of `(if Ready then Done)` should not have to know the type to
+  know what it yields. The alternatives of a case expression are the case
+  statement's, and are analysed and emitted by the same code: every value
+  covered once, bounds known before the program runs, `others` last. What
+  differs is that an arm holds a value, that the arms are separated by commas,
+  and that they all have one type -- an expression whose type depended on which
+  arm ran would have none a declaration could be checked against.
 - **A qualified expression is written**, `Small'(Red)`, and applies the
   subtype's constraint. It is rarely needed -- the expected type and the other
   operand settle the ordinary cases -- but a reader who writes what Ada writes
@@ -2973,14 +2984,14 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
 
 ### What is inside the subset and imperfect
 
-- **Overload resolution settles one pair at a time, not a whole statement.**
-  What a context expects reaches into it; between two open ends it asks which
-  single type both could have. What it does not do is carry a choice further
-  than one pair: a program whose meaning depends on resolving three things
-  together -- an argument that settles a call that settles *another*
-  argument -- is refused where Ada would take it. Ada resolves a complete
-  context at once by enumerating its interpretations; this asks a narrower
-  question in the two places the answer usually lives.
+- **Overload resolution asks narrower questions than Ada's.** What a context
+  expects reaches into a call and, through the candidates it rules out, into
+  the call's arguments -- as far down as they nest. Between two open ends with
+  nothing required of either, it asks which single type both could have. What
+  it does not do is enumerate a whole statement's interpretations the way Ada
+  does, so a meaning that depends on a choice travelling *sideways* -- one
+  argument settling a call that settles another argument of the same call --
+  is refused where Ada would take it.
 - **Nothing at submission level can be named after a predefined entity or an
   internal command.** For a subprogram the reason is resolution: those accept
   any type, so a user's version would fit every call the original does and every

@@ -105,6 +105,15 @@ package body Adash.Language.Parser is
         (Name    : S.Node_Id;
          Start   : Adash.Source.Span;
          Closing : Boolean) return S.Node_Id;
+      --  `if A then B else C` and `case X is when 1 => A, when others => B`,
+      --  read from the word that begins one.
+      --
+      --  The parentheses around either are the caller's: what tells a value
+      --  from a statement here is where it stands, and this is called where a
+      --  value stands. An `elsif` is read as a nested if expression, which is
+      --  what an `elsif` in a statement becomes as well.
+      function Parse_Conditional_Value return S.Node_Id;
+
       function Parse_Choice return S.Node_Id;
       function Parse_Argument return S.Node_Id;
       function Parse_Handlers return S.Node_Id;
@@ -597,6 +606,24 @@ package body Adash.Language.Parser is
             when T.Token_Delimiter =>
                if T.Symbol (Current) = T.Delim_Left_Paren then
                   Advance;
+
+                  --  `(if A then B else C)` and `(case X is when ... )`.
+                  --  Ada writes both inside parentheses, and this is where the
+                  --  parenthesis has just been taken: nothing else that stands
+                  --  here begins with either word.
+                  if Is_Word (T.Word_If) or else Is_Word (T.Word_Case) then
+                     declare
+                        Built : constant S.Node_Id := Parse_Conditional_Value;
+                     begin
+                        if not Expect_Symbol (T.Delim_Right_Paren) then
+                           Recover;
+                           return Error_Node
+                             (Adash.Source.Join (Here, Just_Consumed));
+                        end if;
+
+                        return Built;
+                     end;
+                  end if;
 
                   declare
                      Collected : S.Node_List (1 .. 256);
@@ -3471,6 +3498,31 @@ package body Adash.Language.Parser is
       function Parse_Argument return S.Node_Id is
          Start : constant Adash.Source.Span := Here;
       begin
+         --  `Put_Line (if Ready then "yes" else "no")`. Ada lets a conditional
+         --  expression go without its own parentheses when it is a call's only
+         --  argument, and only then -- so what follows it here has to be the
+         --  parenthesis that closes the call, and a comma is the syntax error
+         --  Ada says it is.
+         if Is_Word (T.Word_If) or else Is_Word (T.Word_Case) then
+            declare
+               Built : constant S.Node_Id := Parse_Conditional_Value;
+            begin
+               if Is_Symbol (T.Delim_Comma) then
+                  declare
+                     Ignored : constant Boolean :=
+                       Expect_Symbol (T.Delim_Right_Paren);
+                     pragma Unreferenced (Ignored);
+                  begin
+                     Recover;
+                     return Error_Node
+                       (Adash.Source.Join (Start, Just_Consumed));
+                  end;
+               end if;
+
+               return Built;
+            end;
+         end if;
+
          --  `Name => Value`. Two tokens of lookahead settle it, and nothing
          --  else in an argument position begins with an identifier followed by
          --  an arrow -- `=>` appears in a case alternative and a handler, and
@@ -3805,6 +3857,130 @@ package body Adash.Language.Parser is
                 Element]);
          end;
       end Parse_Array_Definition;
+
+      function Parse_Conditional_Value return S.Node_Id is
+         Start : constant Adash.Source.Span := Here;
+      begin
+         if Is_Word (T.Word_Case) then
+            Advance;
+
+            declare
+               Subject      : constant S.Node_Id := Parse_Expression_Rule;
+               Alternatives : S.Node_List (1 .. 256);
+               Count        : Natural := 0;
+            begin
+               if not Expect_Word (T.Word_Is) then
+                  Recover;
+                  return Error_Node (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
+               while Is_Word (T.Word_When) loop
+                  if Count = Alternatives'Last then
+                     Too_Many (Adash.Messages.Msg_List_Alternatives,
+                               Alternatives'Last);
+                     exit;
+                  end if;
+
+                  Advance;
+
+                  declare
+                     Opened  : constant Adash.Source.Span := Just_Consumed;
+                     Choices : S.Node_List (1 .. 64);
+                     Chosen  : Natural := 0;
+                  begin
+                     loop
+                        if Chosen = Choices'Last then
+                           Too_Many (Adash.Messages.Msg_List_Choices,
+                                     Choices'Last);
+                           exit;
+                        end if;
+
+                        Chosen := Chosen + 1;
+                        Choices (Chosen) := Parse_Choice;
+                        exit when not Is_Symbol (T.Delim_Bar);
+                        Advance;
+                     end loop;
+
+                     if not Expect_Symbol (T.Delim_Arrow) then
+                        Recover;
+                        return Error_Node
+                          (Adash.Source.Join (Start, Just_Consumed));
+                     end if;
+
+                     declare
+                        Listed : constant S.Node_Id :=
+                          S.Add_Node
+                            (Into, S.Node_Sequence,
+                             Adash.Source.Join (Opened, Just_Consumed),
+                             Choices (1 .. Chosen));
+
+                        Value : constant S.Node_Id := Parse_Expression_Rule;
+                     begin
+                        Count := Count + 1;
+                        Alternatives (Count) :=
+                          S.Add_Node
+                            (Into, S.Node_Case_Alternative,
+                             Adash.Source.Join (Opened, Just_Consumed),
+                             [Listed, Value]);
+                     end;
+                  end;
+
+                  --  A comma between alternatives, where the statement writes
+                  --  nothing: one is a list of values and the other a list of
+                  --  statements, and Ada punctuates them as what they are.
+                  exit when not Is_Symbol (T.Delim_Comma);
+                  Advance;
+               end loop;
+
+               return S.Add_Node
+                 (Into, S.Node_Case_Expression,
+                  Adash.Source.Join (Start, Just_Consumed),
+                  [Subject,
+                   S.Add_Node
+                     (Into, S.Node_Sequence,
+                      Adash.Source.Join (Start, Just_Consumed),
+                      Alternatives (1 .. Count))]);
+            end;
+         end if;
+
+         --  `if`, or the `elsif` that is one written after another.
+         Advance;
+
+         declare
+            Condition  : constant S.Node_Id := Parse_Expression_Rule;
+            When_True  : S.Node_Id;
+            When_False : S.Node_Id;
+         begin
+            if not Expect_Word (T.Word_Then) then
+               Recover;
+               return Error_Node (Adash.Source.Join (Start, Just_Consumed));
+            end if;
+
+            When_True := Parse_Expression_Rule;
+
+            if Is_Word (T.Word_Elsif) then
+               When_False := Parse_Conditional_Value;
+
+            else
+               --  Required. Ada lets a Boolean if expression leave the else
+               --  out and reads True for it; here a value is always written,
+               --  because a reader of `(if Ready then Done)` should not have
+               --  to know the type to know what it yields.
+               if not Expect_Word (T.Word_Else) then
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
+               When_False := Parse_Expression_Rule;
+            end if;
+
+            return S.Add_Node
+              (Into, S.Node_If_Expression,
+               Adash.Source.Join (Start, Just_Consumed),
+               [Condition, When_True, When_False]);
+         end;
+      end Parse_Conditional_Value;
 
       function Parse_Type_Mark (Ok : out Boolean) return S.Node_Id is
          Start  : constant Adash.Source.Span := Here;

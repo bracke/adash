@@ -211,6 +211,17 @@ Ada settles it too.
                      | ''' '(' expression ')' }               -- Node_Qualified
               | '(' expression ')'                           -- Node_Parenthesized
               | '(' aggregate ')'                            -- Node_Aggregate
+              | '(' conditional ')'
+
+    conditional ::=
+        'if' expression 'then' expression
+            { 'elsif' expression 'then' expression }
+            'else' expression                                -- Node_If_Expression
+      | 'case' expression 'is' case_value { ',' case_value }
+                                                             -- Node_Case_Expression
+
+    case_value ::= 'when' choice { '|' choice } '=>' expression
+                                                             -- Node_Case_Alternative
 
     name      ::= identifier                                 -- Node_Name
                 | name '.' identifier                        -- Node_Selected
@@ -227,6 +238,11 @@ Ada settles it too.
 
     aggregate ::= argument { ',' argument }
                 | 'others' '=>' expression
+
+A `conditional` also stands unparenthesised as a call's *only* argument, which
+is Ada's rule and the reason `argument` does not name it: what follows one there
+has to be the parenthesis that closes the call, so a comma after it is the
+syntax error Ada says it is.
 
 `Node_Call` is what `name '(' arguments ')'` builds in an expression — whether it
 denotes a call, an array index, an array slice or a part of a String is a

@@ -4473,6 +4473,33 @@ package body Adash.Language.Evaluation is
                      Sem.Symbol_Of (Analysis, Prefix));
                end;
 
+            when S.Node_If_Expression =>
+               declare
+                  Over_True  : Natural;
+                  Over_False : Natural;
+               begin
+                  Emit_Expression (S.First (Tree, Node));
+
+                  Over_True := Here;
+                  Emit_1 (VM.Jump_If_False, 0);
+
+                  Emit_Expression (S.Second (Tree, Node));
+
+                  Over_False := Here;
+                  Emit_1 (VM.Jump, 0);
+
+                  Code.Patch (Over_True, Here);
+                  Emit_Expression (S.Third (Tree, Node));
+                  Code.Patch (Over_False, Here);
+               end;
+
+            when S.Node_Case_Expression =>
+               --  Emitted where the statement is, because it is the statement
+               --  with a value in place of each alternative's statements: one
+               --  subject kept in a slot, one test per choice, one jump to the
+               --  end from whichever alternative ran.
+               Emit_Statement (Node);
+
             when S.Node_Qualified =>
                --  The expression, and the check the type asks for. A
                --  qualified expression says which reading is meant and Ada
@@ -6366,10 +6393,18 @@ package body Adash.Language.Evaluation is
                   end if;
                end;
 
-            when S.Node_Case =>
+            when S.Node_Case | S.Node_Case_Expression =>
                declare
                   Listed : constant S.Node_Id := S.Second (Tree, Node);
                   Total  : constant Natural := S.Child_Count (Tree, Listed);
+
+                  --  Whether each alternative holds a value rather than
+                  --  statements. Everything else about the shape is the same,
+                  --  which is why one routine emits both: the subject is kept
+                  --  once, each alternative tests and jumps to the end, and
+                  --  what an alternative *does* is the only difference.
+                  Values : constant Boolean :=
+                    S.Kind (Tree, Node) = S.Node_Case_Expression;
 
                   --  The value being examined, evaluated once and kept.
                   --  `case Next_Line is` must not call Next_Line again for
@@ -6485,7 +6520,11 @@ package body Adash.Language.Evaluation is
                            Emit_1 (VM.Jump_If_False, 0);
                         end if;
 
-                        Emit_Sequence (S.Second (Tree, Alternative));
+                        if Values then
+                           Emit_Expression (S.Second (Tree, Alternative));
+                        else
+                           Emit_Sequence (S.Second (Tree, Alternative));
+                        end if;
 
                         --  Alternatives do not fall through to one another, so
                         --  each one that ran is done with the statement.

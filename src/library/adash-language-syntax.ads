@@ -76,6 +76,25 @@ package Adash.Language.Syntax is
       --  Name'Attribute.
       Node_Attribute,
 
+      --  `(if A then B else C)`. Three children: the condition, the value
+      --  when it holds, and the value when it does not.
+      --
+      --  Ada's if expression, and written with its parentheses: what tells a
+      --  value from a statement here is where it stands, and `(` is where a
+      --  value stands. An `elsif` is a nested if expression, as an `elsif` in
+      --  a statement is a nested if -- so every later pass has one shape.
+      Node_If_Expression,
+
+      --  `(case X is when 1 => A, when others => B)`. Two children: what is
+      --  examined, and the sequence of alternatives -- each a
+      --  Node_Case_Alternative whose second child is one expression rather
+      --  than a sequence of statements.
+      --
+      --  The choices are the statement's own: every value covered once, the
+      --  bounds known before the program runs, `others` last. What differs is
+      --  only what an alternative *is*.
+      Node_Case_Expression,
+
       --  `Small'(Red)`. Two children: the type mark and the expression.
       --
       --  Ada writes it to say which of several readings is meant. This

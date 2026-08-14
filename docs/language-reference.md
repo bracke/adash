@@ -174,6 +174,20 @@ settle the ordinary cases; it is what settles the rest. The one exception
 is `'Length` and `'Last` of an unconstrained array parameter, which are asked of
 the value: what was passed is not known until it is.
 
+**A conditional expression** stands where a value stands, inside the
+parentheses Ada requires:
+
+    S : String := (if N = 1 then "one" elsif N = 2 then "two" else "many");
+    C : Colour := (case N is when 1 => Red, when others => Green);
+
+The `else` is written even where Ada would let a Boolean one go without it, so
+that a reader need not know the type to know what it yields. Both arms of an
+`if`, and every arm of a `case`, have one type — the type of the whole — and a
+case expression accounts for every value of the type exactly as the statement
+does. What the context wants reaches the arms, so a call several subprograms
+could answer resolves inside one. Ada's one relaxation is here too: the
+parentheses may be left out when the conditional is a call's *only* argument.
+
 `'Size` and `'Storage_Size` answer in this machine's own unit — slots, and slots
 and stack — rather than in bits. That is not Ada's meaning; the number is not
 comparable with a compiler's.
