@@ -212,7 +212,8 @@ Ada settles it too.
 
     primary ::= literal
               | name { '.' name | ''' attribute | '(' arguments ')'
-                     | ''' '(' expression ')' }               -- Node_Qualified
+                     | ''' ( '(' expression ')'
+                           | '(' aggregate ')' ) }            -- Node_Qualified
               | '(' expression ')'                           -- Node_Parenthesized
               | '(' aggregate ')'                            -- Node_Aggregate
               | '(' conditional ')'

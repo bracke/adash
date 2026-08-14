@@ -1034,3 +1034,17 @@ diagnostics = [
   "!error.number_not_numeric{name=Yes,found=Boolean}!",
   "!error.number_not_a_literal{name=Y}!",
 ]
+
+[[case]]
+id = "types.a-qualified-expression-qualifies-an-aggregate-too"
+requirement = """
+What a qualified expression is most often written for: an aggregate has no type
+of its own, so the type mark in front of it is what says which one it builds.
+It fills a run of slots there exactly as it does in a declaration -- in a
+declaration, in an assignment, and at a call -- and a type mark naming another
+type is the ordinary mismatch.
+"""
+script = "type Row is array (1 .. 2) of Integer; function Head (V : Row) return Integer is begin return V (1); end Head;\nA : Row := Row'(1, 2); A := Row'(4, 5);\nput_line (A (2)'Image & Head (Row'(8, 9))'Image);\nquit (0);"
+exit_status = 0
+output = [" 5 8"]
+diagnostics = []

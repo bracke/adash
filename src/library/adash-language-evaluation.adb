@@ -628,6 +628,24 @@ package body Adash.Language.Evaluation is
          Values     : S.Node_Id;
          At_Address : Integer := -1);
 
+      --  The aggregate written here, through a qualified expression when
+      --  there is one: `Row'(1, 2)` is the aggregate `(1, 2)` with the type
+      --  said out loud, and everything that fills a run of slots wants the
+      --  one and not the other.
+      --
+      --  @param Node What was written where a value stands.
+      --  @return The aggregate, or No_Node when it is not one.
+      function Aggregate_In (Node : S.Node_Id) return S.Node_Id;
+
+      function Aggregate_In (Node : S.Node_Id) return S.Node_Id
+      is (if not S.Is_Present (Node) then S.No_Node
+          elsif S.Kind (Tree, Node) = S.Node_Aggregate then Node
+          elsif S.Kind (Tree, Node) = S.Node_Qualified
+                and then S.Kind (Tree, S.Second (Tree, Node))
+                         = S.Node_Aggregate
+          then S.Second (Tree, Node)
+          else S.No_Node);
+
       --  Whether this expression is an array element rather than a call.
       --
       --  Both are written `X (Y)`. Semantics settled which by the type it gave
@@ -3310,7 +3328,7 @@ package body Adash.Language.Evaluation is
                     Symbols.Parameter_Type (Callee, Index);
                   Ok : Boolean;
                begin
-                  if S.Kind (Tree, Slots (Index)) = S.Node_Aggregate then
+                  if S.Is_Present (Aggregate_In (Slots (Index))) then
                      --  An aggregate written as an argument has nowhere of
                      --  its own to be. It is built in a run of this frame's
                      --  slots and the call is handed where that run starts,
@@ -3324,7 +3342,7 @@ package body Adash.Language.Evaluation is
 
                         Emit_Aggregate
                           (Slots (Index), Of_Type,
-                           S.First (Tree, Slots (Index)),
+                           S.First (Tree, Aggregate_In (Slots (Index))),
                            At_Address => Base);
 
                         Emit_2 (VM.Address, 0, VM.Whole_Number (Base));
@@ -6236,9 +6254,10 @@ package body Adash.Language.Evaluation is
                         --  of slots, already allocated by Place_Of. What an
                         --  initial value does is fill them.
                         if S.Is_Present (Value) then
-                           if S.Kind (Tree, Value) = S.Node_Aggregate then
+                           if S.Is_Present (Aggregate_In (Value)) then
                               Emit_Aggregate
-                                (Name_Node, Of_Type, S.First (Tree, Value));
+                                (Name_Node, Of_Type,
+                                 S.First (Tree, Aggregate_In (Value)));
                            else
                               Emit_Copy (Name_Node, Value, Of_Type);
                            end if;
@@ -6357,8 +6376,9 @@ package body Adash.Language.Evaluation is
                   end if;
 
                   if Ty.Is_Composite (Of_Type) then
-                     if S.Kind (Tree, Value) = S.Node_Aggregate then
-                        Emit_Aggregate (Target, Of_Type, S.First (Tree, Value));
+                     if S.Is_Present (Aggregate_In (Value)) then
+                        Emit_Aggregate
+                          (Target, Of_Type, S.First (Tree, Aggregate_In (Value)));
                      else
                         Emit_Copy (Target, Value, Of_Type);
                      end if;

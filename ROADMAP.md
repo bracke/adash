@@ -2958,8 +2958,8 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   differs is that an arm holds a value, that the arms are separated by commas,
   and that they all have one type -- an expression whose type depended on which
   arm ran would have none a declaration could be checked against.
-- **A qualified expression is written**, `Small'(Red)`, and applies the
-  subtype's constraint. It is rarely needed -- the expected type and the other
+- **A qualified expression is written**, `Small'(Red)` and `Row'(1, 2)`, and
+  applies the subtype's constraint. It is rarely needed -- the expected type and the other
   operand settle the ordinary cases -- but a reader who writes what Ada writes
   should not be told the language does not have it, and two functions differing
   only in what they return need it.

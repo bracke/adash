@@ -551,18 +551,14 @@ package body Adash.Language.Parser is
                         --  name, and nothing else in this language is written
                         --  that way.
                         if Is_Symbol (T.Delim_Left_Paren) then
-                           Advance;
-
+                           --  Read from the parenthesis rather than past it,
+                           --  so that what stands inside is whatever may
+                           --  stand inside one: an expression, and also an
+                           --  aggregate -- `Row'(1, 2)` is what a qualified
+                           --  expression is most often for.
                            declare
-                              Value : constant S.Node_Id :=
-                                Parse_Expression_Rule;
+                              Value : constant S.Node_Id := Parse_Primary;
                            begin
-                              if not Expect_Symbol (T.Delim_Right_Paren) then
-                                 Recover;
-                                 return Error_Node
-                                   (Adash.Source.Join (Start, Just_Consumed));
-                              end if;
-
                               Node := S.Add_Node
                                 (Into, S.Node_Qualified,
                                  Adash.Source.Join (Start, Just_Consumed),

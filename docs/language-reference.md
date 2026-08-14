@@ -181,8 +181,10 @@ asked inside the body of the unit that declares the entry.
 An attribute is a **value known before the program runs**, so it may stand where
 a case choice, a subtype bound or an aggregate's index stands.
 
-**A qualified expression** — `Small'(Red)`, `Integer'(Make)` — says which
-reading is meant, and the subtype's constraint applies to what it qualifies.
+**A qualified expression** — `Small'(Red)`, `Integer'(Make)`, `Row'(1, 2)` —
+says which reading is meant, and the subtype's constraint applies to what it
+qualifies. An aggregate is what one most often qualifies, and it fills a run of
+slots there exactly as it does in a declaration.
 It is rarely needed here, because the expected type and the other operand
 settle the ordinary cases; it is what settles the rest. The one exception
 is `'Length` and `'Last` of an unconstrained array parameter, which are asked of
