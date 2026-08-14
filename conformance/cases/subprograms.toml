@@ -93,10 +93,16 @@ diagnostics = []
 
 [[case]]
 id = "sub.command-inside"
-requirement = "A subprogram body can call an internal command."
-script = "procedure Go is begin cd (\"/\"); end Go; Go; pwd;"
+requirement = """
+A subprogram body can call an internal command.
+
+It changes to the case's own store rather than to the root: `/` is a directory
+on two of the three hosts and a drive-relative path on the third, where `pwd`
+answers `D:\\` and the case would be asserting which drive CI ran on.
+"""
+script = "procedure Go is begin cd (\"{store}\"); end Go; Go; pwd;"
 exit_status = 0
-output = ["!line.directory{path=/}!"]
+output = ["!line.directory{path={store}}!"]
 diagnostics = []
 
 [[case]]

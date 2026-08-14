@@ -70,7 +70,9 @@ host puts on an executable:
 | a program that transforms its input | `{upcase}` |
 
 `{os}` and `{arch}` expand to how the build identifies itself, for the cases
-that check what `--version` reports.
+that check what `--version` reports. `{shell}` expands to the binary under
+test, with whatever suffix the host puts on one — a case that named
+`{root}/bin/adash` was asking about a file that does not exist on Windows.
 
 **`platforms` restricts a case** to the hosts it can hold on — `["linux",
 "macos"]`, say. Four cases use it, all about a job ending by signal: Windows

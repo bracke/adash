@@ -620,6 +620,9 @@ package body Adash_Tests.Conformance is
    function Filled (Item : String; Marker : String; With_Text : String)
       return String;
 
+   --  The shell under test, with whatever suffix this host puts on a binary.
+   function Shell_In (Root : String) return String;
+
    --  Replace every marker in one string.
    function Expanded (Item : String; Root : String; Files : String)
       return String;
@@ -684,8 +687,15 @@ package body Adash_Tests.Conformance is
       --  The companions last: their own expansion names the root, and doing
       --  them first would leave a `{root}` for the line above to fill in
       --  again -- which works, and reads as though the order did not matter.
+      --  `{shell}` is the binary under test, named the way this host names it
+      --  -- with `.exe` where a host puts one. A case that asked whether
+      --  `{root}/bin/adash` could be run was asking about a file that does not
+      --  exist on Windows, and got the true answer to the wrong question.
+      Shelled : constant String :=
+        Filled (Rooted_At, "{shell}", Shell_In (Root));
+
       Emitting : constant String :=
-        Filled (Rooted_At, "{emit}", Companion (Root, "adash_test_emit"));
+        Filled (Shelled, "{emit}", Companion (Root, "adash_test_emit"));
       Upcasing : constant String :=
         Filled (Emitting, "{upcase}", Companion (Root, "adash_test_upcase"));
 
@@ -973,7 +983,6 @@ package body Adash_Tests.Conformance is
    --
    --  @param Root The repository root.
    --  @return The path to the built shell.
-   function Shell_In (Root : String) return String;
 
    function Shell_In (Root : String) return String is
       Plain : constant String :=

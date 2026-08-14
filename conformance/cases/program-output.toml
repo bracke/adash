@@ -213,10 +213,15 @@ requirement = """
 The newline a program ends with is dropped, which is the convention every shell
 follows and the reason `cd (Output_Of (\"pwd\"))` works. Only from the end: what
 is in the middle is what the program wrote.
+
+The middle is checked with a space rather than with a second line. A program
+ends its lines the way its host does -- CR LF on Windows -- so a case that put
+two lines in and asserted one newline between them was asserting the host's
+line ending, which is not what this rule is about.
 """
-script = "put_line (\"[\" & Output_Of (\"{emit}\", \"a\", \"b\") & \"]\"); quit (0);"
+script = "put_line (\"[\" & Output_Of (\"{emit}\", \"a b\") & \"]\"); quit (0);"
 exit_status = 0
-output = ["[a", "b]"]
+output = ["[a b]"]
 diagnostics = []
 
 [[case]]
@@ -542,7 +547,7 @@ diagnostics = []
 [[case]]
 id = "paths.asks-whether-something-could-be-run"
 requirement = "The host's own answer, from hostkit: what makes a file runnable is the host's business and not a guess from the name."
-script = "put_line (Is_Executable (\"{root}/bin/adash\")); put_line (Is_Executable (\"{root}/README.md\")); quit (0);"
+script = "put_line (Is_Executable (\"{shell}\")); put_line (Is_Executable (\"{root}/README.md\")); quit (0);"
 exit_status = 0
 output = ["TRUE", "FALSE"]
 diagnostics = []
