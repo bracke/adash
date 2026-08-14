@@ -4,6 +4,8 @@ with Ada.Text_IO;
 with Ada.Directories;
 with Ada.Environment_Variables;
 
+with Ada.Command_Line;
+
 with AUnit.Assertions;
 
 with Adash.Commands;
@@ -69,6 +71,28 @@ package body Adash_Tests.Command_Cases is
       Result.Given (1) := Adash.Language.Values.To_Value (Item);
       return Result;
    end Whole;
+
+   --  The companion programs, built beside this suite.
+   --
+   --  Not `echo`: Windows has none, and a redirection case that skipped
+   --  itself there was a case that never ran on the host most likely to get
+   --  redirection wrong. The same reasoning that put these programs in the
+   --  conformance cases this morning applies to the unit tests that spawn
+   --  something.
+   function Companion (Name : String) return String is
+      Self : constant String := Ada.Command_Line.Command_Name;
+      Dir  : constant String := Ada.Directories.Containing_Directory (Self);
+   begin
+      if Ada.Directories.Exists (Ada.Directories.Compose (Dir, Name & ".exe"))
+      then
+         return Ada.Directories.Compose (Dir, Name & ".exe");
+      end if;
+
+      return Ada.Directories.Compose (Dir, Name);
+   exception
+      when others =>
+         return Name;
+   end Companion;
 
    ------------------------------------------------------------------
 
@@ -405,12 +429,13 @@ package body Adash_Tests.Command_Cases is
       --  since Phase 11 and nothing could reach it: no command took a stream,
       --  and this language has no `>` and will not grow one.
       Status := C.Execute
-        (C.Command_Run_Into, Args (Target, "echo", "captured"),
+        (C.Command_Run_Into, Args (Target, Companion ("adash_test_emit"), "captured"),
          Shell, Produced, Report);
 
       if not Adash.Execution.Succeeded (Status) then
-         --  No `echo` on this host, or no temporary directory. The capability
-         --  is the host's and the case is skipped rather than failed.
+         --  No temporary directory. The program is this crate's own, so a
+         --  failure here is the host refusing a file rather than a missing
+         --  utility, and the case is skipped rather than failed.
          return;
       end if;
 
@@ -458,7 +483,7 @@ package body Adash_Tests.Command_Cases is
       --  two programs writing one log, and refusing done as a prior check
       --  races two shells creating one file.
       Status := C.Execute
-        (C.Command_Run_Append, Args (Target, "echo", "second"),
+        (C.Command_Run_Append, Args (Target, Companion ("adash_test_emit"), "second"),
          Shell, Produced, Report);
 
       if Adash.Execution.Succeeded (Status) then
@@ -469,7 +494,7 @@ package body Adash_Tests.Command_Cases is
 
       Report.Clear;
       Status := C.Execute
-        (C.Command_Run_New, Args (Target, "echo", "clobbered"),
+        (C.Command_Run_New, Args (Target, Companion ("adash_test_emit"), "clobbered"),
          Shell, Produced, Report);
       Assert (not Adash.Execution.Succeeded (Status),
               "writing to a file that must not exist overwrote one");
@@ -482,7 +507,7 @@ package body Adash_Tests.Command_Cases is
       Report.Clear;
       Status := C.Execute
         (C.Command_Run_Into,
-         Args ("/nonexistent/adash/redirect", "echo", "x"),
+         Args ("/nonexistent/adash/redirect", Companion ("adash_test_emit"), "x"),
          Shell, Produced, Report);
       Assert (not Adash.Execution.Succeeded (Status),
               "an unopenable redirection reported success");
@@ -538,7 +563,7 @@ package body Adash_Tests.Command_Cases is
       --  Two stages, and the second reads what the first wrote. Proved by exit
       --  status: `grep -q` finds the sorted first line only if `sort` ran on
       --  what `cat` produced.
-      Status := C.Execute (C.Command_Pipe, Args ("cat", Source),
+      Status := C.Execute (C.Command_Pipe, Args (Companion ("adash_test_upcase"), Source),
                            Shell, Produced, Report);
       Assert (Adash.Execution.Succeeded (Status), "adding a stage failed");
 

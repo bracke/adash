@@ -1,0 +1,13 @@
+#  Line endings are LF in the repository and LF in a working tree, on every
+#  host.
+#
+#  Not a preference. The conformance suite compares what a program printed
+#  against text kept here, the repository checks read this repository's own
+#  files, and a case reads a file it just wrote -- all of which compare bytes.
+#  A checkout that turned LF into CR LF on Windows made 374 message keys
+#  "missing" from a catalog that had every one of them, because the locale read
+#  out of it carried a carriage return.
+* text=auto eol=lf
+
+#  Recorded output of the examples: byte-for-byte what the shell printed.
+*.expected -text

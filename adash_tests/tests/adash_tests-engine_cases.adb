@@ -1,3 +1,4 @@
+with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
@@ -83,6 +84,38 @@ package body Adash_Tests.Engine_Cases is
       Assert (Report.Count > 0,
               "a variable the failed submission declared was kept");
    end A_Raise_Costs_Only_Its_Own_Submission;
+
+   --  A companion program's path, as a String literal a submission can hold.
+   --
+   --  These tests used `echo`, `true` and `false`, which is three POSIX
+   --  utilities on a host that has none of them: on Windows the whole of
+   --  Output_Of went unchecked. The companions this crate builds answer the
+   --  same questions everywhere, and a backslash in a Windows path is doubled
+   --  so the literal reads back as the path.
+   function Quoted_Companion (Name : String) return String is
+      Self : constant String := Ada.Command_Line.Command_Name;
+      Dir  : constant String := Ada.Directories.Containing_Directory (Self);
+
+      Full : constant String :=
+        (if Ada.Directories.Exists (Ada.Directories.Compose (Dir, Name & ".exe"))
+         then Ada.Directories.Compose (Dir, Name & ".exe")
+         else Ada.Directories.Compose (Dir, Name));
+
+      Doubled : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      for Letter of Full loop
+         Ada.Strings.Unbounded.Append (Doubled, Letter);
+
+         if Letter = '\' then
+            Ada.Strings.Unbounded.Append (Doubled, Letter);
+         end if;
+      end loop;
+
+      return Ada.Strings.Unbounded.To_String (Doubled);
+   exception
+      when others =>
+         return Name;
+   end Quoted_Companion;
 
    procedure A_Definition_Past_The_Limit_Says_So
      (Test : in out AUnit.Test_Cases.Test_Case'Class)
@@ -429,29 +462,30 @@ package body Adash_Tests.Engine_Cases is
       --  The direction that was missing. A shell whose language could run
       --  programs could not read what any of them said: everything a program
       --  wrote went to the terminal, and nothing could be computed from it.
-      Assert (Holds ("Output_Of (""echo"", ""hello"")", "hello"),
+      Assert (Holds ("Output_Of (""" & Quoted_Companion ("adash_test_emit") & """, ""hello"")", "hello"),
               "what a program wrote did not come back");
 
       --  Arguments arrive as written, without splitting or re-scanning: one
       --  argument with a space in it is one argument.
-      Assert (Holds ("Output_Of (""echo"", ""a b"")", "a b"),
+      Assert (Holds ("Output_Of (""" & Quoted_Companion ("adash_test_emit") & """, ""a b"")", "a b"),
               "an argument with a space in it was split");
 
       --  The newline it ended with is dropped, which is what makes the value
       --  usable as a path or a name. `echo` writes one, so the first
       --  assertions above already depend on this; asserting it against a
       --  program whose whole output is a newline is what says it plainly.
-      Assert (Holds ("Output_Of (""echo"")", ""),
+      Assert (Holds ("Output_Of (""" & Quoted_Companion ("adash_test_emit") & """)", ""),
               "the final newline was not dropped");
 
       --  A program that said nothing answers empty rather than failing.
-      Assert (Holds ("Output_Of (""true"")", ""),
+      Assert (Holds ("Output_Of (""" & Quoted_Companion ("adash_test_emit") & """)", ""),
               "a program that wrote nothing did not answer empty");
 
       --  Running it is still running a program, so the status says what became
       --  of it -- including the 127 the run family reports, from the same one
       --  place that decides.
-      E.Submit (Shell, "S : String := Output_Of (""false"");", "<line>",
+      E.Submit (Shell, "S : String := Output_Of (""" & Quoted_Companion ("adash_test_emit")
+                & """, ""--exit=1"");", "<line>",
                 Adash.Source.Origin_Interactive, Outcome, Report);
 
       E.Submit (Shell,

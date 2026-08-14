@@ -114,8 +114,19 @@ package body Adash_Tests.Execution_Cases is
       Assert (Numeric (From_Start_Failure (Executable_Found => True)) = 126,
               "a non-executable program is not 126");
 
-      Assert (Numeric (From_Signal (Hostkit.Signals.Signal_Interrupt)) = 130,
-              "a program killed by an interrupt is not 130");
+      --  128 + the host's number for the signal, on a host that has one.
+      --  Windows does not, and hostkit refuses to invent a number rather than
+      --  answering with a plausible POSIX one -- so there the honest reduction
+      --  is a plain failure, and 127 (not found) is what the arithmetic would
+      --  have produced instead.
+      if Hostkit.Signals.Number (Hostkit.Signals.Signal_Interrupt) >= 0 then
+         Assert (Numeric (From_Signal (Hostkit.Signals.Signal_Interrupt)) = 130,
+                 "a program killed by an interrupt is not 130");
+      else
+         Assert (Numeric (From_Signal (Hostkit.Signals.Signal_Interrupt)) = 1,
+                 "a signal this host cannot number did not reduce to a plain "
+                 & "failure");
+      end if;
       Assert (Numeric ((Kind => Exit_Cancelled, others => <>)) = 130,
               "a cancellation is not 130");
 

@@ -12,6 +12,16 @@ package body Adash.Execution is
    Status_Signal_Base      : constant := 128;
    Status_Internal_Error   : constant := 70;
 
+   --  What an interruption reduces to, said here rather than worked out.
+   --
+   --  128 + SIGINT is where the number comes from and is what a user who
+   --  pressed Ctrl-C recognises, but it is *this shell's* answer rather than
+   --  the host's: Windows has no signal numbers, `Hostkit.Signals.Number`
+   --  refuses to invent one, and computing 128 + (-1) made an interruption
+   --  report 127 -- the number this table gives a command that was not found.
+   --  A convention of ours belongs in a constant of ours.
+   Status_Interrupted      : constant := 130;
+
    ---------------
    -- Succeeded --
    ---------------
@@ -72,7 +82,16 @@ package body Adash.Execution is
                return Status_Internal_Failure;
             end if;
 
-            return Status_Signal_Base + Hostkit.Signals.Number (Item.Terminating_Signal);
+            --  A host that has no number for the signal cannot be asked for
+            --  one: 128 + (-1) is 127, which this table already means "not
+            --  found". Reported as a plain failure, which is what an unknown
+            --  signal above already gets and for the same reason.
+            if Hostkit.Signals.Number (Item.Terminating_Signal) < 0 then
+               return Status_Internal_Failure;
+            end if;
+
+            return Status_Signal_Base
+              + Hostkit.Signals.Number (Item.Terminating_Signal);
 
          when Exit_Start_Failure =>
             --  Which of the two it is was decided by From_Start_Failure and
@@ -85,10 +104,10 @@ package body Adash.Execution is
             return Status_Usage;
 
          when Exit_Cancelled =>
-            --  128 + SIGINT, which is what a user who pressed Ctrl-C will
-            --  recognise and what a CI script checking for 130 expects.
-            return Status_Signal_Base
-              + Hostkit.Signals.Number (Hostkit.Signals.Signal_Interrupt);
+            --  The shell's own answer, the same on every host: a script that
+            --  checks for 130 is checking what Adash did, not what the host
+            --  calls an interrupt.
+            return Status_Interrupted;
 
          when Exit_Internal_Error =>
             return Status_Internal_Error;
