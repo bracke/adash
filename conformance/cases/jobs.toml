@@ -57,6 +57,35 @@ output = [
 diagnostics = []
 
 [[case]]
+id = "jobs.a-host-without-job-control-says-so"
+requirement = """
+What Windows does instead, asserted rather than left to be assumed. There are no
+process groups there, so a job is not a thing that can be signalled as one --
+`Supports_Foreground_Group` is False and hostkit refuses rather than signalling
+the leader and calling it a job.
+
+So `stop`, `suspend` and `resume` each report that this system does not support
+job control, and the job goes on running and finishes on its own. That is the
+whole of job control on that host, and it is three lines of refusal rather than
+a gap in the suite.
+
+The cases above assert the other half -- a job ending by signal -- on the two
+hosts that have signals.
+"""
+script = "start (\"{emit}\", \"--sleep=1\"); stop (1); suspend (1); resume (1); wait (1);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what={emit} --sleep=1}!",
+  "!line.job_finished{id=1,status=0}!",
+]
+diagnostics = [
+  "!error.capability_unavailable{capability=!capability.job_control!}!",
+  "!error.capability_unavailable{capability=!capability.job_control!}!",
+  "!error.capability_unavailable{capability=!capability.job_control!}!",
+]
+platforms = ["windows"]
+
+[[case]]
 id = "jobs.stop-ends-it"
 requirement = """
 A stopped job ends by signal, and says so rather than reporting an exit status

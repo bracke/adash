@@ -99,10 +99,17 @@ A subprogram body can call an internal command.
 It changes to the case's own store rather than to the root: `/` is a directory
 on two of the three hosts and a drive-relative path on the third, where `pwd`
 answers `D:\\` and the case would be asserting which drive CI ran on.
+
+And it proves the change by writing a file rather than by printing the path.
+`pwd` asks the host where it is, and macOS answers with the path it resolved --
+`/private/var/...` where the case said `/var/...`, because the store is under a
+symbolic link there. What this case is about is that a subprogram body can call
+an internal command, which the file shows without asserting how a host spells a
+directory.
 """
-script = "procedure Go is begin cd (\"{store}\"); end Go; Go; pwd;"
+script = "procedure Go is begin cd (\"{store}\"); end Go; Go; write_file (\"went\", \"here.txt\"); put_line (Output_Of (\"{emit}\", \"--file={store}/here.txt\"));"
 exit_status = 0
-output = ["!line.directory{path={store}}!"]
+output = ["went"]
 diagnostics = []
 
 [[case]]

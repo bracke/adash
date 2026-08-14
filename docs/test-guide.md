@@ -113,14 +113,17 @@ validated. **A case that needs a program names a companion**, `{emit}` or
 `{upcase}`, rather than a POSIX utility -- so capture, redirection and pipelines
 are checked on all three hosts rather than two.
 
-Four cases are still gated to `["linux", "macos"]`, and they are the ones about
-a job ending by *signal*: Windows has none, `stop` there terminates the process,
-and what comes back is an exit status nobody chose. That is a capability the
-host lacks rather than a program it is missing, and each of those cases says in
-its requirement that what Windows does instead is not asserted yet. Four
-examples are skipped there for a different reason: an example is documentation
-and reads `Output_Of ("echo", ...)`, which a reader understands and Windows does
-not have.
+Four cases are gated to `["linux", "macos"]` and one to `["windows"]`, and
+together they cover job control on every host. Windows has no process groups, so
+a job is not a thing that can be signalled as one: `stop`, `suspend` and
+`resume` each report that the system does not support job control and the job
+runs to completion. The other four assert the half that needs signals to exist.
+A capability the host lacks is what the key is for; a program it is missing is
+what the companions removed.
+
+Four examples are skipped on Windows for a different reason again: an example is
+documentation and reads `Output_Of ("echo", ...)`, which a reader understands and
+that host does not have.
 
 Windows found five defects the day CI first ran there, and three of them were
 tests asserting POSIX rather than asserting the shell.

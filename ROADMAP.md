@@ -3072,7 +3072,11 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   to a row that has scrolled off.
 - **Windows has no pseudo-terminals and no process groups.** `Hostkit.Pty` and
   `Supports_Foreground_Group` are False there; the one thing that host *can* do
-  is report Ctrl-C, which `Can_Record` answers for.
+  is report Ctrl-C, which `Can_Record` answers for. What that means for a job is
+  asserted rather than assumed: `stop`, `suspend` and `resume` each report that
+  the system does not support job control, and the job goes on running -- one
+  conformance case gated to that host, beside the four gated to the two that
+  have signals.
 - **Byte-identical binaries are not claimed**; see `docs/RELEASE.md`.
 
 These two lists are probed rather than remembered. Each claim in them was
