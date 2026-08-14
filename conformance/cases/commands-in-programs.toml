@@ -170,13 +170,15 @@ The case clears what the runner itself put in the environment first, so what
 `env` prints is exactly what the script asked for -- otherwise it would list
 the sandbox's own HOME and PATH, which differ per case.
 
-It clears one more that no runner put there. macOS gives every process
-`__CF_USER_TEXT_ENCODING`, so on that host the list had a third line in it and
-this case failed the first time it ran anywhere but Linux -- which is what
-three hosts are for. Unsetting a variable that is not there is not an error, so
+It clears what the host puts there as well. macOS gives every process
+`__CF_USER_TEXT_ENCODING`; Windows needs `SystemRoot` and a `PATH` naming
+System32 to be a process at all, and the runner hands it `TEMP`, `APPDATA` and
+`USERPROFILE` pointing at the case's own store, the way the XDG variables are
+handed to the other two. A case that asserts a *complete* listing has to clear
+every one of them. Unsetting a variable that is not there is not an error, so
 the same script says the same thing everywhere.
 """
-script = "unset (\"HOME\"); unset (\"XDG_DATA_HOME\"); unset (\"XDG_CONFIG_HOME\"); unset (\"PATH\"); unset (\"ADASH_MESSAGE_CATALOG\"); unset (\"__CF_USER_TEXT_ENCODING\"); set (\"ONE=1\"); set (\"TWO=2\"); env; unset (\"ONE\"); put_line (\"and after removing one:\"); env;\nquit (0);"
+script = "unset (\"HOME\"); unset (\"XDG_DATA_HOME\"); unset (\"XDG_CONFIG_HOME\"); unset (\"PATH\"); unset (\"ADASH_MESSAGE_CATALOG\"); unset (\"__CF_USER_TEXT_ENCODING\"); unset (\"SystemRoot\"); unset (\"windir\"); unset (\"TEMP\"); unset (\"TMP\"); unset (\"APPDATA\"); unset (\"USERPROFILE\"); set (\"ONE=1\"); set (\"TWO=2\"); env; unset (\"ONE\"); put_line (\"and after removing one:\"); env;\nquit (0);"
 exit_status = 0
 output = [
   "!line.variable{name=ONE,value=1}!",

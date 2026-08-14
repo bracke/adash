@@ -1120,9 +1120,27 @@ package body Adash_Tests.Conformance is
                 (Ada.Directories.Containing_Directory (Script),
                  Ada.Directories.Base_Name (Script), "expected");
 
+            --  Four examples run `echo`, `true`, `false` or `pwd`. A
+            --  conformance *case* that needs a program names one of this
+            --  crate's companions and runs everywhere; an example is
+            --  documentation, and a reader learns nothing from
+            --  `Output_Of ("../adash_tests/bin/adash_test_emit")`. So these
+            --  are checked where the utilities are, and what they demonstrate
+            --  is checked everywhere by the cases that use companions.
+            Needs_Posix_Utilities : constant Boolean :=
+              Ada.Directories.Base_Name (Script) in
+                "capture" | "status" | "paths" | "writing";
+
             Arguments : Hostkit.String_Vectors.Vector;
          begin
-            if not Ada.Directories.Exists (Expected_Path) then
+            if Needs_Posix_Utilities
+              and then Hostkit.Host.Current = Hostkit.Host.Windows
+            then
+               Record_Result
+                 (Into, Identity, Skipped,
+                  Because ("tooling.conformance.other_host"));
+
+            elsif not Ada.Directories.Exists (Expected_Path) then
                Record_Result
                  (Into, Identity, Malformed,
                   Because ("tooling.conformance.no_expected"));
