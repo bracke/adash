@@ -418,14 +418,46 @@ package body Adash_Tests.Repository is
         Join (Root, "src/library/adash-language-parser.adb");
 
       Content : constant String := Read_If_Present (Where);
+
+      --  Both shapes the parser had. `exit when X = List'Last` stopped a
+      --  collecting loop, and `and then Count < List'Last` stopped it from
+      --  the loop's own condition -- the second reads as a guard rather than
+      --  as a truncation, which is why it outlived the first by a turn.
+      --  Neither says which counter it uses, so both are matched by what
+      --  stands beside them: a line at a time, because what makes one of
+      --  these a truncation is that the test and the bound are together.
+      From : Positive := Content'First;
    begin
       Into.Checks_Run := Into.Checks_Run + 1;
 
-      if Project_Tools.Text.Contains (Content, "exit when Count = ") then
-         Add (Into, Key_Silent_Truncation,
-              [1 => Msg.Named
-                      ("path", Ada.Directories.Simple_Name (Where))]);
-      end if;
+      while From <= Content'Last loop
+         declare
+            Ends : Natural := From;
+         begin
+            while Ends <= Content'Last
+              and then Content (Ends) /= Ada.Characters.Latin_1.LF
+            loop
+               Ends := Ends + 1;
+            end loop;
+
+            declare
+               One : constant String := Content (From .. Ends - 1);
+            begin
+               if Project_Tools.Text.Contains (One, "'Last")
+                 and then (Project_Tools.Text.Contains (One, "exit when ")
+                           or else Project_Tools.Text.Contains
+                                     (One, "and then "))
+               then
+                  Add (Into, Key_Silent_Truncation,
+                       [1 => Msg.Named
+                               ("path",
+                                Ada.Directories.Simple_Name (Where))]);
+               end if;
+            end;
+
+            From := Ends + 1;
+         end;
+      end loop;
    end Check_No_Silent_Truncation;
 
    -------------------------------

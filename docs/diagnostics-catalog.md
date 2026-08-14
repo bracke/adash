@@ -16,7 +16,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 424 messages in 22 groups.
+There are 426 messages in 22 groups.
 
 ## Errors — what a program or a session did wrong
 
@@ -174,6 +174,8 @@ There are 424 messages in 22 groups.
 | `list.names` | names |
 | `list.statements` | statements |
 | `list.arguments` | arguments |
+| `list.choices` | choices |
+| `list.handlers` | handlers |
 | `error.open_by_element` | {name} is as long as what was passed to it, so the whole of it is not replaced: assign a slice of it, or one element at a time |
 | `error.no_such_slice` | {name} has no elements {first} .. {last} |
 | `error.not_taken_apart` | a {found} is not taken apart that way; a String takes a position or a range, an array a position |

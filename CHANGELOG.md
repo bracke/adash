@@ -314,6 +314,15 @@ what changed.
   `adash_check` refuses the pattern in the parser, which is where what is
   dropped is what somebody wrote; elsewhere a loop that stops at a bound is a
   cap on what this build looks at rather than a loss of what it was given.
+
+  Five more sites turned up when the check was written to match what stands
+  beside a bound rather than one counter's name: the choices of a case
+  alternative and the exceptions a handler names counted with `Chosen`, the
+  names one formal declares counted with `Named`, and two loops stopped from
+  their own condition -- `and then Count < Collected'Last` -- which reads as a
+  guard rather than as a truncation and is how the case statement's own
+  alternatives and a body's handlers kept theirs a turn longer. All five report
+  now, and the check would have caught them the first time.
 - **A submission that stops early no longer takes the session's variables with
   it.** `quit`, `return` and an unhandled exception leave the hand-back
   unreached, and the documented rule is that the variables of *that* submission

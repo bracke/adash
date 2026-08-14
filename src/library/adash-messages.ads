@@ -274,6 +274,8 @@ package Adash.Messages is
       Msg_List_Names,
       Msg_List_Statements,
       Msg_List_Arguments,
+      Msg_List_Choices,
+      Msg_List_Handlers,
       Msg_Case_Not_Discrete,
       Msg_Case_Choice_Not_Static,
       Msg_Case_Choice_Covered_Twice,

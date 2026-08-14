@@ -1263,9 +1263,13 @@ package body Adash.Language.Parser is
                   return Error_Node (Adash.Source.Join (Start, Just_Consumed));
                end if;
 
-               while Is_Word (T.Word_When)
-                 and then Count < Alternatives'Last
-               loop
+               while Is_Word (T.Word_When) loop
+                  if Count = Alternatives'Last then
+                     Too_Many (Adash.Messages.Msg_List_Alternatives,
+                               Alternatives'Last);
+                     exit;
+                  end if;
+
                   Advance;
 
                   declare
@@ -1274,7 +1278,12 @@ package body Adash.Language.Parser is
                      Chosen  : Natural := 0;
                   begin
                      loop
-                        exit when Chosen = Choices'Last;
+                        if Chosen = Choices'Last then
+                           Too_Many (Adash.Messages.Msg_List_Choices,
+                                     Choices'Last);
+                           exit;
+                        end if;
+
                         Chosen := Chosen + 1;
                         Choices (Chosen) := Parse_Choice;
                         exit when not Is_Symbol (T.Delim_Bar);
@@ -3450,7 +3459,12 @@ package body Adash.Language.Parser is
          Collected : S.Node_List (1 .. 64);
          Count     : Natural := 0;
       begin
-         while Is_Word (T.Word_When) and then Count < Collected'Last loop
+         while Is_Word (T.Word_When) loop
+            if Count = Collected'Last then
+               Too_Many (Adash.Messages.Msg_List_Handlers, Collected'Last);
+               exit;
+            end if;
+
             Advance;
 
             declare
@@ -3459,7 +3473,11 @@ package body Adash.Language.Parser is
                Chosen  : Natural := 0;
             begin
                loop
-                  exit when Chosen = Named'Last;
+                  if Chosen = Named'Last then
+                     Too_Many (Adash.Messages.Msg_List_Names, Named'Last);
+                     exit;
+                  end if;
+
                   Chosen := Chosen + 1;
 
                   if Is_Word (T.Word_Others) then
@@ -3611,7 +3629,11 @@ package body Adash.Language.Parser is
                         return Error_Node (Adash.Source.Join (Start, Just_Consumed));
                      end if;
 
-                     exit when Named = Names'Last;
+                     if Named = Names'Last then
+                        Too_Many (Adash.Messages.Msg_List_Names, Names'Last);
+                        exit;
+                     end if;
+
                      Named := Named + 1;
                      Names (Named) :=
                        S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
