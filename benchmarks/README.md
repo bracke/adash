@@ -28,7 +28,42 @@ There is deliberately **no comparison against another shell**. It would be
 measuring two different languages doing two different things, and the number
 would be quoted long after anybody remembered that.
 
+## What this build does
+
+On a development build (`-Og`), 200 repetitions, on a machine carrying a load
+average of about 3 while the figures were taken — every row is inflated by
+that, and the row-to-row *shape* is what a reader should take from it:
+
+| Operation | Median | Fastest |
+|---|---:|---:|
+| load and validate UTF-8 | 0.4 us | 0.4 us |
+| lex | 21.3 us | 20.7 us |
+| parse | 28.0 us | 27.2 us |
+| **analyse** | **855.9 us** | **779.6 us** |
+| lower and run | 6.3 us | 6.2 us |
+| highlight (per keystroke) | 14.4 us | 14.2 us |
+| complete a command prefix | 27.8 us | 27.4 us |
+| encode a history entry | 0.8 us | 0.8 us |
+| parse a configuration file | 13.2 us | 13.1 us |
+| open an engine session | 122.1 us | 107.5 us |
+
+**The cost has inverted since the first run.** Lowering and running a
+submission was 1.7 ms and is 6 us; analysis was 14 us and is the dominant cost
+by two orders of magnitude. Both follow from the same change: the machine is
+Adash's own now, so nothing rebuilds a compiler's tables per submission, and
+the analyser has grown every rule the language gained — scope chains,
+overload resolution that narrows from the context, the arguments and the
+operands, composite shapes, and the checks each of those needs.
+
+At under a millisecond nobody typing will notice, and a script pays it once per
+submission rather than once per line. It is the obvious first thing to look at
+if the pipeline ever needs to be faster, and the obvious first place to look
+inside it is resolution, which asks each candidate about each argument.
+
 ## What the first run found
+
+**This is history**, from the build that ran on HAC's p-code interpreter. It is
+kept because the shape it describes is the one the section above inverted.
 
 On a development build (`-Og`), 200 repetitions:
 
