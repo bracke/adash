@@ -857,6 +857,15 @@ package body Adash.Language.Semantics is
       --  @return What to look the callee up as.
       function Name_For_Call (Named : Syntax.Node_Id) return String;
 
+      --  The name a chain of parts is written on: `F (1 .. 4) (1 .. 2)` is
+      --  written on F, however many levels stand between. What it is for is
+      --  the assignment's refusal, which has to name something a reader can
+      --  find in the line.
+      --
+      --  @param Node A part, or anything else.
+      --  @return The innermost name's spelling, or "".
+      function Root_Name (Node : Syntax.Node_Id) return String;
+
       --  Whether what is being declared is a name of its own rather than a
       --  member of something.
       --
@@ -1766,6 +1775,17 @@ package body Adash.Language.Semantics is
       ---------------------
       -- Name_For_Call --
       ---------------------
+
+      function Root_Name (Node : Syntax.Node_Id) return String is
+         Walk : S.Node_Id := Node;
+      begin
+         while S.Kind (Tree, Walk) = S.Node_Call loop
+            Walk := S.First (Tree, Walk);
+         end loop;
+
+         return (if S.Kind (Tree, Walk) = S.Node_Name
+                 then S.Text (Tree, Walk) else "");
+      end Root_Name;
 
       function Name_For_Call (Named : Syntax.Node_Id) return String is
          Spelt : constant String := Dotted (Tree, Named);
@@ -3264,6 +3284,39 @@ package body Adash.Language.Semantics is
                                          and then Symbols.Is_Callable
                                                     (Prefixed)));
 
+                  --  The variable a chain of parts bottoms out at, or Nothing
+                  --  when it bottoms out at a call. `S (2 .. 5) (1 .. 2)` is a
+                  --  part of a part of S, and what may be assigned to is what
+                  --  S may be -- so the symbol travels out with the part, as
+                  --  it does for one level.
+                  function Owner_Of (From : S.Node_Id) return Symbols.Symbol;
+
+                  function Owner_Of (From : S.Node_Id) return Symbols.Symbol is
+                     Walk : S.Node_Id := From;
+                  begin
+                     while S.Kind (Tree, Walk) = S.Node_Call loop
+                        Walk := S.First (Tree, Walk);
+                     end loop;
+
+                     if S.Kind (Tree, Walk) /= S.Node_Name then
+                        return Symbols.Nothing;
+                     end if;
+
+                     declare
+                        Found : constant Symbols.Symbol :=
+                          Visible (S.Text (Tree, Walk));
+                     begin
+                        if Symbols.Is_Nothing (Found)
+                          or else Symbols.Is_Callable (Found)
+                          or else Symbols.Of_Type (Found) /= Types.Type_String
+                        then
+                           return Symbols.Nothing;
+                        end if;
+
+                        return Found;
+                     end;
+                  end Owner_Of;
+
                   Offered : Natural;
                   Fitting : Natural;
                   Found   : Symbols.Symbol;
@@ -3668,7 +3721,7 @@ package body Adash.Language.Semantics is
                            end;
 
                            Note (Only, Types.Type_Integer);
-                           Note (Node, Types.Type_String);
+                           Note (Node, Types.Type_String, Owner_Of (Prefix));
                            return Types.Type_String;
                         end if;
 
@@ -3690,7 +3743,7 @@ package body Adash.Language.Semantics is
                            end if;
                         end;
 
-                        Note (Node, Types.Type_Character);
+                        Note (Node, Types.Type_Character, Owner_Of (Prefix));
                         return Types.Type_Character;
                      end;
                   end if;
@@ -6884,22 +6937,20 @@ package body Adash.Language.Semantics is
                   --  which is a value and has nowhere to put anything. Said
                   --  here rather than left to the lowering, which can only
                   --  report that it has no place to store to.
-                  --  Only where there is a name to report. A part of a part
-                  --  -- `S (2 .. 5) (1 .. 2) := "XY"` -- has none that is
-                  --  true: S is assignable and the slice of it is what is
-                  --  not, so naming S would be a wrong answer given
-                  --  confidently. That one is refused by the lowering, which
-                  --  says it has no place to store to.
+                  --  The name it is written on, however many levels stand
+                  --  between: `F (1 .. 4) (1 .. 2) := "XY"` names F. A chain
+                  --  that bottoms out at a variable carries that variable's
+                  --  symbol instead, so it is assigned to rather than refused,
+                  --  and only a chain rooted in a call reaches here.
                   if S.Kind (Tree, Target) = S.Node_Call
                     and then Symbols.Is_Nothing (Denoted)
                     and then Left in Types.Type_String | Types.Type_Character
-                    and then Name_For_Call (S.First (Tree, Target)) /= ""
+                    and then Root_Name (Target) /= ""
                   then
                      Complain
                        (Adash.Errors.Error_Not_Assignable, Target,
                         [1 => Adash.Messages.Named
-                                ("name",
-                                 Name_For_Call (S.First (Tree, Target)))]);
+                                ("name", Root_Name (Target))]);
                      Note (Node, Types.Type_None);
                      return;
                   end if;

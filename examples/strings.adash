@@ -61,6 +61,33 @@ Record_Line (1) := '9';
 
 Fixed : Boolean := Record_Line = "9001 shipped  ";
 
+--  A part of a part, as deep as it is written: positions inside a part are
+--  that part's own, counted from one, because a String here is a value rather
+--  than a view of one. Ada's slice keeps the index range it came from, so this
+--  expression means something different there -- `ROADMAP.md` says so under
+--  what is imperfect.
+Status_Field : String := "0002 pending  ";
+
+--  The status field is positions 6 .. 13; the word inside it is the first
+--  seven characters of that field, whatever the field's own position is.
+Status_Field (6 .. 13) (1 .. 7) := "queued ";
+
+Narrowed : Boolean := Status_Field = "0002 queued   ";
+
+--  Every verdict above is printed rather than only computed. A file of
+--  declarations that nobody reads back asserts nothing: this one is run as a
+--  conformance case against its recorded output, so a claim in it that stops
+--  being true fails a test instead of quietly staying here.
+put_line ("copied: " & Boolean'Image (Matched));
+put_line ("ordered: " & Boolean'Image (Ordered));
+put_line ("built: " & Boolean'Image (Correct));
+put_line ("walked: " & Boolean'Image (Same_Again));
+put_line ("empty slice: [" & Nothing_At_All & "]");
+put_line ("start and rest: " & Greeting_Start & " " & Greeting_Rest);
+put_line ("trimmed head: " & Trimmed_Head);
+put_line ("field replaced: " & Boolean'Image (Fixed));
+put_line ("part of a part: " & Boolean'Image (Narrowed));
+
 --  The value has to be as long as the slice it goes into, which is Ada's rule:
 --  a shorter one would leave the rest of the target holding what it held. That
 --  is Constraint_Error at the assignment, not a String that is quietly wrong.

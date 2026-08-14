@@ -277,6 +277,25 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **A part of a part is assigned to**: `S (2 .. 5) (1 .. 2) := "XY"`, as deep
+  as it is written. Each level yields the text of the level outside it and the
+  outermost change is stored in the variable the chain bottoms out at, so one
+  statement is one store. The instructions were already the right shape for it
+  -- each takes a whole and yields a whole -- so this is the order they are
+  emitted in rather than anything new in the machine, and each level checks
+  against the length it can see, which is what makes the message name a number
+  the reader can find in the line.
+
+  The owning variable's symbol travels out through the chain, as it does
+  through one level, so a constant's or an `in` parameter's nested part is
+  refused by the name of the String. A chain rooted in a call is refused by the
+  name it is written on: `F (1 .. 4) (1 .. 2) := "XY"` names F.
+
+  Positions inside a part are the part's own, counted from one. Ada's slice
+  keeps the index range it came from, which makes this expression an error
+  there; a String here is a value rather than a view of one, and there is
+  nowhere to carry a lower bound that is not one. `ROADMAP.md` says so under
+  what is imperfect rather than leaving it to be discovered.
 - **A part of what a call yields**: `F (2 .. 4)`, `F (1) (2 .. 4)` and
   `S (2 .. 5) (1 .. 2)`, which Ada writes and this had reported as a call with
   one argument -- or, for a prefix that was itself a call, as an undeclared

@@ -2922,11 +2922,6 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   Ada is telling two interpretations apart, and the two places this language
   resolves from -- the expected type, and the other operand -- are what it
   offers instead.
-- **A part of a part is not assigned to.** `S (2 .. 5) (1 .. 2)` is read, and
-  Ada assigns to it as well -- a slice of a variable is a variable there.
-  Writing one here would mean writing back through a part that has no place of
-  its own, and the refusal names no name, because S is assignable and the slice
-  of it is what is not.
 - **An array is reached by one position and not sliced.** Ada writes
   `A (1 .. 2)`; this refuses it. A String is the one thing here with parts that
   are values rather than a run of slots.
@@ -2986,6 +2981,13 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   written and answered, but it is not in this list of seventeen: it stands
   where a range stands rather than where a value does, so the parser reads it
   as the two ends it gives and no attribute is evaluated.
+- **A part of a String begins at one, where Ada's slice keeps the index range
+  it came from.** `S (2 .. 5) (1 .. 2)` is the first two characters of the
+  slice here and an error in Ada, where the slice is indexed 2 .. 5. A String
+  is a value in this language rather than a view of one -- there is nowhere to
+  carry a lower bound that is not one, and a value whose `'First` said
+  otherwise would be lying about itself. It follows for reading and for
+  assigning alike.
 - **Display width covers the ranges named in `Adash.Display_Width`**; a code
   point in none of them is one cell, which is an assumption rather than
   knowledge.

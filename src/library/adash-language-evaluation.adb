@@ -2186,6 +2186,14 @@ package body Adash.Language.Evaluation is
          declare
             Prefix : constant S.Node_Id := S.First (Tree, Node);
          begin
+            --  A part of a part, as deep as it is written. Each level is a
+            --  part of the level outside it, and the whole chain is a part of
+            --  the variable it bottoms out at -- which is the one thing here
+            --  that has a place to store to.
+            if Is_Text_Part (Prefix) then
+               return True;
+            end if;
+
             return S.Kind (Tree, Prefix) = S.Node_Name
               and then Ty.Shape (Sem.Type_Of (Analysis, Prefix))
                        = Ty.Shape_String
@@ -5865,30 +5873,72 @@ package body Adash.Language.Evaluation is
                   --  on the position live.
                   if Is_Text_Part (Target) then
                      declare
-                        Named : constant S.Node_Id := S.First (Tree, Target);
-                        Only  : constant S.Node_Id :=
-                          S.First (Tree, S.Second (Tree, Target));
+                        --  The variable the chain of parts bottoms out at.
+                        --  `S (2 .. 5) (1 .. 2)` is a part of a part of S, and
+                        --  S is where the whole changed text is stored.
+                        Owner : S.Node_Id := Target;
                         Into  : Boolean;
+
+                        --  Each level, from the owner outwards: the text the
+                        --  level starts from, and where in it the level sits.
+                        --  Written in this order because the instruction pops
+                        --  its replacement first, so the innermost part has to
+                        --  be the last thing pushed.
+                        procedure Emit_Levels (Part : S.Node_Id);
+
+                        --  One instruction per level, innermost first: each
+                        --  yields the text of the level outside it, which is
+                        --  the replacement that level's own instruction takes.
+                        procedure Emit_Changes (Part : S.Node_Id);
+
+                        procedure Emit_Levels (Part : S.Node_Id) is
+                           Prefix : constant S.Node_Id := S.First (Tree, Part);
+                           Only   : constant S.Node_Id :=
+                             S.First (Tree, S.Second (Tree, Part));
+                        begin
+                           if Is_Text_Part (Prefix) then
+                              Emit_Levels (Prefix);
+                           end if;
+
+                           Emit_Expression (Prefix);
+
+                           if S.Kind (Tree, Only) = S.Node_Range then
+                              Emit_Expression (S.First (Tree, Only));
+                              Emit_Expression (S.Second (Tree, Only));
+                           else
+                              Emit_Expression (Only);
+                           end if;
+                        end Emit_Levels;
+
+                        procedure Emit_Changes (Part : S.Node_Id) is
+                           Prefix : constant S.Node_Id := S.First (Tree, Part);
+                           Only   : constant S.Node_Id :=
+                             S.First (Tree, S.Second (Tree, Part));
+                        begin
+                           if S.Kind (Tree, Only) = S.Node_Range then
+                              Emit (VM.Text_Set_Slice);
+                           else
+                              Emit (VM.Text_Set_Element);
+                           end if;
+
+                           if Is_Text_Part (Prefix) then
+                              Emit_Changes (Prefix);
+                           end if;
+                        end Emit_Changes;
                      begin
-                        Emit_Place (Named, Into);
+                        while Is_Text_Part (Owner) loop
+                           Owner := S.First (Tree, Owner);
+                        end loop;
+
+                        Emit_Place (Owner, Into);
 
                         if not Into then
                            return;
                         end if;
 
-                        Emit_Expression (Named);
-
-                        if S.Kind (Tree, Only) = S.Node_Range then
-                           Emit_Expression (S.First (Tree, Only));
-                           Emit_Expression (S.Second (Tree, Only));
-                           Emit_Expression (Value);
-                           Emit (VM.Text_Set_Slice);
-                        else
-                           Emit_Expression (Only);
-                           Emit_Expression (Value);
-                           Emit (VM.Text_Set_Element);
-                        end if;
-
+                        Emit_Levels (Target);
+                        Emit_Expression (Value);
+                        Emit_Changes (Target);
                         Emit_Store (Ty.Type_String);
                      end;
 

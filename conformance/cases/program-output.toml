@@ -315,6 +315,39 @@ output = ["bcd", "bcd", "bc", "'c'", "got 7", "hel"]
 diagnostics = []
 
 [[case]]
+id = "string.a-part-of-a-part-is-assigned-to"
+requirement = """
+`S (2 .. 5) (1 .. 2) := "XY"` writes through both levels into S, as deep as it
+is written. Each level changes the level outside it and the outermost change is
+stored in the variable the chain bottoms out at, so what a reader sees is one
+statement and what runs is one store.
+
+Positions inside a part are that part's own, counted from one. Ada's slice
+keeps the index range of what it came from, so `S (2 .. 5) (1 .. 2)` is an error
+there and is the first two characters of the slice here. A String is a value in
+this language rather than a view of one, and a value that begins somewhere other
+than one would be a String that `'First` lies about.
+
+A chain rooted in a call is refused instead, and named: what a call yields has
+nowhere to put anything, however many levels are written on it.
+"""
+script = "S : String := \"abcdefgh\"; S (2 .. 7) (2 .. 5) (1 .. 2) := \"XY\"; put_line (S); T : String := \"abcdef\"; T (2 .. 5) (2) := 'Q'; put_line (T); U : String := \"abcdef\"; U (2 .. 5) (1 .. 2) := U (5 .. 6); put_line (U);\nfunction Whole return String is begin return \"abcdef\"; end Whole; Whole (1 .. 4) (1 .. 2) := \"XY\";\nquit (0);"
+exit_status = 0
+output = ["abXYefgh", "abQdef", "aefdef"]
+diagnostics = [
+  "!error.not_assignable{name=Whole}!",
+]
+
+[[case]]
+id = "string.a-part-of-a-part-is-checked-at-each-level"
+requirement = "Each level checks what it can see. A bound past the end of the part being written into raises against that part's length, not against the length of the String underneath -- which is what makes the message name a number the reader can find."
+script = "S : String := \"abcdef\"; S (2 .. 5) (3 .. 9) := \"XYZXYZX\";\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.program_raised_detail{exception=Index_Error,detail=!error.machine.slice_outside{first=3,last=9,length=4}!}!",
+]
+
+[[case]]
 id = "string.only-a-string-is-taken-apart"
 requirement = """
 What a call yields has to be a String for a part of it to mean anything, and an
