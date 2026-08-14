@@ -607,10 +607,16 @@ package body Adash.Language.Evaluation is
       --         left there.
       --  @param Of_Type What is being built.
       --  @param Values The aggregate's sequence of values.
+      --  @param At_Address Where to build it, when it is not being built into
+      --         something with a place of its own. An aggregate written as an
+      --         argument has nowhere to live: it is built in a run of the
+      --         caller's own slots and the call is handed where that run
+      --         starts, which is how every composite travels here.
       procedure Emit_Aggregate
-        (Target  : S.Node_Id;
-         Of_Type : Ty.Type_Kind;
-         Values  : S.Node_Id);
+        (Target     : S.Node_Id;
+         Of_Type    : Ty.Type_Kind;
+         Values     : S.Node_Id;
+         At_Address : Integer := -1);
 
       --  Whether this expression is an array element rather than a call.
       --
@@ -993,9 +999,10 @@ package body Adash.Language.Evaluation is
       ----------------------
 
       procedure Emit_Aggregate
-        (Target  : S.Node_Id;
-         Of_Type : Ty.Type_Kind;
-         Values  : S.Node_Id)
+        (Target     : S.Node_Id;
+         Of_Type    : Ty.Type_Kind;
+         Values     : S.Node_Id;
+         At_Address : Integer := -1)
       is
          Given : constant Natural := S.Child_Count (Tree, Values);
 
@@ -1113,7 +1120,13 @@ package body Adash.Language.Evaluation is
                  Sem.Part_Type (Analysis, Of_Type, Index);
                Ok : Boolean;
             begin
-               Emit_Place (Target, Ok);
+               if At_Address >= 0 then
+                  Emit_2 (VM.Address, 0, VM.Whole_Number (At_Address));
+                  Ok := True;
+               else
+                  Emit_Place (Target, Ok);
+               end if;
+
                exit when not Ok;
 
                Emit_1
@@ -3268,12 +3281,36 @@ package body Adash.Language.Evaluation is
                --  parameter is one slot holding a place, whichever mode it
                --  was declared with.
                declare
+                  Of_Type : constant Ty.Type_Kind :=
+                    Symbols.Parameter_Type (Callee, Index);
                   Ok : Boolean;
                begin
-                  Emit_Place (Slots (Index), Ok);
+                  if S.Kind (Tree, Slots (Index)) = S.Node_Aggregate then
+                     --  An aggregate written as an argument has nowhere of
+                     --  its own to be. It is built in a run of this frame's
+                     --  slots and the call is handed where that run starts,
+                     --  which is what every composite argument is.
+                     declare
+                        Base : constant Natural := New_Temporary;
+                     begin
+                        for Extra in 2 .. Ty.Width (Of_Type) loop
+                           Reserve_Temporary;
+                        end loop;
 
-                  if not Ok then
-                     return;
+                        Emit_Aggregate
+                          (Slots (Index), Of_Type,
+                           S.First (Tree, Slots (Index)),
+                           At_Address => Base);
+
+                        Emit_2 (VM.Address, 0, VM.Whole_Number (Base));
+                     end;
+
+                  else
+                     Emit_Place (Slots (Index), Ok);
+
+                     if not Ok then
+                        return;
+                     end if;
                   end if;
                end;
 

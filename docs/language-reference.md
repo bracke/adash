@@ -132,7 +132,8 @@ known here. An index or a slice outside what was passed raises.
 Every part gets exactly one value. A part left out, a part named twice, an index
 the array does not have, and an `others` that answers for nothing are each
 refused by name. An index is a value known before the program runs. An aggregate
-is a value in a declaration or an assignment, not an argument at a call.
+is written wherever a value of the type is: a declaration, an assignment, or an
+argument at a call, where it is built in a run of the caller's own slots.
 
 ## Attributes
 

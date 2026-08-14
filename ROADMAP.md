@@ -2921,11 +2921,11 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   loop it belongs to is.
 - **No user-defined operators**, no `for ... of`, no attributes beyond the
   seventeen listed below, and no representation clauses.
-- **An aggregate is a value in a declaration or an assignment**, not an
-  argument at a call: a composite is a run of slots rather than a value, and
-  what a declaration and an assignment have in common is a run to fill. One
-  component is `(A => 1)` and not `(1)`, which is Ada's rule as well: a
-  parenthesised expression is what the second one is.
+- **A one-component aggregate is `(A => 1)` and not `(1)`**, which is Ada's
+  rule as well: a parenthesised expression is what the second one is. An
+  aggregate is otherwise written wherever a value of its type is -- a
+  declaration, an assignment, or an argument at a call, where it is built in a
+  run of the caller's own slots and the call is handed where that run starts.
 - **Membership against a type mark admits a discrete type only.** `X in Small`
   and `X in Colour` are written; `X in Float` and `X in String` are refused,
   where Ada takes both and answers True. What the check compares is two bounds,
