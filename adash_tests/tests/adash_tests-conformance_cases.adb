@@ -18,12 +18,21 @@ package body Adash_Tests.Conformance_Cases is
    procedure Examples_Pass (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Cases_Actually_Ran (Test : in out AUnit.Test_Cases.Test_Case'Class);
 
-   --  The first failure, in full, so a person reading the test output does not
-   --  have to run a second tool to find out what went wrong.
+   --  The failures, in full, so a person reading the test output does not have
+   --  to run a second tool to find out what went wrong.
+   --
+   --  Several of them, not one. A host nobody can reach reports what CI shows,
+   --  and one failure per run is one round trip per failure -- twenty-five
+   --  minutes each on the slowest of the three. The first five carry their
+   --  detail; the rest are named, because a name is enough to know whether
+   --  they are the same fault.
    function First_Problem (Results : Conf.Report) return String;
 
    function First_Problem (Results : Conf.Report) return String is
       use type Conf.Verdict;
+
+      Told   : Natural := 0;
+      Report : Unbounded_String;
    begin
       for Index in 1 .. Conf.Count (Results) loop
          declare
@@ -31,13 +40,22 @@ package body Adash_Tests.Conformance_Cases is
          begin
             if Item.Outcome = Conf.Failed or else Item.Outcome = Conf.Malformed
             then
-               return Conf.Verdict'Image (Item.Outcome) & " "
-                 & To_String (Item.Identity) & ": " & To_String (Item.Detail);
+               Told := Told + 1;
+
+               if Told <= 5 then
+                  Append (Report,
+                          ASCII.LF & "    " & Conf.Verdict'Image (Item.Outcome)
+                          & " " & To_String (Item.Identity) & ": "
+                          & To_String (Item.Detail));
+               elsif Told <= 25 then
+                  Append (Report,
+                          ASCII.LF & "    also " & To_String (Item.Identity));
+               end if;
             end if;
          end;
       end loop;
 
-      return "";
+      return To_String (Report);
    end First_Problem;
 
    ---------------------
