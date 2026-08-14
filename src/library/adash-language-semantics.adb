@@ -419,6 +419,23 @@ package body Adash.Language.Semantics is
       return Item.Shapes.Element (Where).First;
    end First_Index;
 
+   ----------------
+   -- As_Written --
+   ----------------
+
+   function As_Written
+     (Item : Analysis; Of_Type : Types.Type_Kind) return String
+   is
+      Where : constant Natural := Shape_Of (Item, Of_Type);
+   begin
+      if Where = 0 then
+         return "";
+      end if;
+
+      return Ada.Strings.Unbounded.To_String
+               (Item.Shapes.Element (Where).Written);
+   end As_Written;
+
    --------------------
    -- Expansion_Of --
    --------------------
@@ -6722,12 +6739,19 @@ package body Adash.Language.Semantics is
                                 (Part'(Name    => <>,
                                        Of_Type => Held,
                                        Offset  => 0));
+                              if Unnamed then
+                                 Built.Written :=
+                                   Ada.Strings.Unbounded.To_Unbounded_String
+                                     ("array (" & S.Text (Tree, Bounds)
+                                      & " range <>) of "
+                                      & Types.Name (Held));
+                              end if;
+
                               Introduced := Types.Open_Array
                                 (Built.Id,
                                  (if Unnamed
-                                  then "array (" & S.Text (Tree, Bounds)
-                                       & " range <>) of "
-                                       & Types.Name (Held)
+                                  then Ada.Strings.Unbounded.To_String
+                                         (Built.Written)
                                   else Name));
                            end if;
 
@@ -6783,17 +6807,24 @@ package body Adash.Language.Semantics is
                               Slots := Slots + Types.Width (Held);
                            end loop;
 
+                           if Unnamed then
+                              Built.Written :=
+                                Ada.Strings.Unbounded.To_Unbounded_String
+                                  ("array ("
+                                   & Ada.Strings.Fixed.Trim
+                                       (Low'Image, Ada.Strings.Both)
+                                   & " .. "
+                                   & Ada.Strings.Fixed.Trim
+                                       (High'Image, Ada.Strings.Both)
+                                   & ") of " & Types.Name (Held));
+                           end if;
+
                            Introduced :=
                              Types.Composite_Array
                                (Built.Id,
                                 (if Unnamed
-                                 then "array ("
-                                      & Ada.Strings.Fixed.Trim
-                                          (Low'Image, Ada.Strings.Both)
-                                      & " .. "
-                                      & Ada.Strings.Fixed.Trim
-                                          (High'Image, Ada.Strings.Both)
-                                      & ") of " & Types.Name (Held)
+                                 then Ada.Strings.Unbounded.To_String
+                                        (Built.Written)
                                  else Name),
                                 Slots);
                         end if;

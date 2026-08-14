@@ -5127,11 +5127,16 @@ package body Adash.Language.Evaluation is
          --  How the declaration reads when it is written out again: the type,
          --  and `constant` when it was one, so a constant does not come back
          --  assignable.
+         --  The definition rather than the name for an anonymous type: a
+         --  name is bounded and a definition is not, so the name may have
+         --  been cut to fit and what is written out has to be readable again.
          function Written_As (Sym : Symbols.Symbol; Of_Type : Ty.Type_Kind)
                               return String
          is ((if Symbols.Kind (Sym) = Symbols.Symbol_Constant
               then "constant " else "")
-             & Ty.Name (Of_Type));
+             & (if Sem.As_Written (Analysis, Of_Type) /= ""
+                then Sem.As_Written (Analysis, Of_Type)
+                else Ty.Name (Of_Type)));
 
          --  One part of a composite, as the text this language reads back.
          --  A Character comes quoted, a Boolean comes as TRUE, and a String
@@ -5311,10 +5316,7 @@ package body Adash.Language.Evaluation is
 
                   Emit_Text (Keep_Marker);
                   Emit_Text (Symbols.Name (Sym));
-                  Emit_Text
-                    ((if Symbols.Kind (Sym) = Symbols.Symbol_Constant
-                      then "constant " else "")
-                     & Ty.Name (Item.Of_Type));
+                  Emit_Text (Written_As (Sym, Item.Of_Type));
 
                   Emit_Text ("(");
 

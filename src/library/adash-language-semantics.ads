@@ -184,6 +184,17 @@ package Adash.Language.Semantics is
       Of_Type : Types.Type_Kind;
       Name    : String) return Natural;
 
+   --  What an anonymous array type was written as.
+   --
+   --  @param Item Analysis to inspect.
+   --  @param Of_Type The type.
+   --  @return Its definition, or "" for a type declared with a name of its
+   --          own -- which is what a reader of a declaration wants either
+   --          way: the name where there is one, and the definition where the
+   --          name is one the parser made.
+   function As_Written
+     (Item : Analysis; Of_Type : Types.Type_Kind) return String;
+
    --  The first index an array admits.
    --
    --  Ada lets an array begin anywhere; a script that indexes one has to be
@@ -338,6 +349,12 @@ private
       --  For an array: where its index range begins. Zero for a record, which
       --  has names rather than positions.
       First : Long_Long_Integer := 0;
+
+      --  What an anonymous array type was written as, and "" for a type that
+      --  has a name. A type's name is bounded and a definition is not, so
+      --  what carries the variable into the next submission reads this
+      --  rather than the name, which may have been cut to fit.
+      Written : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    package Structure_Vectors is new Ada.Containers.Vectors

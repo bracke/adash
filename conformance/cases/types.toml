@@ -866,3 +866,17 @@ script = "A : array (1 .. 2) of Integer := (1, 2); B : array (1 .. 2) of Integer
 exit_status = 0
 output = [" 1", " 4"]
 diagnostics = []
+
+[[case]]
+id = "types.and-an-anonymous-array-type-is-carried-as-it-was-written"
+requirement = """
+A type's name is bounded and a definition is not, so an anonymous type whose
+definition is longer than a name can hold has a name that was cut to fit. What
+carries the variable into the next submission writes the definition instead --
+the truncated name read back as a type nobody declared, which turned a
+declaration that worked into a session that could not go on.
+"""
+script = "type Measurement_Value is (Low, High);\nA : array (1 .. 2) of Measurement_Value := (Low, High);\nput_line (A (2)'Image);\nquit (0);"
+exit_status = 0
+output = ["High"]
+diagnostics = []
