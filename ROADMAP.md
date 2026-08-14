@@ -783,6 +783,15 @@ condition's Boolean. Parentheses pass the requirement through, and so does an
 operator whose result is its operands' type -- `S : String := F & "!"` wants a
 String of the whole and therefore of `F`.
 
+What the context requires reaches an *argument* as well, through the candidates
+it rules out. `X : Integer := Show (Make)` is settled that way and no other:
+both Shows take what both Makes return, so the arguments settle nothing, and
+only one Show returns an Integer -- so only its parameter type is asked of the
+argument, and `Make` resolves against it. It reaches as far down as the calls
+are nested, each level narrowing the next. Where no candidate returns what the
+context asks for, the call is wrong rather than ambiguous, and the narrowing
+does not happen: one report about the call beats a cascade about its arguments.
+
 A comparison does not pass the context's requirement down -- its result is
 Boolean and its operands are not -- but its operands have *each other's* type,
 and that is enough. When exactly one of them is a call several subprograms could

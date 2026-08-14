@@ -289,3 +289,46 @@ diagnostics = [
   "!error.ambiguous_call{name=F,count= 2}!",
   "!error.ambiguous_call{name=G,count= 2}!",
 ]
+
+[[case]]
+id = "overloading.and-what-the-context-wants-reaches-the-arguments"
+requirement = """
+Ada resolves a call and its arguments together. Here both Shows take what both
+Makes return, so the arguments settle nothing; what settles it is the declared
+type, which only one Show returns -- and once that Show is the only candidate
+left, its parameter type is what the argument is analysed against. Without it a
+program has to write the intermediate declaration by hand, which is the same
+program with a name nobody reads.
+"""
+script = "function Make return Integer is begin return 7; end Make; function Make return String is begin return \"seven\"; end Make; function Show (V : Integer) return Integer is begin return V; end Show; function Show (V : String) return String is begin return V; end Show;\nX : Integer := Show (Make); S : String := Show (Make);\nput_line (X'Image); put_line (S);\nquit (0);"
+exit_status = 0
+output = [" 7", "seven"]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-it-reaches-as-far-down-as-the-calls-nest"
+requirement = """
+Each level narrows the next: the declared type picks the outer Show, its
+parameter picks the inner one, and that one's parameter picks the Make. A rule
+that reached one level would be a rule a reader could not state.
+"""
+script = "function Make return Integer is begin return 7; end Make; function Make return String is begin return \"seven\"; end Make; function Show (V : Integer) return Integer is begin return V; end Show; function Show (V : String) return String is begin return V; end Show;\nS : String := Show (Show (Make));\nput_line (S);\nquit (0);"
+exit_status = 0
+output = ["seven"]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-with-nothing-required-it-is-still-ambiguous"
+requirement = """
+The narrowing is what the context asks for, so where it asks for nothing there
+is nothing to narrow with. `put_line` takes any type and both interpretations
+stand, which is Ada's answer as well -- and the honest one, since taking the
+last-declared candidate would make the program mean whichever body was written
+second.
+"""
+script = "function Make return Integer is begin return 7; end Make; function Make return String is begin return \"seven\"; end Make; function Show (V : Integer) return Integer is begin return V; end Show; function Show (V : String) return String is begin return V; end Show;\nput_line (Show (Make)'Image);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.ambiguous_call{name=Show,count= 2}!",
+  "!error.ambiguous_call{name=Make,count= 2}!",
+]

@@ -3559,6 +3559,54 @@ package body Adash.Language.Semantics is
                   --  one candidate, or several agreeing at this position --
                   --  and leaves the rest to be settled by the arguments' own
                   --  types, as before.
+                  --  Whether what the context requires leaves this candidate
+                  --  standing.
+                  --
+                  --  A call's arguments are resolved against the subprograms
+                  --  that could answer for it, and where the context asks for
+                  --  a type, only the ones returning it can. `Show (Make)`
+                  --  written where an Integer is wanted is settled this way
+                  --  and no other: both Shows take what both Makes return,
+                  --  and only one Show returns an Integer.
+                  --
+                  --  Asked only when some candidate does return what the
+                  --  context asks for. Where none does, the call is wrong
+                  --  rather than ambiguous, and narrowing to nothing would
+                  --  turn one report into a cascade about its arguments.
+                  function Answers_The_Context
+                    (Candidate : Symbols.Symbol) return Boolean;
+
+                  --  Whether any of them does.
+                  function Some_Answer_The_Context return Boolean;
+
+                  function Some_Answer_The_Context return Boolean is
+                     Pool  : Adash.Language.Scopes.Symbol_List;
+                     Count : Natural;
+                  begin
+                     if Expected = Types.Type_None then
+                        return False;
+                     end if;
+
+                     Chain.Candidates (Visible_Name (Name), Pool, Count);
+
+                     for Index in 1 .. Count loop
+                        if Types.Is_Acceptable
+                             (Symbols.Of_Type (Pool (Index)), Expected)
+                        then
+                           return True;
+                        end if;
+                     end loop;
+
+                     return False;
+                  end Some_Answer_The_Context;
+
+                  function Answers_The_Context
+                    (Candidate : Symbols.Symbol) return Boolean
+                  is (Expected = Types.Type_None
+                      or else not Some_Answer_The_Context
+                      or else Types.Is_Acceptable
+                                (Symbols.Of_Type (Candidate), Expected));
+
                   --  The one type both the candidates and the argument
                   --  written at this position could have, or Type_None.
                   function Only_Fitting
@@ -3590,6 +3638,7 @@ package body Adash.Language.Semantics is
                              Signature_Of (Name, Pool (Index));
                         begin
                            if About.Known
+                             and then Answers_The_Context (Pool (Index))
                              and then Given >= About.Minimum
                              and then Given <= About.Maximum
                              and then Position <= Natural'Min
@@ -3626,6 +3675,7 @@ package body Adash.Language.Semantics is
                              Signature_Of (Name, Pool (Index));
                         begin
                            if About.Known
+                             and then Answers_The_Context (Pool (Index))
                              and then Given >= About.Minimum
                              and then Given <= About.Maximum
                              and then Position <= Natural'Min
