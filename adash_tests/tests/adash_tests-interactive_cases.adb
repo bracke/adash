@@ -1,3 +1,9 @@
+with Ada.Directories;
+with Ada.Strings.Fixed;
+with Hostkit;
+with Hostkit.Descriptors;
+with Hostkit.Pty;
+with Hostkit.Spawn;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 
@@ -768,6 +774,139 @@ package body Adash_Tests.Interactive_Cases is
 
    --------------------
    -- Register_Tests --
+   --  The shell under test, beside this suite's own binary.
+   function Shell_Under_Test return String is
+      --  The suite runs from adash_tests, as the test guide says it must, so
+      --  the shell is one directory up. Built from the run-time position
+      --  rather than from the binary's own path: `Command_Name` is whatever
+      --  the caller typed, and asking a relative one for its containing
+      --  directory is how this first failed.
+      Here : constant String := "../bin/adash";
+   begin
+      if Ada.Directories.Exists (Here & ".exe") then
+         return Here & ".exe";
+      end if;
+
+      return Here;
+   end Shell_Under_Test;
+
+   --  A whole session, through a pseudo-terminal.
+   --
+   --  Everything else here tests a piece: the buffer, the decoder, the
+   --  history, the completion. Nothing tested the shell a user actually meets
+   --  -- a terminal on the other end, a line typed, an answer printed -- and
+   --  that was the one part of this crate verified by a person driving it by
+   --  hand.
+   --
+   --  Bounded at every step. A test that reads until end of file from a shell
+   --  waiting for input is a test that hangs, and a hang in CI is a job that
+   --  reports nothing at all: that lesson cost two thirty-minute Windows runs
+   --  today.
+   procedure A_Session_Answers_Through_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      use type Hostkit.Descriptors.Transfer_Outcome;
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Spawn.Wait_State;
+
+      Pair    : Hostkit.Pty.Pair;
+      Options : Hostkit.Spawn.Options;
+      Child   : Hostkit.Spawn.Process_Handle;
+      Result  : Hostkit.Spawn.Status;
+      Args    : Hostkit.String_Vectors.Vector;
+
+      Seen : Ada.Strings.Unbounded.Unbounded_String;
+
+      Typed : constant String :=
+        "put_line (""from a terminal"");" & Character'Val (13)
+        & "quit (0);" & Character'Val (13);
+
+      function Wrote (Item : String) return Boolean;
+
+      function Wrote (Item : String) return Boolean is
+         Data : Ada.Streams.Stream_Element_Array (1 .. Item'Length);
+         Last : Ada.Streams.Stream_Element_Offset;
+      begin
+         for Index in Item'Range loop
+            Data (Ada.Streams.Stream_Element_Offset (Index - Item'First + 1)) :=
+              Ada.Streams.Stream_Element (Character'Pos (Item (Index)));
+         end loop;
+
+         return Hostkit.Descriptors.Write (Pair.Controller, Data, Last)
+                = Hostkit.Descriptors.Transfer_Ok;
+      end Wrote;
+   begin
+      if not Hostkit.Pty.Is_Supported then
+         --  Windows has none, which Hostkit.Pty answers for. What the shell
+         --  does there is checked by the conformance suite, which needs no
+         --  terminal.
+         return;
+      end if;
+
+      Assert (Hostkit.Pty.Open (Pair), "could not open a pseudo-terminal");
+
+      Options.Input := Pair.Device;
+      Options.Output := Pair.Device;
+      Options.Error_Output := Pair.Device;
+
+      Assert (Hostkit.Descriptors.Set_Inheritable (Pair.Device, True),
+              "the terminal end could not be handed to the child");
+
+      Assert (Hostkit.Spawn.Start (Shell_Under_Test, Args, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start on a terminal");
+
+      --  The parent's copy of the child's end, closed so the shell owns its
+      --  terminal alone.
+      Hostkit.Descriptors.Close (Pair.Device);
+
+      Assert (Wrote (Typed), "could not type into the terminal");
+
+      for Attempt in 1 .. 200 loop
+         declare
+            Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
+            Last   : Ada.Streams.Stream_Element_Offset;
+            Status : constant Hostkit.Descriptors.Transfer_Outcome :=
+              Hostkit.Descriptors.Read (Pair.Controller, Buffer, Last);
+         begin
+            if Status = Hostkit.Descriptors.Transfer_Ok then
+               for Index in Buffer'First .. Last loop
+                  Ada.Strings.Unbounded.Append
+                    (Seen, Character'Val (Natural (Buffer (Index))));
+               end loop;
+            end if;
+
+            exit when Ada.Strings.Fixed.Index
+                        (Ada.Strings.Unbounded.To_String (Seen),
+                         "from a terminal") > 0;
+
+            exit when Status = Hostkit.Descriptors.Transfer_End_Of_File;
+
+            delay 0.05;
+         end;
+      end loop;
+
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Seen),
+                 "from a terminal") > 0,
+              "the shell did not answer through the terminal: ["
+              & Ada.Strings.Unbounded.To_String (Seen) & "]");
+
+      for Attempt in 1 .. 100 loop
+         exit when Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Poll, Result)
+                     and then Result.State /= Hostkit.Spawn.Wait_Running;
+         delay 0.05;
+      end loop;
+
+      Assert (Result.State = Hostkit.Spawn.Wait_Exited,
+              "the shell did not end when it was asked to: "
+              & Hostkit.Spawn.Wait_State'Image (Result.State));
+
+      Hostkit.Descriptors.Close (Pair.Controller);
+   end A_Session_Answers_Through_A_Terminal;
+
    --------------------
 
    overriding procedure Register_Tests (T : in out Case_Type) is
@@ -811,6 +950,8 @@ package body Adash_Tests.Interactive_Cases is
                         "the common prefix is shared by every candidate");
       Register_Routine (T, Highlighting_Covers_Unparsable_Input'Access,
                         "highlighting works on input that does not parse");
+      Register_Routine (T, A_Session_Answers_Through_A_Terminal'Access,
+                        "a session answers through a pseudo-terminal");
    end Register_Tests;
 
 end Adash_Tests.Interactive_Cases;
