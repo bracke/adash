@@ -434,6 +434,23 @@ package body Adash_Tests.Machine_Cases is
       Assert (Program.Slot_Value (3).Whole = 9,
               "the second element came back wrong");
 
+      --  How far a run reaches, asked without moving to an element: what a
+      --  slice of a run whose length is the caller's is checked with.
+      Program.Reset;
+      Program.Set_Frame (4);
+      Named := Program.Text_Literal ("Line");
+
+      Program.Add (M.Address, 0, M.Whole_Number (0));
+      Program.Add (M.Run_Of, 0, M.Whole_Number (2));
+      Program.Add (M.Run_Covers, Named, M.Whole_Number (3));
+      Program.Add (M.Halt);
+
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Raised, "a slice past the run did not raise");
+      Assert (To_String (Answer.Raised_Name) = "Index_Error",
+              "it raised the wrong thing: " & To_String (Answer.Raised_Name));
+
       --  Past the end of what was passed, which the type could not have said.
       Program.Reset;
       Program.Set_Frame (4);

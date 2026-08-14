@@ -112,10 +112,12 @@ Integer;`. A variable of one says how long it is where it is declared —
 what it is given: a positional aggregate, another array of the type, or a slice
 of one. Either way it begins at one. A parameter of one takes a run of any
 length, asking the value for `'Length` and `'Last` rather than the type.
-`'First` is one. Such a parameter goes **element by element**: it is not
-assigned to as a whole and not sliced, because how many slots to copy is a
-number written into the instruction. Its elements are read and written, and an
-index outside what was passed raises against the length the caller gave.
+`'First` is one. Its elements are read and written, and it is sliced: a slice's
+ends are known where it is written and how far the run reaches is not, so the
+far end is checked where the program runs, against what the caller passed. What
+such a parameter does **not** take is a whole assignment — `R := Y` is right
+only when the two are the same length, and neither that nor the copy's size is
+known here. An index or a slice outside what was passed raises.
 
 ### Aggregates
 

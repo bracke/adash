@@ -3003,16 +3003,17 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   written and answered, but it is not in this list of seventeen: it stands
   where a range stands rather than where a value does, so the parser reads it
   as the two ends it gives and no attribute is evaluated.
-- **An unconstrained array's values go element by element inside a subprogram.**
+- **An unconstrained array is not replaced whole inside a subprogram.**
   `array (Integer range <>) of T` is written, a variable of it says how long it
   is where it is declared -- as a constraint, `X : Line (1 .. 4)`, or by what it
   is given, `X : Line := (1, 2, 3)` -- a parameter of it takes any length, and
-  `'Length`
-  and `'Last` are asked of the value rather than of the type. What such a
-  parameter does *not* do is get assigned as a whole or sliced: how many slots
-  to copy is a number this build writes into an instruction, and here it has
-  none. Refused where it stands, with a message that says element by element
-  instead.
+  `'Length` and `'Last` are asked of the value rather than of the type. It is sliced as
+  well: a slice's ends are known where it is written and how far the run
+  reaches is not, so that one end is checked where the program runs -- one
+  instruction, against what the caller passed. What such a parameter does *not*
+  take is a whole assignment: `R := Y` is right only when the two are the same
+  length, and neither that nor the copy's size is known here. Refused where it
+  stands, with a message that names the slice as the way to say it.
 
   How the length travels is worth knowing, because it decided the shape of
   everything else: a composite is passed as where its run of slots starts, so

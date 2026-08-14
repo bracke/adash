@@ -1781,6 +1781,26 @@ package body Adash.Machine is
                   end if;
                end;
 
+            when Run_Covers =>
+               declare
+                  Where : constant Cell := Pop;
+                  Named : constant Natural := Here.Level;
+               begin
+                  if Where.Kind /= Cell_Place then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
+
+                  elsif Here.Operand > Whole_Number (Where.Extent) then
+                     Fail (Raised, "Index_Error",
+                           M.Msg_Machine_Outside_Array,
+                           [Counted (Here.Operand),
+                            Item.Texts (Named),
+                            Null_Unbounded_String],
+                           2);
+                  else
+                     Push (Where);
+                  end if;
+               end;
+
             when Element_Place_Counted =>
                declare
                   Wanted : constant Cell := Pop;

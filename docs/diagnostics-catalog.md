@@ -165,7 +165,7 @@ There are 414 messages in 22 groups.
 | `error.statement_among_declarations` | only declarations may appear before begin |
 | `error.string_index_malformed` | a String is taken apart by one position or one range of them |
 | `error.needs_bounds` | a variable of {name} says how long it is, as {name} (1 .. 4), and its first index is one |
-| `error.open_by_element` | {name} is as long as what was passed to it, so it goes element by element: no whole assignment and no slice |
+| `error.open_by_element` | {name} is as long as what was passed to it, so the whole of it is not replaced: assign a slice of it, or one element at a time |
 | `error.no_such_slice` | {name} has no elements {first} .. {last} |
 | `error.not_taken_apart` | a {found} is not taken apart that way; a String takes a position or a range, an array a position |
 | `error.case.not_discrete` | a case examines a discrete value; {found} is not one |

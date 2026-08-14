@@ -3385,21 +3385,6 @@ package body Adash.Language.Semantics is
                        First_Index (Into, Of_Array);
                      Ends : constant Long_Long_Integer := Base + Count - 1;
                   begin
-                     --  Not of a run whose length is the caller's. The ends
-                     --  would be known and the length would not, so the check
-                     --  that the slice is within the run could only happen
-                     --  where the program runs -- which is a bound this build
-                     --  does not carry. Element by element instead, which is
-                     --  checked against the run itself.
-                     if Types.Is_Open (Of_Array) and then Ranged then
-                        Complain
-                          (Adash.Errors.Error_Open_By_Element, Node,
-                           [1 => Adash.Messages.Named
-                                   ("name", Types.Name (Of_Array))]);
-                        Note (Node, Types.Type_None);
-                        return Types.Type_None;
-                     end if;
-
                      --  A slice: `A (2 .. 4)`, a run of the array's own
                      --  elements. Its ends are known before the program runs,
                      --  as the array's own bounds and a case choice are,
@@ -3456,8 +3441,15 @@ package body Adash.Language.Semantics is
                            --  slots and a run of none is not one, so the two
                            --  are refused together rather than one of them
                            --  being half-supported.
-                           if Low < Base or else High > Ends
-                             or else Low > High
+                           --
+                           --  How far the run reaches is not asked of a type
+                           --  whose values carry their own length. That end is
+                           --  checked where the program runs, against what the
+                           --  caller passed, which is the only thing that
+                           --  knows.
+                           if Low < Base or else Low > High
+                             or else (not Types.Is_Open (Of_Array)
+                                      and then High > Ends)
                            then
                               Complain
                                 (Adash.Errors.Error_No_Such_Slice, Node,

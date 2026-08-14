@@ -168,10 +168,22 @@ put_line ("the highest of two is " & Trim (Highest (Short)'Image)
           & ", and of the middle three "
           & Trim (Highest (Middle)'Image));
 
---  What such a parameter does not do: it is not assigned to as a whole and not
---  sliced. How many slots to copy is a number this build writes into an
---  instruction, and a run whose length is the caller's has none. Element by
---  element instead, which is checked against the run itself.
+--  A slice of such a parameter is taken, which is what a body working on part
+--  of a run it was handed needs. Its ends are known where it is written and how
+--  far the run reaches is not, so that one end is checked where the program
+--  runs, against what the caller passed.
+procedure Head (Of_Them : in out Series; From : Series) is
+begin
+   Of_Them (1 .. 2) := From (1 .. 2);
+end Head;
+
+Head (Long, Short);
+
+put_line ("the first two of five are now" & Long (1)'Image & Long (2)'Image);
+
+--  What such a parameter does not take is a whole assignment. `Of_Them := X`
+--  is right only when the two are the same length, and neither that nor the
+--  copy's size is known here.
 procedure Clear (Of_Them : in out Series) is
 begin
    for Index in Of_Them'Range loop

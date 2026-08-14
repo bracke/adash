@@ -2378,6 +2378,36 @@ package body Adash.Language.Evaluation is
                            return;
                         end if;
 
+                        --  How far a run of the caller's length reaches is
+                        --  not known here, so the far end is checked where the
+                        --  program runs. The near end and the count are known,
+                        --  as they are for every slice.
+                        if Ty.Is_Open (Of_Type) then
+                           declare
+                              High : Long_Long_Integer;
+                           begin
+                              if not Sem.Static_Choice
+                                       (Analysis, Tree,
+                                        S.Second
+                                          (Tree,
+                                           S.First
+                                             (Tree, S.Second (Tree, Node))),
+                                        High)
+                              then
+                                 Refuse
+                                   (Node,
+                                    Adash.Messages.Msg_Lower_This_Expression);
+                                 Ok := False;
+                                 return;
+                              end if;
+
+                              Emit_2
+                                (VM.Run_Covers,
+                                 Code.Text_Literal (Ty.Name (Of_Type)),
+                                 VM.Whole_Number (High));
+                           end;
+                        end if;
+
                         if Low /= First then
                            Emit_1
                              (VM.Offset_Place,

@@ -244,6 +244,14 @@ package Adash.Machine is
       --  an array whose length is not in its type.
       Extent_Of,
 
+      --  Check that the run at the place on top reaches as far as Operand,
+      --  and leave the place where it was. What a slice of a run whose length
+      --  is the caller's needs: the ends are known here and the length is
+      --  not, so the one check that cannot be made when the program is built
+      --  is made where it runs. Level carries where the type's name is, for
+      --  the message.
+      Run_Covers,
+
       --  Move a place along by the number on the stack, after checking that
       --  the number is within the run the place itself says it has. What
       --  reaching an element of an unconstrained array parameter is: the

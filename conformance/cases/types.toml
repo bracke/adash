@@ -480,23 +480,27 @@ diagnostics = [
 ]
 
 [[case]]
-id = "open.a-run-of-the-callers-length-goes-element-by-element"
+id = "open.a-run-of-the-callers-length-is-sliced-but-not-replaced"
 requirement = """
-What a parameter of an unconstrained type holds is as long as what was passed,
-and how many slots to copy is a number this build writes into an instruction. So
-a whole assignment and a slice are refused where they stand, and the message
-says what to do instead: element by element, which is checked against the run
-itself.
+A slice of such a parameter has ends that are known and a run whose length is
+not, so the near end and the count are settled where it is written and the far
+end is checked where it runs -- against what the caller passed, which is the
+only thing that knows. That is one instruction, and it is what lets a body work
+on part of a run it was handed.
+
+What is still refused is assigning the whole of one. `R := Y` is only right when
+the two are the same length, and neither the length nor the copy's size is known
+here; a slice of it says both.
 
 Writing through one element works, and is the point of an `in out` parameter of
 such a type.
 """
-script = "type Line is array (Integer range <>) of Integer; procedure Zero (R : in out Line) is begin for I in R'Range loop R (I) := 0; end loop; end Zero; X : Line (1 .. 3) := (5, 6, 7); Zero (X); put_line (X (1)'Image & X (2)'Image & X (3)'Image);\nY : Line (1 .. 2) := (8, 9); procedure Fill (R : in out Line) is begin R := Y; end Fill;\nZ : Line (1 .. 2) := (8, 9); procedure Part (R : in out Line) is begin R (1 .. 2) := Z; end Part;\nquit (0);"
+script = "type Line is array (Integer range <>) of Integer; procedure Zero (R : in out Line) is begin for I in R'Range loop R (I) := 0; end loop; end Zero; procedure Head (R : in out Line; From : Line) is begin R (1 .. 2) := From (1 .. 2); end Head; function Mid (R : Line) return Integer is begin return R (2 .. 4) (2); end Mid; Two : Line := (8, 9); X : Line (1 .. 3) := (5, 6, 7); Zero (X); put_line (X (1)'Image & X (2)'Image & X (3)'Image); Head (X, Two); put_line (X (1)'Image & X (2)'Image & X (3)'Image); W : Line := (1, 2, 3, 4); put_line (Mid (W)'Image);\nprocedure Fill (R : in out Line) is Local : Line := (1, 2); begin R := Local; end Fill;\nShort : Line (1 .. 1) := (1 => 5); Head (Short, Two);\nquit (0);"
 exit_status = 0
-output = [" 0 0 0"]
+output = [" 0 0 0", " 8 9 0", " 3"]
 diagnostics = [
   "!error.open_by_element{name=R}!",
-  "!error.open_by_element{name=Line}!",
+  "!error.program_raised_detail{exception=Index_Error,detail=!error.machine.outside_array{position=2,type=Line}!}!",
 ]
 
 [[case]]

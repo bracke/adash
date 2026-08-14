@@ -305,10 +305,13 @@ what changed.
   that is not one. A variable of such a type is therefore declared from one,
   and says so if it is not.
 
-  What such a parameter does not do is get assigned as a whole or sliced — how
-  many slots to copy is a number written into an instruction, and there it has
-  none. Both are refused where they stand, with a message that says element by
-  element instead.
+  **A slice of one is taken**, which is what a body working on part of a run it
+  was handed needs. The ends are known where the slice is written and how far
+  the run reaches is not, so the far end is checked where the program runs —
+  `Run_Covers`, one instruction, against what the caller passed. What such a
+  parameter does not take is a whole assignment: `R := Y` is right only when
+  the two are the same length, and neither that nor the copy's size is known
+  here, so it is refused with a message naming the slice as the way to say it.
 
   Two things fell out of doing it. An array's elements are now counted from its
   *width* rather than from what its declaration listed, which is what lets one
