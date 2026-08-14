@@ -2531,6 +2531,40 @@ package body Adash.Machine is
                             else Ada.Characters.Handling.To_Lower (Text))));
                end;
 
+            when Whole_Of_Real =>
+               declare
+                  Only : constant Cell := Pop;
+               begin
+                  if Only.Kind /= Cell_Real then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_Not_A_Number);
+                  else
+                     declare
+                        Rounded : constant Real := Real'Rounding (Only.Number);
+                     begin
+                        --  Ada's rule: to the nearest, and away from zero at a
+                        --  half. The check is here rather than left to the
+                        --  conversion, so what a program sees is the failure
+                        --  Ada names rather than this build's own.
+                        Push ((Cell_Whole, Whole_Number (Rounded)));
+                     exception
+                        when Constraint_Error =>
+                           Fail (Raised, "Constraint_Error",
+                                 M.Msg_Machine_Arithmetic);
+                     end;
+                  end if;
+               end;
+
+            when Real_Of_Whole =>
+               declare
+                  Only : constant Cell := Pop;
+               begin
+                  if Only.Kind /= Cell_Whole then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_Not_A_Number);
+                  else
+                     Push ((Cell_Real, Real (Only.Whole)));
+                  end if;
+               end;
+
             when Image_Whole =>
                declare
                   Only : constant Cell := Pop;

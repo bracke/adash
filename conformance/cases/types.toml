@@ -973,3 +973,34 @@ diagnostics = [
   "!error.default_not_literal{name=A}!",
   "!error.type_mismatch{found=String,expected=Integer}!",
 ]
+
+[[case]]
+id = "types.a-value-crosses-between-the-numeric-types-where-it-says-so"
+requirement = """
+Ada's explicit conversion, and the only way an Integer becomes a Float here or
+the other way about: nothing widens quietly, because a quiet widening has a
+rounding rule nobody wrote down. Written out, the rule is Ada's own -- to the
+nearest, and away from zero at a half -- and it is stated where a reader can
+see it apply.
+"""
+script = "put_line (Integer (2.4)'Image & Integer (2.5)'Image & Integer (-2.5)'Image);\nI : Integer := 7;\nput_line (Float'Image (Float (I) / 2.0));\nquit (0);"
+exit_status = 0
+output = [" 2 3-3", " 3.50000000000000000E+00"]
+diagnostics = []
+
+[[case]]
+id = "types.and-a-conversion-to-a-subtype-is-its-check"
+requirement = """
+`Small (X)` is the constraint written where it applies, so a value outside the
+subtype raises there rather than reaching a variable that claims a range it
+does not have. A conversion between types Ada does not relate -- a String to an
+Integer -- is refused where it stands: a position is what `'Pos` is for and a
+text form is what `'Value` is for.
+"""
+script = "subtype Small is Integer range 1 .. 5; X : Integer := 3;\nput_line (Small (X)'Image);\nY : Integer := 9; Z : Small := Small (Y);\nS : String := \"x\"; W : Integer := Integer (S);\nquit (0);"
+exit_status = 0
+output = [" 3"]
+diagnostics = [
+  "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=9,type=Small}!}!",
+  "!error.type_mismatch{found=String,expected=Integer}!",
+]

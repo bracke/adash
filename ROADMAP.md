@@ -250,7 +250,9 @@ The rules it enforces, each pinned by a test on real programs:
 
 - **No implicit conversion.** `X : Float := 1;` is refused, and so is mixed-type
   arithmetic. Ada itself would widen; Adash does not, because a quiet widening
-  has a rounding rule nobody wrote down.
+  has a rounding rule nobody wrote down. The *explicit* one is written --
+  `Integer (F)` and `Float (I)` -- and rounds to the nearest, away from zero at
+  a half, which is the rule Ada states and this says out loud.
 - **No truthiness.** A condition must be Boolean. `if X then` with an Integer X
   is refused rather than given a meaning the language does not state.
 - **Constants cannot be assigned to**, and a `for` loop parameter is a constant,

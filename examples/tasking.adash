@@ -445,11 +445,15 @@ begin
    --  Late on purpose, so that the caller below runs out of patience first.
    delay 0.15;
 
+   --  Long enough that what it says comes after everything else this file
+   --  prints, on a loaded machine as well as an idle one. An example is a
+   --  test here, and an order that holds only when the host is quick is an
+   --  expectation nobody can rely on.
    select
       accept Knock do
          put_line ("the doorman answered");
       end Knock;
-   or delay 0.15;
+   or delay 0.60;
       put_line ("the doorman found nobody, and the queue holds"
                 & Knock'Count'Image);
    end select;

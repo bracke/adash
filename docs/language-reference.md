@@ -66,7 +66,12 @@ of the `&` the form rewrites to. A literal brace is escaped: `f"\{plain\}"`.
 
 `Integer`, `Float`, `Boolean`, `Character`, `String`. There is no implicit
 conversion between any of them: `1 + 1.0` is refused, and a value crosses only
-through an explicit conversion or an attribute.
+where a program says so. Between the two numeric types that is Ada's explicit
+conversion — `Integer (F)`, `Float (I)`, and `Small (X)` for a subtype, which
+is the constraint check written out. To an integer type it rounds to the
+nearest and away from zero at a half, as Ada says, and raises where the answer
+would not fit. Everywhere else it is an attribute: `'Pos` and `'Val` for a
+position, `'Image` and `'Value` for a text form.
 
 `Integer` is 64-bit. `String` is the one array type the language predefines; it
 begins at one, so `S'First` is 1 and `S'Last` is `S'Length`. `S (2 .. 4)` reads

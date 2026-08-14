@@ -708,6 +708,15 @@ package Adash.Machine is
       Text_Starts,          --  whole, piece
       Text_Ends,
 
+      --  Between the two numeric types, both ways. `Integer (F)` and
+      --  `Float (I)`, which is how a value crosses in Ada -- written out,
+      --  where a reader can see it happen.
+      --
+      --  Whole_Of_Real rounds to nearest and away from zero at a half, which
+      --  is what Ada says a conversion to an integer type does, and raises
+      --  where the answer would not fit.
+      Whole_Of_Real, Real_Of_Whole,
+
       --  Between text and the scalar types, both ways. `'Image` and `'Value`.
       Image_Whole, Image_Real, Image_Truth, Image_Letter,
 

@@ -4423,6 +4423,42 @@ package body Adash.Language.Evaluation is
                      return;
                   end if;
 
+                  --  `Integer (F)` -- a type mark applied to a value, which
+                  --  semantics resolved to the type rather than to anything
+                  --  callable. What crosses is a number: the instruction where
+                  --  the two shapes differ, and the constraint check either
+                  --  way, which is what a conversion to a subtype is for.
+                  if Symbols.Kind (Sem.Symbol_Of (Analysis, Node))
+                     = Symbols.Symbol_Type
+                    and then S.Child_Count (Tree, S.Second (Tree, Node)) = 1
+                  then
+                     declare
+                        Value : constant S.Node_Id :=
+                          S.First (Tree, S.Second (Tree, Node));
+                        Into_Type : constant Ty.Type_Kind :=
+                          Sem.Type_Of (Analysis, Node);
+                        From_Type : constant Ty.Type_Kind :=
+                          Sem.Type_Of (Analysis, Value);
+                     begin
+                        Emit_Expression (Value);
+
+                        if Ty.Shape (Into_Type) = Ty.Shape_Integer
+                          and then Ty.Shape (From_Type) = Ty.Shape_Float
+                        then
+                           Emit (VM.Whole_Of_Real);
+
+                        elsif Ty.Shape (Into_Type) = Ty.Shape_Float
+                          and then Ty.Shape (From_Type) = Ty.Shape_Integer
+                        then
+                           Emit (VM.Real_Of_Whole);
+                        end if;
+
+                        Emit_Bounds_Check (Into_Type);
+                     end;
+
+                     return;
+                  end if;
+
                   --  A predefined function is answered by the shell rather
                   --  than by emitted code: the value comes back through the
                   --  stub's answer parameter and is pushed as this

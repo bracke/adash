@@ -4163,6 +4163,68 @@ package body Adash.Language.Semantics is
                      return Types.Type_None;
                   end if;
 
+                  --  `Integer (F)` and `Float (I)` -- a type mark applied to
+                  --  a value, which is Ada's explicit conversion and the only
+                  --  way a value crosses between the two numeric types here.
+                  --  Written out, where a reader sees it happen: what this
+                  --  language refuses is the conversion nobody wrote.
+                  if Symbols.Kind (Found) = Symbols.Symbol_Type
+                    and then Given = 1
+                    and then S.Kind (Tree, S.Child (Tree, Arguments, 1))
+                             /= S.Node_Named_Argument
+                  then
+                     declare
+                        Target : constant Types.Type_Kind :=
+                          Symbols.Of_Type (Found);
+                        Value  : constant S.Node_Id :=
+                          S.Child (Tree, Arguments, 1);
+                        Source : constant Types.Type_Kind :=
+                          Into.Type_Of (Value);
+                     begin
+                        if Source = Types.Type_None then
+                           --  Already reported against the value itself.
+                           Legal := False;
+                           Note (Node, Types.Type_None);
+                           return Types.Type_None;
+                        end if;
+
+                        if not Types.Is_Numeric (Target)
+                          or else not Types.Is_Numeric (Source)
+                        then
+                           --  Ada converts between types that are related,
+                           --  and here that is the two numeric ones. A
+                           --  Character's position and an enumeration's are
+                           --  what `'Pos` and `'Val` are for, and a text form
+                           --  is what `'Image` and `'Value` are for.
+                           Complain
+                             (Adash.Errors.Error_Type_Mismatch, Value,
+                              [Adash.Messages.Named
+                                 ("found", Types.Name (Source)),
+                               Adash.Messages.Named
+                                 ("expected", Types.Name (Target))]);
+                           Note (Node, Types.Type_None);
+                           return Types.Type_None;
+                        end if;
+
+                        Note (Node, Target, Found);
+                        return Target;
+                     end;
+                  end if;
+
+                  if Symbols.Kind (Found) = Symbols.Symbol_Type then
+                     --  A type mark with anything but one value after it.
+                     --  Said as the count rather than as `not callable`,
+                     --  which would describe what it is not.
+                     Complain
+                       (Adash.Errors.Error_Wrong_Argument_Count, Node,
+                        [Adash.Messages.Named ("name", Name),
+                         Adash.Messages.Named ("expected", " 1"),
+                         Adash.Messages.Named
+                           ("found", Natural'Image (Given))]);
+                     Note (Node, Types.Type_None);
+                     return Types.Type_None;
+                  end if;
+
                   if not Symbols.Is_Callable (Found) then
                      Complain (Adash.Errors.Error_Not_Callable, Prefix,
                                [1 => Adash.Messages.Named ("name", Name)]);
