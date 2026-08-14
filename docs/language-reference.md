@@ -7,7 +7,7 @@ answers *what happened* and `CHANGELOG.md` answers *when*.
 
 Everything here is checked. The conformance suite in `conformance/cases/` runs
 each construct as a submission and compares what it printed, what it exited
-with, and which diagnostics it produced — 642 cases, including every example in
+with, and which diagnostics it produced — 643 cases, including every example in
 `examples/`. Where this document states a rule, a case holds it; where it states
 a limit, a case holds that too. A sentence here that nothing checks is a defect
 in this document.
@@ -108,8 +108,10 @@ parameter's own, unless the parameter's type is unconstrained.
 
 **An unconstrained array type** is `type Line is array (Integer range <>) of
 Integer;`. A variable of one says how long it is where it is declared —
-`X : Line (1 .. 4)`, beginning at one — and a parameter of one takes a run of
-any length, asking the value for `'Length` and `'Last` rather than the type.
+`X : Line (1 .. 4)`, or `X : Line := (1, 2, 3)`, which takes its length from
+what it is given: a positional aggregate, another array of the type, or a slice
+of one. Either way it begins at one. A parameter of one takes a run of any
+length, asking the value for `'Length` and `'Last` rather than the type.
 `'First` is one. Such a parameter goes **element by element**: it is not
 assigned to as a whole and not sliced, because how many slots to copy is a
 number written into the instruction. Its elements are read and written, and an

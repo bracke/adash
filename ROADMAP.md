@@ -3005,7 +3005,9 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   as the two ends it gives and no attribute is evaluated.
 - **An unconstrained array's values go element by element inside a subprogram.**
   `array (Integer range <>) of T` is written, a variable of it says how long it
-  is where it is declared, a parameter of it takes any length, and `'Length`
+  is where it is declared -- as a constraint, `X : Line (1 .. 4)`, or by what it
+  is given, `X : Line := (1, 2, 3)` -- a parameter of it takes any length, and
+  `'Length`
   and `'Last` are asked of the value rather than of the type. What such a
   parameter does *not* do is get assigned as a whole or sliced: how many slots
   to copy is a number this build writes into an instruction, and here it has

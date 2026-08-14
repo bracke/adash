@@ -6927,6 +6927,13 @@ package body Adash.Language.Semantics is
                   Is_Const  : constant Boolean := S.Text (Tree, Node) = "constant";
                   Error     : Adash.Errors.Error_Info;
 
+                  --  What the initial value turned out to be, when it had to
+                  --  be worked out before the variable's type was known. Left
+                  --  as Type_None when the type said how long it was, so that
+                  --  the value is analysed once either way: analysing it twice
+                  --  would report whatever is wrong with it twice.
+                  Initial : Types.Type_Kind := Types.Type_None;
+
                   --  What the variable's type is, which for an unconstrained
                   --  array is not what its type mark names: `X : Line (1 .. 4)`
                   --  is a Line of four, and the four is the variable's rather
@@ -6934,12 +6941,113 @@ package body Adash.Language.Semantics is
                   --  is worked out here and named Declared as before.
                   function Bounded return Types.Type_Kind;
 
+                  --  How many elements a value written where a length would
+                  --  stand says the variable has, or zero when it says
+                  --  nothing. `X : Line := (1, 2, 3)` is a Line of three, as
+                  --  Ada reads it: a positional aggregate has as many
+                  --  elements as it has values.
+                  --
+                  --  Only a positional one. `(others => 0)` answers for the
+                  --  parts nothing else named, and where nothing says how many
+                  --  there are it answers for no number at all.
+                  function Length_From_The_Value return Natural;
+
+                  function Length_From_The_Value return Natural is
+                  begin
+                     if not S.Is_Present (Value) then
+                        return 0;
+                     end if;
+
+                     if S.Kind (Tree, Value) = S.Node_Aggregate then
+                        declare
+                           Listed : constant S.Node_Id :=
+                             S.First (Tree, Value);
+                        begin
+                           for Index in 1 .. S.Child_Count (Tree, Listed) loop
+                              if S.Kind (Tree, S.Child (Tree, Listed, Index))
+                                 in S.Node_Named_Argument | S.Node_Others
+                              then
+                                 return 0;
+                              end if;
+                           end loop;
+
+                           return S.Child_Count (Tree, Listed);
+                        end;
+                     end if;
+
+                     --  Anything else is a value with a type, and its type
+                     --  says how long it is: another array of this one, or a
+                     --  slice of one.
+                     Initial := Analyse_Expression (Value);
+
+                     if Types.Shape (Initial) /= Types.Shape_Array
+                       or else Types.Is_Open (Initial)
+                       or else Types.Identity (Initial)
+                               /= Types.Identity (Named_As)
+                     then
+                        return 0;
+                     end if;
+
+                     return Types.Width (Initial)
+                            / Types.Width (Part_Type (Into, Named_As, 1));
+                  end Length_From_The_Value;
+
                   function Bounded return Types.Type_Kind is
                      Held : Types.Type_Kind;
                      Low, High : Long_Long_Integer;
                   begin
                      if not Types.Is_Open (Named_As) then
                         return Named_As;
+                     end if;
+
+                     --  `X : Line := (1, 2, 3);` -- the value says how long it
+                     --  is, which is Ada's rule for an object of an
+                     --  unconstrained type and the reading a script wants: the
+                     --  length is written once, in the thing that has it.
+                     --  A value of another type says nothing about how long
+                     --  this variable is, and the honest complaint is about
+                     --  the value rather than about a missing length.
+                     if not S.Is_Present (Actuals)
+                       and then Length_From_The_Value = 0
+                       and then Initial /= Types.Type_None
+                     then
+                        Complain
+                          (Adash.Errors.Error_Type_Mismatch, Value,
+                           [Adash.Messages.Named
+                              ("found", Types.Name (Initial)),
+                            Adash.Messages.Named
+                              ("expected", Types.Name (Named_As))]);
+                        return Types.Type_None;
+                     end if;
+
+                     if not S.Is_Present (Actuals)
+                       and then Length_From_The_Value > 0
+                     then
+                        declare
+                           Count : constant Natural :=
+                             Length_From_The_Value;
+                           Element : constant Types.Type_Kind :=
+                             Part_Type (Into, Named_As, 1);
+                        begin
+                           if Count > Max_Elements then
+                              Complain
+                                (Adash.Errors.Error_Array_Too_Long, Value,
+                                 [Adash.Messages.Named
+                                    ("name", Types.Name (Named_As)),
+                                  Adash.Messages.Named
+                                    ("limit", Natural'Image (Max_Elements))]);
+                              return Types.Type_None;
+                           end if;
+
+                           return Types.Composite_Array
+                             (Id     => Types.Identity (Named_As),
+                              Called => Types.Name (Named_As) & " (1 .. "
+                                        & Ada.Strings.Fixed.Trim
+                                            (Natural'Image (Count),
+                                             Ada.Strings.Both)
+                                        & ")",
+                              Slots  => Count * Types.Width (Element));
+                        end;
                      end if;
 
                      --  A range, and one beginning at one. A value of an
@@ -7032,15 +7140,19 @@ package body Adash.Language.Semantics is
 
                   if S.Is_Present (Value) then
                      declare
-                        Initial : constant Types.Type_Kind :=
-                          Analyse_Expression (Value, Declared);
+                        --  Analysed here unless working out the type needed it
+                        --  analysed already, which happens only for a variable
+                        --  whose length comes from what it is given.
+                        Given : constant Types.Type_Kind :=
+                          (if Initial /= Types.Type_None then Initial
+                           else Analyse_Expression (Value, Declared));
                      begin
                         if Declared /= Types.Type_None
-                          and then Initial /= Types.Type_None
-                          and then not Types.Is_Acceptable (Initial, Declared)
+                          and then Given /= Types.Type_None
+                          and then not Types.Is_Acceptable (Given, Declared)
                         then
                            Complain (Adash.Errors.Error_Type_Mismatch, Value,
-                                     [Adash.Messages.Named ("found", Types.Name (Initial)),
+                                     [Adash.Messages.Named ("found", Types.Name (Given)),
                                       Adash.Messages.Named
                                         ("expected", Types.Name (Declared))]);
                         end if;

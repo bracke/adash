@@ -142,9 +142,12 @@ type Series is array (Integer range <>) of Integer;
 
 --  A variable of one says how long it is where it is declared, beginning at
 --  one: what a value of such a type carries is a length and nothing else, so
---  there is nowhere to keep a first index that is not one.
+--  there is nowhere to keep a first index that is not one. Either as a
+--  constraint on the type mark, or by what it is given -- a positional
+--  aggregate, another array of the type, or a slice of one.
 Short : Series (1 .. 2) := (4, 9);
-Long  : Series (1 .. 5) := (1, 7, 3, 8, 2);
+Long  : Series := (1, 7, 3, 8, 2);
+Middle : Series := Long (2 .. 4);
 
 --  Inside, `'Length` and `'Last` are asked of the value rather than of the
 --  type, because what was passed is not known until it is. `'First` is one.
@@ -162,8 +165,8 @@ end Highest;
 
 put_line ("the highest of two is " & Trim (Highest (Short)'Image)
           & ", of five " & Trim (Highest (Long)'Image)
-          & ", and of a slice of three "
-          & Trim (Highest (Long (2 .. 4))'Image));
+          & ", and of the middle three "
+          & Trim (Highest (Middle)'Image));
 
 --  What such a parameter does not do: it is not assigned to as a whole and not
 --  sliced. How many slots to copy is a number this build writes into an

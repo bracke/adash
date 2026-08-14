@@ -283,6 +283,16 @@ what changed.
   `X : Line (1 .. 4)`; a parameter of one takes a run of any length, and
   `'Length` and `'Last` are asked of the value rather than of the type.
 
+  A variable of one takes its length from a constraint, `X : Line (1 .. 4)`, or
+  from what it is given: `X : Line := (1, 2, 3)`, another array of the type, or
+  a slice of one. Ada reads it that way and a script wants it that way -- the
+  length written once, in the thing that has it. Only a positional aggregate
+  says how long it is: `(others => 0)` answers for the parts nothing else
+  named, and where nothing says how many there are it answers for no number at
+  all. Working the length out from the value means analysing the value before
+  the variable's type is known, so it is analysed once and kept rather than
+  twice -- a value with something wrong in it would otherwise report it twice.
+
   **The length travels in the place.** A composite is passed as where its run
   of slots starts, so a place now carries how long the run at it is — three
   instructions (`Run_Of`, `Extent_Of`, `Element_Place_Counted`) and one field
