@@ -61,6 +61,13 @@ id = "jobs.stop-ends-it"
 requirement = """
 A stopped job ends by signal, and says so rather than reporting an exit status
 it never chose.
+
+A job ending by signal is a POSIX thing to be. Windows has none: `stop` there
+opens the process and terminates it, and what comes back is an exit status
+nobody chose rather than a signal anybody sent. So this is asserted where
+signals exist, and what Windows does instead is not asserted at all yet --
+which is a gap named here rather than a case quietly passing for the wrong
+reason.
 """
 script = "start (\"{emit}\", \"--sleep=30\"); stop (1); wait (1);"
 exit_status = 0
@@ -69,6 +76,8 @@ output = [
   "!line.job_signalled{id=1,signal=!signal.terminate!}!",
 ]
 diagnostics = []
+
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "jobs.unknown"
@@ -125,6 +134,13 @@ enumeration literal `JOB_RUNNING`, which is what `jobs` printed for as long as
 `jobs` has existed. The identifier appears here only because these cases are run
 with the catalog pointed at a path that does not exist -- and it appears as a
 message key, which is what shows that nothing turned it into text early.
+
+A job ending by signal is a POSIX thing to be. Windows has none: `stop` there
+opens the process and terminates it, and what comes back is an exit status
+nobody chose rather than a signal anybody sent. So this is asserted where
+signals exist, and what Windows does instead is not asserted at all yet --
+which is a gap named here rather than a case quietly passing for the wrong
+reason.
 """
 script = "start (\"{emit}\", \"--sleep=30\"); jobs; stop (1); wait (1); quit (0);"
 exit_status = 0
@@ -135,6 +151,8 @@ output = [
 ]
 diagnostics = []
 
+platforms = ["linux", "macos"]
+
 [[case]]
 id = "jobs.suspend-and-resume"
 requirement = """
@@ -142,6 +160,13 @@ A job can be suspended and resumed. `Adash.Execution.Jobs.Resume_In_Background`
 was complete and tested and nothing called it -- and nothing could have used it
 if it had, because nothing in the shell could stop a job and the pipeline layer
 could not see a stopped one.
+
+A job ending by signal is a POSIX thing to be. Windows has none: `stop` there
+opens the process and terminates it, and what comes back is an exit status
+nobody chose rather than a signal anybody sent. So this is asserted where
+signals exist, and what Windows does instead is not asserted at all yet --
+which is a gap named here rather than a case quietly passing for the wrong
+reason.
 """
 script = """
 start ("sleep", "5");
@@ -163,6 +188,8 @@ output = [
 ]
 diagnostics = []
 
+platforms = ["linux", "macos"]
+
 [[case]]
 id = "jobs.a-suspended-job-is-not-waited-for"
 requirement = """
@@ -170,6 +197,13 @@ Waiting for a suspended job would wait for an ending it cannot reach while it is
 stopped. The host reports a stop once, so a blocking wait afterwards has no
 event left to return and never comes back -- which is what this did the first
 time a job could be suspended at all.
+
+A job ending by signal is a POSIX thing to be. Windows has none: `stop` there
+opens the process and terminates it, and what comes back is an exit status
+nobody chose rather than a signal anybody sent. So this is asserted where
+signals exist, and what Windows does instead is not asserted at all yet --
+which is a gap named here rather than a case quietly passing for the wrong
+reason.
 """
 script = """
 start ("sleep", "5");
@@ -189,3 +223,5 @@ output = [
 diagnostics = [
   "!error.job_is_suspended{job=1}!",
 ]
+
+platforms = ["linux", "macos"]

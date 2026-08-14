@@ -73,11 +73,16 @@ host puts on an executable:
 that check what `--version` reports.
 
 **`platforms` restricts a case** to the hosts it can hold on — `["linux",
-"macos"]`, say. No case uses it: naming a POSIX utility was the only reason to,
-and the companions removed it. It stays because the next case that genuinely
-cannot hold on a host should say so rather than be quietly deleted, but reach
-for a companion first. **A gated case is a case two hosts of the three never
-run**, so gating to make a run green is the one use that is never right.
+"macos"]`, say. Four cases use it, all about a job ending by signal: Windows
+has none, `stop` there opens the process and terminates it, and what comes back
+is an exit status nobody chose. That is a capability the host does not have,
+which is what the key is for.
+
+It is not for a case that merely needs a *program*: name `{emit}` or `{upcase}`
+and it runs everywhere. **A gated case is a case one host of the three never
+runs**, so gating to make a run green is the one use that is never right — and
+a gap gated this way belongs in the requirement, so what the other host does
+instead is visibly unasserted rather than quietly untested.
 
 ## Writing an expectation you cannot spell
 
