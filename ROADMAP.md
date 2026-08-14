@@ -2978,6 +2978,12 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   (1 .. 2)` is the first two elements of the part, as it is for a String; Ada's
   slice keeps the index range it came from, and this does not, for the reason
   the String entry above gives.
+- **A record component's default is a literal too**, and for the reason a
+  parameter's is: it is read where an object is declared rather than where the
+  type was, so a name resolved there would be the one thing it cannot be. It
+  is written into the object where Ada elaborates it -- at the declaration --
+  and a component with no default holds nothing, which is what reading it
+  says.
 - **A parameter's default is a literal**, possibly signed, or `True`/`False`.
   An arbitrary expression would have to be evaluated at each call in the scope
   of the declaration, and a name resolved at the call site cannot do that.

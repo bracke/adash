@@ -63,7 +63,7 @@ type was given none.
     subtype_declaration ::=
         'subtype' name 'is' type_mark [ 'range' range ] ';'  -- Node_Subtype_Declaration
 
-    component ::= name ':' type_mark ';'                     -- Node_Parameter
+    component ::= name ':' type_mark [ ':=' expression ] ';'  -- Node_Parameter
 
     use_clause ::= 'use' name ';'                            -- Node_Use
     pragma     ::= 'pragma' name [ '(' argument { ',' argument } ')' ] ';'

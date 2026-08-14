@@ -2956,6 +2956,7 @@ package body Adash.Language.Parser is
                              S.Add_Leaf (Into, S.Node_Name, Here,
                                          T.Text (Current));
                            Of_Type : S.Node_Id;
+                           Given   : S.Node_Id := S.No_Node;
                         begin
                            Advance;
 
@@ -2979,6 +2980,16 @@ package body Adash.Language.Parser is
                               end if;
                            end;
 
+                           --  `A : Integer := 5;` -- what the component
+                           --  holds where nothing else says. Read as a full
+                           --  expression for the same reason a parameter's
+                           --  default is: a wrong one should be reported as
+                           --  what it is rather than as a missing `;`.
+                           if Is_Symbol (T.Delim_Assign) then
+                              Advance;
+                              Given := Parse_Expression_Rule;
+                           end if;
+
                            if not Expect_Symbol (T.Delim_Semicolon) then
                               Recover;
                               return Error_Node
@@ -2987,12 +2998,17 @@ package body Adash.Language.Parser is
 
                            Count := Count + 1;
                            --  The same shape a formal parameter has, and it
-                           --  means the same thing: a name and a type. The
-                           --  mode goes in the text, and a component has none.
+                           --  means the same thing: a name, a type, and what
+                           --  it holds where nothing else says. The mode goes
+                           --  in the text, and a component has none.
                            Fields (Count) :=
-                             S.Add_Node
-                               (Into, S.Node_Parameter, Here,
-                                [Field, Of_Type], Text => "in");
+                             (if Given = S.No_Node
+                              then S.Add_Node
+                                     (Into, S.Node_Parameter, Here,
+                                      [Field, Of_Type], Text => "in")
+                              else S.Add_Node
+                                     (Into, S.Node_Parameter, Here,
+                                      [Field, Of_Type, Given], Text => "in"));
                         end;
                      end loop;
 

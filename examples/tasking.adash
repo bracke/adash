@@ -559,10 +559,15 @@ put_line ("left " & Trim (Left_Says'Image)
 --  Either side may win. When the trigger fires the work is abandoned; when the
 --  work finishes first the trigger is cancelled and its statements do not run
 --  -- and the wait ends there rather than running its full course.
+--
+--  The trigger waits longer than anything else in this file, so that what it
+--  prints comes after the timers above however loaded the machine is. An
+--  example is a test here, and two waits of the same length are a coin toss
+--  rather than an expectation.
 Steps_Taken : Integer := 0;
 
 select
-   delay 0.05;
+   delay 0.20;
    put_line ("the long way round ran out of time");
 then abort
    for Step in 1 .. 10000000 loop

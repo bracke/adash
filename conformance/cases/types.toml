@@ -942,3 +942,34 @@ diagnostics = [
   "!error.syntax.missing{expected=)}!",
   "!error.syntax.missing{expected=;}!",
 ]
+
+[[case]]
+id = "types.a-component-says-what-it-holds-where-nothing-else-does"
+requirement = """
+Ada's default for a record component, written into the object where the object
+is declared -- which is where Ada elaborates it. A component with none holds
+nothing until something assigns it, and reading it says so rather than
+answering with whatever its slot happened to hold: the two together are what
+make a record usable at a prompt, where it is filled a component at a time.
+"""
+script = "type Line is record Number : Integer := 0; Loud : Boolean := False; Mark : Character := '>'; Text : String; end record;\nL : Line;\nput_line (L.Number'Image & L.Loud'Image & L.Mark'Image);\nput_line (L.Text);\nquit (0);"
+exit_status = 0
+output = [" 0FALSE'>'"]
+diagnostics = [
+  "!error.program_raised_detail{exception=Program_Error,detail=!error.machine.no_value!}!",
+]
+
+[[case]]
+id = "types.and-a-component-default-is-a-literal"
+requirement = """
+The rule a parameter's default follows, for the same reason: the default is
+read where an object is declared and not where the type was, so a name resolved
+there would be resolved in the wrong place. A default of the wrong type is the
+ordinary mismatch, said where it stands.
+"""
+script = "X : Integer := 3; type R is record A : Integer := X; end record;\ntype Q is record A : Integer := \"x\"; end record;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.default_not_literal{name=A}!",
+  "!error.type_mismatch{found=String,expected=Integer}!",
+]

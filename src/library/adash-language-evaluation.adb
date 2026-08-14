@@ -823,6 +823,21 @@ package body Adash.Language.Evaluation is
          Callee : Symbols.Symbol;
          Index  : Positive);
 
+      --  Push a value that was written as a literal and kept as its spelling.
+      --
+      --  Two things are kept that way and read back here: a parameter's
+      --  default and a record component's. Both are read where the value is
+      --  wanted rather than where it was written, which is why neither is a
+      --  node.
+      --
+      --  @param Node What to report against.
+      --  @param Of_Type What the value is.
+      --  @param Text How it was written.
+      procedure Emit_Spelled
+        (Node    : S.Node_Id;
+         Of_Type : Ty.Type_Kind;
+         Text    : String);
+
       function Place_Of (Sym : Symbols.Symbol) return Place;
       procedure Emit_Expression (Node : S.Node_Id);
       procedure Emit_Statement (Node : S.Node_Id);
@@ -3413,11 +3428,23 @@ package body Adash.Language.Evaluation is
       procedure Emit_Default
         (Node   : S.Node_Id;
          Callee : Symbols.Symbol;
-         Index  : Positive)
+         Index  : Positive) is
+      begin
+         Emit_Spelled
+           (Node,
+            Symbols.Parameter_Type (Callee, Index),
+            Symbols.Default_Text (Callee, Index));
+      end Emit_Default;
+
+      -------------------
+      -- Emit_Spelled --
+      -------------------
+
+      procedure Emit_Spelled
+        (Node    : S.Node_Id;
+         Of_Type : Ty.Type_Kind;
+         Text    : String)
       is
-         Text : constant String := Symbols.Default_Text (Callee, Index);
-         Of_Type : constant Ty.Type_Kind :=
-           Symbols.Parameter_Type (Callee, Index);
       begin
          case Ty.Shape (Of_Type) is
             when Ty.Shape_Integer =>
@@ -3465,7 +3492,7 @@ package body Adash.Language.Evaluation is
             --  would be a defect here rather than in the program, and a
             --  refusal names it instead of pushing something nobody wrote.
             Refuse (Node, Adash.Messages.Msg_Lower_Float_Literal);
-      end Emit_Default;
+      end Emit_Spelled;
 
       ------------
       -- Refuse --
@@ -6179,6 +6206,43 @@ package body Adash.Language.Evaluation is
                            else
                               Emit_Copy (Name_Node, Value, Of_Type);
                            end if;
+
+                        else
+                           --  What the components hold where nothing else
+                           --  says. Written here rather than in the type,
+                           --  because a type has no slots: `V : Line;` is
+                           --  where Ada elaborates the defaults too, and a
+                           --  component with none is left holding nothing --
+                           --  which is what reading it will say.
+                           for Part in 1 .. Sem.Part_Count (Analysis, Of_Type)
+                           loop
+                              exit when not Lowerable;
+
+                              if Sem.Part_Has_Default
+                                   (Analysis, Of_Type, Part)
+                              then
+                                 declare
+                                    Holds : constant Ty.Type_Kind :=
+                                      Sem.Part_Type (Analysis, Of_Type, Part);
+                                    Ok : Boolean;
+                                 begin
+                                    Emit_Place (Name_Node, Ok);
+                                    exit when not Ok;
+
+                                    Emit_1
+                                      (VM.Offset_Place,
+                                       VM.Whole_Number
+                                         (Sem.Part_Offset
+                                            (Analysis, Of_Type, Part)));
+
+                                    Emit_Spelled
+                                      (Name_Node, Holds,
+                                       Sem.Part_Default
+                                         (Analysis, Of_Type, Part));
+                                    Emit_Store (Holds);
+                                 end;
+                              end if;
+                           end loop;
                         end if;
 
                      elsif S.Is_Present (Value) then

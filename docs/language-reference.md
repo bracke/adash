@@ -97,7 +97,11 @@ an `out` parameter. The bounds must be known before the program runs.
 
 **Records and arrays** hold simple values only, get positional and named
 aggregates with `others`, component selection, indexing with a bounds check,
-whole-value assignment and component-by-component equality. An array's bounds
+whole-value assignment and component-by-component equality. A component may say
+what it holds where nothing else does — `type Line is record Number : Integer
+:= 0; ... end record;` — and the default is a literal, as a parameter's is. It
+is written into the object where the object is declared; a component with no
+default holds nothing until something assigns it. An array's bounds
 are known before the program runs and it holds at most 4096 elements.
 
 An array type is also written where an object's type mark stands —

@@ -184,6 +184,29 @@ package Adash.Language.Semantics is
       Of_Type : Types.Type_Kind;
       Name    : String) return Natural;
 
+   --  Whether a component holds something where nothing else says.
+   --
+   --  @param Item Analysis to inspect.
+   --  @param Of_Type The composite type.
+   --  @param Index Which part, from one.
+   --  @return True when a default was written for it.
+   function Part_Has_Default
+     (Item    : Analysis;
+      Of_Type : Types.Type_Kind;
+      Index   : Positive) return Boolean;
+
+   --  What that default is, as the literal it was written as.
+   --
+   --  @param Item Analysis to inspect.
+   --  @param Of_Type The composite type.
+   --  @param Index Which part, from one.
+   --  @return Its spelling; "" where there is none, which is also a String
+   --          default's spelling -- Part_Has_Default is what tells them apart.
+   function Part_Default
+     (Item    : Analysis;
+      Of_Type : Types.Type_Kind;
+      Index   : Positive) return String;
+
    --  What an anonymous array type was written as.
    --
    --  @param Item Analysis to inspect.
@@ -336,6 +359,13 @@ private
       Name    : Ada.Strings.Unbounded.Unbounded_String;
       Of_Type : Types.Type_Kind;
       Offset  : Natural := 0;
+
+      --  What the component holds where nothing else says, as the literal it
+      --  was written as -- the spelling rather than the node, for the reason a
+      --  parameter's default is a spelling: it is read where the object is
+      --  declared, which is not where the type was.
+      Default     : Ada.Strings.Unbounded.Unbounded_String;
+      Has_Default : Boolean := False;
    end record;
 
    package Part_Vectors is new Ada.Containers.Vectors

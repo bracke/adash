@@ -419,6 +419,47 @@ package body Adash.Language.Semantics is
       return Item.Shapes.Element (Where).First;
    end First_Index;
 
+   ----------------------
+   -- Part_Has_Default --
+   ----------------------
+
+   function Part_Has_Default
+     (Item    : Analysis;
+      Of_Type : Types.Type_Kind;
+      Index   : Positive) return Boolean
+   is
+      Where : constant Natural := Shape_Of (Item, Of_Type);
+   begin
+      if Where = 0
+        or else Index > Natural (Item.Shapes.Element (Where).Parts.Length)
+      then
+         return False;
+      end if;
+
+      return Item.Shapes.Element (Where).Parts.Element (Index).Has_Default;
+   end Part_Has_Default;
+
+   ------------------
+   -- Part_Default --
+   ------------------
+
+   function Part_Default
+     (Item    : Analysis;
+      Of_Type : Types.Type_Kind;
+      Index   : Positive) return String
+   is
+      Where : constant Natural := Shape_Of (Item, Of_Type);
+   begin
+      if Where = 0
+        or else Index > Natural (Item.Shapes.Element (Where).Parts.Length)
+      then
+         return "";
+      end if;
+
+      return Ada.Strings.Unbounded.To_String
+               (Item.Shapes.Element (Where).Parts.Element (Index).Default);
+   end Part_Default;
+
    ----------------
    -- As_Written --
    ----------------
@@ -6730,12 +6771,74 @@ package body Adash.Language.Semantics is
                                  Sound := False;
 
                               else
-                                 Built.Parts.Append
-                                   (Part'(Name =>
-                                            Ada.Strings.Unbounded.
-                                              To_Unbounded_String (Called),
-                                          Of_Type => Held,
-                                          Offset  => Slots));
+                                 declare
+                                    --  `A : Integer := 5;`. Held to a literal
+                                    --  exactly as a parameter's default is,
+                                    --  and for the same reason: it is read
+                                    --  where an object is declared rather
+                                    --  than where the type was, so a name
+                                    --  resolved here would be the one thing
+                                    --  it cannot be.
+                                    Written : constant Boolean :=
+                                      S.Child_Count (Tree, One) = 3;
+
+                                    Given : constant S.Node_Id :=
+                                      (if Written then S.Third (Tree, One)
+                                       else S.No_Node);
+
+                                    Spelling : Ada.Strings.Unbounded.
+                                                 Unbounded_String;
+                                    Settled  : Boolean := False;
+                                 begin
+                                    if Written then
+                                       declare
+                                          Offered : constant Types.Type_Kind :=
+                                            Analyse_Expression (Given, Held);
+                                       begin
+                                          if Offered /= Types.Type_None
+                                            and then not Types.Is_Acceptable
+                                                           (Offered, Held)
+                                          then
+                                             Complain
+                                               (Adash.Errors.
+                                                  Error_Type_Mismatch,
+                                                Given,
+                                                [Adash.Messages.Named
+                                                   ("found",
+                                                    Types.Name (Offered)),
+                                                 Adash.Messages.Named
+                                                   ("expected",
+                                                    Types.Name (Held))]);
+                                             Sound := False;
+
+                                          elsif not Static_Default
+                                                      (Into, Tree, Given,
+                                                       Held, Spelling)
+                                          then
+                                             Complain
+                                               (Adash.Errors.
+                                                  Error_Default_Not_Literal,
+                                                Given,
+                                                [1 => Adash.Messages.Named
+                                                        ("name", Called)]);
+                                             Sound := False;
+
+                                          else
+                                             Settled := True;
+                                          end if;
+                                       end;
+                                    end if;
+
+                                    Built.Parts.Append
+                                      (Part'(Name =>
+                                               Ada.Strings.Unbounded.
+                                                 To_Unbounded_String (Called),
+                                             Of_Type => Held,
+                                             Offset  => Slots,
+                                             Default => Spelling,
+                                             Has_Default => Settled));
+                                 end;
+
                                  Slots := Slots + Types.Width (Held);
                               end if;
                            end;
@@ -6815,7 +6918,8 @@ package body Adash.Language.Semantics is
                               Built.Parts.Append
                                 (Part'(Name    => <>,
                                        Of_Type => Held,
-                                       Offset  => 0));
+                                       Offset  => 0,
+                                       others  => <>));
                               if Unnamed then
                                  Built.Written :=
                                    Ada.Strings.Unbounded.To_Unbounded_String
@@ -6880,7 +6984,8 @@ package body Adash.Language.Semantics is
                               Built.Parts.Append
                                 (Part'(Name    => <>,
                                        Of_Type => Held,
-                                       Offset  => Slots));
+                                       Offset  => Slots,
+                                       others  => <>));
                               Slots := Slots + Types.Width (Held);
                            end loop;
 
