@@ -124,6 +124,88 @@ diagnostics = [
 ]
 
 [[case]]
+id = "session.a-failed-submission-keeps-what-it-declared-that-is-not-a-variable"
+requirement = """
+A submission that raises still declared its subprograms and its types. That is
+deliberate and the reason is a session at a prompt: a definition that vanished
+because a later line raised would be maddening to work with, and the definition
+is text rather than a value -- nothing has to survive the run for it to be
+kept.
+
+Its *variables* are another matter. Those are carried by handing their values
+back as the program ends, and a program that stopped early never reached the
+hand-back, so what it declared has no value to carry and is not carried.
+"""
+script = "procedure Kept_One is begin put_line (\"still here\"); end Kept_One; type Colour is (Red, Green); Lost : Integer := 1; raise Constraint_Error;\nKept_One; Shade : Colour := Green; put_line (Shade'Image);\nput_line (Lost'Image);\nquit (0);"
+exit_status = 0
+output = ["still here", "Green"]
+diagnostics = [
+  "!error.program_raised{exception=Constraint_Error}!",
+  "!error.name_undeclared{name=Lost}!",
+]
+
+[[case]]
+id = "session.a-handled-exception-is-not-stopping-early"
+requirement = """
+The rule is about a submission that *stops* early, not about an exception
+happening. One a handler answers for is a submission that finished, so what it
+changed is carried like any other -- which is what makes a handler worth
+writing at a prompt rather than only in a script.
+"""
+script = "X : Integer := 1;\nbegin X := 9; raise Constraint_Error; exception when others => put_line (\"caught\"); end;\nput_line (X'Image);\nquit (0);"
+exit_status = 0
+output = ["caught", " 9"]
+diagnostics = []
+
+[[case]]
+id = "session.a-session-goes-on-after-a-raise"
+requirement = """
+An interactive session is a raise followed by more submissions, which is the
+shape nothing here covered until the hand-back defect was found -- by a
+diagnostic in a case written for something else rather than by a test failing.
+
+So: a raise in a submission of its own, one from a subprogram called by a
+later submission, and one inside a task. After each, the session goes on and
+what it was holding is what it held before that submission ran. A String is in
+here because its value travels back as text where a number travels as its
+`'Image`, and the two are different roads to the same place.
+"""
+script = "X : Integer := 3; S : String := \"before\"; procedure Fail is begin raise Program_Error; end Fail;\nS := \"after\"; raise Constraint_Error;\nFail;\ntask T; task body T is begin raise Constraint_Error; end T;\nput_line (X'Image & \" \" & S);\nquit (0);"
+exit_status = 0
+output = [" 3 before"]
+diagnostics = [
+  "!error.program_raised{exception=Constraint_Error}!",
+  "!error.program_raised{exception=Program_Error}!",
+  "!error.program_raised{exception=Constraint_Error}!",
+]
+
+[[case]]
+id = "session.a-protected-object-keeps-what-it-held-before-a-raise"
+requirement = """
+A protected object's state is carried the way a variable's is -- handed back as
+the program ends -- so a submission that raises leaves it holding what it held
+before. Two calls before the failing submission and one inside it come to two,
+not three: the failed submission's effect is either all there or not there at
+all.
+"""
+script = "protected Tally is procedure Add; function Total return Integer; end Tally; protected body Tally is N : Integer := 0; procedure Add is begin N := N + 1; end Add; function Total return Integer is begin return N; end Total; end Tally; Tally.Add; Tally.Add;\nTally.Add; raise Constraint_Error;\nput_line (Tally.Total'Image);\nquit (0);"
+exit_status = 0
+output = [" 2"]
+diagnostics = [
+  "!error.program_raised{exception=Constraint_Error}!",
+]
+
+[[case]]
+id = "session.a-sourced-file-that-raises-leaves-the-session-standing"
+requirement = "A sourced file runs in this session rather than in a child, so a raise in one is a raise in the session -- and the session goes on holding what it held. What the file failed to do is undone with it; what was there before is not."
+script = "write_file (\"raise Constraint_Error;\", \"{store}/boom.adash\"); X : Integer := 6;\nsource (\"{store}/boom.adash\");\nput_line (X'Image);\nquit (0);"
+exit_status = 0
+output = [" 6"]
+diagnostics = [
+  "!error.program_raised{exception=Constraint_Error}!",
+]
+
+[[case]]
 id = "session.and-a-task-object-does-not-outlive-its-submission"
 requirement = """
 A task object is not carried, and the roadmap says why: a task does not outlive

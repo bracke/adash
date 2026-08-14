@@ -36,6 +36,52 @@ package body Adash_Tests.Engine_Cases is
 
    ------------------------------------------------------------------
 
+   procedure A_Raise_Costs_Only_Its_Own_Submission
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Shell   : E.Session;
+      Outcome : E.Result;
+      Report  : D.List;
+   begin
+      E.Open (Shell);
+
+      E.Submit (Shell, "Kept : Integer := 5;", "<line>",
+                Adash.Source.Origin_Interactive, Outcome, Report);
+      Assert (Adash.Execution.Succeeded (Outcome.Status),
+              "declaring a variable failed");
+
+      --  A submission that stops early keeps nothing of its own -- and takes
+      --  nothing of anybody else's. Carrying a variable works by declaring it
+      --  again in every submission, so the place the session holds for it must
+      --  survive a program that never reaches the hand-back.
+      Report.Clear;
+      E.Submit (Shell, "Kept := 9; Lost : Integer := 1; raise Constraint_Error;",
+                "<line>", Adash.Source.Origin_Interactive, Outcome, Report);
+      Assert (Outcome.Ran, "the failing submission did not run");
+      Assert (not Adash.Execution.Succeeded (Outcome.Status),
+              "a raise was not reported as a failure");
+
+      --  Asked as a program rather than by reading what was printed: a
+      --  program writes through the runtime rather than producing lines, and
+      --  what this has to know is the value rather than the rendering. An
+      --  undeclared name fails the analysis, so one submission answers both
+      --  questions -- is it still there, and is it what it was.
+      Report.Clear;
+      E.Submit (Shell, "if Kept /= 5 then raise Constraint_Error; end if;",
+                "<line>", Adash.Source.Origin_Interactive, Outcome, Report);
+      Assert (Report.Count = 0,
+              "the session lost a variable to somebody else's raise");
+      Assert (Adash.Execution.Succeeded (Outcome.Status),
+              "a failed submission's assignment was kept");
+
+      Report.Clear;
+      E.Submit (Shell, "Put_Line (Lost);", "<line>",
+                Adash.Source.Origin_Interactive, Outcome, Report);
+      Assert (Report.Count > 0,
+              "a variable the failed submission declared was kept");
+   end A_Raise_Costs_Only_Its_Own_Submission;
+
    procedure One_Engine_Serves_Commands_And_Programs
      (Test : in out AUnit.Test_Cases.Test_Case'Class)
    is
@@ -685,6 +731,9 @@ package body Adash_Tests.Engine_Cases is
       Register_Routine
         (T, Cancellation_Is_Observed_And_Clearable'Access,
          "engine : cancellation is observed and clearable");
+      Register_Routine
+        (T, A_Raise_Costs_Only_Its_Own_Submission'Access,
+         "engine : a raise costs its own submission and nobody else's");
    end Register_Tests;
 
 end Adash_Tests.Engine_Cases;

@@ -296,7 +296,13 @@ what changed.
   there at all.
 
   Found while writing a conformance case for something else, when a diagnostic
-  turned up that nothing in the case explained.
+  turned up that nothing in the case explained. Nothing covered a raise
+  followed by more submissions -- which is the shape every interactive session
+  takes -- so six cases and an engine test now do: what a failed submission
+  keeps (its subprograms and its types, deliberately) and does not (its
+  variables, and what it did to older ones), a handled exception as the
+  contrast, two raises in a row, a raise from a subprogram and from a task, a
+  protected object's state across one, and a sourced file that raises.
 - **The unconstrained array type**: `type Line is array (Integer range <>) of
   Integer;`, which is what a subprogram taking arrays of several lengths is
   written with. A variable of one says how long it is where it is declared,
