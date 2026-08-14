@@ -239,3 +239,63 @@ script = "task type Worker is entry Go; end Worker; task body Worker is begin ac
 exit_status = 0
 output = ["served"]
 diagnostics = ["!error.name_undeclared{name=W}!"]
+
+[[case]]
+id = "session.a-variable-read-before-it-has-a-value-says-so"
+requirement = """
+Ada calls reading an uninitialised variable erroneous and says nothing about
+what follows. What follows here is a failure with a name: the alternative is
+whatever the slot happened to hold being used as though somebody had written
+it, which is the one outcome a reader cannot see in the source. It is
+`Program_Error` and a handler catches it, so a program that means to read a
+variable it may not have set can say so.
+"""
+script = "X : Integer;\nput_line (X'Image);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.program_raised_detail{exception=Program_Error,detail=!error.machine.no_value!}!",
+]
+
+[[case]]
+id = "session.and-a-variable-with-no-value-is-carried-as-the-declaration"
+requirement = """
+A submission carries what it declared into the next one. A variable that was
+never assigned has no value to carry and is carried as the declaration alone --
+so the next submission may assign it, which is the ordinary way `X : Integer;`
+and `X := 4;` are written on two lines. Carrying nothing at all would lose the
+declaration, and inventing a value would hand the next submission something
+this one never had.
+"""
+script = "X : Integer;\nX := 4;\nput_line (X'Image);\nquit (0);"
+exit_status = 0
+output = [" 4"]
+diagnostics = []
+
+[[case]]
+id = "session.and-a-composite-is-carried-with-the-parts-it-has"
+requirement = """
+A composite is carried as the value that rebuilds it, and a part that holds
+nothing cannot be written in one -- so a value filled in part is carried as the
+declaration and an assignment for each part that has one. What was set stays
+set across the submission that follows, and what was not is still unset there:
+reading it raises exactly as reading it before would have.
+"""
+script = "type Row is array (1 .. 3) of Integer; A : Row; A (1) := 7;\nput_line (A (1)'Image);\nput_line (A (2)'Image);\nquit (0);"
+exit_status = 0
+output = [" 7"]
+diagnostics = [
+  "!error.program_raised_detail{exception=Program_Error,detail=!error.machine.no_value!}!",
+]
+
+[[case]]
+id = "session.and-a-record-carries-the-components-it-has-by-name"
+requirement = """
+The same rule with the other composite: a record's parts are reached by name
+rather than by position, so what is carried names them. A component set two
+submissions ago is still set, which is what makes a record usable at a prompt
+where it is filled in a component at a time.
+"""
+script = "type Line is record Number : Integer; Text : String; end record; L : Line; L.Number := 3;\nL.Text := \"here\";\nput_line (L.Text & L.Number'Image);\nquit (0);"
+exit_status = 0
+output = ["here 3"]
+diagnostics = []

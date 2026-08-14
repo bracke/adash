@@ -43,6 +43,7 @@ package body Adash.Messages is
          when Msg_Machine_Stack_Full         => return "error.machine.stack_full";
          when Msg_Machine_Stack_Empty        => return "error.machine.stack_empty";
          when Msg_Machine_No_Place           => return "error.machine.no_place";
+         when Msg_Machine_No_Value           => return "error.machine.no_value";
          when Msg_Machine_No_Caller          => return "error.machine.no_caller";
          when Msg_Machine_Above_Ceiling      =>
             return "error.machine.above_ceiling";
@@ -932,7 +933,8 @@ package body Adash.Messages is
             return [1 => N ("path")];
 
          when Msg_Machine_Stack_Full | Msg_Machine_Stack_Empty
-            | Msg_Machine_No_Place | Msg_Machine_No_Caller
+            | Msg_Machine_No_Place | Msg_Machine_No_Value
+            | Msg_Machine_No_Caller
             | Msg_Machine_Above_Ceiling | Msg_Machine_Blocking_In_Protected
             | Msg_Machine_Too_Many_Allowed | Msg_Machine_Queue_Too_Long
             | Msg_Machine_Too_Many_Alternatives

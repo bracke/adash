@@ -2931,10 +2931,11 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   where Ada takes both and answers True. What the check compares is two bounds,
   and a type with no first value has none to compare against -- the rule a
   `for` loop over a named type applies, for the same reason.
-- **An object declaration names a type**, so `A : array (1 .. 3) of Integer;`
-  is refused and the array type is declared first. Ada's anonymous array type
-  would be a type with no name for a symbol to carry, and every symbol carries
-  one.
+- **An anonymous array type is written**, `A : array (1 .. 3) of Integer;`, and
+  is that declaration's own. Every symbol carries a name, so the parser gives
+  it one nobody can write -- the object's, with an apostrophe in it -- while
+  the type is *called* what it was written as, which is what carrying the
+  variable into the next submission writes out again.
 - **A qualified expression is written**, `Small'(Red)`, and applies the
   subtype's constraint. It is rarely needed -- the expected type and the other
   operand settle the ordinary cases -- but a reader who writes what Ada writes

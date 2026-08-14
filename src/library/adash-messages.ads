@@ -77,6 +77,7 @@ package Adash.Messages is
       Msg_Machine_Stack_Full,
       Msg_Machine_Stack_Empty,
       Msg_Machine_No_Place,
+      Msg_Machine_No_Value,
       Msg_Machine_No_Caller,
       Msg_Machine_Above_Ceiling,
       Msg_Machine_Blocking_In_Protected,

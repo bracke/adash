@@ -838,3 +838,31 @@ there are.
 script = "type Row is array (1 .. 3) of Integer; procedure Take (V : Row) is begin put_line (V (1)'Image); end Take;\nTake ((1, 2));\nquit (0);"
 exit_status = 0
 diagnostics = ["!error.aggregate_wrong_count{name=Row,expected= 3,found= 2}!"]
+
+[[case]]
+id = "types.an-array-type-is-written-where-a-type-mark-stands"
+requirement = """
+Ada writes an array type in an object's declaration and calls the type
+anonymous. Every symbol here carries a name, so the parser gives that type one
+nobody can write -- and the type is *called* what it was written as, which is
+what the variable's declaration says when it is carried into the next
+submission. A reader who writes what Ada writes should not be told the language
+does not have it.
+"""
+script = "A : array (1 .. 3) of Integer := (1, 2, 3);\nput_line (A (2)'Image);\nA (3) := 9;\nput_line (A (3)'Image);\nquit (0);"
+exit_status = 0
+output = [" 2", " 9"]
+diagnostics = []
+
+[[case]]
+id = "types.and-an-anonymous-array-type-is-that-declaration's-own"
+requirement = """
+Two objects written with the same definition have two types, as Ada says: the
+type belongs to the declaration rather than to the text. What proves it here is
+that both work and neither is refused for naming the other's type -- a shared
+type would have been declared twice under one name.
+"""
+script = "A : array (1 .. 2) of Integer := (1, 2); B : array (1 .. 2) of Integer := (3, 4);\nput_line (A (1)'Image);\nput_line (B (2)'Image);\nquit (0);"
+exit_status = 0
+output = [" 1", " 4"]
+diagnostics = []

@@ -61,6 +61,7 @@ en.error.pipe_creation_failed = could not create a pipe for the pipeline
 en.error.machine.stack_full = the expression stack is full
 en.error.machine.stack_empty = the expression stack is empty
 en.error.machine.no_place = a by-reference slot holds no place
+en.error.machine.no_value = a variable was read before it was given a value
 en.error.machine.no_store_place = a store with no place to store into
 en.error.machine.swap_empty = a swap with nothing to swap
 en.error.machine.not_a_number = arithmetic on a non-number

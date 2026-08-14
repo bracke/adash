@@ -33,6 +33,7 @@ There are 426 messages in 22 groups.
 | `error.machine.stack_full` | the expression stack is full |
 | `error.machine.stack_empty` | the expression stack is empty |
 | `error.machine.no_place` | a by-reference slot holds no place |
+| `error.machine.no_value` | a variable was read before it was given a value |
 | `error.machine.no_store_place` | a store with no place to store into |
 | `error.machine.swap_empty` | a swap with nothing to swap |
 | `error.machine.not_a_number` | arithmetic on a non-number |

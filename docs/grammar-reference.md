@@ -30,16 +30,20 @@ package be written at a prompt.
                   | use_clause | pragma
 
     object_declaration ::=
-        name ':' [ 'constant' ] type_mark [ '(' actual { ',' actual } ')' ]
+        name ':' [ 'constant' ] ( type_mark | array_definition )
+                 [ '(' actual { ',' actual } ')' ]
                  [ ':=' expression ] ';'                     -- Node_Object_Declaration
+
+    array_definition ::=
+        'array' '(' ( range | name 'range' '<>' ) ')' 'of' type_mark
+                                                             -- Node_Array_Declaration
 
     exception_declaration ::= name ':' 'exception' ';'       -- Node_Exception_Declaration
 
     type_declaration ::=
         'type' name 'is' ( '(' name { ',' name } ')'
                          | 'record' { component } 'end' 'record'
-                         | 'array' '(' ( range | name 'range' '<>' )
-                           ')' 'of' type_mark ) ';'
+                         | array_definition ) ';'
                                                              -- Node_Type_Declaration
                                                              -- Node_Record_Declaration
                                                              -- Node_Array_Declaration
@@ -50,6 +54,11 @@ the analyser tells them apart without the parser deciding what the text means.
 An object of such a type carries its length in the actual list of
 `object_declaration` — `X : Line (1 .. 4)` — which is the same production a
 task's discriminants use.
+
+An `array_definition` written where a type mark stands is Ada's anonymous array
+type, and builds the same node a type declaration does: the name it carries is
+one the parser makes from the object's, since every symbol has a name and this
+type was given none.
 
     subtype_declaration ::=
         'subtype' name 'is' type_mark [ 'range' range ] ';'  -- Node_Subtype_Declaration

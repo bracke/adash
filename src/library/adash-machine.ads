@@ -263,6 +263,15 @@ package Adash.Machine is
       --  element is, once the place has been worked out.
       Fetch,
 
+      --  Pop a place and push whether the run of Operand slots at it all hold
+      --  something.
+      --
+      --  Reading a slot that holds nothing is a failure, so what carries a
+      --  variable out of a submission has to be able to ask before it reads.
+      --  A variable declared and not assigned is carried forward as the
+      --  declaration alone -- which is what it is.
+      Has_Value,
+
       ------------------------------------------------------------------
       --  Concurrency.
       --

@@ -32,6 +32,14 @@ subtypes, subprograms, packages, generics, task types, protected objects with
 their state, and exception names. Not carried: a task object or an identity of
 one — a task does not outlive its master, and a submission is one.
 
+A variable that was never given a value is carried as the declaration alone,
+and one whose parts were filled in part is carried with the parts it has. What
+holds nothing here holds nothing there: **reading a variable before it has a
+value raises `Program_Error`**, in this submission and in the next one alike.
+Ada calls that read erroneous and says nothing about what follows; what follows
+here is a failure with a name, because the alternative is a value nobody wrote
+being used as though somebody had.
+
 A submission that stops early — `quit`, an unhandled exception — carries
 nothing forward from that submission: what it declared is gone, and what it
 changed in variables the session already had is gone with it. Those keep the
@@ -91,6 +99,12 @@ an `out` parameter. The bounds must be known before the program runs.
 aggregates with `others`, component selection, indexing with a bounds check,
 whole-value assignment and component-by-component equality. An array's bounds
 are known before the program runs and it holds at most 4096 elements.
+
+An array type is also written where an object's type mark stands —
+`A : array (1 .. 3) of Integer := (1, 2, 3);` — which is Ada's anonymous array
+type and is this declaration's own: it is not the type of anything else, and
+the object is carried between submissions as the definition it was written
+with.
 
 **An array is sliced** — `A (2 .. 3) := B (1 .. 2)`, and `=` between two of
 them. A slice's ends are known before the program runs, as the array's own are;

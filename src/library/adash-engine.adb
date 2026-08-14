@@ -88,6 +88,11 @@ package body Adash.Engine is
       Shape : String;
       Given : String);
 
+   overriding procedure Keep_As_Written
+     (Sink  : in out Command_Bridge;
+      Named : String;
+      Text  : String);
+
    overriding procedure Ask
      (Sink      : in out Command_Bridge;
       Named     : String;
@@ -306,6 +311,37 @@ package body Adash.Engine is
                                  & Written & ";"),
             Is_Object => True));
    end Keep_Value;
+
+   ---------------------
+   -- Keep_As_Written --
+   ---------------------
+
+   overriding procedure Keep_As_Written
+     (Sink  : in out Command_Bridge;
+      Named : String;
+      Text  : String)
+   is
+   begin
+      if Sink.Keeping = null then
+         return;
+      end if;
+
+      --  Not a member. What would be carried for one is an assignment, and
+      --  what this form carries is a declaration -- a dotted name cannot be
+      --  declared. The declaration that holds the member is carried anyway
+      --  and elaborates it again exactly as it stands, which for a member
+      --  with no value is the whole of what there is to say.
+      if Ada.Strings.Fixed.Index (Named, ".") > 0 then
+         return;
+      end if;
+
+      Sink.Keeping.Append
+        (Held_Declaration'
+           (Key       => Ada.Strings.Unbounded.To_Unbounded_String
+                           (Adash.Language.Symbols.Fold (Named)),
+            Text      => Ada.Strings.Unbounded.To_Unbounded_String (Text),
+            Is_Object => True));
+   end Keep_As_Written;
 
    ------------
    -- Invoke --

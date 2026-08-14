@@ -194,6 +194,16 @@ package body Adash.Language.Evaluation is
                Values.Image (Given (1)),
                Values.Image (Given (2)),
                Values.Image (Given (3)));
+
+         elsif Kept = 2 then
+            --  Which variable, and the text that puts it back. What is
+            --  carried this way is a variable whose value cannot be written
+            --  as one expression: it has none yet, or only some of its parts
+            --  do.
+            Keep_As_Written
+              (Current_Sink.all,
+               Values.Image (Given (1)),
+               Values.Image (Given (2)));
          end if;
 
       else
@@ -5114,6 +5124,153 @@ package body Adash.Language.Evaluation is
       --  not survive. That is the honest outcome: what a half-run program left
       --  in a variable is not a value anyone chose.
       procedure Emit_Survivors is
+         --  How the declaration reads when it is written out again: the type,
+         --  and `constant` when it was one, so a constant does not come back
+         --  assignable.
+         function Written_As (Sym : Symbols.Symbol; Of_Type : Ty.Type_Kind)
+                              return String
+         is ((if Symbols.Kind (Sym) = Symbols.Symbol_Constant
+              then "constant " else "")
+             & Ty.Name (Of_Type));
+
+         --  One part of a composite, as the text this language reads back.
+         --  A Character comes quoted, a Boolean comes as TRUE, and a String
+         --  comes as a literal rather than as its contents -- it is going
+         --  inside something larger either way.
+         procedure Emit_Part_Image (Holds : Ty.Type_Kind; Named : S.Node_Id);
+
+         --  A variable whose value cannot be written as one expression:
+         --  it has none yet, or only some of its parts do. What is carried
+         --  is the text the next submission is given -- the declaration, and
+         --  an assignment for each part that holds something -- told as two
+         --  things rather than three, which is how the host tells the two
+         --  forms apart.
+         --
+         --  A part that holds nothing is written as nothing at all. There is
+         --  no text for a value nobody wrote, and inventing one would hand
+         --  the next submission a value this one never had.
+         procedure Carry_As_Written
+           (Sym     : Symbols.Symbol;
+            Named   : S.Node_Id;
+            Of_Type : Ty.Type_Kind);
+
+         procedure Emit_Part_Image (Holds : Ty.Type_Kind; Named : S.Node_Id) is
+         begin
+            case Ty.Shape (Holds) is
+               when Ty.Shape_Integer =>
+                  Emit (VM.Image_Whole);
+
+               when Ty.Shape_Float =>
+                  Emit (VM.Image_Real);
+
+               when Ty.Shape_Boolean =>
+                  Emit (VM.Image_Truth);
+
+               when Ty.Shape_Character =>
+                  Emit (VM.Image_Letter);
+
+               when Ty.Shape_String =>
+                  Emit (VM.Quote_Text);
+
+               when Ty.Shape_Enumeration =>
+                  declare
+                     Base  : Positive;
+                     Count : Natural;
+                  begin
+                     if Names_Of (Holds, Base, Count) then
+                        Emit_2 (VM.Image_Enumeration, Count,
+                                VM.Whole_Number (Base));
+                     end if;
+                  end;
+
+               when others =>
+                  Refuse
+                    (Named,
+                     Adash.Messages.Msg_Lower_Writing_Type,
+                     [1 => Adash.Messages.Named ("type", Ty.Name (Holds))]);
+            end case;
+         end Emit_Part_Image;
+
+         procedure Carry_As_Written
+           (Sym     : Symbols.Symbol;
+            Named   : S.Node_Id;
+            Of_Type : Ty.Type_Kind)
+         is
+            Name : constant String := Symbols.Name (Sym);
+         begin
+            Emit_Text (Keep_Marker);
+            Emit_Text (Name);
+            Emit_Text (Name & " : " & Written_As (Sym, Of_Type) & ";");
+
+            if not Ty.Is_Composite (Of_Type) then
+               Emit_1 (VM.Call_Host, 2);
+               Emit (VM.Discard);
+               return;
+            end if;
+
+            for Part in 1 .. Sem.Part_Count (Analysis, Of_Type) loop
+               exit when not Lowerable;
+
+               declare
+                  Holds : constant Ty.Type_Kind :=
+                    Sem.Part_Type (Analysis, Of_Type, Part);
+
+                  Called : constant String :=
+                    Sem.Part_Name (Analysis, Of_Type, Part);
+
+                  --  Where the part is written: a record's component by name,
+                  --  an array's element by the index it answers to, which is
+                  --  where the array begins plus how far along this part is.
+                  Reached : constant String :=
+                    (if Called = ""
+                     then " ("
+                          & Ada.Strings.Fixed.Trim
+                              (Long_Long_Integer'Image
+                                 (Sem.First_Index (Analysis, Of_Type)
+                                  + Long_Long_Integer (Part) - 1),
+                               Ada.Strings.Both)
+                          & ")"
+                     else "." & Called);
+
+                  Offset : constant VM.Whole_Number :=
+                    VM.Whole_Number (Sem.Part_Offset (Analysis, Of_Type, Part));
+
+                  Absent, Written : Natural := 0;
+                  Ok : Boolean;
+               begin
+                  Emit_Place (Named, Ok);
+                  exit when not Ok;
+
+                  Emit_1 (VM.Offset_Place, Offset);
+                  Emit_1 (VM.Has_Value, 1);
+                  Absent := Here;
+                  Emit_1 (VM.Jump_If_False, 0);
+
+                  Emit_Text (" " & Name & Reached & " := ");
+                  Emit_Place (Named, Ok);
+                  exit when not Ok;
+
+                  Emit_1 (VM.Offset_Place, Offset);
+                  Emit (VM.Fetch);
+                  Emit_Part_Image (Holds, Named);
+                  Emit (VM.Join_Text);
+                  Emit_Text (";");
+                  Emit (VM.Join_Text);
+
+                  Written := Here;
+                  Emit_1 (VM.Jump, 0);
+                  Code.Patch (Absent, Here);
+                  Emit_Text ("");
+                  Code.Patch (Written, Here);
+
+                  Emit (VM.Join_Text);
+               end;
+            end loop;
+
+            Emit_1 (VM.Call_Host, 2);
+            Emit (VM.Discard);
+         end Carry_As_Written;
+
       begin
          if Survivors.Is_Empty or else On_Command = null then
             return;
@@ -5123,6 +5280,13 @@ package body Adash.Language.Evaluation is
             declare
                Sym : constant Symbols.Symbol :=
                  Sem.Symbol_Of (Analysis, Item.Named);
+
+               --  Where the jump around each half goes. Whether a variable
+               --  has a value is a question only the running program can
+               --  answer, so both answers are emitted and one is taken.
+               Unset, Carried : Natural := 0;
+
+               Asked : Boolean;
             begin
                exit when not Lowerable;
 
@@ -5137,6 +5301,14 @@ package body Adash.Language.Evaluation is
                   --  one survivor that has to be *assembled* -- part by part,
                   --  each in the form this language reads back, joined with
                   --  the commas and parentheses an aggregate is written with.
+                  Emit_Place (Item.Named, Asked);
+                  exit when not Asked;
+
+                  Emit_1 (VM.Has_Value,
+                          VM.Whole_Number (Ty.Width (Item.Of_Type)));
+                  Unset := Here;
+                  Emit_1 (VM.Jump_If_False, 0);
+
                   Emit_Text (Keep_Marker);
                   Emit_Text (Symbols.Name (Sym));
                   Emit_Text
@@ -5168,42 +5340,8 @@ package body Adash.Language.Evaluation is
                              (Sem.Part_Offset
                                 (Analysis, Item.Of_Type, Part)));
                         Emit (VM.Fetch);
-
-                        case Ty.Shape (Holds) is
-                           when Ty.Shape_Integer =>
-                              Emit (VM.Image_Whole);
-
-                           when Ty.Shape_Float =>
-                              Emit (VM.Image_Real);
-
-                           when Ty.Shape_Boolean =>
-                              Emit (VM.Image_Truth);
-
-                           when Ty.Shape_Character =>
-                              Emit (VM.Image_Letter);
-
-                           when Ty.Shape_String =>
-                              Emit (VM.Quote_Text);
-
-                           when Ty.Shape_Enumeration =>
-                              declare
-                                 Base  : Positive;
-                                 Count : Natural;
-                              begin
-                                 if Names_Of (Holds, Base, Count) then
-                                    Emit_2 (VM.Image_Enumeration, Count,
-                                            VM.Whole_Number (Base));
-                                 end if;
-                              end;
-
-                           when others =>
-                              Refuse
-                                (Item.Named,
-                                 Adash.Messages.Msg_Lower_Writing_Type,
-                                 [1 => Adash.Messages.Named
-                                         ("type", Ty.Name (Holds))]);
-                              exit;
-                        end case;
+                        Emit_Part_Image (Holds, Item.Named);
+                        exit when not Lowerable;
 
                         Emit (VM.Join_Text);
                      end;
@@ -5215,16 +5353,24 @@ package body Adash.Language.Evaluation is
                   Emit_1 (VM.Call_Host, 3);
                   Emit (VM.Discard);
 
+                  Carried := Here;
+                  Emit_1 (VM.Jump, 0);
+                  Code.Patch (Unset, Here);
+                  Carry_As_Written (Sym, Item.Named, Item.Of_Type);
+                  Code.Patch (Carried, Here);
+
                else
                   --  Three things: which variable, how it was declared, and
                   --  what it holds. Whether it was a constant has to travel,
                   --  or a constant would come back assignable.
+                  Emit_Address (Place_Of (Sym));
+                  Emit_1 (VM.Has_Value, 1);
+                  Unset := Here;
+                  Emit_1 (VM.Jump_If_False, 0);
+
                   Emit_Text (Keep_Marker);
                   Emit_Text (Symbols.Name (Sym));
-                  Emit_Text
-                    ((if Symbols.Kind (Sym) = Symbols.Symbol_Constant
-                      then "constant " else "")
-                     & Ty.Name (Item.Of_Type));
+                  Emit_Text (Written_As (Sym, Item.Of_Type));
 
                   --  The value as text, for every type. `'Image` renders each
                   --  as something this language reads back -- a Character
@@ -5266,6 +5412,12 @@ package body Adash.Language.Evaluation is
 
                   Emit_1 (VM.Call_Host, 3);
                   Emit (VM.Discard);
+
+                  Carried := Here;
+                  Emit_1 (VM.Jump, 0);
+                  Code.Patch (Unset, Here);
+                  Carry_As_Written (Sym, Item.Named, Item.Of_Type);
+                  Code.Patch (Carried, Here);
                end if;
             end;
          end loop;

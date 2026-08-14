@@ -1689,7 +1689,21 @@ package body Adash.Machine is
                       Text => Item.Texts (Positive (Here.Operand))));
 
             when Load =>
-               Push (Slots (Slot_At (Here.Level, Natural (Here.Operand))));
+               declare
+                  Held : constant Cell :=
+                    Slots (Slot_At (Here.Level, Natural (Here.Operand)));
+               begin
+                  --  A slot that holds nothing is a variable that was never
+                  --  given a value. Ada calls reading one erroneous and says
+                  --  nothing about what happens; what happens here is a
+                  --  failure with a name, because the alternative is a value
+                  --  nobody wrote being used as though somebody had.
+                  if Held.Kind = Cell_None then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_No_Value);
+                  else
+                     Push (Held);
+                  end if;
+               end;
 
             when Load_Indirect =>
                declare
@@ -1698,6 +1712,8 @@ package body Adash.Machine is
                begin
                   if Held.Kind /= Cell_Place then
                      Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
+                  elsif Slots (Held.Place).Kind = Cell_None then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_No_Value);
                   else
                      Push (Slots (Held.Place));
                   end if;
@@ -1909,8 +1925,28 @@ package body Adash.Machine is
                begin
                   if Where.Kind /= Cell_Place then
                      Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
+                  elsif Slots (Where.Place).Kind = Cell_None then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_No_Value);
                   else
                      Push (Slots (Where.Place));
+                  end if;
+               end;
+
+            when Has_Value =>
+               declare
+                  Where : constant Cell := Pop;
+                  Held  : Boolean := True;
+               begin
+                  if Where.Kind /= Cell_Place then
+                     Fail (Broken, "Program_Error", M.Msg_Machine_No_Place);
+                  else
+                     for Offset in 0 .. Natural (Here.Operand) - 1 loop
+                        if Slots (Where.Place + Offset).Kind = Cell_None then
+                           Held := False;
+                        end if;
+                     end loop;
+
+                     Push ((Cell_Truth, Held));
                   end if;
                end;
 

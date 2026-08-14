@@ -2189,23 +2189,35 @@ package body Adash.Language.Semantics is
 
       --  The type a type name denotes, or Type_None when it is not a type.
       function Named_Type (Node : S.Node_Id) return Types.Type_Kind is
-         Name  : constant String := S.Text (Tree, Node);
-         Found : constant Symbols.Symbol := Visible (Name);
       begin
-         if Symbols.Is_Nothing (Found) then
-            Complain (Adash.Errors.Error_Name_Undeclared, Node,
-                      [1 => Adash.Messages.Named ("name", Name)]);
-            return Types.Type_None;
+         --  `A : array (1 .. 3) of Integer;`. The type is written where its
+         --  name would stand, so it is declared here -- at the point the
+         --  object is declared, which is where Ada elaborates it too -- and
+         --  then read back under the name the parser gave it.
+         if S.Kind (Tree, Node) = S.Node_Array_Declaration then
+            Analyse_Statement (Node);
+            return Named_Type (S.First (Tree, Node));
          end if;
 
-         if Symbols.Kind (Found) /= Symbols.Symbol_Type then
-            Complain (Adash.Errors.Error_Not_A_Type, Node,
-                      [1 => Adash.Messages.Named ("name", Name)]);
-            return Types.Type_None;
-         end if;
+         declare
+            Name  : constant String := S.Text (Tree, Node);
+            Found : constant Symbols.Symbol := Visible (Name);
+         begin
+            if Symbols.Is_Nothing (Found) then
+               Complain (Adash.Errors.Error_Name_Undeclared, Node,
+                         [1 => Adash.Messages.Named ("name", Name)]);
+               return Types.Type_None;
+            end if;
 
-         Note (Node, Symbols.Of_Type (Found), Found);
-         return Symbols.Of_Type (Found);
+            if Symbols.Kind (Found) /= Symbols.Symbol_Type then
+               Complain (Adash.Errors.Error_Not_A_Type, Node,
+                         [1 => Adash.Messages.Named ("name", Name)]);
+               return Types.Type_None;
+            end if;
+
+            Note (Node, Symbols.Of_Type (Found), Found);
+            return Symbols.Of_Type (Found);
+         end;
       end Named_Type;
 
       --  Report an operator that has no definition for these operands, unless
@@ -6505,6 +6517,19 @@ package body Adash.Language.Semantics is
                   Introduced : Types.Type_Kind := Types.Type_None;
                   Error      : Adash.Errors.Error_Info;
 
+                  --  Whether the name is one the parser made rather than one
+                  --  a user wrote: `A : array (1 .. 3) of Integer;` has a
+                  --  type with no name, and what stands in for one carries an
+                  --  apostrophe, which no name a user can write does.
+                  --
+                  --  The type is then *called* what it was written as, so
+                  --  that carrying the variable into the next submission
+                  --  writes the definition again -- which is what Ada writes,
+                  --  and what makes the carried text something this language
+                  --  can read.
+                  Unnamed : constant Boolean :=
+                    Ada.Strings.Fixed.Index (Name, "'") > 0;
+
                   --  Whether a part may hold this. A composite inside a
                   --  composite is refused: reaching into one would need an
                   --  offset made of two offsets, and every place that walks a
@@ -6647,7 +6672,13 @@ package body Adash.Language.Semantics is
                                 (Part'(Name    => <>,
                                        Of_Type => Held,
                                        Offset  => 0));
-                              Introduced := Types.Open_Array (Built.Id, Name);
+                              Introduced := Types.Open_Array
+                                (Built.Id,
+                                 (if Unnamed
+                                  then "array (" & S.Text (Tree, Bounds)
+                                       & " range <>) of "
+                                       & Types.Name (Held)
+                                  else Name));
                            end if;
 
                         elsif not Fits (Held) then
@@ -6703,7 +6734,18 @@ package body Adash.Language.Semantics is
                            end loop;
 
                            Introduced :=
-                             Types.Composite_Array (Built.Id, Name, Slots);
+                             Types.Composite_Array
+                               (Built.Id,
+                                (if Unnamed
+                                 then "array ("
+                                      & Ada.Strings.Fixed.Trim
+                                          (Low'Image, Ada.Strings.Both)
+                                      & " .. "
+                                      & Ada.Strings.Fixed.Trim
+                                          (High'Image, Ada.Strings.Both)
+                                      & ") of " & Types.Name (Held)
+                                 else Name),
+                                Slots);
                         end if;
                      end;
                   end if;

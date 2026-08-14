@@ -201,6 +201,22 @@ package Adash.Language.Evaluation is
       Shape : String;
       Given : String) is null;
 
+   --  A variable on its way out whose value cannot be written as one
+   --  expression: it has none yet, or only some of its parts do.
+   --
+   --  What arrives is the text that puts it back -- the declaration, and an
+   --  assignment for each part that holds something. A part that holds
+   --  nothing is written as nothing, so the next submission is handed what
+   --  this one had and not a value nobody wrote.
+   --
+   --  @param Sink The implementation.
+   --  @param Named The variable.
+   --  @param Text What the next submission is given.
+   procedure Keep_As_Written
+     (Sink  : in out Command_Sink;
+      Named : String;
+      Text  : String) is null;
+
    --  A sink to hand to Run.
    type Sink_Access is access all Command_Sink'Class;
 
