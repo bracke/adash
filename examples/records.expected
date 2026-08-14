@@ -13,5 +13,6 @@ sample 3 is 30
 sample 4 is 5
 the last two samples are 30 5
 and they are still there: TRUE
+the middle two are now 12 99, and the second of the last three is 99
 the largest is 99
 relabelled to cpu

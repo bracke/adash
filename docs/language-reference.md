@@ -97,6 +97,11 @@ place rather than a value, so it stands where a run of slots is copied or
 compared and nowhere else. There is no null slice: a run of no slots is not a
 value here.
 
+A part is taken of a part — `A (2 .. 5) (1 .. 2)` and `A (3 .. 5) (2)` — and
+each level is bounded by the level outside it. Positions inside a part begin
+where a value of the type begins: one for a String and for an array declared
+from one, and the array's own first index otherwise.
+
 ### Aggregates
 
     (7, 8, 9)                     -- positional

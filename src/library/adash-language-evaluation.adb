@@ -628,6 +628,11 @@ package body Adash.Language.Evaluation is
       --  the whole text is one cell.
       function Is_Text_Part (Node : S.Node_Id) return Boolean;
 
+      --  Whether this denotes an array that has a place: a variable, or a
+      --  slice or element of one. A function does not return a composite here,
+      --  so a call over an array can only be a part of one.
+      function Is_Array_Place (Node : S.Node_Id) return Boolean;
+
       --  Whether this is a run of an array's own elements: `A (2 .. 4)`.
       --
       --  Decided the way Is_Element decides its question, from the type
@@ -2171,18 +2176,26 @@ package body Adash.Language.Evaluation is
             return False;
          end if;
 
-         declare
-            Prefix : constant S.Node_Id := S.First (Tree, Node);
-         begin
-            return S.Kind (Tree, Prefix) = S.Node_Name
-              and then Ty.Shape (Sem.Type_Of (Analysis, Prefix))
-                       = Ty.Shape_Array;
-         end;
+         return Is_Array_Place (S.First (Tree, Node));
       end Is_Element;
 
       -------------------
       -- Is_Array_Slice --
       -------------------
+
+      function Is_Array_Place (Node : S.Node_Id) return Boolean is
+      begin
+         if Ty.Shape (Sem.Type_Of (Analysis, Node)) /= Ty.Shape_Array then
+            return False;
+         end if;
+
+         if S.Kind (Tree, Node) = S.Node_Name then
+            return not Symbols.Is_Callable (Sem.Symbol_Of (Analysis, Node));
+         end if;
+
+         return S.Kind (Tree, Node) = S.Node_Call
+           and then Is_Array_Place (S.First (Tree, Node));
+      end Is_Array_Place;
 
       function Is_Array_Slice (Node : S.Node_Id) return Boolean is
       begin
@@ -2194,9 +2207,7 @@ package body Adash.Language.Evaluation is
             Prefix    : constant S.Node_Id := S.First (Tree, Node);
             Arguments : constant S.Node_Id := S.Second (Tree, Node);
          begin
-            return S.Kind (Tree, Prefix) = S.Node_Name
-              and then Ty.Shape (Sem.Type_Of (Analysis, Prefix))
-                       = Ty.Shape_Array
+            return Is_Array_Place (Prefix)
               and then S.Child_Count (Tree, Arguments) = 1
               and then S.Kind (Tree, S.First (Tree, Arguments))
                        = S.Node_Range;
@@ -2314,10 +2325,15 @@ package body Adash.Language.Evaluation is
 
                   First : constant Long_Long_Integer :=
                     Sem.First_Index (Analysis, Of_Type);
+                  --  How many elements the prefix holds, from its width
+                  --  rather than from what its identity was declared with: a
+                  --  slice shares the array's identity and is shorter, and
+                  --  asking the declaration would check an index against the
+                  --  whole array.
                   Last  : constant Long_Long_Integer :=
                     First
-                    + Long_Long_Integer
-                        (Sem.Part_Count (Analysis, Of_Type)) - 1;
+                    + Long_Long_Integer (Ty.Width (Of_Type))
+                      / Long_Long_Integer (Ty.Width (Held)) - 1;
                begin
                   --  A slice is where the run starts, moved along to the first
                   --  element it covers. The distance is known here because the

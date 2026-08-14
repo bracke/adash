@@ -277,6 +277,24 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **A part of a part, for an array too**: `A (2 .. 5) (1 .. 2)`,
+  `A (3 .. 5) (2)`, and as deep as it is written. Each level answers about the
+  level outside it, which came down to one thing: how many elements a type
+  holds is read from its width rather than from what its identity was declared
+  with. A slice shares the array's identity and is shorter, so asking the
+  declaration bounded an inner slice -- and an index into a part -- by the
+  whole array. Both the analyser and the instruction that checks an index name
+  the part now, so `A (2 .. 3) (5)` reports against `Row (2 .. 3)` and the two
+  numbers in the message are the two a reader can compare.
+
+  Positions inside a part begin where a value of the type begins: one for a
+  String and for an array declared from one, and the array's own first index
+  otherwise. `F (6 .. 8) (5)` is the first element of the part, for an array
+  declared from five.
+
+  The array analysis moved into a function of its own to be asked twice -- once
+  of a name, once of whatever a part yielded -- which is what let the two
+  shapes stay one implementation rather than two that drift.
 - **An array is sliced**: `A (2 .. 3) := B (1 .. 2)`, and `=` between two
   slices. A slice is a place and never a value, which is what every composite
   is here -- so the copy is the block move a whole array's assignment already

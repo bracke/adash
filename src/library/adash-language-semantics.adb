@@ -3306,9 +3306,15 @@ package body Adash.Language.Semantics is
                         Found : constant Symbols.Symbol :=
                           Visible (S.Text (Tree, Walk));
                      begin
+                        --  A String or an array: the two things here with
+                        --  parts, and the two a chain of parts can bottom out
+                        --  at. Anything else is a value and owns nothing.
                         if Symbols.Is_Nothing (Found)
                           or else Symbols.Is_Callable (Found)
-                          or else Symbols.Of_Type (Found) /= Types.Type_String
+                          or else (Symbols.Of_Type (Found) /= Types.Type_String
+                                   and then Types.Shape
+                                              (Symbols.Of_Type (Found))
+                                            /= Types.Shape_Array)
                         then
                            return Symbols.Nothing;
                         end if;
@@ -3316,6 +3322,175 @@ package body Adash.Language.Semantics is
                         return Found;
                      end;
                   end Owner_Of;
+
+                  --  One element of an array, or a run of them. Asked of
+                  --  the array's own type rather than of a name, because the
+                  --  prefix may be a slice: `A (2 .. 4) (1 .. 2)` is a part of
+                  --  a part, and each level answers about the level outside
+                  --  it.
+                  --
+                  --  How many elements a type holds comes from its width
+                  --  rather than from what its identity was declared with: a
+                  --  slice shares the array's identity and is shorter, and
+                  --  asking the declaration would bound an inner slice by the
+                  --  whole array.
+                  function Part_Of_Array
+                    (Of_Array : Types.Type_Kind;
+                     Owner    : Symbols.Symbol) return Types.Type_Kind;
+
+                  function Part_Of_Array
+                    (Of_Array : Types.Type_Kind;
+                     Owner    : Symbols.Symbol) return Types.Type_Kind
+                  is
+                     Held : constant Types.Type_Kind :=
+                       Part_Type (Into, Of_Array, 1);
+                     Count : constant Long_Long_Integer :=
+                       Long_Long_Integer (Types.Width (Of_Array))
+                       / Long_Long_Integer (Types.Width (Held));
+                     Base : constant Long_Long_Integer :=
+                       First_Index (Into, Of_Array);
+                     Ends : constant Long_Long_Integer := Base + Count - 1;
+                  begin
+                     --  A slice: `A (2 .. 4)`, a run of the array's own
+                     --  elements. Its ends are known before the program runs,
+                     --  as the array's own bounds and a case choice are,
+                     --  because what it becomes is a distance from the start
+                     --  of the run and a count of slots -- both written into
+                     --  the instruction rather than computed.
+                     if Ranged then
+                        declare
+                           Only : constant S.Node_Id :=
+                             S.Child (Tree, Arguments, 1);
+
+                           Low, High : Long_Long_Integer;
+
+                           --  Analysed for their own sake first: whatever is
+                           --  wrong inside a bound is reported there, and only
+                           --  then is the bound itself judged.
+                           Of_Low : constant Types.Type_Kind :=
+                             Analyse_Expression
+                               (S.First (Tree, Only), Types.Type_Integer);
+                           Of_High : constant Types.Type_Kind :=
+                             Analyse_Expression
+                               (S.Second (Tree, Only), Types.Type_Integer);
+                        begin
+                           if (Of_Low /= Types.Type_None
+                               and then not Types.Is_Acceptable
+                                              (Of_Low, Types.Type_Integer))
+                             or else
+                               (Of_High /= Types.Type_None
+                                and then not Types.Is_Acceptable
+                                               (Of_High, Types.Type_Integer))
+                           then
+                              Complain
+                                (Adash.Errors.Error_String_Index_Malformed,
+                                 Only, Adash.Messages.No_Arguments);
+                              Note (Node, Types.Type_None);
+                              return Types.Type_None;
+                           end if;
+
+                           if not Static_Choice
+                                    (Into, Tree, S.First (Tree, Only), Low)
+                             or else not Static_Choice
+                                           (Into, Tree,
+                                            S.Second (Tree, Only), High)
+                           then
+                              Complain
+                                (Adash.Errors.Error_Array_Bound_Not_Static,
+                                 Only, Adash.Messages.No_Arguments);
+                              Note (Node, Types.Type_None);
+                              return Types.Type_None;
+                           end if;
+
+                           --  Empty as well as outside. Ada's null slice is a
+                           --  value of no elements; a value here is a run of
+                           --  slots and a run of none is not one, so the two
+                           --  are refused together rather than one of them
+                           --  being half-supported.
+                           if Low < Base or else High > Ends
+                             or else Low > High
+                           then
+                              Complain
+                                (Adash.Errors.Error_No_Such_Slice, Node,
+                                 [Adash.Messages.Named
+                                    ("name", Types.Name (Of_Array)),
+                                  Adash.Messages.Named
+                                    ("first", Long_Long_Integer'Image (Low)),
+                                  Adash.Messages.Named
+                                    ("last", Long_Long_Integer'Image (High))]);
+                              Note (Node, Types.Type_None);
+                              return Types.Type_None;
+                           end if;
+
+                           declare
+                              --  The same type, of fewer elements. The
+                              --  identity is the array's, because a slice of a
+                              --  Row is a Row -- what differs is how many
+                              --  slots it is, which is what stops one from
+                              --  being assigned where another length is
+                              --  wanted. The name carries the ends so that a
+                              --  diagnostic naming both says which is which.
+                              Sliced : constant Types.Type_Kind :=
+                                Types.Composite_Array
+                                  (Id     => Types.Identity (Of_Array),
+                                   Called => Types.Name (Of_Array) & " ("
+                                             & Ada.Strings.Fixed.Trim
+                                                 (Long_Long_Integer'Image
+                                                    (Low),
+                                                  Ada.Strings.Both)
+                                             & " .. "
+                                             & Ada.Strings.Fixed.Trim
+                                                 (Long_Long_Integer'Image
+                                                    (High),
+                                                  Ada.Strings.Both)
+                                             & ")",
+                                   Slots  => Positive
+                                               (Long_Long_Integer
+                                                  (Types.Width (Held))
+                                                * (High - Low + 1)));
+                           begin
+                              Note (Only, Types.Type_Integer);
+                              Note (Node, Sliced, Owner);
+                              return Sliced;
+                           end;
+                        end;
+                     end if;
+
+                     if Given /= 1 then
+                        Complain
+                          (Adash.Errors.Error_Wrong_Argument_Count, Node,
+                           [Adash.Messages.Named ("name", Name),
+                            Adash.Messages.Named
+                              ("expected", Natural'Image (1)),
+                            Adash.Messages.Named
+                              ("found", Natural'Image (Given))]);
+                        Note (Node, Types.Type_None);
+                        return Types.Type_None;
+                     end if;
+
+                     declare
+                        Where : constant Types.Type_Kind :=
+                          Analyse_Expression
+                            (S.Child (Tree, Arguments, 1),
+                             Types.Type_Integer);
+                     begin
+                        if Where /= Types.Type_None
+                          and then Where /= Types.Type_Integer
+                        then
+                           Complain
+                             (Adash.Errors.Error_Type_Mismatch,
+                              S.Child (Tree, Arguments, 1),
+                              [Adash.Messages.Named
+                                 ("found", Types.Name (Where)),
+                               Adash.Messages.Named
+                                 ("expected",
+                                  Types.Name (Types.Type_Integer))]);
+                        end if;
+                     end;
+
+                     Note (Node, Held, Owner);
+                     return Held;
+                  end Part_Of_Array;
 
                   Offered : Natural;
                   Fitting : Natural;
@@ -3615,157 +3790,7 @@ package body Adash.Language.Semantics is
                           Symbols.Of_Type (Prefixed);
                      begin
                         Note (Prefix, Of_Array, Prefixed);
-
-                        --  A slice: `A (2 .. 4)`, a run of the array's own
-                        --  elements. Its ends are known before the program
-                        --  runs, as the array's own bounds and a case choice
-                        --  are, because what it becomes is a distance from the
-                        --  start of the run and a count of slots -- both
-                        --  written into the instruction rather than computed.
-                        if Ranged then
-                           declare
-                              Only : constant S.Node_Id :=
-                                S.Child (Tree, Arguments, 1);
-                              Held : constant Types.Type_Kind :=
-                                Part_Type (Into, Of_Array, 1);
-                              Base : constant Long_Long_Integer :=
-                                First_Index (Into, Of_Array);
-                              Ends : constant Long_Long_Integer :=
-                                Base + Long_Long_Integer
-                                         (Part_Count (Into, Of_Array)) - 1;
-
-                              Low, High : Long_Long_Integer;
-
-                              --  Analysed for their own sake first: whatever
-                              --  is wrong inside a bound is reported there,
-                              --  and only then is the bound itself judged.
-                              Of_Low : constant Types.Type_Kind :=
-                                Analyse_Expression
-                                  (S.First (Tree, Only), Types.Type_Integer);
-                              Of_High : constant Types.Type_Kind :=
-                                Analyse_Expression
-                                  (S.Second (Tree, Only), Types.Type_Integer);
-                           begin
-                              if (Of_Low /= Types.Type_None
-                                  and then not Types.Is_Acceptable
-                                                 (Of_Low, Types.Type_Integer))
-                                or else
-                                  (Of_High /= Types.Type_None
-                                   and then not Types.Is_Acceptable
-                                                  (Of_High,
-                                                   Types.Type_Integer))
-                              then
-                                 Complain
-                                   (Adash.Errors.Error_String_Index_Malformed,
-                                    Only, Adash.Messages.No_Arguments);
-                                 Note (Node, Types.Type_None);
-                                 return Types.Type_None;
-                              end if;
-
-                              if not Static_Choice
-                                       (Into, Tree, S.First (Tree, Only), Low)
-                                or else not Static_Choice
-                                              (Into, Tree,
-                                               S.Second (Tree, Only), High)
-                              then
-                                 Complain
-                                   (Adash.Errors.Error_Array_Bound_Not_Static,
-                                    Only, Adash.Messages.No_Arguments);
-                                 Note (Node, Types.Type_None);
-                                 return Types.Type_None;
-                              end if;
-
-                              --  Empty as well as outside. Ada's null slice is
-                              --  a value of no elements; a value here is a run
-                              --  of slots and a run of none is not one, so the
-                              --  two are refused together rather than one of
-                              --  them being half-supported.
-                              if Low < Base or else High > Ends
-                                or else Low > High
-                              then
-                                 Complain
-                                   (Adash.Errors.Error_No_Such_Slice, Node,
-                                    [Adash.Messages.Named
-                                       ("name", Types.Name (Of_Array)),
-                                     Adash.Messages.Named
-                                       ("first", Long_Long_Integer'Image (Low)),
-                                     Adash.Messages.Named
-                                       ("last",
-                                        Long_Long_Integer'Image (High))]);
-                                 Note (Node, Types.Type_None);
-                                 return Types.Type_None;
-                              end if;
-
-                              declare
-                                 --  The same type, of fewer elements. The
-                                 --  identity is the array's, because a slice
-                                 --  of a Row is a Row -- what differs is how
-                                 --  many slots it is, which is what stops one
-                                 --  from being assigned where another length
-                                 --  is wanted. The name carries the ends so
-                                 --  that a diagnostic naming both says which
-                                 --  is which.
-                                 Sliced : constant Types.Type_Kind :=
-                                   Types.Composite_Array
-                                     (Id     => Types.Identity (Of_Array),
-                                      Called => Types.Name (Of_Array) & " ("
-                                                & Ada.Strings.Fixed.Trim
-                                                    (Long_Long_Integer'Image
-                                                       (Low),
-                                                     Ada.Strings.Both)
-                                                & " .. "
-                                                & Ada.Strings.Fixed.Trim
-                                                    (Long_Long_Integer'Image
-                                                       (High),
-                                                     Ada.Strings.Both)
-                                                & ")",
-                                      Slots  => Positive
-                                                  (Long_Long_Integer
-                                                     (Types.Width (Held))
-                                                   * (High - Low + 1)));
-                              begin
-                                 Note (Only, Types.Type_Integer);
-                                 Note (Node, Sliced, Prefixed);
-                                 return Sliced;
-                              end;
-                           end;
-                        end if;
-
-                        if Given /= 1 then
-                           Complain
-                             (Adash.Errors.Error_Wrong_Argument_Count, Node,
-                              [Adash.Messages.Named ("name", Name),
-                               Adash.Messages.Named
-                                 ("expected", Natural'Image (1)),
-                               Adash.Messages.Named
-                                 ("found", Natural'Image (Given))]);
-                           Note (Node, Types.Type_None);
-                           return Types.Type_None;
-                        end if;
-
-                        declare
-                           Where : constant Types.Type_Kind :=
-                             Analyse_Expression
-                               (S.Child (Tree, Arguments, 1),
-                                Types.Type_Integer);
-                        begin
-                           if Where /= Types.Type_None
-                             and then Where /= Types.Type_Integer
-                           then
-                              Complain
-                                (Adash.Errors.Error_Type_Mismatch,
-                                 S.Child (Tree, Arguments, 1),
-                                 [Adash.Messages.Named
-                                    ("found", Types.Name (Where)),
-                                  Adash.Messages.Named
-                                    ("expected",
-                                     Types.Name (Types.Type_Integer))]);
-                           end if;
-                        end;
-
-                        Note (Node, Part_Type (Into, Of_Array, 1),
-                              Prefixed);
-                        return Part_Type (Into, Of_Array, 1);
+                        return Part_Of_Array (Of_Array, Prefixed);
                      end;
                   end if;
 
@@ -3784,6 +3809,16 @@ package body Adash.Language.Semantics is
                         if Of_Prefix = Types.Type_None then
                            Note (Node, Types.Type_None);
                            return Types.Type_None;
+                        end if;
+
+                        --  A part of a part of an array: `A (2 .. 4) (1 .. 2)`
+                        --  and `A (2 .. 4) (2)`. The level outside answered
+                        --  with a type of its own length, so this level asks
+                        --  that type rather than the array's declaration --
+                        --  which is what makes an inner slice bounded by the
+                        --  outer one.
+                        if Types.Shape (Of_Prefix) = Types.Shape_Array then
+                           return Part_Of_Array (Of_Prefix, Owner_Of (Prefix));
                         end if;
 
                         if Of_Prefix /= Types.Type_String then

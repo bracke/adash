@@ -423,6 +423,44 @@ output = [" 1 5 6 4", "TRUE", "FALSE", " 8"]
 diagnostics = []
 
 [[case]]
+id = "slices.a-slice-of-a-slice"
+requirement = """
+`A (2 .. 5) (1 .. 2)` is a part of a part, as it is for a String, and an element
+of one is reached the same way. Each level answers about the level outside it:
+how many elements a part holds comes from its width rather than from what its
+identity was declared with, so an inner slice is bounded by the outer one and
+not by the whole array.
+
+Positions inside a part start where a value of the type starts -- one for an
+array declared from one, and its own first index for an array declared from
+somewhere else. That is the rule a String's part follows, written for a type
+whose values need not begin at one.
+"""
+script = "type Row is array (1 .. 6) of Integer; A : Row := (1, 2, 3, 4, 5, 6); B : Row := (7, 8, 9, 10, 11, 12); A (2 .. 5) (1 .. 2) := B (1 .. 2); put_line (A (1)'Image & A (2)'Image & A (3)'Image & A (4)'Image); put_line (A (3 .. 5) (2)'Image); A (2 .. 6) (2 .. 4) (1 .. 2) := B (5 .. 6); put_line (A (3)'Image & A (4)'Image); put_line (A (2 .. 5) (1 .. 2) = A (2 .. 3)); quit (0);"
+exit_status = 0
+output = [" 1 7 8 4", " 4", " 11 12", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "slices.a-slice-of-a-slice-is-bounded-by-it"
+requirement = """
+The inner slice is judged against the outer one's length, and an index into a
+part is checked against that part -- the message names the part rather than the
+array, because the number a reader has to compare against is the part's.
+
+An array that begins somewhere other than one keeps that start in its parts:
+`A (6 .. 8) (5)` is the first element of the part, for an array declared from
+five.
+"""
+script = "type Row is array (1 .. 6) of Integer; A : Row := (1, 2, 3, 4, 5, 6); B : Row := (7, 8, 9, 10, 11, 12); A (2 .. 4) (1 .. 4) := B (1 .. 4);\ntype Line is array (1 .. 6) of Integer; C : Line := (1, 2, 3, 4, 5, 6); put_line (C (2 .. 3) (5)'Image);\ntype Far is array (5 .. 8) of Integer; F : Far := (1, 2, 3, 4); put_line (F (6 .. 8) (5)'Image);\nquit (0);"
+exit_status = 0
+output = [" 2"]
+diagnostics = [
+  "!error.no_such_slice{name=Row (2 .. 4),first= 1,last= 4}!",
+  "!error.program_raised_detail{exception=Index_Error,detail=!error.machine.outside_array{position=5,type=Line (2 .. 3)}!}!",
+]
+
+[[case]]
 id = "slices.a-slice-is-as-long-as-what-goes-into-it"
 requirement = """
 Two runs of different lengths are not each other's value: a slice of two

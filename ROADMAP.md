@@ -2935,10 +2935,11 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
 - **There is no null slice.** Ada's `A (3 .. 2)` is a value of no elements;
   a value here is a run of slots and a run of none is not one, so a backwards
   slice is refused with an end outside the array rather than half-supported.
-- **A slice of a slice is not written for an array**, though it is for a
-  String. `A (1 .. 3) (1 .. 2)` is refused: the analyser gives a slice the
-  array's own identity and a length of its own, and the bounds an index would
-  be checked against are still the whole array's.
+- **A part of an array begins where a value of its type begins** -- one for an
+  array declared from one, and its own first index otherwise. `A (2 .. 5)
+  (1 .. 2)` is the first two elements of the part, as it is for a String; Ada's
+  slice keeps the index range it came from, and this does not, for the reason
+  the String entry above gives.
 - **A parameter's default is a literal**, possibly signed, or `True`/`False`.
   An arbitrary expression would have to be evaluated at each call in the scope
   of the declaration, and a name resolved at the call site cannot do that.
@@ -3001,7 +3002,8 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   is a value in this language rather than a view of one -- there is nowhere to
   carry a lower bound that is not one, and a value whose `'First` said
   otherwise would be lying about itself. It follows for reading and for
-  assigning alike.
+  assigning alike, and for an array's parts, which begin where a value of the
+  array's type begins.
 - **Display width covers the ranges named in `Adash.Display_Width`**; a code
   point in none of them is one cell, which is an assumption rather than
   knowledge.

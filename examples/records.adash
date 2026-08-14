@@ -93,6 +93,15 @@ put_line ("the last two samples are" & Recent (1)'Image & Recent (2)'Image);
 put_line ("and they are still there: "
           & Boolean'Image (Recent (1 .. 2) = Samples (3 .. 4)));
 
+--  A part of a part, and an element of one. Each level is bounded by the level
+--  outside it, and positions inside a part begin where a value of the type
+--  begins -- one here, because Window is declared from one.
+Recent (1 .. 3) (2 .. 3) := Samples (1 .. 2);
+
+put_line ("the middle two are now" & Recent (2)'Image & Recent (3)'Image
+          & ", and the second of the last three is"
+          & Recent (2 .. 4) (2)'Image);
+
 --  A composite travels to a subprogram as where its run of slots starts,
 --  whatever mode it was declared with. An `out` parameter is how a program
 --  hands one back.
