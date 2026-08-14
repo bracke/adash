@@ -610,6 +610,35 @@ package body Adash.Engine is
       --  nothing came back and the name was gone with it.
       function Declares_Guarded_Type (Name : String) return Boolean;
 
+      --  Say that a definition was not remembered.
+      --
+      --  A definition silently not kept would look like one that was, until
+      --  the line that used it failed for no visible reason. That was true of
+      --  variables until it was written down: the warning existed and only the
+      --  subprogram-and-type path reached it, so a session past the limit lost
+      --  its next variable without a word and the line after it reported an
+      --  undeclared name.
+      --
+      --  @param Named The name that will not be there next time.
+      procedure Not_Remembered (Named : S.Node_Id);
+
+      procedure Not_Remembered (Named : S.Node_Id) is
+      begin
+         Report.Emit
+           (D.Make
+              (Message   =>
+                 Adash.Errors.Message (Adash.Errors.Error_Too_Many_Kept),
+               Level     => D.Severity_Warning,
+               Of_Kind   => D.Category_Semantic,
+               Raised_By => D.Owner_Language,
+               Origin    => Adash.Source.From (Buffer),
+               Extent    => S.Extent (Tree, Named),
+               Arguments =>
+                 [Adash.Messages.Named ("name", S.Text (Tree, Named)),
+                  Adash.Messages.Named
+                    ("limit", Natural'Image (Max_Kept))]));
+      end Not_Remembered;
+
       --  Keep one declaration as the source text it was written as.
       --
       --  @param Node The declaration.
@@ -641,8 +670,14 @@ package body Adash.Engine is
             end if;
          end loop;
 
-         if not Replaced and then Natural (Item.Kept.Length) < Max_Kept then
+         if Replaced then
+            null;
+
+         elsif Natural (Item.Kept.Length) < Max_Kept then
             Item.Kept.Append (Entry_To_Keep);
+
+         else
+            Not_Remembered (Named);
          end if;
       end Keep_As_Text;
 
@@ -729,10 +764,17 @@ package body Adash.Engine is
                      end if;
                   end loop;
 
-                  if not Already
-                    and then Natural (Item.Kept.Length) < Max_Kept
-                  then
+                  if Already then
+                     null;
+
+                  elsif Natural (Item.Kept.Length) < Max_Kept then
                      Item.Kept.Append (Placed);
+
+                  else
+                     --  Said out loud, as a definition is. What follows
+                     --  otherwise is a line reporting an undeclared name for a
+                     --  variable the user watched themselves declare.
+                     Not_Remembered (Named);
                   end if;
                end;
 
@@ -822,27 +864,8 @@ package body Adash.Engine is
                         if not Replaced then
                            if Natural (Item.Kept.Length) < Max_Kept then
                               Item.Kept.Append (Entry_To_Keep);
-
                            else
-                              --  Said out loud. A definition silently not kept
-                              --  would look like one that was, until the line
-                              --  that used it failed for no visible reason.
-                              Report.Emit
-                                (D.Make
-                                   (Message   =>
-                                      Adash.Errors.Message
-                                        (Adash.Errors.Error_Too_Many_Kept),
-                                    Level     => D.Severity_Warning,
-                                    Of_Kind   => D.Category_Semantic,
-                                    Raised_By => D.Owner_Language,
-                                    Origin    => Adash.Source.From (Buffer),
-                                    Extent    => S.Extent (Tree, Named),
-                                    Arguments =>
-                                      [Adash.Messages.Named
-                                         ("name", S.Text (Tree, Named)),
-                                       Adash.Messages.Named
-                                         ("limit",
-                                          Natural'Image (Max_Kept))]));
+                              Not_Remembered (Named);
                            end if;
                         end if;
                      end;
@@ -1025,10 +1048,41 @@ package body Adash.Engine is
                      --  inside the package. Without this a package variable
                      --  was reset by every submission, because its value was
                      --  handed back and then dropped.
-                     if not Placed
-                       and then Natural (Item.Kept.Length) < Max_Kept
-                     then
+                     if Placed then
+                        null;
+
+                     elsif Natural (Item.Kept.Length) < Max_Kept then
                         Item.Kept.Append (Given);
+
+                     elsif Ada.Strings.Fixed.Index
+                             (Ada.Strings.Unbounded.To_String (Given.Key),
+                              ".") > 0
+                     then
+                        --  Said out loud here too, for the names that reach
+                        --  this branch and no other: a package's member, whose
+                        --  declaration is inside the package rather than at
+                        --  the root, so nothing held a place for it and
+                        --  nothing has reported it yet. A plain variable was
+                        --  reported where it was declared, spelt as it was
+                        --  written; saying it again from a folded key would be
+                        --  the same warning twice in two spellings.
+                        Report.Emit
+                          (D.Make
+                             (Message   =>
+                                Adash.Errors.Message
+                                  (Adash.Errors.Error_Too_Many_Kept),
+                              Level     => D.Severity_Warning,
+                              Of_Kind   => D.Category_Semantic,
+                              Raised_By => D.Owner_Language,
+                              Origin    => Origin,
+                              Extent    => Adash.Source.Nowhere,
+                              Arguments =>
+                                [Adash.Messages.Named
+                                   ("name",
+                                    Ada.Strings.Unbounded.To_String
+                                      (Given.Key)),
+                                 Adash.Messages.Named
+                                   ("limit", Natural'Image (Max_Kept))]));
                      end if;
                   end;
                end loop;

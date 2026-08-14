@@ -2976,6 +2976,11 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   one would be ambiguous. For anything else it is that the name is already in
   that scope. A body's own declarations are a different scope and may hide
   either, which is Ada's rule and this one's.
+- **A session carries at most 256 definitions**, and one past that is not
+  remembered -- said out loud where it is declared rather than discovered by
+  the line that uses it. That warning was written with the limit and reached by
+  one of the four paths that drop a definition, so a variable past it vanished
+  in silence until 2026-08-14.
 - **A command call carries at most five arguments** from a program, and a call
   answered by the shell four -- it spends the first slot on the name of what is
   being asked for. The activation record the machine builds has a fixed shape,

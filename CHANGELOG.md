@@ -277,6 +277,19 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **A definition past what the session carries says so, whatever kind it is.**
+  The limit is 256, and the warning for passing it was written when the limit
+  was — with the comment "a definition silently not kept would look like one
+  that was, until the line that used it failed for no visible reason". Four
+  paths drop a definition and only one of them reached that warning, so the
+  257th *variable* vanished in silence and the next line reported an undeclared
+  name the user had watched themselves declare.
+
+  All four say it now, through one procedure rather than four copies. The path
+  where a package's member arrives says it only for a dotted name: a plain
+  variable was reported where it was declared, spelt as it was written, and
+  saying it again from a folded key would be the same warning twice in two
+  spellings.
 - **A construct with more parts than this build carries is refused, not
   truncated.** The parser collects into fixed-size lists, and seventeen loops
   stopped at the end of one without a word. A select of thirty-three

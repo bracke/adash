@@ -1,4 +1,6 @@
 with Ada.Directories;
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
 
 with AUnit.Assertions;
 
@@ -81,6 +83,44 @@ package body Adash_Tests.Engine_Cases is
       Assert (Report.Count > 0,
               "a variable the failed submission declared was kept");
    end A_Raise_Costs_Only_Its_Own_Submission;
+
+   procedure A_Definition_Past_The_Limit_Says_So
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Shell   : E.Session;
+      Outcome : E.Result;
+      Report  : D.List;
+
+      --  One more than the session holds, in one submission. A variable
+      --  rather than a subprogram, because that is the path that dropped in
+      --  silence: the warning existed and only the subprogram-and-type path
+      --  reached it.
+      Many : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      E.Open (Shell);
+
+      --  The limit is private to the engine, as a bound nobody outside sets
+      --  should be. Enough to pass it is all this needs.
+      for Index in 1 .. 258 loop
+         Ada.Strings.Unbounded.Append
+           (Many,
+            "V" & Ada.Strings.Fixed.Trim (Integer'Image (Index),
+                                          Ada.Strings.Both)
+            & " : Integer := " & Ada.Strings.Fixed.Trim
+                                   (Integer'Image (Index), Ada.Strings.Both)
+            & "; ");
+      end loop;
+
+      E.Submit (Shell, Ada.Strings.Unbounded.To_String (Many), "<line>",
+                Adash.Source.Origin_Interactive, Outcome, Report);
+
+      Assert (Adash.Execution.Succeeded (Outcome.Status),
+              "declaring them failed");
+      Assert (Report.Count = 2,
+              "the definitions past the limit did not say so:"
+              & Natural'Image (Report.Count));
+   end A_Definition_Past_The_Limit_Says_So;
 
    procedure One_Engine_Serves_Commands_And_Programs
      (Test : in out AUnit.Test_Cases.Test_Case'Class)
@@ -731,6 +771,9 @@ package body Adash_Tests.Engine_Cases is
       Register_Routine
         (T, Cancellation_Is_Observed_And_Clearable'Access,
          "engine : cancellation is observed and clearable");
+      Register_Routine
+        (T, A_Definition_Past_The_Limit_Says_So'Access,
+         "engine : a definition past what the session holds says so");
       Register_Routine
         (T, A_Raise_Costs_Only_Its_Own_Submission'Access,
          "engine : a raise costs its own submission and nobody else's");
