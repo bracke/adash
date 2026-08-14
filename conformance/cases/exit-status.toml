@@ -78,7 +78,7 @@ diagnostics = [
 id = "status.survives-the-submission-that-set-it"
 requirement = "It is session state, like a variable: what ran on one line is readable on the next."
 script = """
-run ("false");
+run ("{emit}", "--exit=1");
 put_line (Status);
 quit (0);"""
 exit_status = 0
@@ -88,7 +88,7 @@ diagnostics = []
 [[case]]
 id = "status.readable-inside-a-body"
 requirement = "A subprogram can run something and answer whether it worked, which is what makes it composable."
-script = "function Ran (What : String) return Boolean is begin run (What); return Status = 0; end Ran; if Ran (\"true\") then put_line (\"worked\"); end if; if not Ran (\"false\") then put_line (\"did not\"); end if; quit (0);"
+script = "function Ran (What : String; How : String) return Boolean is begin run (What, How); return Status = 0; end Ran; if Ran (\"{emit}\", \"--exit=0\") then put_line (\"worked\"); end if; if not Ran (\"{emit}\", \"--exit=1\") then put_line (\"did not\"); end if; quit (0);"
 exit_status = 0
 output = ["worked", "did not"]
 diagnostics = []
