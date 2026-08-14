@@ -109,11 +109,21 @@ dependencies in shell source.
 CI runs all four on **three hosts** -- ubuntu, macos-15-intel and
 windows-latest -- because Adash depends on hostkit, whose reason to exist is
 that operating systems differ. A change validated on one host has not been
-validated. **Every conformance case runs on every host**: the cases that used to
-name a POSIX utility -- and so carried a `platforms` key that kept them off
-Windows -- name `{emit}` or `{upcase}` instead, the two companion programs this
-crate ships for that purpose. Capture, redirection, pipelines and job states are
-therefore checked on all three hosts rather than two.
+validated. **A case that needs a program names a companion**, `{emit}` or
+`{upcase}`, rather than a POSIX utility -- so capture, redirection and pipelines
+are checked on all three hosts rather than two.
+
+Four cases are still gated to `["linux", "macos"]`, and they are the ones about
+a job ending by *signal*: Windows has none, `stop` there terminates the process,
+and what comes back is an exit status nobody chose. That is a capability the
+host lacks rather than a program it is missing, and each of those cases says in
+its requirement that what Windows does instead is not asserted yet. Four
+examples are skipped there for a different reason: an example is documentation
+and reads `Output_Of ("echo", ...)`, which a reader understands and Windows does
+not have.
+
+Windows found five defects the day CI first ran there, and three of them were
+tests asserting POSIX rather than asserting the shell.
 
 `adash_bench` covers cost: what each stage of the pipeline takes, reported as a
 median and a fastest of many in-process runs. `benchmark-guide.md` says what its
