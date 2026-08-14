@@ -790,9 +790,19 @@ it rules out. `X : Integer := Show (Make)` is settled that way and no other:
 both Shows take what both Makes return, so the arguments settle nothing, and
 only one Show returns an Integer -- so only its parameter type is asked of the
 argument, and `Make` resolves against it. It reaches as far down as the calls
-are nested, each level narrowing the next. Where no candidate returns what the
-context asks for, the call is wrong rather than ambiguous, and the narrowing
-does not happen: one report about the call beats a cascade about its arguments.
+are nested, each level narrowing the next.
+
+The arguments rule candidates out *sideways* too. An argument that can only be
+one thing -- a literal, a variable, a call to a name with one meaning -- is
+asked what it is without anything being decided or reported, and a candidate
+that could not take it is out. `P (F, X)` with X a Float and one P taking
+`(String, Float)` resolves F to String that way, and it works whichever
+argument is the closed one. With every argument open there is nothing to narrow
+with, and the call is ambiguous -- which is Ada's answer too.
+
+Where no candidate survives, neither narrowing happens: the call is wrong
+rather than ambiguous, and one report about it beats a cascade about its
+arguments.
 
 A comparison does not pass the context's requirement down -- its result is
 Boolean and its operands are not -- but its operands have *each other's* type,
@@ -2998,12 +3008,13 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
 
 - **Overload resolution asks narrower questions than Ada's.** What a context
   expects reaches into a call and, through the candidates it rules out, into
-  the call's arguments -- as far down as they nest. Between two open ends with
-  nothing required of either, it asks which single type both could have. What
-  it does not do is enumerate a whole statement's interpretations the way Ada
-  does, so a meaning that depends on a choice travelling *sideways* -- one
-  argument settling a call that settles another argument of the same call --
-  is refused where Ada would take it.
+  the call's arguments -- as far down as they nest -- and an argument that can
+  only be one thing rules candidates out for the others beside it. Between two
+  open ends with nothing required of either, it asks which single type both
+  could have. What it does not do is enumerate a whole statement's
+  interpretations the way Ada does: a meaning that needs *two* open arguments
+  read together, each admissible alone and only one pair admissible as a pair,
+  is ambiguous here.
 - **Nothing at submission level can be named after a predefined entity or an
   internal command.** For a subprogram the reason is resolution: those accept
   any type, so a user's version would fit every call the original does and every

@@ -332,3 +332,48 @@ diagnostics = [
   "!error.ambiguous_call{name=Show,count= 2}!",
   "!error.ambiguous_call{name=Make,count= 2}!",
 ]
+
+[[case]]
+id = "overloading.and-an-argument-that-is-settled-rules-out-the-rest"
+requirement = """
+Resolution travels sideways as well as inward: the argument whose type is known
+rules out the subprograms that could not take it, and what is left says what
+the *other* argument must be. Here the Float settles which P is meant, and that
+P settles which F. Ada resolves the whole call at once and reaches the same
+answer; what this does is ask the same question of one argument at a time,
+which is enough whenever some argument is closed.
+"""
+script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F; procedure P (A : Integer; B : Integer) is begin put_line (\"ints\"); end P; procedure P (A : String; B : Float) is begin put_line (\"strfloat \" & A); end P;\nX : Float := 1.0;\nP (F, X);\nquit (0);"
+exit_status = 0
+output = ["strfloat s"]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-it-works-whichever-argument-is-closed"
+requirement = """
+The rule is about the arguments and not about their order, so a literal in the
+second position settles the first exactly as a variable in the first settles
+the second. Three arguments with one open is the same question again: what is
+left after the closed ones have ruled out what they can.
+"""
+script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F; procedure P (A : Integer; B : Integer) is begin put_line (\"ints\"); end P; procedure P (A : String; B : String) is begin put_line (\"strs \" & A); end P;\nP (F, \"z\");\nquit (0);"
+exit_status = 0
+output = ["strs s"]
+diagnostics = []
+
+[[case]]
+id = "overloading.and-with-every-argument-open-it-is-ambiguous"
+requirement = """
+Two subprograms of the same name that both take what both Fs return, with
+nothing else to go on: each reading is as good as the other, which is Ada's
+answer as well. The narrowing is what the closed arguments do, so where none is
+closed there is nothing to narrow with -- and taking the last-declared
+candidate would make the program mean whichever body was written second.
+"""
+script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F; procedure P (A : Integer; B : Integer) is begin put_line (\"i\"); end P; procedure P (A : String; B : String) is begin put_line (\"s\"); end P;\nP (F, F);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.ambiguous_call{name=P,count= 2}!",
+  "!error.ambiguous_call{name=F,count= 2}!",
+  "!error.ambiguous_call{name=F,count= 2}!",
+]

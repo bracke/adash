@@ -3683,6 +3683,210 @@ package body Adash.Language.Semantics is
                   --  one candidate, or several agreeing at this position --
                   --  and leaves the rest to be settled by the arguments' own
                   --  types, as before.
+                  --  What the argument at this position can only be, asked
+                  --  without choosing between meanings and so without
+                  --  reporting anything.
+                  --
+                  --  A literal is its own type, and a name or a call with one
+                  --  meaning is that meaning's. Anything that could be several
+                  --  things -- or that this cannot read without deciding
+                  --  something -- answers with Type_None, which every caller
+                  --  reads as "says nothing".
+                  function Settled_Argument
+                    (Position : Positive) return Types.Type_Kind;
+
+                  --  Whether this candidate could take every argument whose
+                  --  type is settled.
+                  --
+                  --  What makes resolution travel *sideways*: an argument
+                  --  whose type is known rules out the candidates that could
+                  --  not take it, and what is left says what the *other*
+                  --  argument must be. `P (F, X)` with X a Float and one P
+                  --  taking (String, Float) resolves F to String that way,
+                  --  which is how Ada reads it.
+                  --
+                  --  Asked only when some candidate could take them all;
+                  --  where none could, the call is wrong rather than
+                  --  ambiguous and one report about it beats a cascade about
+                  --  its arguments. A named argument stands in the position
+                  --  its name denotes rather than the one it is written in,
+                  --  so a call using one is left to the ordinary path.
+                  function Takes_The_Arguments
+                    (Candidate : Symbols.Symbol) return Boolean;
+
+                  --  Whether any of them does.
+                  function Some_Take_The_Arguments return Boolean;
+
+                  --  The two together, as the loops below ask it.
+                  function Fits_The_Others
+                    (Candidate : Symbols.Symbol) return Boolean;
+
+                  function Settled_Argument
+                    (Position : Positive) return Types.Type_Kind
+                  is
+                     Value : constant S.Node_Id :=
+                       (if Position <= S.Child_Count (Tree, Arguments)
+                        then S.Child (Tree, Arguments, Position)
+                        else S.No_Node);
+
+                     --  What the expression is, once parentheses are past.
+                     function Beneath (Node : S.Node_Id) return S.Node_Id
+                     is (if S.Is_Present (Node)
+                           and then S.Kind (Tree, Node) = S.Node_Parenthesized
+                         then Beneath (S.First (Tree, Node)) else Node);
+
+                     Inner : constant S.Node_Id := Beneath (Value);
+                     Pool  : Adash.Language.Scopes.Symbol_List;
+                     Count : Natural := 0;
+                  begin
+                     if not S.Is_Present (Inner) then
+                        return Types.Type_None;
+                     end if;
+
+                     case S.Kind (Tree, Inner) is
+                        when S.Node_Integer_Literal =>
+                           return Types.Type_Integer;
+
+                        when S.Node_Real_Literal =>
+                           return Types.Type_Float;
+
+                        when S.Node_Character_Literal =>
+                           return Types.Type_Character;
+
+                        when S.Node_String_Literal =>
+                           return Types.Type_String;
+
+                        when S.Node_Name | S.Node_Call =>
+                           declare
+                              Spelt : constant String :=
+                                (if S.Kind (Tree, Inner) = S.Node_Name
+                                 then S.Text (Tree, Inner)
+                                 else Dotted (Tree, S.First (Tree, Inner)));
+                           begin
+                              if Spelt = "" then
+                                 return Types.Type_None;
+                              end if;
+
+                              Chain.Candidates
+                                (Visible_Name (Spelt), Pool, Count);
+
+                              if Count /= 1 then
+                                 return Types.Type_None;
+                              end if;
+
+                              --  `A (1)` is an element of an array and `S (2)`
+                              --  a position in a String: the name's own type
+                              --  is not what the expression is, and answering
+                              --  with it would rule out the candidate that
+                              --  fits. Only a call to something callable says
+                              --  what it yields.
+                              if S.Kind (Tree, Inner) = S.Node_Call
+                                and then not Symbols.Is_Callable (Pool (1))
+                              then
+                                 return Types.Type_None;
+                              end if;
+
+                              if Symbols.Kind (Pool (1)) = Symbols.Symbol_Type
+                              then
+                                 return Types.Type_None;
+                              end if;
+
+                              return Symbols.Of_Type (Pool (1));
+                           end;
+
+                        when others =>
+                           return Types.Type_None;
+                     end case;
+                  end Settled_Argument;
+
+                  function Takes_The_Arguments
+                    (Candidate : Symbols.Symbol) return Boolean
+                  is
+                     About : constant Signature :=
+                       Signature_Of (Name, Candidate);
+                  begin
+                     if not About.Known
+                       or else Given < About.Minimum
+                       or else Given > About.Maximum
+                     then
+                        return False;
+                     end if;
+
+                     for Position in 1 .. Natural'Min
+                       (Natural'Min (Given, About.Maximum),
+                        Symbols.Max_Parameters)
+                     loop
+                        if S.Kind (Tree, S.Child (Tree, Arguments, Position))
+                           = S.Node_Named_Argument
+                        then
+                           return True;
+                        end if;
+
+                        declare
+                           Wanted : constant Types.Type_Kind :=
+                             About.Of_Type (Position);
+                           Only   : constant Types.Type_Kind :=
+                             Settled_Argument (Position);
+
+                           Could : Possible_List;
+                           Many  : Natural := 0;
+                           Fits  : Boolean := False;
+                        begin
+                           if Wanted = Types.Type_None then
+                              --  A parameter that takes anything, which the
+                              --  output procedures rely on.
+                              null;
+
+                           elsif Only /= Types.Type_None then
+                              if not Types.Is_Acceptable (Only, Wanted) then
+                                 return False;
+                              end if;
+
+                           else
+                              Possible_Types
+                                (S.Child (Tree, Arguments, Position),
+                                 Could, Many);
+
+                              if Many > 0 then
+                                 for Taken in 1 .. Many loop
+                                    if Types.Is_Acceptable
+                                         (Could (Taken), Wanted)
+                                    then
+                                       Fits := True;
+                                    end if;
+                                 end loop;
+
+                                 if not Fits then
+                                    return False;
+                                 end if;
+                              end if;
+                           end if;
+                        end;
+                     end loop;
+
+                     return True;
+                  end Takes_The_Arguments;
+
+                  function Some_Take_The_Arguments return Boolean is
+                     Pool  : Adash.Language.Scopes.Symbol_List;
+                     Count : Natural := 0;
+                  begin
+                     Chain.Candidates (Visible_Name (Name), Pool, Count);
+
+                     for Index in 1 .. Count loop
+                        if Takes_The_Arguments (Pool (Index)) then
+                           return True;
+                        end if;
+                     end loop;
+
+                     return False;
+                  end Some_Take_The_Arguments;
+
+                  function Fits_The_Others
+                    (Candidate : Symbols.Symbol) return Boolean
+                  is (not Some_Take_The_Arguments
+                      or else Takes_The_Arguments (Candidate));
+
                   --  Whether what the context requires leaves this candidate
                   --  standing.
                   --
@@ -3763,6 +3967,7 @@ package body Adash.Language.Semantics is
                         begin
                            if About.Known
                              and then Answers_The_Context (Pool (Index))
+                             and then Fits_The_Others (Pool (Index))
                              and then Given >= About.Minimum
                              and then Given <= About.Maximum
                              and then Position <= Natural'Min
@@ -3800,6 +4005,7 @@ package body Adash.Language.Semantics is
                         begin
                            if About.Known
                              and then Answers_The_Context (Pool (Index))
+                             and then Fits_The_Others (Pool (Index))
                              and then Given >= About.Minimum
                              and then Given <= About.Maximum
                              and then Position <= Natural'Min
