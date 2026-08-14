@@ -1,0 +1,99 @@
+--  Values written where a value is wanted.
+--
+--  A shell script spends most of its lines deciding what something is and then
+--  saying it. Ada writes those decisions as *expressions* -- a choice between
+--  two values, a table of values, a number crossing from one type to another --
+--  and this file is the set of them, each in the place a script actually
+--  reaches for it.
+
+--  A named number says what a limit is once. It has no type mark: what it is
+--  comes from what it was written as, so this one is an Integer and `0.5`
+--  would make a Float. Ada's is universal and mixes with both; nothing here
+--  converts quietly, so it is one or the other and a crossing is written out.
+Budget : constant := 100;
+
+--  A conditional expression chooses between two values without a variable to
+--  hold the choice. The parentheses are Ada's rule, and the `else` is always
+--  written here -- a reader of `(if Ready then Done)` should not have to know
+--  the type to know what it yields.
+Spent : Integer := 63;
+Room  : String := (if Spent < Budget then "still room" else "over budget");
+put_line (Room);
+
+--  `elsif` chains as it does in a statement, and the whole thing is one value:
+--  every arm has the type of the whole, so a declaration can be checked
+--  against it.
+Level : String :=
+  (if Spent < 25 then "low"
+   elsif Spent < 75 then "middling"
+   else "high");
+put_line ("spending is " & Level);
+
+--  A case expression is the same idea with a table instead of a chain. Its
+--  alternatives are the case statement's, choice for choice: every value
+--  covered once, the bounds known before the program runs, and `others` last.
+--  What differs is that an arm holds a value and commas separate them.
+type Verdict is (Worked, Failed, Killed);
+What : Verdict := Failed;
+put_line
+  ("the run " &
+   (case What is
+       when Worked => "worked",
+       when Failed => "failed",
+       when Killed => "was killed"));
+
+--  Numbers cross where the program says so. `Float (I)` and `Integer (F)` are
+--  Ada's explicit conversion, and to an integer type it rounds to the nearest
+--  and away from zero at a half. Without it `Spent / 2` would be integer
+--  division and the half would vanish without a word.
+Share : Float := Float (Spent) / 2.0;
+put_line ("half of it is " & Float'Image (Share));
+put_line ("rounded back, that is " & Integer'Image (Integer (Share)));
+
+--  A conversion to a subtype is its constraint written where it applies, so a
+--  value outside the range raises there rather than reaching a variable that
+--  claims a range it does not have.
+subtype Percent is Integer range 0 .. 100;
+Portion : Percent := Percent (Spent);
+put_line ("as a percentage:" & Portion'Image);
+
+--  A record component may say what it holds where nothing else does. The
+--  default is written into the object where the object is declared, and a
+--  component with none holds nothing until something assigns it -- reading it
+--  before that is a failure with a name rather than whatever the slot held.
+type Entry_Line is record
+   Number : Integer := 0;
+   Loud   : Boolean := False;
+   Text   : String;
+end record;
+
+Note : Entry_Line;
+Note.Text := "written later";
+put_line ("the line starts at" & Note.Number'Image & " and says " & Note.Text);
+
+--  An array type is also written where an object's type mark stands, which is
+--  Ada's anonymous array type: it belongs to this declaration and to no other.
+Counts : array (1 .. 4) of Integer := (1, 2, 3, 4);
+
+--  An aggregate is a value wherever a value of the type is: in a declaration,
+--  in an assignment, and as an argument at a call -- where it is built in a
+--  run of the caller's own slots and the call is handed where that run starts.
+type Row is array (1 .. 4) of Integer;
+
+function Total (Of_Them : Row) return Integer is
+   Sum : Integer := 0;
+begin
+   for Index in Of_Them'Range loop
+      Sum := Sum + Of_Them (Index);
+   end loop;
+
+   return Sum;
+end Total;
+
+put_line ("the counts add up to" & Total ((Counts (1), Counts (2), Counts (3), Counts (4)))'Image);
+put_line ("and a run of fives to" & Total ((others => 5))'Image);
+
+--  A qualified expression says which reading is meant, and an aggregate is
+--  what one is most often written for: an aggregate has no type of its own,
+--  so the type mark in front of it is what says which one it builds.
+put_line ("and a written-out row to" & Total (Row'(2, 4, 6, 8))'Image);

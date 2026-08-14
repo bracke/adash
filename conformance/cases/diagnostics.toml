@@ -122,3 +122,62 @@ output = []
 diagnostics = [
   "!error.name_already_declared{name=Total,line= 1}!",
 ]
+
+[[case]]
+id = "limits.a-recursion-with-no-end-runs-out-of-frames"
+requirement = """
+Every limit this build has is documented, and a documented limit with no case
+is a claim nothing checks. The machine carries 256 frames, so a recursion that
+never returns ends as `Storage_Error` -- named, where the program stands, and
+with the session still standing afterwards. What it must not do is grow until
+the host kills the process.
+"""
+script = "function Down (N : Integer) return Integer is begin return Down (N + 1); end Down;\nX : Integer := Down (1);\nput_line (\"the session is still here\");\nquit (0);"
+exit_status = 0
+output = ["the session is still here"]
+diagnostics = [
+  "!error.program_raised_detail{exception=Storage_Error,detail=!error.machine.too_many_calls!}!",
+]
+
+[[case]]
+id = "limits.and-nested-handlers-run-out-too"
+requirement = """
+A handler is a guard the machine writes down on entering a block and takes back
+on leaving it, and it carries 256 of them. Two blocks per call and two hundred
+calls reach that before the frames run out, which is what this checks: the
+limit that fires is the one the program actually exceeded.
+"""
+script = "procedure Deep (N : Integer) is begin begin begin if N > 0 then Deep (N - 1); end if; exception when Constraint_Error => null; end; exception when Constraint_Error => null; end; end Deep;\nDeep (200);\nput_line (\"still here\");\nquit (0);"
+exit_status = 0
+output = ["still here"]
+diagnostics = [
+  "!error.program_raised_detail{exception=Storage_Error,detail=!error.machine.too_many_handlers!}!",
+]
+
+[[case]]
+id = "limits.and-a-sixteenth-task-is-one-too-many"
+requirement = """
+Fifteen tasks at once, each with a fixed region of the machine's store, is what
+the ROADMAP promises. The sixteenth is refused where it is elaborated rather
+than quietly not started -- a task object that holds no strand would be a name
+for something that never runs, and a rendezvous with it would wait forever.
+"""
+script = "task type Waiter; task body Waiter is begin delay 0.30; end Waiter;\nA1 : Waiter; A2 : Waiter; A3 : Waiter; A4 : Waiter; A5 : Waiter; A6 : Waiter; A7 : Waiter; A8 : Waiter; A9 : Waiter; A10 : Waiter; A11 : Waiter; A12 : Waiter; A13 : Waiter; A14 : Waiter; A15 : Waiter; A16 : Waiter;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.program_raised_detail{exception=Storage_Error,detail=!error.machine.too_many_tasks!}!",
+]
+
+[[case]]
+id = "limits.and-an-array-longer-than-the-frame-is-refused"
+requirement = """
+An array is a run of slots in a frame whose size is decided when the program is
+built, and 4096 elements is what one may hold. The refusal names the type and
+the limit, and it comes from the analyser rather than from the run: a length
+known before the program runs is checked before it runs.
+"""
+script = "type Big is array (1 .. 5000) of Integer;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.array_too_long{name=Big,limit= 4096}!",
+]

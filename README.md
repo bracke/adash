@@ -55,14 +55,18 @@ interpolated string literal, `'Image`, and two of the shell's own commands —
 analysed together and run together.
 
 What the language has: the five scalar and string types, with a String that can
-be indexed, sliced and measured; declarations,
-assignment and the operators; `if`, `case`, `while`, `for`, bare `loop` with
-`exit`, and `return`; `for I in reverse L .. H`; membership, `X in L .. H` and
-`X not in L .. H`; `declare ... begin ... end;` blocks with exception handlers, `Wrong_Kind :
+be indexed, sliced and measured; declarations, named numbers
+(`Max : constant := 100;`), assignment and the operators; explicit conversion
+between the numeric types, `Integer (F)` and `Float (I)`, since nothing here
+converts quietly; `if`, `case`, `while`, `for`, bare `loop` with
+`exit`, and `return`; conditional expressions, `(if A then B else C)` and
+`(case X is when 1 => A, when others => B)`; `for I in reverse L .. H`;
+membership, `X in L .. H`, `X not in L .. H` and `X in Small` against a type
+mark; `declare ... begin ... end;` blocks with exception handlers, `Wrong_Kind :
 exception;` and `raise`; subprograms with `in`, `out` and
 `in out` parameters, recursion,
 nesting, overloading, named arguments, default parameters and separate
-specifications; `'Image`; Ada 2022 interpolated
+specifications; qualified expressions, `Small'(Red)` and `Row'(1, 2)`; Ada 2022 interpolated
 string literals with the whole escape set; `'Image` and `'Value` in both directions; `'Pos`, `'Val`, `'Succ` and `'Pred`,
 and a scalar type's own `'First` and `'Last`. Internal commands are callable from a
 program like any other subprogram.
@@ -93,14 +97,18 @@ written.
 
 A program declares its own types: `type Verdict is (Worked, Failed, Killed);`,
 `subtype Percent is Integer range 0 .. 100;`, `type Line is record Number :
-Integer; Text : String; end record;` and `type Counts is array (1 .. 4) of
-Integer;`. An enumeration gets Ada's ordering, all eight discrete attributes,
+Integer := 0; Text : String; end record;`, `type Counts is array (1 .. 4) of
+Integer;` and `type Line is array (Integer range <>) of Integer;` for one whose
+values carry their own length. An array type is also written where an object's
+type mark stands — `A : array (1 .. 3) of Integer;` — which is Ada's anonymous
+array type. An enumeration gets Ada's ordering, all eight discrete attributes,
 `case` coverage that names the type, and `for What in Verdict loop`; a
 subtype's range is checked wherever a value arrives, including on the way back
 out of an `out` parameter; a record and an array both get aggregates positional
-and named — by component and by index — with `others` for the rest, component
-selection, indexing with a bounds check, whole-value assignment and
-component-by-component equality.
+and named — by component and by index — with `others` for the rest, aggregates
+as arguments at a call, a component that says what it holds where nothing else
+does, component selection, indexing with a bounds check, slices, whole-value
+assignment and component-by-component equality.
 
 `package Report is ... end Report;` groups declarations under a name, with its
 body as a separate unit and `use Report;` to drop the prefix; `generic type

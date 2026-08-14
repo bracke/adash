@@ -53,7 +53,7 @@ There are 426 messages in 22 groups.
 | `error.machine.outside_bounds` | {position} is outside the range of {type} |
 | `error.machine.outside_array` | index {position} is outside {type} |
 | `error.machine.too_many_tasks` | more tasks at once than this build runs |
-| `error.machine.too_many_alternatives` | more alternatives in one select than this build offers at once |
+| `error.machine.too_many_alternatives` | more alternatives in one select than this build offers at once — defensive: the parser refuses a 33rd alternative first, and both limits are 32 |
 | `error.machine.queue_too_long` | more callers at one entry than this program allowed |
 | `error.machine.task_ran_out` | a task ran out where this program said none would |
 | `error.machine.too_many_allowed` | more tasks at once than this program allowed itself |
