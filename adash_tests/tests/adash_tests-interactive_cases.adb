@@ -847,6 +847,12 @@ package body Adash_Tests.Interactive_Cases is
 
       Assert (Hostkit.Pty.Open (Pair), "could not open a pseudo-terminal");
 
+      --  Read without waiting, so that draining the terminal is something
+      --  this test can do between two other questions rather than a place it
+      --  can stop.
+      Assert (Hostkit.Descriptors.Set_Non_Blocking (Pair.Controller, True),
+              "the terminal could not be read without waiting");
+
       Options.Input := Pair.Device;
       Options.Output := Pair.Device;
       Options.Error_Output := Pair.Device;
@@ -894,15 +900,37 @@ package body Adash_Tests.Interactive_Cases is
               "the shell did not answer through the terminal: ["
               & Ada.Strings.Unbounded.To_String (Seen) & "]");
 
-      for Attempt in 1 .. 100 loop
+      --  Kept drained while it ends. A terminal holds what a program wrote
+      --  until somebody reads it, and a program writing into a full one waits
+      --  -- so a wait loop that does not read is a wait for a process that
+      --  cannot reach its own exit. How much fits differs by host, which is
+      --  why this passed on one and hung on another.
+      for Attempt in 1 .. 200 loop
          exit when Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Poll, Result)
                      and then Result.State /= Hostkit.Spawn.Wait_Running;
+
+         declare
+            Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
+            Last   : Ada.Streams.Stream_Element_Offset;
+            Status : constant Hostkit.Descriptors.Transfer_Outcome :=
+              Hostkit.Descriptors.Read (Pair.Controller, Buffer, Last);
+         begin
+            if Status = Hostkit.Descriptors.Transfer_Ok then
+               for Index in Buffer'First .. Last loop
+                  Ada.Strings.Unbounded.Append
+                    (Seen, Character'Val (Natural (Buffer (Index))));
+               end loop;
+            end if;
+         end;
+
          delay 0.05;
       end loop;
 
       Assert (Result.State = Hostkit.Spawn.Wait_Exited,
               "the shell did not end when it was asked to: "
-              & Hostkit.Spawn.Wait_State'Image (Result.State));
+              & Hostkit.Spawn.Wait_State'Image (Result.State)
+              & " after ["
+              & Ada.Strings.Unbounded.To_String (Seen) & "]");
 
       Hostkit.Descriptors.Close (Pair.Controller);
    end A_Session_Answers_Through_A_Terminal;
