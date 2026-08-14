@@ -22,6 +22,8 @@ package body Adash_Tests.Repository is
    Key_Escape_Sequence      : constant String := "tooling.check.escape_sequence";
    Key_Silent_Truncation    : constant String :=
      "tooling.check.silent_truncation";
+   Key_Pin_Not_Cloned       : constant String :=
+     "tooling.check.pin_not_cloned";
    Key_Identifier_As_Text   : constant String :=
      "tooling.check.identifier_as_text";
    Key_Prose_As_Text        : constant String :=
@@ -259,6 +261,89 @@ package body Adash_Tests.Repository is
       Require ("adash_tests/generated");
       Require ("adash_tests/docs");
    end Check_Required_Directories;
+
+   ----------------------------
+   -- Check_CI_Clones_Pins --
+   ----------------------------
+
+   --  Every crate the manifests pin is one CI has to check out.
+   --
+   --  Alire honours pins only in the root crate, so the workflow clones each
+   --  by hand -- and a list written by hand beside a list of pins is two
+   --  places for one fact. The first run of this repository's CI failed on
+   --  exactly that: the manifests had gained jsonlib and tomllib and the
+   --  workflow had not, so `alr build` stopped at a pin path that was not
+   --  there. The workflow stays an entry point and this holds it to the
+   --  manifests, which is where the decision lives.
+   procedure Check_CI_Clones_Pins (Root : String; Into : in out Report);
+
+   procedure Check_CI_Clones_Pins (Root : String; Into : in out Report) is
+      Workflow : constant String :=
+        Read_If_Present (Join (Root, ".github/workflows/ci.yml"));
+
+      --  Both manifests: the test crate pins what it needs to build the
+      --  tools, and CI runs those.
+      Manifests : constant array (1 .. 2) of US.Unbounded_String :=
+        [US.To_Unbounded_String (Read_If_Present (Join (Root, "alire.toml"))),
+         US.To_Unbounded_String
+           (Read_If_Present (Join (Root, "adash_tests/alire.toml")))];
+   begin
+      if Workflow = "" then
+         return;
+      end if;
+
+      for Manifest of Manifests loop
+         declare
+            Text : constant String := US.To_String (Manifest);
+            From : Positive := Text'First;
+         begin
+            while From <= Text'Last loop
+               declare
+                  Ends : Natural := From;
+               begin
+                  while Ends <= Text'Last
+                    and then Text (Ends) /= Ada.Characters.Latin_1.LF
+                  loop
+                     Ends := Ends + 1;
+                  end loop;
+
+                  declare
+                     One : constant String := Text (From .. Ends - 1);
+                     At_Path : constant Natural :=
+                       Project_Tools.Text.Index (One, " = { path = ");
+                  begin
+                     --  A pin is `name = { path = "../name" }` at the start of
+                     --  a line. The crate this *is* pins itself in the test
+                     --  crate's manifest, and nothing clones what it is
+                     --  standing in.
+                     if At_Path > One'First
+                       and then One (One'First) not in ' ' | '#'
+                       and then One (One'First .. At_Path - 1) /= "adash"
+                     then
+                        Into.Checks_Run := Into.Checks_Run + 1;
+
+                        if not Project_Tools.Text.Contains
+                                 (Workflow,
+                                  " " & One (One'First .. At_Path - 1) & " ")
+                          and then not Project_Tools.Text.Contains
+                                         (Workflow,
+                                          " " & One (One'First .. At_Path - 1)
+                                          & ";")
+                        then
+                           Add (Into, Key_Pin_Not_Cloned,
+                                [1 => Msg.Named
+                                        ("name",
+                                         One (One'First .. At_Path - 1))]);
+                        end if;
+                     end if;
+                  end;
+
+                  From := Ends + 1;
+               end;
+            end loop;
+         end;
+      end loop;
+   end Check_CI_Clones_Pins;
 
    -------------------------------
    -- Check_Version_Consistency --
@@ -934,6 +1019,7 @@ package body Adash_Tests.Repository is
       Check_Message_Catalog (Root, Into);
       Check_No_Terminal_Escapes (Root, Into);
       Check_No_Silent_Truncation (Root, Into);
+      Check_CI_Clones_Pins (Root, Into);
       Check_No_Identifiers_As_Text (Root, Into);
       Check_No_Prose_As_Text (Root, Into);
       Check_No_Forbidden_Units (Root, Into);

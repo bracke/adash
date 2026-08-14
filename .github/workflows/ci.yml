@@ -70,8 +70,8 @@ jobs:
           set -eu
           cd Ada
           for crate in hostkit messages terminal_styles project_tools \
-                       i18n httpclient ssllib cryptolib truststores \
-                       zlib awklib regexp; do
+                       jsonlib tomllib i18n httpclient ssllib cryptolib \
+                       truststores zlib awklib regexp; do
             git clone --depth 1 "https://github.com/bracke/${crate}.git" "${crate}"
           done
 
