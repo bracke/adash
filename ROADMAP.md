@@ -2834,6 +2834,20 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
 - **An array's bounds must be known before the program runs**, and it holds at
   most 4096 elements: it is a run of slots in a frame whose size is decided
   when the program is built.
+- **No unconstrained array type**, so a parameter takes one length. A slice of
+  that length goes where the array goes and the callee writes through it --
+  `Bump (A (1 .. 4))` changes A -- and a shorter one is refused where it is
+  written. Ada's answer is `array (Integer range <>)`, whose values carry their
+  bounds, and the cost of it here is worth stating rather than leaving to be
+  rediscovered: a composite parameter is *one slot holding a place*, so a
+  length would be a second slot in every call, which is the machine's calling
+  convention. With it would come a `'Length` that is read rather than known --
+  and therefore no longer usable as a case choice, an aggregate's index or a
+  subtype bound -- an element check against a count rather than against a
+  bound entry, and a block copy whose size is a value. Each of those is a
+  reasonable thing to build; none of them is a small one, and doing it to the
+  parameters of a *constrained* type would take that staticness away from
+  programs that have it today. It is a feature, not a fix.
 - **No derived types.** `type Count is new Integer;` is not written. A subtype
   is the narrowing a script wants; a *new* type would need its own operators
   and its own literals to be worth anything.

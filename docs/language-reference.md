@@ -102,6 +102,11 @@ each level is bounded by the level outside it. Positions inside a part begin
 where a value of the type begins: one for a String and for an array declared
 from one, and the array's own first index otherwise.
 
+A slice **stands where the array stands** as an argument: a composite travels as
+where its run starts, so the callee writes through it. Its length has to be the
+parameter's own, because a parameter takes one length — there is no
+unconstrained array type here.
+
 ### Aggregates
 
     (7, 8, 9)                     -- positional

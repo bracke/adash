@@ -461,6 +461,35 @@ diagnostics = [
 ]
 
 [[case]]
+id = "slices.a-slice-stands-where-the-array-does"
+requirement = """
+A composite travels to a subprogram as where its run of slots starts, so a
+slice goes where the array goes and the callee writes through it: `Bump (A (1 ..
+4))` changes A. A part of a part does the same, being the same kind of place one
+level further in.
+
+What it does not do is stand for a *different* length. A parameter's type says
+how long the run is, and a shorter slice would leave the callee reading slots
+that belong to something else -- so it is refused where it is written, by the
+same rule that stops `A := B (1 .. 2)`. Ada's answer is an unconstrained array
+type, whose values carry their bounds; this language has none, and
+`ROADMAP.md` says what that would cost under "Where the subset ends".
+"""
+script = "type Row is array (1 .. 4) of Integer; A : Row := (1, 2, 3, 4); function Head (R : Row) return Integer is begin return R (1); end Head; procedure Bump (R : in out Row) is begin R (1) := R (1) + 100; end Bump; put_line (Head (A (1 .. 4))'Image); Bump (A (1 .. 4)); put_line (A (1)'Image); Bump (A (1 .. 4) (1 .. 4)); put_line (A (1)'Image); quit (0);"
+exit_status = 0
+output = [" 1", " 101", " 201"]
+diagnostics = []
+
+[[case]]
+id = "slices.a-slice-does-not-stand-for-another-length"
+requirement = "A parameter takes one length, which its type says. The refusal names both lengths, because the two sides are the same type and a message naming it twice would leave a reader to work out which was which."
+script = "type Row is array (1 .. 4) of Integer; A : Row := (1, 2, 3, 4); procedure Bump (R : in out Row) is begin R (1) := 42; end Bump; Bump (A (1 .. 2));\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.type_mismatch{found=Row (1 .. 2),expected=Row}!",
+]
+
+[[case]]
 id = "slices.a-slice-is-as-long-as-what-goes-into-it"
 requirement = """
 Two runs of different lengths are not each other's value: a slice of two

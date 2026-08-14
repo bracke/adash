@@ -277,6 +277,22 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **A slice as an argument** is pinned rather than added: a composite travels
+  to a subprogram as where its run of slots starts, so a slice of the
+  parameter's own length already went where the array goes and the callee wrote
+  through it. Two cases and a line of the reference now say so, because
+  behaviour nothing asserts is behaviour nobody can rely on.
+
+  What is *not* here, and is now stated with its cost rather than left as a
+  one-line limit: a parameter that takes more than one length. That is Ada's
+  unconstrained array type, and the reason it is a feature rather than a fix is
+  the calling convention -- a composite parameter is one slot holding a place,
+  so a length would be a second slot in every call, and with it would come a
+  `'Length` that is read rather than known (and so no longer usable as a case
+  choice, an aggregate index or a subtype bound), an element check against a
+  count rather than a bound entry, and a block copy whose size is a value.
+  Doing it to the parameters of a constrained type would take staticness away
+  from programs that have it today.
 - **A part of a part, for an array too**: `A (2 .. 5) (1 .. 2)`,
   `A (3 .. 5) (2)`, and as deep as it is written. Each level answers about the
   level outside it, which came down to one thing: how many elements a type
