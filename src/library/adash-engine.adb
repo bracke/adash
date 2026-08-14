@@ -701,6 +701,15 @@ package body Adash.Engine is
             elsif S.Kind (Tree, Node) = S.Node_Object_Declaration then
                --  Recorded here so that its position is the one the source
                --  gave it. The value arrives later, from the program itself.
+               --
+               --  A name this session is already holding keeps what it is
+               --  holding. Every carried variable is declared again in every
+               --  submission -- that is how its value comes back -- so
+               --  emptying it here would leave the whole session's variables
+               --  waiting for a hand-back that a program stopping early never
+               --  makes, and one raise would take them all. What a submission
+               --  that stops early loses is what *it* declared, which has no
+               --  entry yet and gets an empty one.
                declare
                   Named : constant S.Node_Id := S.First (Tree, Node);
 
@@ -711,17 +720,16 @@ package body Adash.Engine is
                      Text      => Ada.Strings.Unbounded.Null_Unbounded_String,
                      Is_Object => True);
 
-                  Replaced : Boolean := False;
+                  Already : Boolean := False;
                begin
                   for Position in 1 .. Natural (Item.Kept.Length) loop
                      if Item.Kept.Element (Position).Key = Placed.Key then
-                        Item.Kept.Replace_Element (Position, Placed);
-                        Replaced := True;
+                        Already := True;
                         exit;
                      end if;
                   end loop;
 
-                  if not Replaced
+                  if not Already
                     and then Natural (Item.Kept.Length) < Max_Kept
                   then
                      Item.Kept.Append (Placed);

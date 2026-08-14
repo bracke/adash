@@ -7,7 +7,7 @@ answers *what happened* and `CHANGELOG.md` answers *when*.
 
 Everything here is checked. The conformance suite in `conformance/cases/` runs
 each construct as a submission and compares what it printed, what it exited
-with, and which diagnostics it produced — 643 cases, including every example in
+with, and which diagnostics it produced — 644 cases, including every example in
 `examples/`. Where this document states a rule, a case holds it; where it states
 a limit, a case holds that too. A sentence here that nothing checks is a defect
 in this document.
@@ -33,7 +33,9 @@ their state, and exception names. Not carried: a task object or an identity of
 one — a task does not outlive its master, and a submission is one.
 
 A submission that stops early — `quit`, an unhandled exception — carries
-nothing forward from that submission.
+nothing forward from that submission: what it declared is gone, and what it
+changed in variables the session already had is gone with it. Those keep the
+values they had before it ran.
 
 ## Lexical elements
 

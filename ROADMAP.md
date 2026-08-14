@@ -3037,7 +3037,19 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
 - **Configuration is per-user.** Only history has a per-session notion.
 - **A program that stops early carries nothing forward.** `quit`, `return` and
   an unhandled exception all leave the hand-back unreached, so the variables of
-  that submission are not kept.
+  that submission are not kept -- and neither is what it did to the ones the
+  session already had, which keep the values they had before it ran. A
+  submission's effect on the variables is either all there or not there at all.
+
+  That sentence was true of the design and not of the build for as long as both
+  existed. Every carried variable is declared again in every submission,
+  because replaying its declaration is how its value comes back, and the
+  replay emptied the place the session was holding *before* the program ran. So
+  one raise anywhere took every variable in the session with it, and a
+  subprogram carried alongside them stopped analysing, naming something that
+  had just ceased to exist. The replay leaves what it finds alone now; only a
+  name the session was not already holding gets an empty place, which is the
+  one a failed submission should lose.
 - **A session with no log -- a script -- says `history` has nothing to report**,
   which is a different thing from a missing feature and is worded differently.
   Every command the shell registers now works.

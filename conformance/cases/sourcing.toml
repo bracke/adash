@@ -99,6 +99,31 @@ output = ["kept:  2"]
 diagnostics = []
 
 [[case]]
+id = "session.a-submission-that-stops-early-loses-only-its-own"
+requirement = """
+`quit`, `return` and an unhandled exception all leave the hand-back unreached,
+so the variables of *that* submission are not kept -- and only those. What the
+session was already holding it goes on holding, with the values it had before
+the submission that failed: a submission's effect on the variables is either all
+there or not there at all.
+
+This had been wider than it said. Every carried variable is declared again in
+every submission, because that is how its value comes back, and the declaration
+emptied the place it was holding before the program ran. One raise anywhere
+therefore took every variable in the session with it, and a subprogram carried
+alongside them stopped analysing -- it named something that had just ceased to
+exist. Found while writing a case for something else, which is where the
+diagnostic that made no sense turned up.
+"""
+script = "Kept : Integer := 5; procedure Show is begin put_line (Kept'Image); end Show; Show;\nKept := 9; Lost : Integer := 1; raise Constraint_Error;\nShow;\nput_line (Lost'Image);\nquit (0);"
+exit_status = 0
+output = [" 5", " 5"]
+diagnostics = [
+  "!error.program_raised{exception=Constraint_Error}!",
+  "!error.name_undeclared{name=Lost}!",
+]
+
+[[case]]
 id = "session.and-a-task-object-does-not-outlive-its-submission"
 requirement = """
 A task object is not carried, and the roadmap says why: a task does not outlive

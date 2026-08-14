@@ -46,6 +46,11 @@ types, protected objects with their state and exception names are all carried
 too. A task *object* is not: a task does not outlive the submission that
 declared it.
 
+A line that fails part way through — an unhandled exception, or `quit` — keeps
+nothing of its own: what it declared is gone, and what it changed in variables
+you already had is gone with it. Those go on holding what they held before that
+line ran.
+
 ## Running programs
 
     run ("make", "all");

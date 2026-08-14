@@ -277,6 +277,26 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **A submission that stops early no longer takes the session's variables with
+  it.** `quit`, `return` and an unhandled exception leave the hand-back
+  unreached, and the documented rule is that the variables of *that* submission
+  are not kept. What the build did was wider: every carried variable is
+  declared again in every submission — replaying its declaration is how its
+  value comes back — and the replay emptied the place the session was holding
+  before the program ran. So one raise anywhere left every variable in the
+  session waiting for a hand-back that never came, and each was dropped. A
+  subprogram carried alongside them then stopped analysing, naming something
+  that had just ceased to exist.
+
+  The replay leaves what it finds alone now. A name the session was already
+  holding keeps what it is holding until a value arrives to replace it; only a
+  name it was not holding gets an empty place, and that is the one a failed
+  submission loses. What a failed submission did to an older variable is lost
+  with it, which is the rule as written: its effect is either all there or not
+  there at all.
+
+  Found while writing a conformance case for something else, when a diagnostic
+  turned up that nothing in the case explained.
 - **The unconstrained array type**: `type Line is array (Integer range <>) of
   Integer;`, which is what a subprogram taking arrays of several lengths is
   written with. A variable of one says how long it is where it is declared,
