@@ -253,8 +253,17 @@ prints is the path it wrote, which differs per machine, so the case checks the
 found the wrong content quits with 3, and a status of 0 is the assertion
 passing.
 
+Where that file is differs per *host*, not only per machine, and the case has
+to know all three: `$XDG_CONFIG_HOME/adash` on Linux, `$HOME/Library/
+Application Support/adash` on macOS, `%APPDATA%/adash` on Windows. That is
+hostkit's answer rather than this shell's, and the case reads whichever of the
+three exists -- it asserts that the setting was written *somewhere the shell
+will read it back*, which is the promise, and not that a Linux path exists on
+every host. It failed on macOS the first time it ran there for exactly that
+reason.
+
 What this does not show is a later session reading it back -- a case is one
 process, and that is a unit test's question.
 """
-script = "settings (\"history.limit\", \"42\"); save_settings; if Index (Output_Of (\"{emit}\", \"--file=\" & Env_Value (\"XDG_CONFIG_HOME\") & \"/adash/config.toml\"), \"limit = 42\") = 0 then quit (3); end if;\nquit (0);"
+script = "settings (\"history.limit\", \"42\"); save_settings; Xdg : String := Output_Of (\"{emit}\", \"--file=\" & Env_Value (\"XDG_CONFIG_HOME\") & \"/adash/config.toml\"); Mac : String := Output_Of (\"{emit}\", \"--file=\" & Env_Value (\"HOME\") & \"/Library/Application Support/adash/config.toml\"); Win : String := Output_Of (\"{emit}\", \"--file=\" & Env_Value (\"APPDATA\") & \"/adash/config.toml\"); if Index (Xdg, \"limit = 42\") = 0 and then Index (Mac, \"limit = 42\") = 0 and then Index (Win, \"limit = 42\") = 0 then quit (3); end if;\nquit (0);"
 exit_status = 0

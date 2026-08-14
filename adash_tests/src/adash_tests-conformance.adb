@@ -1,4 +1,5 @@
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Streams;
 with Ada.Strings.Fixed;
 
@@ -29,6 +30,7 @@ package body Adash_Tests.Conformance is
    use type Doc.Value_Kind;
    use type Hostkit.Descriptors.Transfer_Outcome;
    use type Hostkit.Spawn.Spawn_Outcome;
+   use type Hostkit.Host.Kind;
    use type Hostkit.Spawn.Wait_State;
 
    Newline : constant Character := Character'Val (16#0A#);
@@ -283,8 +285,40 @@ package body Adash_Tests.Conformance is
       --  person running it happened to have set.
       Options.Replace_Environment := True;
       Options.Environment.Append (To_Unbounded_String (Keys_Only_Catalog));
-      Options.Environment.Append
-        (To_Unbounded_String ("PATH=/usr/bin:/bin"));
+
+      --  Replaced, not POSIX. What a case must not see is the person's own
+      --  settings; what it must see is enough of a host to be a process on it.
+      --  `PATH=/usr/bin:/bin` is the first of those on Linux and macOS and
+      --  none of the second on Windows, where a process wants SystemRoot to
+      --  find its own libraries and a PATH that names System32 to find
+      --  anything at all.
+      if Hostkit.Host.Current = Hostkit.Host.Windows then
+         declare
+            Root : constant String :=
+              (if Ada.Environment_Variables.Exists ("SystemRoot")
+               then Ada.Environment_Variables.Value ("SystemRoot")
+               else "C:\Windows");
+         begin
+            Options.Environment.Append
+              (To_Unbounded_String ("SystemRoot=" & Root));
+            Options.Environment.Append
+              (To_Unbounded_String ("windir=" & Root));
+            Options.Environment.Append
+              (To_Unbounded_String
+                 ("PATH=" & Root & "\System32;" & Root));
+            Options.Environment.Append
+              (To_Unbounded_String ("TEMP=" & Store));
+            Options.Environment.Append
+              (To_Unbounded_String ("TMP=" & Store));
+            Options.Environment.Append
+              (To_Unbounded_String ("APPDATA=" & Store));
+            Options.Environment.Append
+              (To_Unbounded_String ("USERPROFILE=" & Store));
+         end;
+      else
+         Options.Environment.Append
+           (To_Unbounded_String ("PATH=/usr/bin:/bin"));
+      end if;
 
       Options.Environment.Append (To_Unbounded_String ("HOME=" & Store));
       Options.Environment.Append
@@ -583,7 +617,6 @@ package body Adash_Tests.Conformance is
    function Companion (Root : String; Named : String) return String;
 
    function Companion (Root : String; Named : String) return String is
-      use type Hostkit.Host.Kind;
 
       --  Beside this program, not under the root: a case may `cd`, and a
       --  relative path stops meaning anything the moment one does. The
@@ -771,13 +804,29 @@ package body Adash_Tests.Conformance is
             end if;
 
             if Ran.Exit_Status /= Wanted_Status then
-               Record_Result
-                 (Into, Identity, Failed,
-                  Because ("tooling.conformance.wrong_status",
-                           [Msg.Named ("expected",
-                                       Integer'Image (Wanted_Status)),
-                            Msg.Named ("found",
-                                       Integer'Image (Ran.Exit_Status))]));
+               --  With whatever the shell said on its way out. A status on its
+               --  own says a case failed and not why, and on a host nobody can
+               --  reach that is the difference between a fix and another run:
+               --  `image.integer` exited 1 on Windows with a diagnostic
+               --  nothing printed, because the status was compared first and
+               --  reported alone.
+               declare
+                  Said : constant String := To_String (Ran.Errors);
+                  Ends : constant Natural :=
+                    (if Ada.Strings.Fixed.Index (Said, "" & Newline) > 0
+                     then Ada.Strings.Fixed.Index (Said, "" & Newline) - 1
+                     else Said'Last);
+               begin
+                  Record_Result
+                    (Into, Identity, Failed,
+                     Because ("tooling.conformance.wrong_status",
+                              [Msg.Named ("expected",
+                                          Integer'Image (Wanted_Status)),
+                               Msg.Named ("found",
+                                          Integer'Image (Ran.Exit_Status))])
+                     & (if Said = "" then ""
+                        else " -- it said: " & Said (Said'First .. Ends)));
+               end;
                return;
             end if;
 
@@ -893,7 +942,6 @@ package body Adash_Tests.Conformance is
    function Shell_In (Root : String) return String is
       Plain : constant String :=
         Hostkit.Fs.Join (Hostkit.Fs.Join (Root, "bin"), "adash");
-      use type Hostkit.Host.Kind;
    begin
       return (if Hostkit.Host.Current = Hostkit.Host.Windows
               then Plain & ".exe" else Plain);
