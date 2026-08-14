@@ -14,9 +14,9 @@
 --  the tests, which run without a terminal.
 --
 --  Roles are deliberately few. A role earns its place when some subsystem
---  needs to say something the existing roles cannot; a role per syntactic
---  category is what the highlighting model will need, and it will be added
---  when that model exists rather than guessed at now.
+--  needs to say something the existing roles cannot, which is how the
+--  syntactic ones arrived: Adash.Interactive.Highlighting asks for a keyword,
+--  a literal and a comment, and asks for nothing else.
 package Adash.Terminal is
 
    --  What a piece of Adash output is.

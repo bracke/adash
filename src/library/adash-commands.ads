@@ -65,10 +65,12 @@ package Adash.Commands is
       Command_Help,
       Command_Version,
 
-      --  Registered and not yet implementable: each needs a subsystem that
-      --  does not exist. Naming them here means the shell answers "not in this
-      --  build" rather than "no such command", which is the difference between
-      --  a missing feature and a typo.
+      --  Reading what a session has done, and reading a file into it. Both
+      --  needed a subsystem that did not exist when they were registered, and
+      --  both have it: history is durable through Adash.Persistence.History,
+      --  and `source` reads a script through Adash.Scripting. `history` in a
+      --  session with no log -- a script -- reports that it has nothing, which
+      --  is an answer rather than a refusal.
       Command_History,
       Command_Source,
 
@@ -247,9 +249,10 @@ package Adash.Commands is
 
    --  The state internal commands read and change.
    --
-   --  Owned by Adash.Engine once that exists; defined here because the commands
-   --  are what determine its contents, and a state record designed without them
-   --  would be a guess.
+   --  Defined here rather than in Adash.Engine, which owns a session: the
+   --  commands are what determine this record's contents, and a state record
+   --  designed away from them would be a guess. The engine holds one and hands
+   --  it to whichever command was called.
    --
    --  The working directory is deliberately *not* in here. `cd` changes the
    --  process's own directory and `pwd` asks the process, so there is one

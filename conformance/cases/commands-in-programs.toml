@@ -269,3 +269,18 @@ process, and that is a unit test's question.
 """
 script = "settings (\"history.limit\", \"42\"); save_settings; Xdg : String := Output_Of (\"{emit}\", \"--file=\" & Env_Value (\"XDG_CONFIG_HOME\") & \"/adash/config.toml\"); Mac : String := Output_Of (\"{emit}\", \"--file=\" & Env_Value (\"HOME\") & \"/Library/Application Support/adash/config.toml\"); Win : String := Output_Of (\"{emit}\", \"--file=\" & Env_Value (\"APPDATA\") & \"/adash/config.toml\"); if Index (Xdg, \"limit = 42\") = 0 and then Index (Mac, \"limit = 42\") = 0 and then Index (Win, \"limit = 42\") = 0 then quit (3); end if;\nquit (0);"
 exit_status = 0
+
+[[case]]
+id = "commands.a-submission-mixes-commands-and-statements"
+requirement = """
+A command is an entity a program can call, so a submission holding both is one
+program rather than two things dispatched separately: the command runs where it
+is written, the declaration around it stands, and what the command changed is
+visible to the statements after it. The engine's own documentation said this
+was refused long after it stopped being; a case is what keeps a sentence like
+that honest.
+"""
+script = "put_line (\"before\"); cd (\"{store}\"); X : Integer := 1; write_file (\"moved\", \"proof.txt\"); put_line (X'Image);\nput_line (Output_Of (\"{emit}\", \"--file={store}/proof.txt\"));\nquit (0);"
+exit_status = 0
+output = ["before", " 1", "moved"]
+diagnostics = []

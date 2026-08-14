@@ -5,9 +5,11 @@ with Ada.Strings.Unbounded;
 
 --  What has been typed.
 --
---  In memory for now; Adash.Persistence.History makes it durable in Phase 15.
---  The policies are here rather than there because they are about what a
---  session should remember, not about how a file is written.
+--  In memory here and durable through Adash.Persistence.History, which writes
+--  one JSON string per line so that an entry holding a newline survives a
+--  format that separates entries by newlines. The policies are here rather
+--  than there because they are about what a session should remember, not about
+--  how a file is written.
 --
 --  **A line is recorded whether or not it worked.** A user recalling the last
 --  line usually wants the one they got wrong, to fix it. A history that kept

@@ -46,12 +46,12 @@ with Adash.Source;
 --  between a command that must change this process and a program that must
 --  not.
 --
---  The limitation this leaves is real and stated rather than hidden: a
---  submission may not yet *mix* the two. `pwd; X := 1;` is refused, because a
---  command runs in this process while statements are lowered together into one
---  activation record, and splitting a submission would give the statements two.
---  Unifying them means teaching the language to declare commands, which is a
---  language design question rather than an engine one.
+--  A submission *mixes* the two freely: `pwd; X : Integer := 1;` runs the
+--  command and declares the variable, because a command is an entity a program
+--  can call and the machine evaluates its arguments like any other call's. The
+--  dispatch above is a shortcut for the submission that is nothing but
+--  commands, not a fence between two languages. `docs/command-calls.md` records
+--  what the shortcut used to be and why it stopped being the whole answer.
 package Adash.Engine is
 
    --  What a submission turned out to be.
