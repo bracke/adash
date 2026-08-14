@@ -120,6 +120,14 @@ three arguments is told it takes 2, `run_into` with one is told it takes *2 or
 more*, `pipe_run` with nothing built reports an empty pipeline, and `help` on a
 name nothing declares reports that command as unavailable.
 
+**A call written in a program carries at most four arguments**, whatever the
+table above says a command takes: the activation record the machine builds for
+a command call has a fixed shape, decided when the stub is built rather than
+when a call is written, so `run ("p", "a", "b", "c", "d", "e")` is refused
+where it stands rather than losing the fifth. Building the argument list first
+-- a String a program assembles, or `pipe` a stage at a time -- is how a longer
+command line is written.
+
 ## What a command reports
 
 Every command reports through `Status`, on the one exit-status model the shell

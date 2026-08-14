@@ -1711,21 +1711,32 @@ what changed.
 
 ### Known limitations
 
-Where the subset ends -- generics, tasks,
-user-declared exceptions and `raise`, `goto` and labels, `renames`, loop names,
-user-defined operators and aggregates -- is written down in `ROADMAP.md` with a
-reason for each. None of it is pending work. What follows is what is inside the
-subset and imperfect.
+Where the subset ends -- access types, derived types, a composite inside a
+composite, a function returning one, generic packages, child packages, a
+`private` part, `goto` and labels, `renames`, loop names, user-defined
+operators, `for ... of`, and attributes beyond the seventeen listed -- is
+written down in `ROADMAP.md` with a reason for each. None of it is pending
+work. Generics, tasks, protected objects, user-declared exceptions and `raise`,
+and aggregates were once on that list and are in the language; the list here
+had not been re-read since. What follows is what is inside the subset and
+imperfect.
 
-- **Overload resolution is outside-in, not simultaneous.** What the context
-  requires flows down, and a comparison settles one operand from the other, but
-  Ada resolves a call and everything around it together.
+- **Overload resolution asks narrower questions than Ada's.** What the context
+  requires flows down -- into a call and, through the candidates it rules out,
+  into the call's arguments as far down as they nest -- an argument that can
+  only be one thing rules candidates out for the arguments beside it, and a
+  comparison settles one operand from the other. What it does not do is
+  enumerate a whole statement's interpretations, so two *open* arguments read
+  together, each admissible alone and only one pair admissible as a pair, is
+  ambiguous here.
 - **A subprogram cannot be named after a predefined one or an internal
   command.** Those accept any type, so a user's version would fit every call the
   original does and every one would be ambiguous.
-- **A command call carries at most four arguments** from a program. The
-  activation record the machine builds has a fixed shape, decided when the stub
-  is built rather than when a call is written.
+- **A command call carries at most four arguments** from a program, whatever
+  the command itself accepts at the prompt. The activation record the machine
+  builds has a fixed shape, decided when the stub is built rather than when a
+  call is written; the fifth argument is refused where it stands rather than
+  lost.
 - **Subprograms nest nineteen deep.** Not a machine limit since the machine
   gained static links: what it bounds is the front end, where the analyser and
   the lowering each recurse once per level.
@@ -1733,9 +1744,10 @@ subset and imperfect.
   copy. Reading an `out` parameter before writing it, and aliasing two
   write-back arguments, are defined here and erroneous or unspecified in Ada. No
   *correct* Ada program can tell the difference.
-- **`'Image` is the only attribute**, and it is refused for a `String`: Ada 2022
-  defines that as the text in quotes with non-graphic characters bracketed,
-  which is not the text itself.
+- **`'Image` is refused for a `String`**: Ada 2022 defines that as the text in
+  quotes with non-graphic characters bracketed, which is not the text itself.
+  Seventeen attributes are written, and `docs/language-reference.md` lists
+  them; this entry said `'Image` was the only one long after it was not.
 - **Display width covers the ranges named in `Adash.Display_Width`**; a code
   point in none of them is one cell, which is an assumption rather than
   knowledge.
