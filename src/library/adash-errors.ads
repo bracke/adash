@@ -136,6 +136,8 @@ package Adash.Errors is
       Error_No_Such_Slice,
       Error_Needs_Bounds,
       Error_Open_By_Element,
+      Error_Too_Many_At_Once,
+      Error_Too_Many_Parameters,
 
       Error_Case_Not_Discrete,
       Error_Case_Choice_Not_Static,

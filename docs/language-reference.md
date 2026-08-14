@@ -7,7 +7,7 @@ answers *what happened* and `CHANGELOG.md` answers *when*.
 
 Everything here is checked. The conformance suite in `conformance/cases/` runs
 each construct as a submission and compares what it printed, what it exited
-with, and which diagnostics it produced — 649 cases, including every example in
+with, and which diagnostics it produced — 651 cases, including every example in
 `examples/`. Where this document states a rule, a case holds it; where it states
 a limit, a case holds that too. A sentence here that nothing checks is a defect
 in this document.
@@ -274,7 +274,7 @@ Configuration pragmas: `Priority`, `Detect_Blocking`, `Restrictions`,
 restriction this build cannot keep is **refused rather than accepted and
 ignored**.
 
-At most fifteen tasks at once. A select offers at most thirty-two alternatives.
+At most fifteen tasks at once. A select offers at most thirty-two alternatives, and one with more is refused where it is written — as is any construct with more parts than this build carries: a subprogram takes at most sixteen parameters, a record sixty-four components, an enumeration two hundred and fifty-six values, a sequence five hundred and twelve statements.
 
 ## The shell inside the language
 

@@ -16,7 +16,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 414 messages in 22 groups.
+There are 424 messages in 22 groups.
 
 ## Errors — what a program or a session did wrong
 
@@ -165,6 +165,15 @@ There are 414 messages in 22 groups.
 | `error.statement_among_declarations` | only declarations may appear before begin |
 | `error.string_index_malformed` | a String is taken apart by one position or one range of them |
 | `error.needs_bounds` | a variable of {name} says how long it is, as {name} (1 .. 4), and its first index is one |
+| `error.too_many_at_once` | at most {limit} {what} in one of these, and this has more |
+| `error.too_many_parameters` | {name} takes more parameters than this build carries, which is {limit} |
+| `list.alternatives` | alternatives |
+| `list.parameters` | parameters |
+| `list.components` | components |
+| `list.values` | values |
+| `list.names` | names |
+| `list.statements` | statements |
+| `list.arguments` | arguments |
 | `error.open_by_element` | {name} is as long as what was passed to it, so the whole of it is not replaced: assign a slice of it, or one element at a time |
 | `error.no_such_slice` | {name} has no elements {first} .. {last} |
 | `error.not_taken_apart` | a {found} is not taken apart that way; a String takes a position or a range, an array a position |
@@ -492,6 +501,7 @@ There are 414 messages in 22 groups.
 | `tooling.check.catalog_unreadable` | could not read the message catalog at {path} |
 | `tooling.check.prose_as_text` | {path} writes a sentence in Ada source: {text} |
 | `tooling.check.identifier_as_text` | {path} passes an identifier where a message argument must be text: {text} |
+| `tooling.check.silent_truncation` | {path} stops collecting at the end of a fixed-size list without saying so; a construct that does not fit is refused where it is written |
 | `tooling.check.escape_sequence` | {path} contains a literal terminal escape sequence; styling belongs to terminal_styles by way of Adash.Terminal |
 | `tooling.check.forbidden_dependency` | {path} depends on {unit}, which Adash may not use directly; see AI.md |
 | `tooling.check.result_pass` | PASS |

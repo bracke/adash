@@ -277,6 +277,30 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **A construct with more parts than this build carries is refused, not
+  truncated.** The parser collects into fixed-size lists, and seventeen loops
+  stopped at the end of one without a word. A select of thirty-three
+  alternatives therefore served thirty-two, never offered the last, and left a
+  caller of it deadlocked — `tasks_stuck`, which reads as a defect in the
+  program rather than a bound in the build, and which `ROADMAP.md` had promised
+  would not happen: "refused where it runs rather than answered wrongly".
+
+  Every one of those loops reports now, by a message naming what was being
+  collected and how many fit — `error.too_many_at_once`, with the noun quoted
+  from a message of its own so it stays translatable. Each also leaves an error
+  node, because what decides whether a submission runs is whether the tree
+  holds one; complaining without that would report the bound and run the
+  truncated program anyway, which was the first version of this fix.
+
+  A subprogram's profile is the same defect one layer down — the parser holds
+  sixty-four formals and `Symbols.Max_Parameters` is sixteen — so a declaration
+  with seventeen silently became one with sixteen, and its calls were then
+  refused with "expected 16" for a reason nothing had said. Refused by name
+  now.
+
+  `adash_check` refuses the pattern in the parser, which is where what is
+  dropped is what somebody wrote; elsewhere a loop that stops at a bound is a
+  cap on what this build looks at rather than a loss of what it was given.
 - **A submission that stops early no longer takes the session's variables with
   it.** `quit`, `return` and an unhandled exception leave the hand-back
   unreached, and the documented rule is that the variables of *that* submission

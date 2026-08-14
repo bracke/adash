@@ -397,6 +397,34 @@ exit_status = 0
 diagnostics = ["!error.aggregate_wrong_count{name=Line,expected= 2,found= 3}!"]
 
 [[case]]
+id = "limits.a-construct-that-does-not-fit-is-refused"
+requirement = """
+Every list the parser collects into has a fixed size, and what a program writes
+past one used to be dropped without a word. A select of thirty-three
+alternatives served thirty-two and left a caller of the last one waiting for
+ever -- `tasks_stuck`, which reads as a program that deadlocked rather than as a
+build that could not hold what was written. The roadmap promised the opposite:
+refused rather than answered wrongly.
+
+Refused now, where it is written, by a message that names what was being
+collected and how many fit. Seventeen loops had the same shape, so this pins one
+of them and `adash_check` holds the rest: a repository check refuses the pattern
+in the parser, where what is dropped is what somebody wrote.
+
+A subprogram's profile is the same defect one layer down -- the parser holds
+sixty-four formals and the profile sixteen -- and a declaration that does not
+fit is refused by name rather than shortened into one whose calls are then
+refused for a reason nothing said.
+"""
+script = "type Wide is record F1 : Integer; F2 : Integer; F3 : Integer; F4 : Integer; F5 : Integer; F6 : Integer; F7 : Integer; F8 : Integer; F9 : Integer; F10 : Integer; F11 : Integer; F12 : Integer; F13 : Integer; F14 : Integer; F15 : Integer; F16 : Integer; F17 : Integer; F18 : Integer; F19 : Integer; F20 : Integer; F21 : Integer; F22 : Integer; F23 : Integer; F24 : Integer; F25 : Integer; F26 : Integer; F27 : Integer; F28 : Integer; F29 : Integer; F30 : Integer; F31 : Integer; F32 : Integer; F33 : Integer; F34 : Integer; F35 : Integer; F36 : Integer; F37 : Integer; F38 : Integer; F39 : Integer; F40 : Integer; F41 : Integer; F42 : Integer; F43 : Integer; F44 : Integer; F45 : Integer; F46 : Integer; F47 : Integer; F48 : Integer; F49 : Integer; F50 : Integer; F51 : Integer; F52 : Integer; F53 : Integer; F54 : Integer; F55 : Integer; F56 : Integer; F57 : Integer; F58 : Integer; F59 : Integer; F60 : Integer; F61 : Integer; F62 : Integer; F63 : Integer; F64 : Integer; F65 : Integer; end record;\nprocedure Many (P1 : Integer; P2 : Integer; P3 : Integer; P4 : Integer; P5 : Integer; P6 : Integer; P7 : Integer; P8 : Integer; P9 : Integer; P10 : Integer; P11 : Integer; P12 : Integer; P13 : Integer; P14 : Integer; P15 : Integer; P16 : Integer; P17 : Integer) is begin null; end Many;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.syntax.unexpected{found=F65,expected=end}!",
+  "!error.too_many_at_once{limit= 64,what=!list.components!}!",
+  "!error.too_many_parameters{name=Many,limit= 16}!",
+]
+
+[[case]]
 id = "types.an-array-bound-must-be-known-before-it-runs"
 requirement = "An array is a run of slots in a frame whose size is decided when the program is built."
 script = "N : Integer := 3; type Bad is array (1 .. N) of Integer; quit (0);"

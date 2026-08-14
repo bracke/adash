@@ -205,6 +205,52 @@ package body Adash.Language.Parser is
          Complain ("", Named);
       end Complain;
 
+      --  A list with more in it than this build carries.
+      --
+      --  Said rather than truncated. Every list the parser collects into has a
+      --  fixed size, and the loops used to stop at it and drop the rest --
+      --  which made a select of thirty-three alternatives serve thirty-two and
+      --  leave a caller of the last one waiting for ever. A construct that
+      --  cannot be represented is refused where it is written, which is what
+      --  every other bound in this build does.
+      --
+      --  @param What Which kind of thing was being collected, as a message.
+      --  @param Limit How many of them fit.
+      procedure Too_Many
+        (What : Adash.Messages.Message_Id; Limit : Natural);
+
+      procedure Too_Many
+        (What : Adash.Messages.Message_Id; Limit : Natural) is
+      begin
+         Report.Emit
+           (D.Make
+              (Message   =>
+                 Adash.Errors.Message (Adash.Errors.Error_Too_Many_At_Once),
+               Level     => D.Severity_Error,
+               Of_Kind   => D.Category_Syntax,
+               Raised_By => D.Owner_Language,
+               Origin    => State.Origin,
+               Extent    => Here,
+               Arguments =>
+                 [1 => Adash.Messages.Named
+                         ("limit", Natural'Image (Limit))],
+               Quoted    => What,
+               Fills     => "what"));
+
+         --  And an error node, abandoned where it stands. What decides whether
+         --  a submission runs is whether the tree holds one -- "a node built
+         --  and then abandoned by recovery is still evidence the parse went
+         --  wrong" -- and a construct this build cannot represent must not run
+         --  with the part of it that fitted.
+         declare
+            Ignored : constant S.Node_Id :=
+              S.Add_Leaf (Into, S.Node_Error, Here);
+            pragma Unreferenced (Ignored);
+         begin
+            null;
+         end;
+      end Too_Many;
+
       --  Skip to something that reliably starts a new construct. Reporting one
       --  problem per construct rather than one per token is what keeps a
       --  single missing semicolon from producing forty diagnostics.
@@ -410,7 +456,11 @@ package body Adash.Language.Parser is
                         begin
                            if not Is_Symbol (T.Delim_Right_Paren) then
                               loop
-                                 exit when Count = Collected'Last;
+                                 if Count = Collected'Last then
+                                    Too_Many (Adash.Messages.Msg_List_Arguments, Collected'Last);
+                                    exit;
+                                 end if;
+
                                  Count := Count + 1;
 
                                  --  A range, because `S (1 .. 3)` is written
@@ -528,7 +578,11 @@ package body Adash.Language.Parser is
                      end if;
 
                      loop
-                        exit when Count = Collected'Last;
+                        if Count = Collected'Last then
+                           Too_Many (Adash.Messages.Msg_List_Values, Collected'Last);
+                           exit;
+                        end if;
+
                         Count := Count + 1;
 
                         --  An array names its parts by index rather than by
@@ -1789,7 +1843,11 @@ package body Adash.Language.Parser is
                Count : Natural := 0;
             begin
                loop
-                  exit when Count = Names'Last;
+                  if Count = Names'Last then
+                     Too_Many (Adash.Messages.Msg_List_Names, Names'Last);
+                     exit;
+                  end if;
+
                   Count := Count + 1;
                   Names (Count) :=
                     S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
@@ -1848,7 +1906,11 @@ package body Adash.Language.Parser is
                   --  may carry a number, and a named argument is how this
                   --  language already writes one.
                   loop
-                     exit when Count = Collected'Last;
+                     if Count = Collected'Last then
+                        Too_Many (Adash.Messages.Msg_List_Arguments, Collected'Last);
+                        exit;
+                     end if;
+
                      Count := Count + 1;
                      Collected (Count) := Parse_Argument;
                      exit when not Is_Symbol (T.Delim_Comma);
@@ -1991,7 +2053,11 @@ package body Adash.Language.Parser is
                         Taken := Parse_Statement;
                         Rest  := Parse_Sequence (T.Word_End);
 
-                        exit when Count = Alternatives'Last;
+                        if Count = Alternatives'Last then
+                           Too_Many (Adash.Messages.Msg_List_Alternatives, Alternatives'Last);
+                           exit;
+                        end if;
+
                         Count := Count + 1;
                         Alternatives (Count) :=
                           S.Add_Node
@@ -2228,7 +2294,11 @@ package body Adash.Language.Parser is
                        Parse_Sequence (T.Word_Begin);
                   begin
                      for Index in 1 .. S.Child_Count (Into, Before_Begin) loop
-                        exit when Count = Collected'Last;
+                        if Count = Collected'Last then
+                           Too_Many (Adash.Messages.Msg_List_Statements, Collected'Last);
+                           exit;
+                        end if;
+
                         Count := Count + 1;
                         Collected (Count) :=
                           S.Child (Into, Before_Begin, Index);
@@ -2242,7 +2312,11 @@ package body Adash.Language.Parser is
                              Parse_Sequence (T.Word_End);
                         begin
                            for Index in 1 .. S.Child_Count (Into, After) loop
-                              exit when Count = Collected'Last;
+                              if Count = Collected'Last then
+                                 Too_Many (Adash.Messages.Msg_List_Statements, Collected'Last);
+                                 exit;
+                              end if;
+
                               Count := Count + 1;
                               Collected (Count) := S.Child (Into, After, Index);
                            end loop;
@@ -2437,7 +2511,11 @@ package body Adash.Language.Parser is
                     Parse_Sequence (T.Word_Begin);
                begin
                   for Index in 1 .. S.Child_Count (Into, Before_Begin) loop
-                     exit when Count = Collected'Last;
+                     if Count = Collected'Last then
+                        Too_Many (Adash.Messages.Msg_List_Statements, Collected'Last);
+                        exit;
+                     end if;
+
                      Count := Count + 1;
                      Collected (Count) := S.Child (Into, Before_Begin, Index);
                   end loop;
@@ -2450,7 +2528,11 @@ package body Adash.Language.Parser is
                           Parse_Sequence (T.Word_End);
                      begin
                         for Index in 1 .. S.Child_Count (Into, After) loop
-                           exit when Count = Collected'Last;
+                           if Count = Collected'Last then
+                              Too_Many (Adash.Messages.Msg_List_Statements, Collected'Last);
+                              exit;
+                           end if;
+
                            Count := Count + 1;
                            Collected (Count) := S.Child (Into, After, Index);
                         end loop;
@@ -2598,7 +2680,11 @@ package body Adash.Language.Parser is
                           (Adash.Source.Join (Start, Just_Consumed));
                      end if;
 
-                     exit when Count = Formals'Last;
+                     if Count = Formals'Last then
+                        Too_Many (Adash.Messages.Msg_List_Parameters, Formals'Last);
+                        exit;
+                     end if;
+
                      Count := Count + 1;
                      Formals (Count) :=
                        S.Add_Node
@@ -2772,7 +2858,10 @@ package body Adash.Language.Parser is
                      Count  : Natural := 0;
                   begin
                      while not Is_Word (T.Word_End) and then not At_End loop
-                        exit when Count = Fields'Last;
+                        if Count = Fields'Last then
+                           Too_Many (Adash.Messages.Msg_List_Components, Fields'Last);
+                           exit;
+                        end if;
 
                         if T.Kind (Current) /= T.Token_Identifier then
                            Complain
@@ -3002,7 +3091,10 @@ package body Adash.Language.Parser is
                        (Adash.Source.Join (Start, Just_Consumed));
                   end if;
 
-                  exit when Count = Literals'Last;
+                  if Count = Literals'Last then
+                     Too_Many (Adash.Messages.Msg_List_Values, Literals'Last);
+                     exit;
+                  end if;
 
                   Count := Count + 1;
                   Literals (Count) :=
@@ -3105,7 +3197,11 @@ package body Adash.Language.Parser is
                   begin
                      if not Is_Symbol (T.Delim_Right_Paren) then
                         loop
-                           exit when Count = Collected'Last;
+                           if Count = Collected'Last then
+                              Too_Many (Adash.Messages.Msg_List_Arguments, Collected'Last);
+                              exit;
+                           end if;
+
                            Count := Count + 1;
                            Collected (Count) := Parse_Argument;
                            exit when not Is_Symbol (T.Delim_Comma);
@@ -3224,7 +3320,11 @@ package body Adash.Language.Parser is
             Given : constant S.Node_Id := Parse_Formals;
          begin
             for Index in 1 .. S.Child_Count (Into, Given) loop
-               exit when Count = Formals'Last;
+               if Count = Formals'Last then
+                  Too_Many (Adash.Messages.Msg_List_Parameters, Formals'Last);
+                  exit;
+               end if;
+
                Count := Count + 1;
                Formals (Count) := S.Child (Into, Given, Index);
             end loop;
@@ -3562,7 +3662,11 @@ package body Adash.Language.Parser is
                   end if;
 
                   for Index in 1 .. Named loop
-                     exit when Count = Formals'Last;
+                     if Count = Formals'Last then
+                        Too_Many (Adash.Messages.Msg_List_Parameters, Formals'Last);
+                        exit;
+                     end if;
+
                      Count := Count + 1;
                      --  The mode is the node's text, as `constant` is on an
                      --  object declaration: it is a property of one parameter,
@@ -3677,7 +3781,11 @@ package body Adash.Language.Parser is
             Advance;
 
             loop
-               exit when Count = Given'Last;
+               if Count = Given'Last then
+                  Too_Many (Adash.Messages.Msg_List_Arguments, Given'Last);
+                  exit;
+               end if;
+
                Count := Count + 1;
 
                declare
@@ -3780,7 +3888,10 @@ package body Adash.Language.Parser is
               --  does about what went wrong.
               or else Is_Word (T.Word_When)
               or else Is_Word (T.Word_Exception);
-            exit when Count = Collected'Last;
+            if Count = Collected'Last then
+               Too_Many (Adash.Messages.Msg_List_Statements, Collected'Last);
+               exit;
+            end if;
 
             declare
                Before : constant Positive := State.Position;

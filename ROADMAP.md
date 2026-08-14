@@ -1787,8 +1787,17 @@ not made at all, and the task is left where it was with nothing queued at it.
 An ended task still raises Tasking_Error, conditionally or not.
 
 The bound is `Max_Offers`, thirty-two alternatives in one select, and a select
-with more is refused where it runs rather than answered wrongly -- a bound like
-the machine's others, because what a strand records has to be a fixed size.
+with more is refused where it is *written* -- a bound like the machine's others,
+because what a strand records has to be a fixed size.
+
+That sentence read "refused where it runs" and was untrue of the build for as
+long as both existed. The parser collects alternatives into a list of
+thirty-two and its loop stopped at the end of one without a word, so a select
+of thirty-three served thirty-two, never offered the last, and left a caller of
+it deadlocked -- answered wrongly, which is what the sentence promised would
+not happen. Seventeen loops in the parser had that shape and every one of them
+reports now, `adash_check` refuses the pattern, and the machine's own check
+stays as the second line it always was.
 
 **A caller wakes a select that is waiting.** `select ... or delay D;` waits
 for a caller *or* the clock, and this machine used to sleep the whole of D and

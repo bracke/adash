@@ -198,6 +198,26 @@ output = ["not open", "through", "took it"]
 diagnostics = []
 
 [[case]]
+id = "select.more-alternatives-than-fit-is-refused"
+requirement = """
+`Max_Offers` is thirty-two alternatives in one select, and the roadmap has
+always said a select with more is refused rather than answered wrongly. It was
+answered wrongly: the parser collected into a list of thirty-two and stopped
+without a word, so this program served the first thirty-two, never offered the
+thirty-third, and died `tasks_stuck` -- which reads as a deadlock in the program
+rather than as a bound in the build.
+
+Thirty-three is the smallest select that shows it, and the caller asks for the
+alternative that was dropped, so a build that truncated again would hang here
+rather than pass.
+"""
+script = "task D is entry E1; entry E2; entry E3; entry E4; entry E5; entry E6; entry E7; entry E8; entry E9; entry E10; entry E11; entry E12; entry E13; entry E14; entry E15; entry E16; entry E17; entry E18; entry E19; entry E20; entry E21; entry E22; entry E23; entry E24; entry E25; entry E26; entry E27; entry E28; entry E29; entry E30; entry E31; entry E32; entry E33; end D; task body D is begin select accept E1; or accept E2; or accept E3; or accept E4; or accept E5; or accept E6; or accept E7; or accept E8; or accept E9; or accept E10; or accept E11; or accept E12; or accept E13; or accept E14; or accept E15; or accept E16; or accept E17; or accept E18; or accept E19; or accept E20; or accept E21; or accept E22; or accept E23; or accept E24; or accept E25; or accept E26; or accept E27; or accept E28; or accept E29; or accept E30; or accept E31; or accept E32; or accept E33; end select; end D; D.E33;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.too_many_at_once{limit= 32,what=!list.alternatives!}!",
+]
+
+[[case]]
 id = "select.a-timed-call-gives-up"
 requirement = """
 `or delay D;` bounds how long the call waits. A barrier that never opens leaves

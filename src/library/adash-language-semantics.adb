@@ -8151,6 +8151,19 @@ package body Adash.Language.Semantics is
          Outer_Loops   : constant Natural := Loop_Depth;
          Outer_Returns : constant Types.Type_Kind := Returns;
       begin
+         --  More parameters than a profile carries. Refused by name rather
+         --  than kept as the first sixteen: a declaration silently shortened
+         --  is one whose calls are then refused for a reason nothing said.
+         if Count > Symbols.Max_Parameters then
+            Complain
+              (Adash.Errors.Error_Too_Many_Parameters, Name_Node,
+               [Adash.Messages.Named ("name", Name),
+                Adash.Messages.Named
+                  ("limit", Natural'Image (Symbols.Max_Parameters))]);
+            Note (Node, Types.Type_None);
+            return;
+         end if;
+
          --  A body whose name is a generic's completes that generic, which
          --  Ada writes as a unit of its own. It is *not* analysed here: what
          --  every name in it means depends on what an instantiation binds its

@@ -20,6 +20,8 @@ package body Adash_Tests.Repository is
    Key_Catalog_Missing_Key  : constant String := "tooling.check.catalog_missing_key";
    Key_Catalog_Unreadable   : constant String := "tooling.check.catalog_unreadable";
    Key_Escape_Sequence      : constant String := "tooling.check.escape_sequence";
+   Key_Silent_Truncation    : constant String :=
+     "tooling.check.silent_truncation";
    Key_Identifier_As_Text   : constant String :=
      "tooling.check.identifier_as_text";
    Key_Prose_As_Text        : constant String :=
@@ -394,6 +396,37 @@ package body Adash_Tests.Repository is
          end loop;
       end;
    end Check_Message_Catalog;
+
+   ---------------------------------
+   -- Check_No_Silent_Truncation --
+   ---------------------------------
+
+   --  The parser collects into fixed-size lists, and a loop that stops at the
+   --  end of one without saying so drops what a program wrote. That is how a
+   --  select of thirty-three alternatives came to serve thirty-two and leave a
+   --  caller of the last one waiting for ever -- the bound was documented as a
+   --  refusal and was a truncation. Every such loop reports now; this is what
+   --  stops the next one being written silently.
+   procedure Check_No_Silent_Truncation (Root : String; Into : in out Report);
+
+   procedure Check_No_Silent_Truncation (Root : String; Into : in out Report) is
+      --  The parser only. Elsewhere a loop that stops at a bound is a cap on
+      --  what this build looks at -- how many session files to read, say --
+      --  and dropping the rest is the decision rather than a loss of it. In
+      --  the parser what is dropped is what somebody wrote.
+      Where : constant String :=
+        Join (Root, "src/library/adash-language-parser.adb");
+
+      Content : constant String := Read_If_Present (Where);
+   begin
+      Into.Checks_Run := Into.Checks_Run + 1;
+
+      if Project_Tools.Text.Contains (Content, "exit when Count = ") then
+         Add (Into, Key_Silent_Truncation,
+              [1 => Msg.Named
+                      ("path", Ada.Directories.Simple_Name (Where))]);
+      end if;
+   end Check_No_Silent_Truncation;
 
    -------------------------------
    -- Check_No_Terminal_Escapes --
@@ -868,6 +901,7 @@ package body Adash_Tests.Repository is
       Check_Package_Inventory (Root, Into);
       Check_Message_Catalog (Root, Into);
       Check_No_Terminal_Escapes (Root, Into);
+      Check_No_Silent_Truncation (Root, Into);
       Check_No_Identifiers_As_Text (Root, Into);
       Check_No_Prose_As_Text (Root, Into);
       Check_No_Forbidden_Units (Root, Into);

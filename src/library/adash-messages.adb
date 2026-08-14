@@ -358,6 +358,24 @@ package body Adash.Messages is
             return "error.needs_bounds";
          when Msg_Open_By_Element          =>
             return "error.open_by_element";
+         when Msg_Too_Many_At_Once         =>
+            return "error.too_many_at_once";
+         when Msg_Too_Many_Parameters      =>
+            return "error.too_many_parameters";
+         when Msg_List_Alternatives            =>
+            return "list.alternatives";
+         when Msg_List_Parameters              =>
+            return "list.parameters";
+         when Msg_List_Components              =>
+            return "list.components";
+         when Msg_List_Values                  =>
+            return "list.values";
+         when Msg_List_Names                   =>
+            return "list.names";
+         when Msg_List_Statements              =>
+            return "list.statements";
+         when Msg_List_Arguments               =>
+            return "list.arguments";
          when Msg_Case_Not_Discrete        =>
             return "error.case.not_discrete";
          when Msg_Case_Choice_Not_Static   =>
@@ -572,7 +590,14 @@ package body Adash.Messages is
       --  No `others`, for the same reason as Key: a message whose
       --  placeholders were never declared is a message nothing can check.
       case Id is
-         when Msg_Application_Name
+         when Msg_List_Alternatives
+            | Msg_List_Parameters
+            | Msg_List_Components
+            | Msg_List_Values
+            | Msg_List_Names
+            | Msg_List_Statements
+            | Msg_List_Arguments
+            | Msg_Application_Name
             | Msg_Application_Summary
             | Msg_Version_Prerelease_Notice
             | Msg_Usage
@@ -966,6 +991,12 @@ package body Adash.Messages is
 
          when Msg_Needs_Bounds | Msg_Open_By_Element =>
             return [1 => N ("name")];
+
+         when Msg_Too_Many_At_Once =>
+            return [N ("what"), N ("limit")];
+
+         when Msg_Too_Many_Parameters =>
+            return [N ("name"), N ("limit")];
 
          when Msg_Machine_Bad_Value_Text =>
             return [1 => N ("text")];
