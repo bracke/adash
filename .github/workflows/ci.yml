@@ -96,6 +96,21 @@ jobs:
       # The suffix rather than bash's own guess: MSYS will often find
       # `foo.exe` for `./foo`, and a step that depends on it is a step that
       # breaks when somebody changes the shell.
+      #  Before the suites: does the shell work at all on this host when
+      #  nothing of ours is between it and the terminal? The conformance runner
+      #  spawns it with a replaced environment and three pipes, and on Windows
+      #  628 of 629 cases came back with exit status 1 and not a word on either
+      #  stream. That is either the shell or the way the suite starts it, and
+      #  running it plainly is what tells the two apart.
+      - name: Ask the shell directly
+        working-directory: Ada/adash
+        run: |
+          set -x
+          ./bin/adash${{ matrix.suffix }} --version
+          echo 'put_line ("spoken to directly");' | ./bin/adash${{ matrix.suffix }}
+          printf 'put_line ("from a file");\n' > /tmp/direct.adash
+          ./bin/adash${{ matrix.suffix }} /tmp/direct.adash
+
       - name: Run the AUnit suite
         working-directory: Ada/adash/adash_tests
         run: ./bin/adash_tests${{ matrix.suffix }}
