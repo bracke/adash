@@ -1465,6 +1465,40 @@ what changed.
   list of its own, which is a different question from having no parameters.
   Without it every predefined name, all of which are in scope as symbols, would
   report as taking nothing and start rejecting its own arguments.
+- **An aggregate is an argument at a call.** `Total ((1, 2, 3))` builds the
+  value in a run of the caller's own slots and hands the call where that run
+  starts, which is what a composite argument is; it was refused before, so the
+  value needed a declaration one line above its only reader.
+- **An anonymous array type**, `A : array (1 .. 3) of Integer;`. Every symbol
+  carries a name, so the parser makes one from the object's — with an
+  apostrophe, which no name a user can write has — while the type is *called*
+  what it was written as, which is what carrying the variable into the next
+  submission writes out again.
+- **Conditional expressions**: `(if A then B else C)` and `(case X is when 1 =>
+  A, when others => B)`, in the parentheses Ada requires and without them where
+  Ada allows it — a call's only argument. The `else` is always written, because
+  a reader of `(if Ready then Done)` should not have to know the type to know
+  what it yields; a case expression's alternatives are the case statement's,
+  analysed and emitted by the same code.
+- **A record component's default**: `type Line is record Number : Integer := 0;
+  ... end record;`, written into the object where the object is declared. The
+  default is a literal, as a parameter's is and for the same reason.
+- **Explicit conversion between the numeric types**, `Integer (F)` and
+  `Float (I)`, and to a subtype of either, where it is the constraint check
+  written where it applies. To an integer type it rounds to the nearest and
+  away from zero at a half, which is Ada's rule. The language reference had
+  claimed a conversion for some time; there had never been one.
+- **A named number**, `Max : constant := 100;` — no type mark, and the value
+  says what it is. Ada's is universal and mixes with an Integer and a Float
+  alike; here nothing converts implicitly, so it is whichever its value is.
+- **A qualified expression qualifies an aggregate**: `Row'(1, 2)`, which is
+  what one is most often written for, an aggregate having no type of its own.
+- **Overload resolution narrows from three directions.** What the context
+  requires reaches a call's arguments through the candidates it rules out, as
+  far down as the calls nest; an argument that can only be one thing rules
+  candidates out for the arguments beside it, whether written positionally or
+  by name; and an operator's settled operand rules out what its open one can
+  be, so `put_line (F & "x")` reads F as the String.
 
 ### Removed
 
@@ -1501,6 +1535,22 @@ what changed.
 
 ### Fixed
 
+- **Reading a variable that had never been assigned killed the shell.** Any
+  such read popped a machine cell of the wrong kind and the process died with
+  an Ada discriminant check and a traceback; `X : Integer;` on its own was
+  enough, because carrying the variable into the next submission reads it. It
+  is `Program_Error` with `error.machine.no_value` now, and what carries a
+  variable out of a submission asks first: one with no value is carried as its
+  declaration, and a composite filled in part as the declaration plus the
+  assignments it has, so a prompt where an array is filled an element at a time
+  keeps what it filled.
+- An anonymous array type whose definition ran past 31 characters was carried
+  into the next submission under a name cut to fit, which read back as a type
+  nobody had declared. The definition is kept beside the type's parts, where
+  nothing truncates it.
+- The pseudo-terminal test waited for the shell to exit without reading the
+  terminal, so on a host whose buffer filled first the shell was still waiting
+  to write and never reached its own exit. It drains while it waits now.
 - **`adash_bench` printed its entire report in English**, and the repository
   tooling was never scanned for that. `adash_check` looked only at the shell
   crate's sources; the rule about user-visible text names release tools and
