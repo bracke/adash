@@ -90,6 +90,13 @@ aggregates with `others`, component selection, indexing with a bounds check,
 whole-value assignment and component-by-component equality. An array's bounds
 are known before the program runs and it holds at most 4096 elements.
 
+**An array is sliced** — `A (2 .. 3) := B (1 .. 2)`, and `=` between two of
+them. A slice's ends are known before the program runs, as the array's own are;
+it is as long as what goes into it, checked where it is written; and it is a
+place rather than a value, so it stands where a run of slots is copied or
+compared and nowhere else. There is no null slice: a run of no slots is not a
+value here.
+
 ### Aggregates
 
     (7, 8, 9)                     -- positional

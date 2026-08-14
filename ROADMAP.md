@@ -66,6 +66,7 @@ below.
 | Reading a program's output as a value: `Output_Of` | **complete** |
 | Taking a String apart: indexing, slicing, `'Length` | **complete** |
 | Writing a part back: `S (2) := 'x'`, `S (2 .. 4) := "xyz"` | **complete** |
+| Slicing an array: `A (2 .. 3) := B (1 .. 2)` | **complete** |
 | The block statement: `declare ... begin ... end;` | **complete** |
 | Names below the presentation boundary said in words | **complete** |
 | Suspending and resuming a job: `suspend`, `resume` | **complete** |
@@ -2922,9 +2923,22 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   Ada is telling two interpretations apart, and the two places this language
   resolves from -- the expected type, and the other operand -- are what it
   offers instead.
-- **An array is reached by one position and not sliced.** Ada writes
-  `A (1 .. 2)`; this refuses it. A String is the one thing here with parts that
-  are values rather than a run of slots.
+- **An array's slice is a place and never a value.** `A (2 .. 3) := B (1 .. 2)`
+  and `A (2 .. 3) = B (1 .. 2)` are written; a slice handed to a subprogram, or
+  used where a value of another length is wanted, is refused where it stands.
+  That is what every composite is here, and the reason is the same: a composite
+  is a run of slots rather than a value.
+- **A slice's ends are known before the program runs**, as an array's own
+  bounds are. What a slice becomes is a distance from the start of the run and
+  a count of slots, both written into the instruction; computing them would
+  need a length carried in every array value to check against.
+- **There is no null slice.** Ada's `A (3 .. 2)` is a value of no elements;
+  a value here is a run of slots and a run of none is not one, so a backwards
+  slice is refused with an end outside the array rather than half-supported.
+- **A slice of a slice is not written for an array**, though it is for a
+  String. `A (1 .. 3) (1 .. 2)` is refused: the analyser gives a slice the
+  array's own identity and a length of its own, and the bounds an index would
+  be checked against are still the whole array's.
 - **A parameter's default is a literal**, possibly signed, or `True`/`False`.
   An arbitrary expression would have to be evaluated at each call in the scope
   of the declaration, and a name resolved at the call site cannot do that.

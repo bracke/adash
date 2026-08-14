@@ -350,20 +350,17 @@ diagnostics = [
 [[case]]
 id = "string.only-a-string-is-taken-apart"
 requirement = """
-What a call yields has to be a String for a part of it to mean anything, and an
-array is reached by one position rather than by a range -- Ada slices an array
-and this does not. The range on an array had been read as a position, which
-answered with the element at the low end rather than saying no; a wrong answer
-given confidently is worse than a refusal.
+What a call yields has to be a String for a part of it to mean anything: an
+Integer has no parts, and neither has anything else here that is not a String
+or an array.
 
 A part of what a call yielded is not assigned to, because a value has nowhere
 to put anything.
 """
-script = "function Counted (N : Integer) return Integer is begin return 5; end Counted; put_line (Counted (1) (2)'Image);\ntype Row is array (1 .. 3) of Integer; A : Row := (1, 2, 3); put_line (A (1 .. 2)'Image);\nfunction Whole return String is begin return \"abcdef\"; end Whole; Whole (1 .. 2) := \"XY\";\nquit (0);"
+script = "function Counted (N : Integer) return Integer is begin return 5; end Counted; put_line (Counted (1) (2)'Image);\nfunction Whole return String is begin return \"abcdef\"; end Whole; Whole (1 .. 2) := \"XY\";\nquit (0);"
 exit_status = 0
 diagnostics = [
   "!error.not_taken_apart{found=Integer}!",
-  "!error.not_taken_apart{found=Row}!",
   "!error.not_assignable{name=Whole}!",
 ]
 

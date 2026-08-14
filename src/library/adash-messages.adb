@@ -352,6 +352,8 @@ package body Adash.Messages is
             return "error.string_index_malformed";
          when Msg_Not_Taken_Apart          =>
             return "error.not_taken_apart";
+         when Msg_No_Such_Slice            =>
+            return "error.no_such_slice";
          when Msg_Case_Not_Discrete        =>
             return "error.case.not_discrete";
          when Msg_Case_Choice_Not_Static   =>
@@ -954,6 +956,9 @@ package body Adash.Messages is
 
          when Msg_Machine_Slice_Lengths =>
             return [N ("wanted"), N ("given")];
+
+         when Msg_No_Such_Slice =>
+            return [N ("name"), N ("first"), N ("last")];
 
          when Msg_Machine_Bad_Value_Text =>
             return [1 => N ("text")];

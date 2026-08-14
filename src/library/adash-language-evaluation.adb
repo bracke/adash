@@ -628,6 +628,13 @@ package body Adash.Language.Evaluation is
       --  the whole text is one cell.
       function Is_Text_Part (Node : S.Node_Id) return Boolean;
 
+      --  Whether this is a run of an array's own elements: `A (2 .. 4)`.
+      --
+      --  Decided the way Is_Element decides its question, from the type
+      --  semantics gave the prefix. A slice is a place and never a value here,
+      --  which is what a composite is everywhere in this build.
+      function Is_Array_Slice (Node : S.Node_Id) return Boolean;
+
       --  Leave every block that stands between here and the loop being left.
       --
       --  A block is a master, and an `exit` completes however many of them it
@@ -2173,6 +2180,29 @@ package body Adash.Language.Evaluation is
          end;
       end Is_Element;
 
+      -------------------
+      -- Is_Array_Slice --
+      -------------------
+
+      function Is_Array_Slice (Node : S.Node_Id) return Boolean is
+      begin
+         if S.Kind (Tree, Node) /= S.Node_Call then
+            return False;
+         end if;
+
+         declare
+            Prefix    : constant S.Node_Id := S.First (Tree, Node);
+            Arguments : constant S.Node_Id := S.Second (Tree, Node);
+         begin
+            return S.Kind (Tree, Prefix) = S.Node_Name
+              and then Ty.Shape (Sem.Type_Of (Analysis, Prefix))
+                       = Ty.Shape_Array
+              and then S.Child_Count (Tree, Arguments) = 1
+              and then S.Kind (Tree, S.First (Tree, Arguments))
+                       = S.Node_Range;
+         end;
+      end Is_Array_Slice;
+
       ------------------
       -- Is_Text_Part --
       ------------------
@@ -2289,6 +2319,45 @@ package body Adash.Language.Evaluation is
                     + Long_Long_Integer
                         (Sem.Part_Count (Analysis, Of_Type)) - 1;
                begin
+                  --  A slice is where the run starts, moved along to the first
+                  --  element it covers. The distance is known here because the
+                  --  analyser required the ends to be -- one implementation of
+                  --  that question, asked twice.
+                  if Is_Array_Slice (Node) then
+                     declare
+                        Low : Long_Long_Integer;
+                     begin
+                        if not Sem.Static_Choice
+                                 (Analysis, Tree,
+                                  S.First
+                                    (Tree,
+                                     S.First (Tree, S.Second (Tree, Node))),
+                                  Low)
+                        then
+                           Refuse (Node,
+                                   Adash.Messages.Msg_Lower_This_Expression);
+                           Ok := False;
+                           return;
+                        end if;
+
+                        Emit_Place (Prefix, Ok);
+
+                        if not Ok then
+                           return;
+                        end if;
+
+                        if Low /= First then
+                           Emit_1
+                             (VM.Offset_Place,
+                              VM.Whole_Number
+                                (Long_Long_Integer (Ty.Width (Held))
+                                 * (Low - First)));
+                        end if;
+                     end;
+
+                     return;
+                  end if;
+
                   if not Is_Element (Node) then
                      Refuse (Node, Adash.Messages.Msg_Lower_This_Expression);
                      Ok := False;

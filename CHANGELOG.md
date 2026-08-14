@@ -277,6 +277,33 @@ what changed.
   they hold on; they carry a `platforms` key now, which means capture,
   redirection and job states are checked on two hosts of the three. The
   workflow says so rather than leaving it to be discovered.
+- **An array is sliced**: `A (2 .. 3) := B (1 .. 2)`, and `=` between two
+  slices. A slice is a place and never a value, which is what every composite
+  is here -- so the copy is the block move a whole array's assignment already
+  was, from a start moved along to the first element the slice covers, and the
+  comparison is the same block comparison.
+
+  Its ends are known before the program runs, as an array's own bounds and a
+  case choice are: what a slice becomes is a distance and a count of slots,
+  both written into the instruction. A bound that is not static gets the
+  refusal an array's own bound gets, in the same words.
+
+  A slice's type is the array's identity with a length of its own, and
+  `Is_Acceptable` now compares the lengths of two composites -- which is what
+  stops `A := B (1 .. 2)` from copying two slots into three and reading a slot
+  belonging to something else. The type carries its ends in its name, so the
+  refusal reads `found=Row (1 .. 2), expected=Row` rather than naming `Row`
+  twice and leaving a reader to work out which side was which.
+
+  No null slice. Ada's `A (3 .. 2)` is a value of no elements; a value here is
+  a run of slots and a run of none is not one, so a backwards slice is refused
+  alongside an end outside the array -- `error.no_such_slice`, the one message
+  this added.
+
+  One conformance case changed rather than being added to: `A (1 .. 2)'Image`
+  had been pinned as the refusal of an array range, which was the right
+  expectation for a language that did not slice arrays and is the wrong one for
+  a language that does.
 - **A part of a part is assigned to**: `S (2 .. 5) (1 .. 2) := "XY"`, as deep
   as it is written. Each level yields the text of the level outside it and the
   outermost change is stored in the variable the chain bottoms out at, so one

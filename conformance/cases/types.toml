@@ -404,6 +404,61 @@ exit_status = 0
 diagnostics = ["!error.array_bound_not_static!"]
 
 [[case]]
+id = "slices.an-array-is-sliced"
+requirement = """
+`A (2 .. 3)` is a run of the array's own elements, and Ada assigns one to
+another. It is a place rather than a value, which is what every composite is
+here: the copy is the same block move a whole array's assignment is, from a
+start moved along to the first element the slice covers.
+
+The ends are known before the program runs, as an array's own bounds and a case
+choice are. What a slice becomes is a distance and a count of slots, both
+written into the instruction rather than worked out while the program runs, and
+a language that computed them would need a length in every array value to check
+against.
+"""
+script = "type Row is array (1 .. 4) of Integer; A : Row := (1, 2, 3, 4); B : Row := (5, 6, 7, 8); A (2 .. 3) := B (1 .. 2); put_line (A (1)'Image & A (2)'Image & A (3)'Image & A (4)'Image); put_line (A (2 .. 3) = B (1 .. 2)); put_line (A (1 .. 2) = B (1 .. 2)); A (1 .. 4) := B (1 .. 4); put_line (A (4)'Image); quit (0);"
+exit_status = 0
+output = [" 1 5 6 4", "TRUE", "FALSE", " 8"]
+diagnostics = []
+
+[[case]]
+id = "slices.a-slice-is-as-long-as-what-goes-into-it"
+requirement = """
+Two runs of different lengths are not each other's value: a slice of two
+elements where three are wanted would copy a slot belonging to something else.
+Ada raises Constraint_Error for it; the lengths here are known before the
+program runs, so it is refused where it is written.
+
+The type carries its ends into the diagnostic, because a message naming `Row`
+twice would leave a reader to work out which side was which.
+"""
+script = "type Row is array (1 .. 4) of Integer; A : Row := (1, 2, 3, 4); B : Row := (5, 6, 7, 8); A (1 .. 2) := B (2 .. 4); A := B (1 .. 2);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.type_mismatch{found=Row (2 .. 4),expected=Row (1 .. 2)}!",
+  "!error.type_mismatch{found=Row (1 .. 2),expected=Row}!",
+]
+
+[[case]]
+id = "slices.a-slice-is-within-its-array-and-holds-something"
+requirement = """
+An end outside the array, and a slice that runs backwards. Ada's null slice is
+a value of no elements; a value here is a run of slots and a run of none is not
+one, so the two are refused together rather than one of them being
+half-supported. A bound that is not known before the program runs is the same
+refusal an array's own bound gets, and says so in the same words.
+"""
+script = "type Row is array (1 .. 4) of Integer; A : Row := (1, 2, 3, 4); B : Row := (5, 6, 7, 8); I : Integer := 2; A (0 .. 2) := B (1 .. 3); A (3 .. 2) := B (3 .. 2); A (I .. I + 1) := B (1 .. 2);\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.no_such_slice{name=Row,first= 0,last= 2}!",
+  "!error.no_such_slice{name=Row,first= 3,last= 2}!",
+  "!error.no_such_slice{name=Row,first= 3,last= 2}!",
+  "!error.array_bound_not_static!",
+]
+
+[[case]]
 id = "types.a-record-with-no-components-is-refused"
 requirement = "Ada writes one as `null record`, a spelling this language does not have. A record holding nothing cannot be told from any other, so there is no reading of it worth accepting."
 script = "type Nothing is record end record; quit (0);"

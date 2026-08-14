@@ -3616,18 +3616,119 @@ package body Adash.Language.Semantics is
                      begin
                         Note (Prefix, Of_Array, Prefixed);
 
-                        --  An array is reached by one position and not by a
-                        --  range: Ada slices one, this does not, and a range
-                        --  written here had been read as a position -- which
-                        --  answered with the element at the low end rather
-                        --  than saying no.
+                        --  A slice: `A (2 .. 4)`, a run of the array's own
+                        --  elements. Its ends are known before the program
+                        --  runs, as the array's own bounds and a case choice
+                        --  are, because what it becomes is a distance from the
+                        --  start of the run and a count of slots -- both
+                        --  written into the instruction rather than computed.
                         if Ranged then
-                           Complain
-                             (Adash.Errors.Error_Not_Taken_Apart, Node,
-                              [1 => Adash.Messages.Named
-                                      ("found", Types.Name (Of_Array))]);
-                           Note (Node, Types.Type_None);
-                           return Types.Type_None;
+                           declare
+                              Only : constant S.Node_Id :=
+                                S.Child (Tree, Arguments, 1);
+                              Held : constant Types.Type_Kind :=
+                                Part_Type (Into, Of_Array, 1);
+                              Base : constant Long_Long_Integer :=
+                                First_Index (Into, Of_Array);
+                              Ends : constant Long_Long_Integer :=
+                                Base + Long_Long_Integer
+                                         (Part_Count (Into, Of_Array)) - 1;
+
+                              Low, High : Long_Long_Integer;
+
+                              --  Analysed for their own sake first: whatever
+                              --  is wrong inside a bound is reported there,
+                              --  and only then is the bound itself judged.
+                              Of_Low : constant Types.Type_Kind :=
+                                Analyse_Expression
+                                  (S.First (Tree, Only), Types.Type_Integer);
+                              Of_High : constant Types.Type_Kind :=
+                                Analyse_Expression
+                                  (S.Second (Tree, Only), Types.Type_Integer);
+                           begin
+                              if (Of_Low /= Types.Type_None
+                                  and then not Types.Is_Acceptable
+                                                 (Of_Low, Types.Type_Integer))
+                                or else
+                                  (Of_High /= Types.Type_None
+                                   and then not Types.Is_Acceptable
+                                                  (Of_High,
+                                                   Types.Type_Integer))
+                              then
+                                 Complain
+                                   (Adash.Errors.Error_String_Index_Malformed,
+                                    Only, Adash.Messages.No_Arguments);
+                                 Note (Node, Types.Type_None);
+                                 return Types.Type_None;
+                              end if;
+
+                              if not Static_Choice
+                                       (Into, Tree, S.First (Tree, Only), Low)
+                                or else not Static_Choice
+                                              (Into, Tree,
+                                               S.Second (Tree, Only), High)
+                              then
+                                 Complain
+                                   (Adash.Errors.Error_Array_Bound_Not_Static,
+                                    Only, Adash.Messages.No_Arguments);
+                                 Note (Node, Types.Type_None);
+                                 return Types.Type_None;
+                              end if;
+
+                              --  Empty as well as outside. Ada's null slice is
+                              --  a value of no elements; a value here is a run
+                              --  of slots and a run of none is not one, so the
+                              --  two are refused together rather than one of
+                              --  them being half-supported.
+                              if Low < Base or else High > Ends
+                                or else Low > High
+                              then
+                                 Complain
+                                   (Adash.Errors.Error_No_Such_Slice, Node,
+                                    [Adash.Messages.Named
+                                       ("name", Types.Name (Of_Array)),
+                                     Adash.Messages.Named
+                                       ("first", Long_Long_Integer'Image (Low)),
+                                     Adash.Messages.Named
+                                       ("last",
+                                        Long_Long_Integer'Image (High))]);
+                                 Note (Node, Types.Type_None);
+                                 return Types.Type_None;
+                              end if;
+
+                              declare
+                                 --  The same type, of fewer elements. The
+                                 --  identity is the array's, because a slice
+                                 --  of a Row is a Row -- what differs is how
+                                 --  many slots it is, which is what stops one
+                                 --  from being assigned where another length
+                                 --  is wanted. The name carries the ends so
+                                 --  that a diagnostic naming both says which
+                                 --  is which.
+                                 Sliced : constant Types.Type_Kind :=
+                                   Types.Composite_Array
+                                     (Id     => Types.Identity (Of_Array),
+                                      Called => Types.Name (Of_Array) & " ("
+                                                & Ada.Strings.Fixed.Trim
+                                                    (Long_Long_Integer'Image
+                                                       (Low),
+                                                     Ada.Strings.Both)
+                                                & " .. "
+                                                & Ada.Strings.Fixed.Trim
+                                                    (Long_Long_Integer'Image
+                                                       (High),
+                                                     Ada.Strings.Both)
+                                                & ")",
+                                      Slots  => Positive
+                                                  (Long_Long_Integer
+                                                     (Types.Width (Held))
+                                                   * (High - Low + 1)));
+                              begin
+                                 Note (Only, Types.Type_Integer);
+                                 Note (Node, Sliced, Prefixed);
+                                 return Sliced;
+                              end;
+                           end;
                         end if;
 
                         if Given /= 1 then

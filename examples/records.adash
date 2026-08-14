@@ -80,6 +80,19 @@ end loop;
 --  An index outside the array raises rather than handing back whatever the
 --  next variable holds.
 
+--  A slice is a run of the array's own elements, and one is assigned to
+--  another: the copy is the block move a whole array's assignment is, from a
+--  start moved along to the first element the slice covers. Its ends are known
+--  before the program runs, as the array's own bounds are, because what a
+--  slice becomes is a distance and a count of slots.
+Recent : Window := (1, 2, 3, 4);
+
+Recent (1 .. 2) := Samples (3 .. 4);
+
+put_line ("the last two samples are" & Recent (1)'Image & Recent (2)'Image);
+put_line ("and they are still there: "
+          & Boolean'Image (Recent (1 .. 2) = Samples (3 .. 4)));
+
 --  A composite travels to a subprogram as where its run of slots starts,
 --  whatever mode it was declared with. An `out` parameter is how a program
 --  hands one back.

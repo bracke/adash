@@ -369,6 +369,19 @@ package body Adash.Language.Types is
          return False;
       end if;
 
+      --  A composite carries how many slots it is, and two runs of different
+      --  lengths are not each other's value. A slice of two elements where
+      --  three are wanted would copy a slot belonging to something else, and
+      --  the lengths here are known before the program runs -- so this is
+      --  refused where it is written rather than raised where it runs, which
+      --  is what Ada does with the same case.
+      if Is_Composite (Found)
+        and then Is_Composite (Expected)
+        and then Found.Slots /= Expected.Slots
+      then
+         return False;
+      end if;
+
       --  Shape *and* identity, which is what "=" compares. Two enumerations
       --  with the same literals spelled the same way are two types, which is
       --  Ada's rule and the reason a declaration carries an identity at all.
