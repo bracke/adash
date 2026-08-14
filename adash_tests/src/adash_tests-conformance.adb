@@ -275,6 +275,26 @@ package body Adash_Tests.Conformance is
          return Result;
       end if;
 
+      --  The three ends the child is given have to be inheritable, and only
+      --  the three: on Windows nothing else travels, and a child handed an
+      --  invalid handle for its standard streams cannot read its script,
+      --  cannot write its answer, and fails on the first line it tries to
+      --  print. That is what 628 of 629 cases looked like there -- exit status
+      --  1, nothing on either stream -- while the same binary answered a line
+      --  typed into it and a file handed to it. On POSIX a descriptor travels
+      --  unless it is marked not to, which is why this was invisible here.
+      --
+      --  Adash's own execution layer has always done this; the suite that
+      --  spawns the shell had not.
+      if not Hostkit.Descriptors.Set_Inheritable (To_Child.Read_End, True)
+        or else not Hostkit.Descriptors.Set_Inheritable
+                      (From_Child.Write_End, True)
+        or else not Hostkit.Descriptors.Set_Inheritable
+                      (From_Error.Write_End, True)
+      then
+         return Result;
+      end if;
+
       Options.Input := To_Child.Read_End;
       Options.Output := From_Child.Write_End;
       Options.Error_Output := From_Error.Write_End;
