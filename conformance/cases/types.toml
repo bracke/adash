@@ -1004,3 +1004,33 @@ diagnostics = [
   "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=9,type=Small}!}!",
   "!error.type_mismatch{found=String,expected=Integer}!",
 ]
+
+[[case]]
+id = "types.a-named-number-takes-its-type-from-its-value"
+requirement = """
+Ada's named number, written where a script says what a limit is once and reads
+it everywhere. Ada's is universal and mixes with an Integer and a Float alike;
+here nothing converts implicitly, so it is whichever its value is -- and a
+value that crosses to the other says so. What it holds is a literal: a named
+number is a number known where it is written, and a name resolved there would
+not be one.
+"""
+script = "Max : constant := 10; Half : constant := 0.5;\nput_line (Max'Image & Half'Image);\nX : Integer := Max * 2;\nput_line (X'Image);\nquit (0);"
+exit_status = 0
+output = [" 10 5.00000000000000000E-01", " 20"]
+diagnostics = []
+
+[[case]]
+id = "types.and-a-named-number-is-a-number"
+requirement = """
+A declaration with no type mark is a named number, and Ada's is numeric. A
+Boolean written there is a declaration missing its type rather than a named
+number, and saying which is the useful half; a value that is not a literal is
+refused for the reason a parameter's default is.
+"""
+script = "Yes : constant := True;\nX : Integer := 3; Y : constant := X;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.number_not_numeric{name=Yes,found=Boolean}!",
+  "!error.number_not_a_literal{name=Y}!",
+]

@@ -30,9 +30,10 @@ package be written at a prompt.
                   | use_clause | pragma
 
     object_declaration ::=
-        name ':' [ 'constant' ] ( type_mark | array_definition )
-                 [ '(' actual { ',' actual } ')' ]
-                 [ ':=' expression ] ';'                     -- Node_Object_Declaration
+        name ':' ( [ 'constant' ] ( type_mark | array_definition )
+                     [ '(' actual { ',' actual } ')' ]
+                     [ ':=' expression ]
+                 | 'constant' ':=' expression ) ';'          -- Node_Object_Declaration
 
     array_definition ::=
         'array' '(' ( range | name 'range' '<>' ) ')' 'of' type_mark
@@ -54,6 +55,9 @@ the analyser tells them apart without the parser deciding what the text means.
 An object of such a type carries its length in the actual list of
 `object_declaration` — `X : Line (1 .. 4)` — which is the same production a
 task's discriminants use.
+
+`constant :=` with no type mark is Ada's named number: the second child is
+absent, and what the object is comes from the value.
 
 An `array_definition` written where a type mark stands is Ada's anonymous array
 type, and builds the same node a type declaration does: the name it carries is

@@ -931,6 +931,17 @@ package body Adash.Language.Semantics is
       --  The type a type mark names, complaining when it names none.
       function Named_Type (Node : S.Node_Id) return Types.Type_Kind;
 
+      --  What a named number is, from the value it was given.
+      --
+      --  `Max : constant := 100;` is Ada's named number: nothing stands where
+      --  a type mark would, and the value says what it is. Held to a literal,
+      --  as a parameter's default is and for a related reason -- what a named
+      --  number holds is a number known where it is written.
+      --
+      --  @param Node The object declaration.
+      --  @return Its type, or Type_None when what was written is not one.
+      function Number_Type (Node : S.Node_Id) return Types.Type_Kind;
+
       --  How many slots what a name denotes takes.
       --
       --  A protected object is not a value and asking a type for its width
@@ -2261,6 +2272,46 @@ package body Adash.Language.Semantics is
       end Complain;
 
       --  The type a type name denotes, or Type_None when it is not a type.
+      function Number_Type (Node : S.Node_Id) return Types.Type_Kind is
+         Name_Node : constant S.Node_Id := S.First (Tree, Node);
+         Name      : constant String := S.Text (Tree, Name_Node);
+         Value     : constant S.Node_Id := S.Third (Tree, Node);
+
+         Spelling : Ada.Strings.Unbounded.Unbounded_String;
+         Found    : Types.Type_Kind;
+      begin
+         if not S.Is_Present (Value) then
+            Complain (Adash.Errors.Error_Number_Not_A_Literal, Name_Node,
+                      [1 => Adash.Messages.Named ("name", Name)]);
+            return Types.Type_None;
+         end if;
+
+         Found := Analyse_Expression (Value);
+
+         if Found = Types.Type_None then
+            return Types.Type_None;
+         end if;
+
+         if not Types.Is_Numeric (Found) then
+            --  Ada's named number is a number. A Boolean or a text with no
+            --  type mark in front of it is a declaration missing its type
+            --  rather than a named number, and saying which is the useful
+            --  half.
+            Complain (Adash.Errors.Error_Number_Not_Numeric, Value,
+                      [Adash.Messages.Named ("name", Name),
+                       Adash.Messages.Named ("found", Types.Name (Found))]);
+            return Types.Type_None;
+         end if;
+
+         if not Static_Default (Into, Tree, Value, Found, Spelling) then
+            Complain (Adash.Errors.Error_Number_Not_A_Literal, Value,
+                      [1 => Adash.Messages.Named ("name", Name)]);
+            return Types.Type_None;
+         end if;
+
+         return Found;
+      end Number_Type;
+
       function Named_Type (Node : S.Node_Id) return Types.Type_Kind is
       begin
          --  `A : array (1 .. 3) of Integer;`. The type is written where its
@@ -7311,7 +7362,11 @@ package body Adash.Language.Semantics is
                   Type_Node : constant S.Node_Id := S.Second (Tree, Node);
                   Value     : constant S.Node_Id := S.Third (Tree, Node);
                   Actuals   : constant S.Node_Id := S.Child (Tree, Node, 4);
-                  Named_As  : constant Types.Type_Kind := Named_Type (Type_Node);
+                  --  A named number has no type mark, and its value says
+                  --  what it is.
+                  Named_As  : constant Types.Type_Kind :=
+                    (if S.Is_Present (Type_Node) then Named_Type (Type_Node)
+                     else Number_Type (Node));
                   Is_Const  : constant Boolean := S.Text (Tree, Node) = "constant";
                   Error     : Adash.Errors.Error_Info;
 

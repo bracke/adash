@@ -281,6 +281,8 @@ package Adash.Messages is
       Msg_Case_Choice_Not_Static,
       Msg_Case_Choice_Covered_Twice,
       Msg_Case_Range_Is_Empty,
+      Msg_Number_Not_A_Literal,
+      Msg_Number_Not_Numeric,
       Msg_Case_Others_Not_Last,
       Msg_Case_Incomplete,
       Msg_Not_Lowerable,

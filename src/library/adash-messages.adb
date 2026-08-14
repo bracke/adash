@@ -389,6 +389,10 @@ package body Adash.Messages is
             return "error.case.choice_covered_twice";
          when Msg_Case_Range_Is_Empty      =>
             return "error.case.range_is_empty";
+         when Msg_Number_Not_A_Literal     =>
+            return "error.number_not_a_literal";
+         when Msg_Number_Not_Numeric       =>
+            return "error.number_not_numeric";
          when Msg_Case_Others_Not_Last     =>
             return "error.case.others_not_last";
          when Msg_Case_Incomplete          =>
@@ -651,6 +655,12 @@ package body Adash.Messages is
             | Msg_Case_Range_Is_Empty
             | Msg_Case_Others_Not_Last =>
             return No_Placeholders;
+
+         when Msg_Number_Not_A_Literal =>
+            return [1 => N ("name")];
+
+         when Msg_Number_Not_Numeric =>
+            return [N ("name"), N ("found")];
 
          when Msg_Command_Not_Found
             | Msg_Command_Not_Executable

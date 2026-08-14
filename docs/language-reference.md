@@ -84,6 +84,11 @@ part are that part's own, counted from one. A part of a variable is assigned to
 however deep it is written; a part of what a call yielded is not, a value having
 nowhere to put anything.
 
+A **named number** — `Max : constant := 100;` — takes its type from its value,
+which is a literal: `100` makes an Integer and `0.5` a Float. Ada's is universal
+and mixes with both; here there is no implicit conversion for it to rely on, so
+it is one or the other and a conversion is written where it crosses.
+
 ### Declared types
 
     type Verdict is (Worked, Failed, Killed);

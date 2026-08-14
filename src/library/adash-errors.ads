@@ -215,6 +215,8 @@ package Adash.Errors is
       --  A default that is not a literal, or one on a parameter that is
       --  somewhere to put a value rather than something to be given.
       Error_Default_Not_Literal,
+      Error_Number_Not_A_Literal,
+      Error_Number_Not_Numeric,
       Error_Default_Not_In_Mode,
 
       --  A subtype whose range this build cannot make sense of.

@@ -2980,6 +2980,10 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   (1 .. 2)` is the first two elements of the part, as it is for a String; Ada's
   slice keeps the index range it came from, and this does not, for the reason
   the String entry above gives.
+- **A named number is a literal, and has a type.** `Max : constant := 100;` is
+  written; Ada's is universal and would mix with an Integer and a Float alike,
+  and here it is whichever its value is -- there is no implicit conversion for
+  a universal number to rely on, so a value that crosses says so.
 - **A record component's default is a literal too**, and for the reason a
   parameter's is: it is read where an object is declared rather than where the
   type was, so a name resolved there would be the one thing it cannot be. It

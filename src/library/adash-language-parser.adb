@@ -3141,7 +3141,13 @@ package body Adash.Language.Parser is
                   Advance;
                end if;
 
-               if Is_Word (T.Word_Array) then
+               if Is_Const and then Is_Symbol (T.Delim_Assign) then
+                  --  `Max : constant := 100;` -- Ada's named number, whose
+                  --  type is the one the value has. Nothing stands where the
+                  --  type mark would, which is what says so.
+                  Type_Ref := S.No_Node;
+
+               elsif Is_Word (T.Word_Array) then
                   --  `A : array (1 .. 3) of Integer;`. The type has no name a
                   --  user wrote, so it is given one nobody can write -- the
                   --  object's, with an apostrophe in it. Ada's anonymous array

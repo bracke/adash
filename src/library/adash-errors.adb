@@ -70,6 +70,8 @@ package body Adash.Errors is
             | Error_Case_Choice_Not_Static
             | Error_Case_Choice_Covered_Twice
             | Error_Case_Range_Is_Empty
+            | Error_Number_Not_A_Literal
+            | Error_Number_Not_Numeric
             | Error_Case_Others_Not_Last
             | Error_Case_Incomplete
             | Error_Function_As_Statement
@@ -237,6 +239,10 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Case_Choice_Covered_Twice;
          when Error_Case_Range_Is_Empty    =>
             return Adash.Messages.Msg_Case_Range_Is_Empty;
+         when Error_Number_Not_A_Literal   =>
+            return Adash.Messages.Msg_Number_Not_A_Literal;
+         when Error_Number_Not_Numeric     =>
+            return Adash.Messages.Msg_Number_Not_Numeric;
          when Error_Case_Others_Not_Last   =>
             return Adash.Messages.Msg_Case_Others_Not_Last;
          when Error_Case_Incomplete        =>

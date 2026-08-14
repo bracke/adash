@@ -184,6 +184,8 @@ There are 426 messages in 22 groups.
 | `error.case.choice_not_static` | a case choice must be a literal value, a range of them, or others |
 | `error.case.choice_covered_twice` | this choice covers a value an earlier one already covers |
 | `error.case.range_is_empty` | this range runs backwards, so it covers nothing |
+| `error.number_not_a_literal` | {name} is a named number, whose value is a literal |
+| `error.number_not_numeric` | {name} is a named number and {found} is not a number |
 | `error.case.others_not_last` | others covers what is left, so it must be the last choice of the last alternative |
 | `error.case.incomplete` | this case does not cover every value of {found}; add an others alternative |
 | `error.not_lowerable` | this build cannot yet run {construct} |
