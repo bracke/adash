@@ -107,9 +107,11 @@ put_line ("the middle two are now" & Recent (2)'Image & Recent (3)'Image
 --  hands one back.
 --
 --  A slice stands where the array stands for the same reason -- it is that
---  same kind of place, one level in. Its length has to be the parameter's own:
---  a parameter takes one length, there being no unconstrained array type here,
---  and a shorter slice would leave the callee reading slots that are not its.
+--  same kind of place, one level in. Its length has to be the parameter's own,
+--  because a parameter of a *constrained* array type takes one length and a
+--  shorter slice would leave the callee reading slots that are not its. A
+--  parameter that means to take several lengths is declared of an
+--  unconstrained type, which is further down this file.
 function Largest (Of_Them : Window) return Integer is
    Best : Integer := Of_Them (Of_Them'First);
 begin

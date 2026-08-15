@@ -49,7 +49,11 @@ obvious.
 - One responsibility per package. Split by responsibility and dependency
   boundary, never to reduce line count.
 - Implementation detail goes in `Adash.<Subsystem>.Internal.*`, not in a
-  repository-wide utility package.
+  repository-wide utility package. No subsystem has needed one yet: fifty-four
+  packages and none of them an `Internal` — the rule is what to do when a
+  subsystem grows a part nobody outside it should reach, and the reason it has
+  not fired is that splitting by responsibility has kept every package small
+  enough to be its own answer.
 - Bodies declare subprograms before use, with a one-line comment on each
   forward declaration.
 - Section banners (`----`/`-- Name --`/`----`) before each subprogram body, as

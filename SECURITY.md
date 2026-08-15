@@ -42,9 +42,12 @@ through `terminal_styles`, and remains semantically complete with styling off �
 so nothing depends on escapes surviving.
 
 **Secrets in persisted state.** History is durable, and a shell's history is one
-of the more sensitive files on a system. The history model carries an explicit
-policy for sensitive entries; a persistence format that has no way to say "do
-not record this" is a defect.
+of the more sensitive files on a system. `history.enabled` turns recording off
+for a session, and `Adash.Interactive.History.Record_Line` takes a `Sensitive`
+flag that records nothing at all — but **nothing at the prompt sets it yet**:
+there is no way for a user to mark one line as unrecorded, the way a leading
+space does in other shells. The mechanism is there and the way to reach it is
+not, which is a gap rather than a protection.
 
 **Confident wrong answers about the host.** A permission check that silently
 becomes a no-op reports that all is well for as long as it exists. Adash asks
@@ -58,7 +61,10 @@ a host cannot express the question rather than guessing — and Adash treats
   honoured.
 - Persistence writes are atomic, so an interrupted write cannot truncate
   authoritative state.
-- Caches are rebuildable, and cache corruption never destroys user state.
+- The store distinguishes what can be rebuilt from what cannot, so that a
+  corrupt cache never costs a user their history or their settings. Nothing is
+  cached today; the distinction is in `Adash.Persistence` for the first thing
+  that is.
 - Configuration that is invalid in a way that would materially change behaviour
   is reported, never silently ignored.
 - Job control degrades explicitly on platforms where hostkit reports the
@@ -66,7 +72,13 @@ a host cannot express the question rather than guessing — and Adash treats
 
 ## Status
 
-Most of the above describes design commitments for subsystems that are not yet
-implemented — see `ROADMAP.md`. They are recorded here because they constrain
-how those subsystems get built, not because they are already in force. The
-sections will be revised to describe implemented behaviour as each phase lands.
+The above describes behaviour that is in force, not intentions: the language is
+parsed once from source with known identity, programs are started with argument
+vectors, styling goes through `terminal_styles` and is off where the
+destination is not a terminal, history and settings are written atomically
+under a lock, and job control declines where hostkit reports the capability
+absent. Each has conformance cases behind it.
+
+Two exceptions are named where they stand: no way to mark a single line
+unrecorded, and nothing cached yet. Both are stated as gaps in the sections
+above rather than left to be inferred.

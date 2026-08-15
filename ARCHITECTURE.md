@@ -76,7 +76,10 @@ what this architecture is made of.
 
 Implementation packages live under `Adash.<Subsystem>.Internal.*`. They are not
 cross-subsystem APIs; a `with` of another subsystem's `Internal` is a defect
-regardless of whether it compiles.
+regardless of whether it compiles. There are none today -- every package so far
+has been small enough to be its own answer -- so this is the rule for the first
+subsystem that grows a part nobody outside it should reach, rather than a
+description of something in the tree.
 
 ## What Adash does not own
 

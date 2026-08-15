@@ -3,9 +3,12 @@
 ## Requirements
 
 [Alire](https://alire.ada.dev/) 2.1 or later and a GNAT toolchain. Nothing else
-— there is no Make, no shell script and no Python in this repository, and adding
+— there is no Make, no build script and no Python in this repository, and adding
 one is not a shortcut but a second toolchain that has to be installed, learned
-and kept working on every host the shell is built on.
+and kept working on every host the shell is built on. The one exception is the
+manifest's own test action, a single `sh -c` line that Alire needs in order to
+change directory before running the suite; every sibling crate writes the same
+line, and nothing else in the repository is written in anything but Ada.
 
 Adash is developed alongside its sibling crates, checked out beside it:
 
@@ -95,7 +98,9 @@ test that now covers it.
 
 ## Releases
 
-Release engineering lands in Phase 16. Until then there are no releases, only
-`0.1.0-dev`. The version lives in `alire.toml` and is mirrored in
-`repository.toml`; `adash_check` verifies they agree, and no Ada source contains
-a version literal.
+No release has been cut: the version is `0.1.0-dev` and everything a release
+would describe is under *Unreleased* in `CHANGELOG.md`. What a release takes is
+in `docs/RELEASE.md` — the gates, in order, and what is deliberately not
+claimed about reproducibility. The version lives in `alire.toml` and is mirrored
+in `repository.toml`; `adash_check` verifies they agree, and no Ada source
+contains a version literal.

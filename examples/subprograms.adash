@@ -106,8 +106,12 @@ put_line (Right);
 --  by its arguments -- their number and their types -- and, for a function, by
 --  what the context expects of its result: two functions differing only in
 --  what they return are two subprograms, and a call to one is settled by what
---  is being built from it. Where nothing expects anything, such a call is
---  ambiguous and is refused rather than guessed at, which is Ada's answer too.
+--  is being built from it. What the context wants reaches the *arguments* too,
+--  through the candidates it rules out, and an argument that can only be one
+--  thing rules candidates out for the arguments beside it. Where nothing
+--  settles it, such a call is ambiguous and is refused rather than guessed at,
+--  which is Ada's answer too -- and the refusal names every declaration it
+--  could have meant.
 procedure Describe (Value : Integer) is
 begin
    put_line (f"an integer:{Value'Image}");
