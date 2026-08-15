@@ -252,6 +252,26 @@ package Adash.Diagnostics is
    --  @return That diagnostic.
    function Element (Item : List; Index : Positive) return Diagnostic;
 
+   --  Say where a diagnostic is really about, after the fact.
+   --
+   --  One caller: a submission that had another file read into it is analysed
+   --  as one text, so a diagnostic about the included part carries a position
+   --  in that text and the origin of the submission. Neither is what a reader
+   --  needs -- they need the file it came from and the line in *that* file --
+   --  and only the engine, which did the reading, knows how to map one to the
+   --  other. So the mapping happens here rather than by teaching every
+   --  subsystem that a submission may span files.
+   --
+   --  @param Item The list.
+   --  @param Index Which diagnostic, from one.
+   --  @param Origin Where it is really from.
+   --  @param Extent Where in that source, or Nowhere to leave the extent.
+   procedure Locate
+     (Item   : in out List;
+      Index  : Positive;
+      Origin : Adash.Source.Origin;
+      Extent : Adash.Source.Span);
+
    --  How many diagnostics of a given severity the list holds.
    --
    --  @param Item List to inspect.

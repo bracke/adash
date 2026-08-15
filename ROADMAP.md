@@ -425,6 +425,17 @@ change is one where a script silently loads the wrong file.
 submission is commands or statements and not both. That means a file of commands
 or a file of program. Stated here because a user will meet it.
 
+It is also why `source ("helpers")` at the top of a script is *read into* the
+script rather than run when reached: a submission is analysed as a whole, so a
+module's declarations have to be part of that whole or the names it declares
+cannot be resolved. Only a literal name, and only at the top of a submission --
+the rule this language uses wherever something must be known before the program
+runs. A computed name stays a command that runs a file, and a file that would
+read itself back is left as one, so running it reports the cycle rather than
+looping. Diagnostics about what was read in name the file it was written in:
+the engine says how much it carried, and `Adash.Scripting` maps every position
+back through what it assembled.
+
 Two things remain out of reach and are recorded rather than worked around. The
 `source` command needs the scripting subsystem, which sits *above* commands in
 the layering, so the dispatch has to come from above — the same inversion that

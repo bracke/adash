@@ -36,11 +36,17 @@ registry in `Adash.Commands` declares. `help;` lists them at the prompt and
 `quit` is spelled that way because `exit` is a keyword of the language.
 
 `source` runs a file **in this session**, so what it declares is carried the way
-any submission's declarations are: visible to the *next* submission, not to the
-rest of the one that sourced it. A bare name is searched for — beside the script
-doing the loading first, then the user's own module directory — so a set of
-scripts that ship together find each other without knowing where they were
-installed.
+any submission's declarations are: visible to the *next* submission. A bare name
+is searched for — beside the script doing the loading first, then the user's own
+module directory — so a set of scripts that ship together find each other
+without knowing where they were installed.
+
+**In a script, a literal name at the top of the file is read in rather than run
+when reached.** A script is one submission, so a module's declarations have to
+be part of it before it is analysed; reading the file in where the call stands
+is what makes `source ("helpers"); Report ("x");` mean what it looks like. A
+computed name — `source (Where)` — cannot be known before the program runs and
+stays the command it was. `scripting-guide.md` says what follows from that.
 
 `history` in a session with no log — a script — reports that it has nothing,
 which is a different thing from a missing feature and is worded differently.

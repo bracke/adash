@@ -60,25 +60,30 @@ a set of scripts that ship together find each other without knowing where they
 were installed — and without the working directory deciding, which is what makes
 it work when somebody runs the script from elsewhere.
 
-What a sourced file declares reaches the **next** submission, not the rest of
-the one that sourced it: each submission is analysed as a whole before it runs,
-and a declaration that did not exist when the analysis began cannot be resolved
-by it.
-
-**A script file is one submission.** So a script that sources a file and then
-calls what it declared does not work, however many lines apart the two are:
+**In a script, a sourced file is read in where the call stands.**
 
     source ("helpers");
-    Report ("done");                   --  refused: one submission, and Report
-                                       --  did not exist when it was analysed
+    Report ("done");                   --  Report is visible: helpers was read
+                                       --  in before any of this was analysed
 
-At a prompt each line is its own submission, so the same two lines typed do
-work. In a script, `source` is for *running* another file — its statements, its
-output, what it changes — rather than for importing declarations into the file
-that asked for it.
+A script is one submission, analysed as a whole before any of it runs, so a
+call that only *ran* the other file would come too late — the names it declares
+would not be there to resolve. Reading it in makes one program of the two, in
+the order they were written.
 
-Declarations that several scripts share go in the **startup file**, which is a
-submission of its own and runs before the script:
+Only a **literal** name, and only at the top of the file. Both are the rule
+this language uses wherever something has to be known before the program runs —
+an array's bounds, a case's choices, a parameter's default — and
+`source (Name)` is not one of them. A computed name stays what it always was: a
+command that runs a file when it is reached, whose declarations reach the next
+submission.
+
+A module may read in a module. A file that would read itself back is left as a
+call, and running it reports the cycle with the path that closed it.
+
+At a prompt this does not arise: each line is a submission, so a file sourced
+on one line has declared its names by the next. Declarations that several
+scripts share can also go in the **startup file**, which runs before the script:
 
     ~/.config/adash/startup.adash      --  procedure Report (...) is ... end;
     report.adash                       --  Report is visible here

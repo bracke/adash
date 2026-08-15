@@ -1501,6 +1501,17 @@ what changed.
   by name; and an operator's settled operand rules out what its open one can
   be, so `put_line (F & "x")` reads F as the String.
 
+- **A script reads in what it sources.** `source ("helpers");` at the top of a
+  script is read into the script's text where it stands, so the names the
+  module declares are in scope for the rest of the file. A script is one
+  submission and a submission is analysed as a whole before any of it runs, so
+  a call that only *ran* the other file came too late for the analysis -- which
+  is why a script could not be factored into modules at all. Only a literal
+  name, and only at the top of a submission; a computed name stays a command
+  that runs a file when it is reached, and a file that would read itself back
+  is left as one, so running it reports the cycle. Diagnostics about what was
+  read in name the file it was written in.
+
 ### Removed
 
 - `alias`, which had been registered and unavailable since Phase 9. Within a

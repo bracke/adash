@@ -303,6 +303,27 @@ package body Adash.Diagnostics is
       return Item.Entries.Element (Index);
    end Element;
 
+   ------------
+   -- Locate --
+   ------------
+
+   procedure Locate
+     (Item   : in out List;
+      Index  : Positive;
+      Origin : Adash.Source.Origin;
+      Extent : Adash.Source.Span)
+   is
+      Moved : Diagnostic := Item.Entries.Element (Index);
+   begin
+      Moved.Origin := Origin;
+
+      if not Adash.Source.Is_Empty (Extent) then
+         Moved.Extent := Extent;
+      end if;
+
+      Item.Entries.Replace_Element (Index, Moved);
+   end Locate;
+
    --------------
    -- Count_Of --
    --------------

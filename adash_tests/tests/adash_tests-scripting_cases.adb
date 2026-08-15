@@ -10,6 +10,7 @@ with Adash.Execution;
 with Adash.Execution.Environment;
 with Adash.Messages;
 with Adash.Scripting;
+with Adash.Source;
 with Adash.Scripting.Modules;
 with Adash.Scripting.Startup;
 
@@ -310,8 +311,14 @@ package body Adash_Tests.Scripting_Cases is
 
       Inner : constant String :=
         Write ("adash-test-unreachable.adash", "set (""NEVER=1"");");
+      --  A *computed* name on purpose. A literal one is read into the script
+      --  before it is submitted, and reading a file into a submission is not
+      --  running a script -- it needs no runner and asks for none. What still
+      --  does is a name only the running program knows, which is this.
       Outer : constant String :=
-        Write ("adash-test-no-runner.adash", "source (""" & Inner & """);");
+        Write ("adash-test-no-runner.adash",
+               "Where : String := """ & Inner & """;" & ASCII.LF
+               & "source (Where);");
    begin
       --  No runner installed. A session that cannot run scripts has to say so:
       --  a `source` that quietly did nothing would look like an empty file.
@@ -373,6 +380,63 @@ package body Adash_Tests.Scripting_Cases is
    ----------
    -- Name --
    ----------
+
+   --  A diagnostic about a module says the module, not the script.
+   --
+   --  A script that reads another file into itself is analysed as one text, so
+   --  every position a diagnostic carries is a position in that text and its
+   --  origin is the script. Neither is what a reader needs. Nothing renders a
+   --  position today, which is exactly why this asserts on the data: a
+   --  diagnostic that points at the wrong file is a lie waiting for the day
+   --  somebody prints it.
+   procedure A_Diagnostic_Names_The_File_It_Came_From
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      Module : constant String :=
+        Write ("adash-test-module.adash",
+               "procedure Broken is begin put_line (Nope); end Broken;");
+      Script : constant String :=
+        Write ("adash-test-reader.adash",
+               "put_line (""before"");" & ASCII.LF
+               & "source (""adash-test-module"");" & ASCII.LF);
+
+      Session : aliased Adash.Engine.Session;
+      Context : aliased Sc.Loading;
+      Report  : aliased D.List;
+      Result  : Sc.Outcome;
+      Status  : Adash.Execution.Exit_Status;
+
+      Runner : aliased Sc.Runner
+        (Session => Session'Unchecked_Access,
+         Context => Context'Unchecked_Access,
+         Report  => Report'Unchecked_Access,
+         Output  => null);
+
+      Named : Boolean := False;
+   begin
+      Adash.Engine.Open (Session);
+      Adash.Engine.Use_Script_Runner (Session, Runner'Unchecked_Access);
+
+      Sc.Run_File (Session, Script, Context, Result, Status, Report);
+
+      for Index in 1 .. D.Count (Report) loop
+         declare
+            Item : constant D.Diagnostic := D.Element (Report, Index);
+         begin
+            if Adash.Source.Name (D.Origin (Item)) = Module then
+               Named := True;
+            end if;
+         end;
+      end loop;
+
+      Assert (Named,
+              "no diagnostic named the module the mistake was written in");
+
+      Remove (Module);
+      Remove (Script);
+   end A_Diagnostic_Names_The_File_It_Came_From;
 
    procedure Sourcing_A_Bare_Name_Searches_For_It
      (Test : in out AUnit.Test_Cases.Test_Case'Class)
@@ -451,6 +515,9 @@ package body Adash_Tests.Scripting_Cases is
       Register_Routine
         (T, A_Script_Cannot_Load_Itself'Access,
          "scripting : the loading chain tracks what is active");
+      Register_Routine
+        (T, A_Diagnostic_Names_The_File_It_Came_From'Access,
+         "scripting : a diagnostic names the file it came from");
       Register_Routine
         (T, Sourcing_A_Bare_Name_Searches_For_It'Access,
          "scripting : sourcing a bare name searches for it");

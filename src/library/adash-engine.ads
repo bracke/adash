@@ -84,6 +84,15 @@ package Adash.Engine is
       --  which a caller must be able to tell apart from a program that ran and
       --  failed.
       Ran : Boolean := False;
+
+      --  How many bytes the session put in front of what the caller submitted.
+      --
+      --  A submission is analysed together with what earlier ones declared, so
+      --  every position a diagnostic carries is a position in *that* text. A
+      --  caller that assembled the submission itself -- a script that had
+      --  another file read into it -- needs to subtract this before it can say
+      --  which of its own bytes a diagnostic is about.
+      Carried_Bytes : Natural := 0;
    end record;
 
    --  A shell session.

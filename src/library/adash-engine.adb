@@ -981,17 +981,24 @@ package body Adash.Engine is
          --  earlier and the line that uses it are one program. They have to be:
          --  a name is resolved by the semantic pass, and a pass that never saw
          --  the definition cannot resolve a call to it.
-         if not Adash.Source.Load
-           (Work.Buffer, Origin,
-            Carried (Item, Redefined_Here (Text, Origin)) & Text, Load_Error)
-         then
-            Report.Emit
-              (D.From_Error (Load_Error, D.Severity_Fatal, D.Category_Lexical,
-                             D.Owner_Source, Origin));
-            Outcome.Kind := Not_Understood;
-            Outcome.Status := (Kind => Adash.Execution.Exit_Parse_Failure, others => <>);
-            return;
-         end if;
+         declare
+            Ahead : constant String :=
+              Carried (Item, Redefined_Here (Text, Origin));
+         begin
+            Outcome.Carried_Bytes := Ahead'Length;
+
+            if not Adash.Source.Load
+              (Work.Buffer, Origin, Ahead & Text, Load_Error)
+            then
+               Report.Emit
+                 (D.From_Error (Load_Error, D.Severity_Fatal,
+                                D.Category_Lexical, D.Owner_Source, Origin));
+               Outcome.Kind := Not_Understood;
+               Outcome.Status :=
+                 (Kind => Adash.Execution.Exit_Parse_Failure, others => <>);
+               return;
+            end if;
+         end;
 
          Adash.Language.Lexer.Scan (Work.Buffer, Work.Stream, Report);
          Adash.Language.Parser.Parse (Work.Stream, Origin, Work.Tree, Report);
@@ -1156,9 +1163,10 @@ package body Adash.Engine is
          end;
       end Run_Submission;
    begin
-      Outcome := (Kind   => Nothing_Submitted,
-                  Status => Adash.Execution.Success,
-                  Ran    => False);
+      Outcome := (Kind          => Nothing_Submitted,
+                  Status        => Adash.Execution.Success,
+                  Ran           => False,
+                  Carried_Bytes => 0);
 
       if not Item.Opened then
          Open (Item);

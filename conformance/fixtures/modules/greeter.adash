@@ -1,0 +1,8 @@
+--  Read into the script that asks for it, rather than run when reached: what
+--  it declares has to be there when the script that uses it is analysed, and
+--  that happens before any of the script runs.
+
+procedure Greet (Whom : String) is
+begin
+   put_line ("hello, " & Whom & "!");
+end Greet;

@@ -121,7 +121,13 @@ package Adash.Scripting is
       Result  : out Outcome;
       Status  : out Adash.Execution.Exit_Status;
       Report  : in out Adash.Diagnostics.List;
-      On_Output : Adash.Engine.Output_Sink_Access := null);
+      On_Output : Adash.Engine.Output_Sink_Access := null;
+
+      --  How many bytes the session put in front of this text. Needed only by
+      --  a caller that assembled the text itself and has to say which of its
+      --  own bytes a diagnostic is about; see Run_File, which reads one script
+      --  into another.
+      Carried : out Natural);
 
    ---------------------------------------------------------------------
    --  Running a script from inside a command.

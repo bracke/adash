@@ -325,3 +325,32 @@ script = "write_file (\"procedure Report (What : String) is begin put_line (\"\"
 exit_status = 0
 output = ["report: done"]
 diagnostics = []
+
+[[case]]
+id = "source.a-script-reads-in-what-it-asks-for"
+requirement = """
+A script is one submission, analysed as a whole before any of it runs, so a
+call that only *runs* another file comes too late for the analysis: the names
+that file declares are not there to be resolved. The file is read into the
+script's text where the call stands, so what runs is one program in the order
+it was written and a module's declarations are in scope for what follows them.
+That is what makes a set of scripts that ship together usable as one.
+"""
+arguments = ["{root}/conformance/fixtures/modules/uses.adash"]
+exit_status = 0
+output = ["hello, world!", "and the script that asked for it"]
+diagnostics = []
+
+[[case]]
+id = "source.and-a-name-it-computes-still-runs-when-reached"
+requirement = """
+Only a literal name is read in, which is the rule this language uses wherever
+something has to be known before the program runs -- an array's bounds, a
+case's choices, a parameter's default. `source (Name)` is not one, so it stays
+what it was: a command that runs a file when it is reached, whose declarations
+reach the next submission.
+"""
+script = "Where : String := \"{store}/late.adash\"; write_file (\"put_line (\"\"late ran\"\");\", Where);\nsource (Where);\nquit (0);"
+exit_status = 0
+output = ["late ran"]
+diagnostics = []

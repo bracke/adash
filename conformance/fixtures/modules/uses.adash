@@ -1,0 +1,8 @@
+--  Sources a module and then calls what it declares, in one file. A script is
+--  one submission, so this works only because the module is read in before the
+--  submission is analysed.
+
+source ("greeter");
+
+Greet ("world");
+put_line ("and the script that asked for it");
