@@ -49,7 +49,9 @@ computed name — `source (Where)` — cannot be known before the program runs a
 stays the command it was. `scripting-guide.md` says what follows from that.
 
 `history` in a session with no log — a script — reports that it has nothing,
-which is a different thing from a missing feature and is worded differently.
+which is a different thing from a missing feature and is worded differently. It
+lists what was recorded, so a line typed with a space in front of it is not
+there: see `interactive-guide.md`.
 
 ## The environment children inherit
 

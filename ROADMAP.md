@@ -2767,6 +2767,38 @@ Verified both ways: a session killed with `SIGKILL` has its `pwd; version;`
 folded in by the next shell, and a session still running keeps its file while
 another shell sweeps around it.
 
+**A line typed with a space in front of it is not remembered.** Not in the
+session, not in the file, and not as a placeholder saying a line was here: an
+entry recording *when* a secret was typed is still a record of it. The line
+runs -- the mark says what to forget, not what to refuse.
+
+The mark is a leading space because it is the only thing a user can type in
+front of a command without changing what the command means: the lexer skips
+leading whitespace, so the submission that runs is the same one either way. A
+word would be a second command language, which this project does not have; a
+key would have to be found and remembered; and a setting toggled around the line
+would still record it on the evening the user forgot to toggle it back. A tab
+does not count -- at an editing prompt a tab is completion and cannot start a
+line at all, so honouring it would quietly forget pasted indented text and
+nothing else.
+
+What is marked is the **submission**, not each line of one. Ada is written
+indented and a continuation line begins with spaces as a matter of course; if
+that decided the question every multi-line construct would vanish from the
+history and no user could tell why. The first character of the first line
+decides, and a marked construct is forgotten whole.
+
+`Adash.Interactive.History.Record_Line` had taken a `Sensitive` flag since the
+package was written and nothing at the prompt had ever set it -- a mechanism
+with no way to reach it, which reads in a security document as a protection and
+is not one. The frontend reads the mark and the log applies the policy, because
+what a keystroke means is a frontend question and what a session remembers is
+the log's.
+
+On by default. `history.ignore-space` turns it off for someone who wants every
+line as typed, but a protection that has to be switched on first is off in the
+session where it was needed.
+
 **Configuration is still per-user.** Only history gained a per-session notion.
 
 **A subprogram declared on one line is callable on the next.** The session keeps

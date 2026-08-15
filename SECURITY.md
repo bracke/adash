@@ -42,12 +42,20 @@ through `terminal_styles`, and remains semantically complete with styling off �
 so nothing depends on escapes surviving.
 
 **Secrets in persisted state.** History is durable, and a shell's history is one
-of the more sensitive files on a system. `history.enabled` turns recording off
-for a session, and `Adash.Interactive.History.Record_Line` takes a `Sensitive`
-flag that records nothing at all — but **nothing at the prompt sets it yet**:
-there is no way for a user to mark one line as unrecorded, the way a leading
-space does in other shells. The mechanism is there and the way to reach it is
-not, which is a gap rather than a protection.
+of the more sensitive files on a system. Three things bear on it. A **line typed
+with a space in front of it is not recorded at all** — not in the session, not
+in the file, and not as a placeholder saying a line was here, since a record of
+*when* a secret was typed is still a record. It is the convention the other
+shells have, it is on by default (`history.ignore-space`), and it is read at the
+submission rather than at each line of one, so a multi-line construct is marked
+or not as a whole. `history.enabled` off turns recording off for a session
+entirely. And `Adash.Interactive.History.Record_Line` takes the `Sensitive` flag
+the frontend sets, so the policy has one implementation rather than one per
+caller.
+
+What is still not offered is a way to remove something already recorded: a user
+who typed a secret without the mark has to edit the history file. That is a gap,
+and it is a different one from the above.
 
 **Confident wrong answers about the host.** A permission check that silently
 becomes a no-op reports that all is well for as long as it exists. Adash asks
@@ -69,6 +77,8 @@ a host cannot express the question rather than guessing — and Adash treats
   is reported, never silently ignored.
 - Job control degrades explicitly on platforms where hostkit reports the
   capability as absent, rather than silently doing something different.
+- A line typed with a space in front of it is kept out of the history without
+  the user having to turn anything on first.
 
 ## Status
 
@@ -76,9 +86,10 @@ The above describes behaviour that is in force, not intentions: the language is
 parsed once from source with known identity, programs are started with argument
 vectors, styling goes through `terminal_styles` and is off where the
 destination is not a terminal, history and settings are written atomically
-under a lock, and job control declines where hostkit reports the capability
-absent. Each has conformance cases behind it.
+under a lock, job control declines where hostkit reports the capability absent,
+and a line typed with a space in front of it is left out of the history in the
+session and on disk. Each has conformance cases behind it.
 
-Two exceptions are named where they stand: no way to mark a single line
-unrecorded, and nothing cached yet. Both are stated as gaps in the sections
-above rather than left to be inferred.
+Two exceptions are named where they stand: no way to remove a line already
+recorded, and nothing cached yet. Both are stated as gaps in the sections above
+rather than left to be inferred.

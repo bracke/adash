@@ -75,6 +75,19 @@ back as three lines rather than as a fragment.
 `history;` lists it. In a session with no log — a script — the command says it
 has nothing to report, which is a different thing from a missing feature.
 
+**A space in front of a line keeps it out of the history**, in the session and
+on disk both. It is the convention the other shells have, and it works here for
+the same reason it works there: the lexer skips leading whitespace, so it is the
+one thing that can be typed before a command without changing what the command
+means. The line still runs -- the mark says what to forget, not what to refuse
+-- and nothing is left behind saying a line was here, since an entry recording
+that a secret was typed is still a record of when one was typed.
+
+What is marked is the **submission**, not each line of one. A multi-line
+construct is one entry, so the first character of its first line decides, and
+the indentation Ada is written with is left to mean what it says. Set
+`history.ignore-space` to false to record every line as typed instead.
+
 `history.enabled` off writes nothing to disk while recall still works for the
 session, which is what somebody on a shared machine wants.
 `history.per-session` gives each session its own file, merged into the shared

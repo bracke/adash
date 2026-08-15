@@ -76,6 +76,8 @@ package body Adash_Tests.Interactive_Cases is
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Forgets_Sensitive_Lines
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure History_Reads_The_Mark_As_A_Leading_Space
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Drops_Oldest_At_Its_Limit
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Searches_Backwards
@@ -395,6 +397,48 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Hist.Entry_At (Log, 2) = "after;",
               "the sensitive line was recorded as " & Hist.Entry_At (Log, 2));
    end History_Forgets_Sensitive_Lines;
+
+   ------------------------------------------------
+   -- History_Reads_The_Mark_As_A_Leading_Space --
+   ------------------------------------------------
+
+   procedure History_Reads_The_Mark_As_A_Leading_Space
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Tab : constant Character := Character'Val (9);
+      Newline : constant Character := Character'Val (10);
+   begin
+      Assert (Hist.Marked_Sensitive (" secret;"),
+              "a line typed with a space in front of it was not marked");
+
+      --  Everything else is an ordinary line. A space anywhere but the front
+      --  is how Ada is written, and a marked line that had to be recognised by
+      --  reading the whole of it would be one no user could predict.
+      Assert (not Hist.Marked_Sensitive ("put_line (""x"");"),
+              "an ordinary line was taken as marked");
+      Assert (not Hist.Marked_Sensitive ("x := 1;  --  spaced"),
+              "a space inside a line was taken as the mark");
+      Assert (not Hist.Marked_Sensitive (""),
+              "an empty line was taken as marked");
+
+      --  Not a tab. At an editing prompt a tab is completion and cannot start
+      --  a line at all, so honouring it would forget pasted indented text and
+      --  nothing else.
+      Assert (not Hist.Marked_Sensitive (Tab & "secret;"),
+              "a leading tab was taken as the mark");
+
+      --  The first character of the submission, not of each line in it: an
+      --  entry is a submission, and Ada continuation lines are indented.
+      Assert (not Hist.Marked_Sensitive ("if True then" & Newline
+                                         & "   put_line (""x"");" & Newline
+                                         & "end if;"),
+              "an indented continuation line was taken as the mark");
+      Assert (Hist.Marked_Sensitive (" if True then" & Newline
+                                     & "   put_line (""x"");" & Newline
+                                     & "end if;"),
+              "a marked construct was not marked");
+   end History_Reads_The_Mark_As_A_Leading_Space;
 
    ----------------------------------------------
    -- History_Drops_Oldest_At_Its_Limit --
@@ -1365,6 +1409,69 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after recalling a line");
    end History_Recalls_A_Line_Through_A_Terminal;
 
+   --  A line typed with a space in front of it is not there to recall.
+   procedure History_Skips_A_Marked_Line_Through_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+
+      --  Upper case comes from the program, lower case from the echo of what
+      --  was typed, so counting an answer cannot count the keystrokes.
+      Marked : constant String := "MARKEDLINE";
+      Kept   : constant String := "KEPTLINE";
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      --  The mark, typed as a user would type it. The line still runs.
+      Type_Into
+        (Session,
+         " put_line (To_Upper (""markedline""));" & Return_Key);
+
+      Assert (Waited_For (Session, Marked),
+              "the marked line did not run: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""keptline""));" & Return_Key);
+
+      Assert (Waited_For (Session, Kept),
+              "the second line did not run: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+
+      --  One Up. If the marked line had been recorded this would bring it
+      --  back, since it is the more recent of the two.
+      Type_Into (Session, String'(1 => Character'Val (27)) & "[A" & Return_Key);
+
+      for Attempt in 1 .. 200 loop
+         exit when Times_Seen (Session, Kept) >= 2;
+
+         declare
+            Ignored : constant Boolean := Drained (Session);
+            pragma Unreferenced (Ignored);
+         begin
+            delay 0.05;
+         end;
+      end loop;
+
+      Assert (Times_Seen (Session, Kept) >= 2,
+              "Up did not bring the unmarked line back: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+      Assert (Times_Seen (Session, Marked) = 1,
+              "Up recalled the marked line: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after skipping a marked line");
+   end History_Skips_A_Marked_Line_Through_A_Terminal;
+
    --  Backspace removes a character rather than a byte, through the terminal.
    --
    --  The accented character is two bytes and one character. An editor that
@@ -1489,6 +1596,8 @@ package body Adash_Tests.Interactive_Cases is
                         "history collapses consecutive duplicates only");
       Register_Routine (T, History_Forgets_Sensitive_Lines'Access,
                         "history records nothing at all for a sensitive line");
+      Register_Routine (T, History_Reads_The_Mark_As_A_Leading_Space'Access,
+                        "a leading space marks a submission unrecorded");
       Register_Routine (T, History_Drops_Oldest_At_Its_Limit'Access,
                         "history drops its oldest entry at the limit");
       Register_Routine (T, History_Searches_Backwards'Access,
@@ -1507,6 +1616,8 @@ package body Adash_Tests.Interactive_Cases is
                         "Tab completes a word through a terminal");
       Register_Routine (T, History_Recalls_A_Line_Through_A_Terminal'Access,
                         "Up recalls a line through a terminal");
+      Register_Routine (T, History_Skips_A_Marked_Line_Through_A_Terminal'Access,
+                        "a line typed with a space is not there to recall");
       Register_Routine
         (T, Backspace_Removes_A_Character_Through_A_Terminal'Access,
          "backspace removes a character through a terminal");

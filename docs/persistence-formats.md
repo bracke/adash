@@ -49,6 +49,10 @@ of raw lines cannot say whether two lines were one submission or two, and a
 shell that guesses gets it wrong on exactly the multi-line submissions a user
 most wants back.
 
+A line typed with a space in front of it never reaches the file: the session
+does not record it, and what the file gets is what the session recorded. See
+`interactive-guide.md`.
+
 `history.limit` bounds what is kept; `history.enabled` off means nothing is
 written at all, which is what somebody on a shared machine wants.
 

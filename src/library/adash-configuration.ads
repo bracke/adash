@@ -62,7 +62,14 @@ package Adash.Configuration is
       --  their commands there; with this on, each writes its own and merges in
       --  one block when it finishes, so the shared history reads as runs rather
       --  than as fragments.
-      History_Per_Session_Setting);
+      History_Per_Session_Setting,
+
+      --  Whether a line that begins with a space is left out of the history
+      --  entirely, in memory and on disk. On by default: a user reaching for
+      --  the convention the other shells have needs it to work the first time
+      --  they reach for it, and the cost of the default being wrong is a
+      --  recalled line missing rather than a secret kept.
+      History_Ignore_Space_Setting);
 
    --  What sort of value a setting holds.
    type Setting_Kind is

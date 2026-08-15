@@ -195,8 +195,9 @@ through `start`, `jobs`, `wait`,
 `stop`, `suspend` and `resume`; `settings` and `save_settings` for its own
 configuration — every one of them working, none registered-but-missing.
 Line editing with completion and highlighting, history that survives the
-session, TOML configuration, cancellation with Ctrl-C, and a conformance suite
-that runs the built binary from the outside.
+session and leaves out a line typed with a space in front of it, TOML
+configuration, cancellation with Ctrl-C, and a conformance suite that runs the
+built binary from the outside.
 
 **Nothing here claims a capability it does not have.** What is missing is written
 down rather than implied: see *What Adash cannot do yet* in

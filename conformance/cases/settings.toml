@@ -23,6 +23,7 @@ output = [
   "!line.setting{key=editing.enabled,value=true,summary=!setting.editing!}!",
   "!line.setting{key=startup.session,value=true,summary=!setting.session-file!}!",
   "!line.setting{key=history.per-session,value=false,summary=!setting.history-per-session!}!",
+  "!line.setting{key=history.ignore-space,value=true,summary=!setting.history-ignore-space!}!",
 ]
 diagnostics = []
 

@@ -447,6 +447,7 @@ package Adash.Messages is
       Msg_Setting_Editing,
       Msg_Setting_Session_File,
       Msg_Setting_History_Per_Session,
+      Msg_Setting_History_Ignore_Space,
 
       --  Reading a configuration file.
       Msg_Config_Unknown_Key,

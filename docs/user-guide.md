@@ -113,7 +113,7 @@ rather than a place.
     settings ("color", "never");       -- change one
     save_settings;                     -- keep it
 
-Eight settings; `configuration-reference.md` lists them. They live in
+Nine settings; `configuration-reference.md` lists them. They live in
 `~/.config/adash/config.toml`, and the history in
 `~/.local/share/adash/history.jsonl`.
 

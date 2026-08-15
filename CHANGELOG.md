@@ -1537,6 +1537,19 @@ what changed.
   carried since the diagnostics subsystem was written and nothing had ever put
   one on a diagnostic or rendered one.
 
+- **A line typed with a space in front of it is not remembered.** The mark
+  other shells use, and the only one that can be typed in front of a command
+  without changing what the command means, since the lexer skips it. The line
+  runs; what is missing is the entry, in the session and in the file both, and
+  not even a placeholder -- a record of *when* a secret was typed is still a
+  record. `Adash.Interactive.History.Record_Line` had taken a `Sensitive` flag
+  since it was written and nothing at the prompt had ever set it, which is a
+  mechanism with no way to reach it. What is marked is the submission and not
+  each line of one, so an indented continuation decides nothing and a
+  multi-line construct is forgotten whole. On by default -- a protection that
+  has to be switched on first is off in the session where it was needed --
+  and `history.ignore-space` turns it off.
+
 ### Fixed
 
 - **`already declared` named a line that was a byte offset.** The message said

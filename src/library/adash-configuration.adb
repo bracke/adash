@@ -23,6 +23,7 @@ package body Adash.Configuration is
          when Editing_Setting          => return "editing.enabled";
          when Session_File_Setting     => return "startup.session";
          when History_Per_Session_Setting => return "history.per-session";
+         when History_Ignore_Space_Setting => return "history.ignore-space";
       end case;
    end Key;
 
@@ -62,6 +63,8 @@ package body Adash.Configuration is
             return Adash.Messages.Msg_Setting_Session_File;
          when History_Per_Session_Setting =>
             return Adash.Messages.Msg_Setting_History_Per_Session;
+         when History_Ignore_Space_Setting =>
+            return Adash.Messages.Msg_Setting_History_Ignore_Space;
       end case;
    end Description;
 
@@ -171,6 +174,11 @@ package body Adash.Configuration is
       --  Off by default. One shell writing one file is what a user expects,
       --  and the merge only earns its keep when two are running at once.
       Result.Values (History_Per_Session_Setting).Flag := False;
+
+      --  On by default. A user who types a space before a password is asking
+      --  for it to be forgotten, and a protection that has to be switched on
+      --  first is one that is off in the session where it was needed.
+      Result.Values (History_Ignore_Space_Setting).Flag := True;
 
       return Result;
    end Defaults;

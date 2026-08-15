@@ -83,6 +83,9 @@ package body Adash.Interactive.Session is
       Editing_Allowed : Boolean := True;
       Recall_Limit : Positive := 1_000;
 
+      --  Whether a leading space means "do not remember this line".
+      Honouring_The_Mark : Boolean := True;
+
       --  Said once per session, not once per line.
       Reported_Write_Failure : Boolean := False;
 
@@ -607,6 +610,8 @@ package body Adash.Interactive.Session is
            (Chosen, Adash.Configuration.History_Limit_Setting));
       Per_Session := Adash.Configuration.Boolean_Value
         (Chosen, Adash.Configuration.History_Per_Session_Setting);
+      Honouring_The_Mark := Adash.Configuration.Boolean_Value
+        (Chosen, Adash.Configuration.History_Ignore_Space_Setting);
 
       Writing_To := Ada.Strings.Unbounded.To_Unbounded_String
         (if Per_Session then Adash.Persistence.History.Session_Path
@@ -828,11 +833,22 @@ package body Adash.Interactive.Session is
             --  not. A user recalling the last line usually wants the one they
             --  got wrong -- and recalls the whole of it, because half a
             --  construct is not something anybody can edit into shape.
+            --
+            --  Unless it was marked. A submission typed with a space in front
+            --  of it is not remembered here and, because the write below
+            --  happens only when this log took the line, is not written to any
+            --  file either. It still runs: the mark says what to forget, not
+            --  what to refuse.
             declare
                Before : constant Natural :=
                  Adash.Interactive.History.Count (Recall);
+
+               Marked : constant Boolean :=
+                 Honouring_The_Mark
+                   and then Adash.Interactive.History.Marked_Sensitive (Line);
             begin
-               Adash.Interactive.History.Record_Line (Recall, Line);
+               Adash.Interactive.History.Record_Line
+                 (Recall, Line, Sensitive => Marked);
 
                --  Written only when the in-memory log actually took it, so the
                --  file gets the same treatment for blanks and consecutive

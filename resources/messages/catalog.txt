@@ -325,6 +325,7 @@ en.setting.prompt-directory = Whether the prompt shows the working directory.
 en.setting.prompt-failure = Whether the prompt marks that the last command failed.
 en.setting.editing = Whether lines are edited in place rather than read whole.
 en.setting.history-per-session = keep this session's history in a file of its own and merge it in when the session ends
+en.setting.history-ignore-space = Whether a line typed with a space in front of it is left out of the history.
 en.setting.session-file = Whether the per-session startup file runs.
 
 # -- Reading a configuration file --------------------------------------------

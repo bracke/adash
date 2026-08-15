@@ -91,9 +91,10 @@ evaluation -- the machine, execution and commands, the engine, the interactive
 session, persistence, configuration, predefined entities, messages and styling,
 and the repository checks themselves.
 
-Five of those cases drive the shell **through a pseudo-terminal**: a whole
-session, Tab completing a word, Up recalling a line, backspace removing a
-character rather than a byte, and a Ctrl-C stopping a loop. The shell is
+Six of those cases drive the shell **through a pseudo-terminal**: a whole
+session, Tab completing a word, Up recalling a line, Up *not* recalling a line
+that was typed with a space in front of it, backspace removing a character
+rather than a byte, and a Ctrl-C stopping a loop. The shell is
 started in a session of its own with that terminal as its controlling one --
 `Hostkit.Spawn.Options.Controlling_Terminal` -- which is what makes a keystroke
 into a signal; without it a child controls nothing and Ctrl-C reaches nobody.

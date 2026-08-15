@@ -23,7 +23,10 @@ with Ada.Strings.Unbounded;
 --  **A line the user marked sensitive is never recorded.** History is one of
 --  the more sensitive files on a system -- durable, plain, and rarely thought
 --  about. A shell that could not be told to forget something would be one
---  users had to remember to clean up by hand.
+--  users had to remember to clean up by hand. The mark is a leading space --
+--  see Marked_Sensitive -- and it is the frontend that reads it, because what
+--  a keystroke means is a frontend question and what a session remembers is
+--  this one.
 --
 --  **Multi-line input is one entry.** A recalled entry has to be editable as
 --  the thing that was typed, and half of a construct is not.
@@ -56,6 +59,25 @@ package Adash.Interactive.History is
      (Item      : in out Log;
       Line      : String;
       Sensitive : Boolean := False);
+
+   --  Whether a line carries the mark that says "do not remember this".
+   --
+   --  The mark is a leading space, as in other shells: it is the one thing a
+   --  user can type before a command without changing what the command means,
+   --  since the lexer skips it. A word would be a second command language, a
+   --  key would have to be found and remembered, and a setting toggled around
+   --  the line would still record it when the user forgot to toggle it back.
+   --
+   --  A tab does not count, only a space. At an editing prompt a tab is
+   --  completion and cannot start a line at all, so accepting it would mean
+   --  quietly forgetting pasted indented text and nothing else.
+   --
+   --  This says what the mark *is*; whether it is honoured is the frontend's
+   --  to decide from the history.ignore-space setting.
+   --
+   --  @param Line The submission exactly as typed.
+   --  @return True when it begins with a space.
+   function Marked_Sensitive (Line : String) return Boolean;
 
    --  @param Item Log to measure.
    --  @return How many entries it holds.

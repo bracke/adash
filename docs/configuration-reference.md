@@ -1,6 +1,6 @@
 # Configuration
 
-Eight settings, held in one TOML file, changed with `settings` and written with
+Nine settings, held in one TOML file, changed with `settings` and written with
 `save_settings`.
 
     settings;                              -- list them all
@@ -19,6 +19,7 @@ the setting keeps what it had.
 | `history.enabled` | true or false | `true` | `Adash.Interactive.History` |
 | `history.limit` | 1 .. 1 000 000 | `1000` | `Adash.Interactive.History` |
 | `history.per-session` | true or false | `false` | `Adash.Persistence.History` |
+| `history.ignore-space` | true or false | `true` | `Adash.Interactive.Session` |
 | `prompt.directory` | true or false | `true` | `Adash.Interactive.Prompt` |
 | `prompt.failure` | true or false | `true` | `Adash.Interactive.Prompt` |
 | `editing.enabled` | true or false | `true` | `Adash.Interactive.Editing` |
@@ -40,6 +41,18 @@ that misbehaves, or a screen reader that prefers to see the line once, needs.
 shared history when it ends: two shells writing the common file a line at a time
 interleave their commands there, and this makes the shared history read as runs
 rather than as fragments.
+
+`history.ignore-space` is what makes a leading space mean *do not remember this
+line*: a submission typed with a space in front of it runs, and is recorded
+neither in the session nor in the file. It is the one thing a user can type
+before a command without changing what the command means, since the lexer skips
+it -- and it is on by default, because a protection that has to be switched on
+first is off in the session where it was needed. Turning it off records every
+line as typed, leading space and all.
+
+The mark is read at the **submission**, not at each line of one: a multi-line
+construct is one entry, and Ada continuation lines are indented. What decides is
+the first character of the first line.
 
 ## The file
 

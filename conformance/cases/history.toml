@@ -1,0 +1,61 @@
+# What a session remembers, and what it deliberately does not.
+
+[[case]]
+id = "history.a-line-typed-with-a-space-is-not-remembered"
+requirement = """
+A history file is durable, plain, and rarely thought about, so a user needs a
+way to keep one line out of it that works at the moment they think of it --
+before typing the line, not after it is already on disk. The mark is a leading
+space, as in other shells, because it is the one thing that can be typed in
+front of a command without changing what the command means.
+
+It is a mark, not a refusal: the line below still runs, and its output is here.
+What is missing is the entry.
+"""
+script = "put_line (\"before\");\n put_line (\"marked\");\nput_line (\"after\");\nhistory;\nquit (0);"
+exit_status = 0
+output = [
+  "before",
+  "marked",
+  "after",
+  "!line.history_entry{number=1,line=put_line (\"before\");}!",
+  "!line.history_entry{number=2,line=put_line (\"after\");}!",
+  "!line.history_entry{number=3,line=history;}!",
+]
+diagnostics = []
+
+[[case]]
+id = "history.the-mark-is-read-at-the-submission"
+requirement = """
+An entry is a submission, however many lines it took, so the mark is the first
+character of the whole thing rather than of each line in it. Ada is written
+indented, and a continuation line that begins with a space is what a reader
+would write anyway; if that decided the question, every multi-line construct
+would be forgotten and no user could tell why.
+"""
+script = "if True then\n   put_line (\"in\");\nend if;\nhistory;\nquit (0);"
+exit_status = 0
+output = [
+  "in",
+  "!line.history_entry{number=1,line=if True then",
+  "   put_line (\"in\");",
+  "end if;}!",
+  "!line.history_entry{number=2,line=history;}!",
+]
+diagnostics = []
+
+[[case]]
+id = "history.a-marked-construct-is-forgotten-whole"
+requirement = """
+The other half of the same rule. A construct marked on its first line leaves no
+entry at all -- not the first line, not the rest of it. Half a construct in the
+history would be both a record of what was typed and something nobody can recall
+into shape.
+"""
+script = " if True then\n   put_line (\"in\");\nend if;\nhistory;\nquit (0);"
+exit_status = 0
+output = [
+  "in",
+  "!line.history_entry{number=1,line=history;}!",
+]
+diagnostics = []

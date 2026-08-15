@@ -53,6 +53,19 @@ package body Adash.Interactive.History is
       end loop;
    end Record_Line;
 
+   ----------------------
+   -- Marked_Sensitive --
+   ----------------------
+
+   function Marked_Sensitive (Line : String) return Boolean is
+   begin
+      --  The first character of the whole submission, not of each line in it:
+      --  a submission is one entry, so it is marked or it is not, and a
+      --  continuation line that happened to be indented does not decide for
+      --  the construct it belongs to.
+      return Line'Length > 0 and then Line (Line'First) = ' ';
+   end Marked_Sensitive;
+
    -----------
    -- Count --
    -----------

@@ -171,6 +171,11 @@ package body Adash_Tests.Configuration_Cases is
               "history did not default to on");
       Assert (C.Boolean_Value (Chosen, C.Editing_Setting),
               "line editing did not default to on");
+
+      --  On, because a protection that has to be switched on first is off in
+      --  the session where it was needed.
+      Assert (C.Boolean_Value (Chosen, C.History_Ignore_Space_Setting),
+              "the leading-space mark did not default to honoured");
    end Defaults_Are_What_The_Shell_Does;
 
    -------------------------------

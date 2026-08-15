@@ -573,6 +573,8 @@ package body Adash.Messages is
          when Msg_Setting_Session_File       => return "setting.session-file";
          when Msg_Setting_History_Per_Session =>
             return "setting.history-per-session";
+         when Msg_Setting_History_Ignore_Space =>
+            return "setting.history-ignore-space";
          when Msg_Config_Unknown_Key         => return "config.unknown-key";
          when Msg_Setting_Unknown           => return "error.setting_unknown";
          when Msg_Config_Wrong_Type          => return "config.wrong-type";
@@ -906,7 +908,8 @@ package body Adash.Messages is
             | Msg_Setting_History_Limit | Msg_Setting_Prompt_Directory
             | Msg_Setting_Prompt_Failure | Msg_Setting_Editing
             | Msg_Setting_Session_File
-            | Msg_Setting_History_Per_Session =>
+            | Msg_Setting_History_Per_Session
+            | Msg_Setting_History_Ignore_Space =>
             return No_Placeholders;
 
          when Msg_Setting_Unknown =>
