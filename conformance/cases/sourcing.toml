@@ -299,3 +299,29 @@ script = "type Line is record Number : Integer; Text : String; end record; L : L
 exit_status = 0
 output = ["here 3"]
 diagnostics = []
+
+[[case]]
+id = "source.and-a-script-is-one-submission"
+requirement = """
+What a sourced file declares reaches the next submission, and a script file is
+one submission — so a script that sources a file and then calls what it
+declared is refused, however many lines apart the two are. Typed at a prompt
+the same two lines work, because there each line is its own submission. The
+scripting guide showed the script form as working for some time; a case is what
+keeps the difference from being described from memory.
+"""
+script = "write_file (\"procedure Report (What : String) is begin put_line (\"\"report: \"\" & What); end Report;\", \"{store}/helpers.adash\");\nsource (\"{store}/helpers.adash\"); Report (\"done\");\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.name_undeclared{name=Report}!"]
+
+[[case]]
+id = "source.but-the-next-submission-sees-it"
+requirement = """
+The other half of the same rule: the declaration is there for the submission
+after the one that sourced it, which is what makes `source` usable at a prompt
+and what the startup file relies on.
+"""
+script = "write_file (\"procedure Report (What : String) is begin put_line (\"\"report: \"\" & What); end Report;\", \"{store}/helpers.adash\");\nsource (\"{store}/helpers.adash\");\nReport (\"done\");\nquit (0);"
+exit_status = 0
+output = ["report: done"]
+diagnostics = []

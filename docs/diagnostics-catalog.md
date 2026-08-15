@@ -16,7 +16,15 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 426 messages in 22 groups.
+There are 432 messages in 22 groups.
+
+Two of them are defensive and no program reaches them in this build:
+`error.machine.too_many_alternatives`, because the parser refuses a
+thirty-third alternative and both limits are thirty-two, and
+`error.command.unavailable`, because every registered command is implemented
+and every predefined entity is runnable. They stay because the mechanisms they
+belong to are real: a limit with no message is a limit that fails silently, and
+a registry that can name something it cannot yet run needs a way to say so.
 
 ## Errors — what a program or a session did wrong
 
@@ -53,7 +61,7 @@ There are 426 messages in 22 groups.
 | `error.machine.outside_bounds` | {position} is outside the range of {type} |
 | `error.machine.outside_array` | index {position} is outside {type} |
 | `error.machine.too_many_tasks` | more tasks at once than this build runs |
-| `error.machine.too_many_alternatives` | more alternatives in one select than this build offers at once — defensive: the parser refuses a 33rd alternative first, and both limits are 32 |
+| `error.machine.too_many_alternatives` | more alternatives in one select than this build offers at once |
 | `error.machine.queue_too_long` | more callers at one entry than this program allowed |
 | `error.machine.task_ran_out` | a task ran out where this program said none would |
 | `error.machine.too_many_allowed` | more tasks at once than this program allowed itself |
@@ -509,6 +517,9 @@ There are 426 messages in 22 groups.
 | `tooling.check.silent_truncation` | {path} stops collecting at the end of a fixed-size list without saying so; a construct that does not fit is refused where it is written |
 | `tooling.check.escape_sequence` | {path} contains a literal terminal escape sequence; styling belongs to terminal_styles by way of Adash.Terminal |
 | `tooling.check.forbidden_dependency` | {path} depends on {unit}, which Adash may not use directly; see AI.md |
+| `tooling.check.grammar_missing` | the grammar reference has no production naming {name}, which the parser can build |
+| `tooling.check.grammar_unknown` | the grammar reference names {name}, which the syntax has no such node for |
+| `tooling.check.pin_not_cloned` | the CI workflow does not check out {name}, which the manifests pin; a pin Alire cannot follow stops the build before anything is checked |
 | `tooling.check.result_pass` | PASS |
 | `tooling.check.result_fail` | FAIL |
 

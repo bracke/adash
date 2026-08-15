@@ -60,17 +60,28 @@ a set of scripts that ship together find each other without knowing where they
 were installed — and without the working directory deciding, which is what makes
 it work when somebody runs the script from elsewhere.
 
-What a sourced file declares reaches the **next** submission, not the rest of the
-one that sourced it: each submission is analysed as a whole before it runs, and a
-declaration that did not exist when the analysis began cannot be resolved by it.
-So this works:
+What a sourced file declares reaches the **next** submission, not the rest of
+the one that sourced it: each submission is analysed as a whole before it runs,
+and a declaration that did not exist when the analysis began cannot be resolved
+by it.
+
+**A script file is one submission.** So a script that sources a file and then
+calls what it declared does not work, however many lines apart the two are:
 
     source ("helpers");
-    Report ("done");                   --  a new submission: Report is visible
+    Report ("done");                   --  refused: one submission, and Report
+                                       --  did not exist when it was analysed
 
-and this does not, in one submission:
+At a prompt each line is its own submission, so the same two lines typed do
+work. In a script, `source` is for *running* another file — its statements, its
+output, what it changes — rather than for importing declarations into the file
+that asked for it.
 
-    source ("helpers"); Report ("done");
+Declarations that several scripts share go in the **startup file**, which is a
+submission of its own and runs before the script:
+
+    ~/.config/adash/startup.adash      --  procedure Report (...) is ... end;
+    report.adash                       --  Report is visible here
 
 ## What runs before a script does
 
