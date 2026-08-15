@@ -1848,13 +1848,16 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      if not Hostkit.Spawn.Supports_Sessions
-        or else not Hostkit.Signals.Is_Supported
-                      (Hostkit.Signals.Signal_Interrupt)
-      then
-         --  Windows: no session to control the terminal with, and no signal
-         --  for the terminal to send. What that host does instead -- decline
-         --  rather than pretend -- the conformance suite asserts.
+      if not Hostkit.Signals.Can_Record (Hostkit.Signals.Signal_Interrupt) then
+         --  A host that cannot tell a program the user asked to interrupt.
+         --  Asked as Can_Record rather than as Is_Supported, which is the
+         --  narrower question and the one this is about: Windows has no
+         --  signals -- nothing to number, send or give a disposition to -- and
+         --  its console can still say that Ctrl-C was typed. That is enough
+         --  for a shell, and Hostkit.Pty.Attach has already arranged whatever
+         --  this host needs for a keystroke to reach the child: a session and
+         --  a controlling terminal where there are sessions, a console where
+         --  there is a console.
          return;
       end if;
 
