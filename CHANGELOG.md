@@ -1602,6 +1602,24 @@ what changed.
   states is that a case needing a program names a companion. They name
   `{emit} --sleep=5` now.
 
+- **The shell is driven through a terminal on Windows too.** hostkit grew a
+  pseudo-console body -- `CreatePseudoConsole` and two ordinary pipes, attached
+  to a child through a process-thread attribute -- and `Hostkit.Pty.Attach` is
+  the one call that knows whether this host hands a child a device or a
+  console, so the harness is one program rather than two. The six cases that
+  drive the shell through a terminal now run on all three hosts rather than
+  two: a whole session, Tab completion, Up recalling a line, Up not recalling a
+  marked one, and backspace. Reads ask `Hostkit.Descriptors.Wait_Readable`
+  first, because a Windows pipe has no non-blocking mode and a read of an empty
+  terminal waits; the AUnit step gained a watchdog for when that is not enough.
+
+  Ctrl-C stays off that host -- no signals, so a keystroke cannot become one --
+  and so does the accented half of the backspace case: a console host turns
+  what arrives into key events and re-encodes them, so writing two UTF-8 bytes
+  at it is not typing that character. The shell was asked, and goes on
+  answering afterwards, so what is missing is the keystroke rather than the
+  editor.
+
 ### Fixed
 
 - **`already declared` named a line that was a byte offset.** The message said

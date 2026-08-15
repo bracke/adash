@@ -2865,15 +2865,47 @@ installing succeeds -- there is nothing to install and nothing went wrong -- but
 "Arranged" and "not needed here" must not read alike, or a caller waits for a
 Ctrl-C that cannot arrive.
 
-What is still not asserted on that host is the interactive frontend. Six cases
-drive the shell through a pseudo-terminal and return without asserting where
-`Hostkit.Pty.Is_Supported` is False. Windows answers pseudo-terminals with the
-pseudo-console -- `CreatePseudoConsole` and a pair of ordinary pipes, attached
-to a child through a process-thread attribute rather than handed to it as its
-standard streams -- which is a different shape of API, not the same one renamed,
-and hostkit says so rather than implementing half of it. Raw-mode editing, key
-decoding and Ctrl-C are exercised on two hosts of the three; everything else the
-frontend does runs everywhere.
+**The interactive frontend is asserted on that host too.** hostkit grew the
+pseudo-console body it had said no to, so the six cases that drive the shell
+through a terminal run on all three hosts: a whole session, Tab completing a
+word, Up recalling a line, Up not recalling a line typed with a space in front
+of it, and backspace removing something.
+
+The shape had to change for that. A pair's parent side is two descriptors --
+one bidirectional pseudo-terminal fills both, two pipes do not -- and the
+child's side is either a device handed over as three streams or a console
+handed over through a process-thread attribute. `Hostkit.Pty.Attach` is the one
+call that knows which, so the harness is one program rather than two.
+
+Three things cost a run each to find, and each is worth keeping:
+
+A COORD is passed by value, and declaring it as a record of two shorts is what
+the Windows headers do and also what an Ada compiler may pass by reference for
+a foreign convention -- the call then reads the halves of a pointer as a width
+and a height. `CreatePseudoConsole` accepts that; `ResizePseudoConsole` does
+not, which is why the console opened and would not resize.
+
+The pseudo-console attribute takes the console handle *as* its value, not a
+pointer to it. Most attributes take the address of what they are about, and the
+call succeeds either way -- it has a size and a pointer and no opinion about
+what is behind them.
+
+And a child's standard handles are copied from its parent's before anything
+else decides them; attaching to a console fills in only what is not already
+there. A parent whose own output is a pipe -- every parent under a build
+service -- therefore hands the child that pipe, and the child writes into the
+parent's output and reads end-of-file from the parent's input while the console
+it was given sits untouched. Cleared for the length of the call, and put back
+after it.
+
+Two things stay off that host, each named by the host rather than left as a
+gap. Ctrl-C, because there are no signals there and a keystroke cannot become
+one. And the accented half of the backspace case: a console host turns what
+arrives into key events and re-encodes them for the client, so writing two
+UTF-8 bytes at it is not typing that character. The shell was asked about that
+one -- after such a line it goes on answering -- so what is missing is the
+keystroke and not the editor, and that the editor steps by characters is
+asserted on every host by the buffer and decoder cases.
 
 **Configuration is still per-user.** Only history gained a per-session notion.
 

@@ -91,7 +91,7 @@ evaluation -- the machine, execution and commands, the engine, the interactive
 session, persistence, configuration, predefined entities, messages and styling,
 and the repository checks themselves.
 
-Six of those cases drive the shell **through a pseudo-terminal**: a whole
+Six of those cases drive the shell **through a terminal**: a whole
 session, Tab completing a word, Up recalling a line, Up *not* recalling a line
 that was typed with a space in front of it, backspace removing a character
 rather than a byte, and a Ctrl-C stopping a loop. The shell is
@@ -108,8 +108,10 @@ tests a piece -- the buffer, the decoder, the history, the completion registry
 -- and a piece can be right while what a user meets is not. Each opens a
 terminal, spawns the built binary on it, types, and reads bounded: a test that
 reads until end of file from a shell waiting for input is a test that hangs,
-and a hang in CI is a job that reports nothing. They return without asserting
-where `Hostkit.Pty.Is_Supported` is False, which is Windows.
+and a hang in CI is a job that reports nothing. They run on all three hosts:
+`Hostkit.Pty` answers Windows with the pseudo-console, and `Hostkit.Pty.Attach`
+is what hands a child either a device as its three streams or a console through
+a process-thread attribute, so the harness is one program rather than two.
 
 `adash_conformance` covers the language and the shell *as a user meets them*:
 each case is a submission and what it must print, exit with, and report. It
@@ -159,15 +161,18 @@ Four examples are skipped on Windows for a different reason again: an example is
 documentation and reads `Output_Of ("echo", ...)`, which a reader understands and
 that host does not have.
 
-What is still not asserted there is the interactive frontend. The six cases that
-drive the shell through a pseudo-terminal return without asserting where
-`Hostkit.Pty.Is_Supported` is False, which is Windows: its answer is the
-pseudo-console, `CreatePseudoConsole` and a pair of ordinary pipes, which is a
-different shape of API rather than the same one under another name, and hostkit
-does not implement it. Raw-mode editing, key decoding through a console and
-Ctrl-C are therefore exercised on two hosts of the three. Everything the
-frontend does that is not the console -- the buffer, the decoder, history,
-completion, the session loop over a pipe -- runs everywhere.
+The interactive frontend is asserted there too now. hostkit grew a
+pseudo-console body, so the six terminal cases run on Windows: a whole session,
+Tab completing a word, Up recalling a line, Up *not* recalling a line typed with
+a space in front of it, and backspace removing something. Two things stay off
+that host, each for a reason the host names rather than a gap: Ctrl-C, because
+`Hostkit.Signals.Is_Supported` is False there and a keystroke cannot become a
+signal; and the *accented* half of the backspace case, because a console host
+turns what arrives into key events and re-encodes them for the client, so
+writing two UTF-8 bytes at it is not typing that character. The shell was asked
+about the second: after such a line it goes on answering, so what is missing is
+the keystroke rather than the editor. That the editor steps by characters and
+not by bytes is asserted on every host by the buffer and decoder cases.
 
 Windows found five defects the day CI first ran there, and three of them were
 tests asserting POSIX rather than asserting the shell.

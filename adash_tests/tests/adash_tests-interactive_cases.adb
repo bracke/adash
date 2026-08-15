@@ -1561,35 +1561,29 @@ package body Adash_Tests.Interactive_Cases is
               "backspace removed nothing at all: ["
               & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
 
-      --  Then the character. Two bytes, one character: an editor stepping by
-      --  bytes leaves half of it, the line is no longer UTF-8, and the shell
-      --  reports that rather than answering -- which is what asking for an
-      --  answer only a whole deletion can produce asserts the absence of.
-      Type_Into (Session, "put_line (To_Upper (""fine" & Accented);
-      Type_Into (Session, String'(1 => Character'Val (16#08#)));
-      Type_Into (Session, """));" & String'(1 => Character'Val (13)));
+      --  Then the character -- where what is typed arrives as it was typed.
+      --
+      --  Two bytes, one character: an editor stepping by bytes leaves half of
+      --  it, the line is no longer UTF-8, and the shell reports that rather
+      --  than answering, which is what asking for an answer only a whole
+      --  deletion can produce asserts the absence of.
+      --
+      --  A terminal that is a device carries the bytes. A console host does
+      --  not: it turns what arrives into key events and re-encodes them for
+      --  the client, so writing two UTF-8 bytes at it is not typing that
+      --  character and the line never reaches the shell at all. Asserted
+      --  where it can hold, and the shell was asked: after the accented line
+      --  it goes on answering, so what is missing is the keystroke and not the
+      --  editor. The editor's own answer -- that a character is not a byte --
+      --  is asserted on every host by the buffer and decoder cases above.
+      if Hostkit.Descriptors.Is_Valid (Session.Pair.Device) then
+         Type_Into (Session, "put_line (To_Upper (""fine" & Accented);
+         Type_Into (Session, String'(1 => Character'Val (16#08#)));
+         Type_Into (Session, """));" & String'(1 => Character'Val (13)));
 
-      if not Waited_For (Session, "FINE") then
-         --  Whether the shell is still there decides what this failure means.
-         --  A shell that answers the next line survived the accented one and
-         --  never got it -- which is the terminal's translation of what was
-         --  typed, not the editor's handling of it. A shell that answers
-         --  nothing has stopped, which would be the editor's.
-         Type_Into
-           (Session,
-            "put_line (""still-here"");" & String'(1 => Character'Val (13)));
-
-         declare
-            Alive : constant Boolean := Waited_For (Session, "still-here");
-         begin
-            Assert (False,
-                    "backspace did not remove the whole character, and the "
-                    & "shell "
-                    & (if Alive then "was still answering afterwards"
-                       else "answered nothing afterwards either")
-                    & ": ["
-                    & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
-         end;
+         Assert (Waited_For (Session, "FINE"),
+                 "backspace did not remove the whole character: ["
+                 & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
       end if;
 
       Finish (Session, Ended);
