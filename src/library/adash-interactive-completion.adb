@@ -136,6 +136,55 @@ package body Adash.Interactive.Completion is
       end;
    end Common_Prefix;
 
+   --  The prefix as a pattern the host can match, in either case.
+   --
+   --  Everything else in this list folds case -- `QU` completes to `quit`,
+   --  because the language does not care and neither should the list. A host
+   --  glob does care, on the two hosts where a file name is case-sensitive, so
+   --  each letter is written as the class of its two cases. What is inserted
+   --  is the program's own spelling either way, so a name typed in the wrong
+   --  case completes to one that runs.
+   --
+   --  A prefix holding a character the pattern language reads specially is
+   --  handed over as "*" instead. Listing more and filtering here is slower
+   --  and right; guessing at an escape is fast and wrong, and the escape
+   --  differs between the hosts.
+   --
+   --  @param Prefix What the user has typed of the name.
+   --  @return A pattern for Ada.Directories.Start_Search.
+   function Host_Pattern (Prefix : String) return String;
+
+   function Host_Pattern (Prefix : String) return String is
+      Built : Unbounded_String;
+   begin
+      for Index in Prefix'Range loop
+         declare
+            Letter : constant Character := Prefix (Index);
+         begin
+            case Letter is
+               when '*' | '?' | '[' | ']' | '\' | '{' | '}' | '(' | ')'
+                  | '|' | '^' | '$' | '+' =>
+                  return "*";
+
+               when 'a' .. 'z' =>
+                  Append (Built, "[" & Letter & Character'Val
+                            (Character'Pos (Letter)
+                             - Character'Pos ('a') + Character'Pos ('A')) & "]");
+
+               when 'A' .. 'Z' =>
+                  Append (Built, "[" & Letter & Character'Val
+                            (Character'Pos (Letter)
+                             - Character'Pos ('A') + Character'Pos ('a')) & "]");
+
+               when others =>
+                  Append (Built, Letter);
+            end case;
+         end;
+      end loop;
+
+      return To_String (Built) & "*";
+   end Host_Pattern;
+
    --  Whether this callee takes a program name at this argument, folded as
    --  the language folds a name.
    --
@@ -433,8 +482,14 @@ package body Adash.Interactive.Completion is
                         --  tens of milliseconds -- a pause a user feels on
                         --  every Tab. The host answers the same question from
                         --  its own index in a fraction of that.
+                        --
+                        --  In either case, because the rest of this list folds
+                        --  case and a name typed in the wrong one is still the
+                        --  name that was meant. Matches below folds too, so a
+                        --  host whose own matching is already case-blind
+                        --  agrees with one whose is not.
                         Ada.Directories.Start_Search
-                          (Search, Directory, Prefix & "*",
+                          (Search, Directory, Host_Pattern (Prefix),
                            [Ada.Directories.Ordinary_File => True,
                             Ada.Directories.Directory     => False,
                             Ada.Directories.Special_File  => False]);

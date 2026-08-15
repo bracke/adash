@@ -1674,6 +1674,14 @@ what changed.
   `adash_bench` has a row for it, because it is the one completion that leaves
   this process's memory.
 
+  Case is folded, as it is everywhere else in the list: the prefix is handed
+  over as the class of each letter's two cases, so `GI` completes to `git` on a
+  host whose file names are case-sensitive too. What is inserted is the
+  program's own spelling, which is what runs. A prefix carrying a character the
+  pattern language reads specially is handed over as "*" and filtered here
+  instead -- slower and unable to be wrong, where guessing at an escape would
+  be fast and differ between the hosts.
+
 ### Fixed
 
 - **The history file stopped being written once the log was full.** The session

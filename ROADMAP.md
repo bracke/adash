@@ -2972,6 +2972,14 @@ handful of calls rather than thousands. `adash_bench` has a row for it now,
 which is also what says a cache is not needed: three milliseconds is not a
 figure worth a second copy of the truth.
 
+A host glob cares about case where the rest of this list does not, so the
+prefix goes over as the class of each letter's two cases: `GI` completes to
+`git` on a host whose file names are case-sensitive, as `QU` completes to
+`quit` in a language that never cared. What is inserted is the program's own
+spelling, which is the name that runs -- so folding here costs nothing and
+being the only case-sensitive corner of the list would have been a rule with
+one exception and no reason.
+
 **Configuration is still per-user.** Only history gained a per-session notion.
 
 **A subprogram declared on one line is callable on the next.** The session keeps

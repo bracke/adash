@@ -808,6 +808,20 @@ package body Adash_Tests.Interactive_Cases is
          --  And the file that cannot be run.
          Unrunnable : constant Comp.Candidate_List :=
            Comp.Complete (Comp.Make_Request ("run (""zzplain", 13, Path));
+
+         --  The same name in the wrong case. Everything else in this list
+         --  folds case, and what is inserted is the program's own spelling --
+         --  so a name typed as nobody spells it completes to one that runs.
+         Shouted : constant Comp.Candidate_List :=
+           Comp.Complete
+             (Comp.Make_Request ("run (""ADASH_TEST_", 16, Path));
+
+         --  A prefix the pattern language would read as a pattern. The host
+         --  is asked for everything and the filtering happens here, which is
+         --  slower and cannot be wrong; guessing at an escape would be fast
+         --  and differ between the hosts.
+         Starred : constant Comp.Candidate_List :=
+           Comp.Complete (Comp.Make_Request ("run (""ad*", 10, Path));
       begin
          Assert (Offers_Starting_With (Named, Runnable),
                  "a program on the search path was not offered where one is "
@@ -828,6 +842,14 @@ package body Adash_Tests.Interactive_Cases is
                  "a program was offered for a string that is not one");
          Assert (not Offers_Starting_With (Unrunnable, "zzplain"),
                  "a file that cannot be run was offered as a program");
+
+         Assert (Offers_Starting_With (Shouted, Runnable),
+                 "a program name typed in the wrong case was not completed, "
+                 & "though every other kind of candidate folds case");
+
+         Assert (not Offers_Starting_With (Starred, Runnable),
+                 "a prefix with a pattern character in it matched as a "
+                 & "pattern rather than as the text it is");
       end;
 
       Ada.Directories.Delete_Tree (Room);

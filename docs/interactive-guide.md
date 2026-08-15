@@ -75,6 +75,11 @@ The path is the session's own. `set ("PATH=…")` changes what a child is starte
 with, so it changes what Tab offers; a completion that read the shell's own
 environment would offer the programs of a path it no longer uses.
 
+**Case is folded here as it is everywhere else in the list.** `QU` completes to
+`quit` because the language does not care, and `GI` completes to `git` for the
+same reason — even where the filesystem does care, since what is inserted is
+the program's own spelling and that is what runs.
+
 ## History
 
 **Up** and **Down** walk what was typed this session, most recent first. What is
