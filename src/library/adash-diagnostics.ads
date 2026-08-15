@@ -85,6 +85,11 @@ package Adash.Diagnostics is
       Origin  : Adash.Source.Origin;
       Extent  : Adash.Source.Span := Adash.Source.Nowhere;
 
+      --  Where a reader would find it, filled in where the buffer is known --
+      --  by the engine for a submission, and by Adash.Scripting for a file it
+      --  read into one. (1, 1) until then.
+      Place   : Adash.Source.Location := (Line => 1, Column => 1);
+
       --  What to say about this place. A related location without its own
       --  message is a bare underline the user has to guess the meaning of.
       Message : Adash.Messages.Message_Id;
@@ -314,6 +319,26 @@ package Adash.Diagnostics is
       Extent : Adash.Source.Span;
       Place  : Adash.Source.Location := (Line => 1, Column => 1);
       Quote  : String := "");
+
+   --  Say where one of a diagnostic's related locations is really about.
+   --
+   --  Separate from Locate for the same reason it exists at all: a related
+   --  place is in the same text as the diagnostic and needs the same mapping,
+   --  and only whoever assembled that text can do it.
+   --
+   --  @param Item The list.
+   --  @param Index Which diagnostic, from one.
+   --  @param Which Which related location, from one.
+   --  @param Origin Where it is really from.
+   --  @param Extent Where in that source, or Nowhere to leave the extent.
+   --  @param Place Its line and column.
+   procedure Locate_Related
+     (Item   : in out List;
+      Index  : Positive;
+      Which  : Positive;
+      Origin : Adash.Source.Origin;
+      Extent : Adash.Source.Span;
+      Place  : Adash.Source.Location);
 
    --  How many diagnostics of a given severity the list holds.
    --

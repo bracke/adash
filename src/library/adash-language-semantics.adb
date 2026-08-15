@@ -2396,6 +2396,41 @@ package body Adash.Language.Semantics is
          end;
       end Named_Type;
 
+      --  Report a declaration the scope chain refused.
+      --
+      --  "X is already declared" is only actionable if the reader is told
+      --  where the other one is. The chain has that place as a span and
+      --  cannot say it in words -- what turns a span into a line is the
+      --  buffer -- so it comes across as a related location, and the engine
+      --  gives it a line once it has the text in front of it.
+      --
+      --  @param Refused What the chain said.
+      --  @param At_Node Where this declaration is.
+      procedure Refuse_Declaration
+        (Refused : Adash.Errors.Error_Info; At_Node : S.Node_Id);
+
+      procedure Refuse_Declaration
+        (Refused : Adash.Errors.Error_Info; At_Node : S.Node_Id)
+      is
+         Earlier : constant Adash.Source.Span := Chain.Clashed_At;
+
+         Said : D.Diagnostic :=
+           D.From_Error
+             (Refused, D.Severity_Error, D.Category_Semantic,
+              D.Owner_Language, Origin, S.Extent (Tree, At_Node));
+      begin
+         if not Adash.Source.Is_Empty (Earlier) then
+            D.Add_Related
+              (Said,
+               (Origin  => Origin,
+                Extent  => Earlier,
+                Place   => (Line => 1, Column => 1),
+                Message => Adash.Messages.Msg_Note_Declared_Here));
+         end if;
+
+         Report.Emit (Said);
+      end Refuse_Declaration;
+
       --  Report an operator that has no definition for these operands, unless
       --  one of them is already unknown -- a cascade of errors derived from
       --  one unknown type tells a user nothing.
@@ -5407,11 +5442,7 @@ package body Adash.Language.Semantics is
                      Error)
                   then
                      Legal := False;
-                     Report.Emit
-                       (D.From_Error
-                          (Error, D.Severity_Error, D.Category_Semantic,
-                           D.Owner_Language, Origin,
-                           S.Extent (Tree, Named)));
+                     Refuse_Declaration (Error, Named);
                   end if;
 
                   Templates.Append
@@ -6331,10 +6362,7 @@ package body Adash.Language.Semantics is
                      Error)
                   then
                      Legal := False;
-                     Report.Emit
-                       (D.From_Error
-                          (Error, D.Severity_Error, D.Category_Semantic,
-                           D.Owner_Language, Origin, S.Extent (Tree, Named)));
+                     Refuse_Declaration (Error, Named);
                   end if;
 
                   Note (Node, Types.Type_None);
@@ -6459,11 +6487,7 @@ package body Adash.Language.Semantics is
                            Error)
                         then
                            Legal := False;
-                           Report.Emit
-                             (D.From_Error
-                                (Error, D.Severity_Error, D.Category_Semantic,
-                                 D.Owner_Language, Origin,
-                                 S.Extent (Tree, Named)));
+                           Refuse_Declaration (Error, Named);
                         end if;
 
                         if Guarded_Template (Under (Outer, Name)) = 0 then
@@ -6575,10 +6599,7 @@ package body Adash.Language.Semantics is
                      Error)
                   then
                      Legal := False;
-                     Report.Emit
-                       (D.From_Error
-                          (Error, D.Severity_Error, D.Category_Semantic,
-                           D.Owner_Language, Origin, S.Extent (Tree, Named)));
+                     Refuse_Declaration (Error, Named);
                   end if;
 
                   declare
@@ -6686,11 +6707,7 @@ package body Adash.Language.Semantics is
                                  Fault)
                               then
                                  Legal := False;
-                                 Report.Emit
-                                   (D.From_Error
-                                      (Fault, D.Severity_Error,
-                                       D.Category_Semantic, D.Owner_Language,
-                                       Origin, S.Extent (Tree, One)));
+                                 Refuse_Declaration (Fault, One);
                               end if;
 
                               Note (S.First (Tree, One), Of_It,
@@ -6837,11 +6854,7 @@ package body Adash.Language.Semantics is
                            Error)
                         then
                            Legal := False;
-                           Report.Emit
-                             (D.From_Error
-                                (Error, D.Severity_Error, D.Category_Semantic,
-                                 D.Owner_Language, Origin,
-                                 S.Extent (Tree, One)));
+                           Refuse_Declaration (Error, One);
                         end if;
 
                         Note (S.First (Tree, One), Of_Formal,
@@ -6917,11 +6930,7 @@ package body Adash.Language.Semantics is
                            Fault)
                         then
                            Legal := False;
-                           Report.Emit
-                             (D.From_Error
-                                (Fault, D.Severity_Error, D.Category_Semantic,
-                                 D.Owner_Language, Origin,
-                                 S.Extent (Tree, Index_Named)));
+                           Refuse_Declaration (Fault, Index_Named);
                         end if;
 
                         Note (Index_Named, Family_Index,
@@ -7060,11 +7069,7 @@ package body Adash.Language.Semantics is
                         Error)
                      then
                         Legal := False;
-                        Report.Emit
-                          (D.From_Error
-                             (Error, D.Severity_Error, D.Category_Semantic,
-                              D.Owner_Language, Origin,
-                              S.Extent (Tree, Named)));
+                        Refuse_Declaration (Error, Named);
                      end if;
                   end if;
 
@@ -7105,11 +7110,7 @@ package body Adash.Language.Semantics is
                         Error)
                      then
                         Legal := False;
-                        Report.Emit
-                          (D.From_Error
-                             (Error, D.Severity_Error, D.Category_Semantic,
-                              D.Owner_Language, Origin,
-                              S.Extent (Tree, Named)));
+                        Refuse_Declaration (Error, Named);
                      end if;
 
                   elsif Symbols.Kind (Chain.Lookup (Under (Outer, Name)))
@@ -7489,11 +7490,7 @@ package body Adash.Language.Semantics is
                      Error)
                   then
                      Legal := False;
-                     Report.Emit
-                       (D.From_Error
-                          (Error, D.Severity_Error, D.Category_Semantic,
-                           D.Owner_Language, Origin,
-                           S.Extent (Tree, Name_Node)));
+                     Refuse_Declaration (Error, Name_Node);
                   end if;
 
                   Note (Name_Node, Introduced, Chain.Lookup (Full_Name (Name)));
@@ -7607,11 +7604,7 @@ package body Adash.Language.Semantics is
                      Error)
                   then
                      Legal := False;
-                     Report.Emit
-                       (D.From_Error
-                          (Error, D.Severity_Error, D.Category_Semantic,
-                           D.Owner_Language, Origin,
-                           S.Extent (Tree, Name_Node)));
+                     Refuse_Declaration (Error, Name_Node);
                   end if;
 
                   Note (Name_Node, Introduced, Chain.Lookup (Full_Name (Name)));
@@ -7658,11 +7651,7 @@ package body Adash.Language.Semantics is
                      Error)
                   then
                      Legal := False;
-                     Report.Emit
-                       (D.From_Error
-                          (Error, D.Severity_Error, D.Category_Semantic,
-                           D.Owner_Language, Origin,
-                           S.Extent (Tree, Name_Node)));
+                     Refuse_Declaration (Error, Name_Node);
                   end if;
 
                   --  The literals, in the order they were written, which is
@@ -7689,11 +7678,7 @@ package body Adash.Language.Semantics is
                            Error)
                         then
                            Legal := False;
-                           Report.Emit
-                             (D.From_Error
-                                (Error, D.Severity_Error, D.Category_Semantic,
-                                 D.Owner_Language, Origin,
-                                 S.Extent (Tree, One)));
+                           Refuse_Declaration (Error, One);
                         end if;
 
                         Note (One, Introduced,
@@ -8084,10 +8069,7 @@ package body Adash.Language.Semantics is
                      Error)
                   then
                      Legal := False;
-                     Report.Emit
-                       (D.From_Error
-                          (Error, D.Severity_Error, D.Category_Semantic,
-                           D.Owner_Language, Origin, S.Extent (Tree, Name_Node)));
+                     Refuse_Declaration (Error, Name_Node);
                   end if;
 
                   Note (Name_Node, Declared,
@@ -9187,10 +9169,7 @@ package body Adash.Language.Semantics is
 
                else
                   Legal := False;
-                  Report.Emit
-                    (D.From_Error
-                       (Error, D.Severity_Error, D.Category_Semantic,
-                        D.Owner_Language, Origin, S.Extent (Tree, Name_Node)));
+                  Refuse_Declaration (Error, Name_Node);
                end if;
 
                Note (Name_Node, Yields, Chain.Lookup (Full_Name (Name)));
@@ -9227,10 +9206,7 @@ package body Adash.Language.Semantics is
                          Error)
                then
                   Legal := False;
-                  Report.Emit
-                    (D.From_Error
-                       (Error, D.Severity_Error, D.Category_Semantic,
-                        D.Owner_Language, Origin, S.Extent (Tree, Ident)));
+                  Refuse_Declaration (Error, Ident);
                end if;
 
                Note (Ident, Kinds (Index), Chain.Lookup (S.Text (Tree, Ident)));

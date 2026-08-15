@@ -61,7 +61,7 @@ requirement = "Same name and same parameter types: no call could tell them apart
 script = "procedure P (A : Integer) is begin null; end P; procedure P (B : Integer) is begin null; end P;"
 exit_status = 0
 output = []
-diagnostics = ["!error.name_already_declared{name=P,line= 11}!"]
+diagnostics = ["!error.name_already_declared{name=P}!"]
 
 [[case]]
 id = "over.no-match"
@@ -185,8 +185,8 @@ overloads overloads -- and a name the shell provides is still refused.
 script = "type T is (Red, Red);\ntype W is (Red, Amber); Red : Integer := 3;\ntype B is (True, False);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.name_already_declared{name=Red,line= 12}!",
-  "!error.name_already_declared{name=Red,line= 12}!",
+  "!error.name_already_declared{name=Red}!",
+  "!error.name_already_declared{name=Red}!",
   "!error.name_is_predefined{name=True}!",
   "!error.name_is_predefined{name=False}!",
 ]

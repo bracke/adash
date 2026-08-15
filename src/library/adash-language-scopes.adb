@@ -141,17 +141,23 @@ package body Adash.Language.Scopes is
                return False;
             end if;
 
-            --  The position of the first declaration goes into the failure:
-            --  "already declared" is only actionable if the user is told where.
+            --  Where the first declaration is does not go in here. It used
+            --  to, as a "line" that was really a byte offset -- a number that
+            --  looked like a line and was not one -- because what turns an
+            --  offset into a line is the buffer, and a scope chain has none.
+            --  The place travels as a *related location* instead, put on by
+            --  the analyser and given its line by the engine, which has the
+            --  buffer.
+            Item.Clash := Symbols.Extent (Existing);
             Error := Adash.Errors.Failure
               (Adash.Errors.Error_Name_Already_Declared,
-               [Adash.Messages.Named ("name", Symbols.Name (Entry_To_Add)),
-                Adash.Messages.Named
-                  ("line", Natural'Image (Symbols.Extent (Existing).First))]);
+               [1 => Adash.Messages.Named
+                       ("name", Symbols.Name (Entry_To_Add))]);
             return False;
          end if;
       end;
 
+      Item.Clash := Adash.Source.Nowhere;
       Item.Entries.Append (Entry_To_Add);
 
       declare
@@ -163,6 +169,15 @@ package body Adash.Language.Scopes is
 
       return True;
    end Declare_Symbol;
+
+   -----------------
+   -- Clashed_At --
+   -----------------
+
+   function Clashed_At (Item : Chain) return Adash.Source.Span is
+   begin
+      return Item.Clash;
+   end Clashed_At;
 
    --------------------
    -- Lookup_Local --

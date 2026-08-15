@@ -77,5 +77,5 @@ exit_status = 0
 output = []
 diagnostics = [
   "!error.body_missing{name=P}!",
-  "!error.name_already_declared{name=P,line= 11}!",
+  "!error.name_already_declared{name=P}!",
 ]

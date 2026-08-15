@@ -316,6 +316,7 @@ package body Adash_Tests.Source_Cases is
         (Item,
          (Origin  => Text_Origin,
           Extent  => (First => 20, Last => 24),
+          Place   => (Line => 1, Column => 20),
           Message => Adash.Messages.Msg_Command_Denied));
       Assert (Diag.Related_Count (Item) = 1, "a related location was not kept");
       Assert (Diag.Related (Item, 1).Extent.First = 20,

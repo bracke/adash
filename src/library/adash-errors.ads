@@ -434,6 +434,7 @@ package Adash.Errors is
       --  command is for.
       Detail : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
       Fills  : Adash.Messages.Placeholder_Name;
+
    end record;
 
    --  Success.

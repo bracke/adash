@@ -1,6 +1,7 @@
 private with Ada.Containers.Vectors;
 
 with Adash.Errors;
+with Adash.Source;
 with Adash.Language.Symbols;
 
 --  Which names are visible where.
@@ -61,14 +62,28 @@ package Adash.Language.Scopes is
    --
    --  @param Item Chain to declare in.
    --  @param Entry_To_Add The symbol.
-   --  @param Error Why it was refused, when this returns False. Carries the
-   --         line of the existing declaration, because "already declared" is
-   --         only actionable if the user is told where.
+   --  @param Error Why it was refused, when this returns False. Where the
+   --         existing declaration is comes back through Clashed_At: a span is
+   --         what a chain has, and a line is what a buffer makes of one.
    --  @return True when the declaration was accepted.
    function Declare_Symbol
      (Item         : in out Chain;
       Entry_To_Add : Symbols.Symbol;
       Error        : out Adash.Errors.Error_Info) return Boolean;
+   --  Where the symbol that refused the last declaration was declared.
+   --
+   --  "X is already declared" is only actionable if the reader is told where
+   --  the other one is, and a scope chain cannot say it in words: it has the
+   --  span and no buffer to turn a span into a line. So it keeps the span, the
+   --  analyser attaches it to the diagnostic as a related place, and the
+   --  engine gives it a line once it has the text.
+   --
+   --  Nowhere when the last declaration succeeded, or failed for another
+   --  reason.
+   --
+   --  @param Item Chain to ask.
+   --  @return The earlier declaration's extent.
+   function Clashed_At (Item : Chain) return Adash.Source.Span;
 
    --  Most subprograms one name may denote at one point.
    --
@@ -177,6 +192,10 @@ private
       Levels : Scope_Vectors.Vector;
 
       Started : Boolean := False;
+
+      --  Where the symbol that refused the last declaration was declared; see
+      --  Clashed_At.
+      Clash : Adash.Source.Span := Adash.Source.Nowhere;
    end record;
 
 end Adash.Language.Scopes;

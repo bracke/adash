@@ -513,6 +513,7 @@ package body Adash.Messages is
             return "command.append_file.doc";
          when Msg_Line_History_Entry         => return "line.history_entry";
          when Msg_Line_Diagnostic_At       => return "line.diagnostic_at";
+         when Msg_Note_Declared_Here       => return "note.declared_here";
          when Msg_Line_Job_Started           => return "line.job_started";
          when Msg_Line_Job_Finished          => return "line.job_finished";
          when Msg_Line_Job_Signalled         => return "line.job_signalled";
@@ -654,7 +655,8 @@ package body Adash.Messages is
             | Msg_Case_Choice_Not_Static
             | Msg_Case_Choice_Covered_Twice
             | Msg_Case_Range_Is_Empty
-            | Msg_Case_Others_Not_Last =>
+            | Msg_Case_Others_Not_Last
+            | Msg_Note_Declared_Here =>
             return No_Placeholders;
 
          when Msg_Number_Not_A_Literal =>
@@ -692,7 +694,7 @@ package body Adash.Messages is
             return [1 => N ("name")];
 
          when Msg_Name_Already_Declared =>
-            return [N ("name"), N ("line")];
+            return [1 => N ("name")];
 
          when Msg_Lexical_Stray_Character =>
             return [1 => N ("character")];

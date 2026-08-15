@@ -1524,6 +1524,24 @@ what changed.
   place in the text: a file that could not be read, or a program that raised,
   which is a run rather than a place.
 
+- **A diagnostic that is about two places says both.** "X is already declared"
+  now prints `declared here` under it, pointing at the first one — including
+  when the two are in different files, which reading a module in makes
+  possible. The place travels as a related location: the scope chain keeps the
+  span it has, the analyser attaches it, and the engine gives it a line from
+  the buffer. `Adash.Diagnostics.Related_Location` had been declared and
+  carried since the diagnostics subsystem was written and nothing had ever put
+  one on a diagnostic or rendered one.
+
+### Fixed
+
+- **`already declared` named a line that was a byte offset.** The message said
+  "on line {line}" and was handed `Extent.First` — a number that looked like a
+  line and only sometimes was one. What a scope chain has is a span, and what
+  turns a span into a line is the buffer it came from; the message no longer
+  claims what the chain cannot know, and the place is a related location the
+  engine gives a real line to.
+
 ### Removed
 
 - `alias`, which had been registered and unavailable since Phase 9. Within a

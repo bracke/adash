@@ -996,6 +996,23 @@ package body Adash.Engine is
                         Adash.Source.Line_Text (Work.Buffer, Place.Line));
                   end;
                end if;
+
+               --  And the places it points at besides its own, which are in
+               --  the same text and need the same answer.
+               for Which in 1 .. D.Related_Count (Item) loop
+                  declare
+                     Beside : constant D.Related_Location :=
+                       D.Related (Item, Which);
+                  begin
+                     if not Adash.Source.Is_Empty (Beside.Extent) then
+                        D.Locate_Related
+                          (Report, Index, Which, Beside.Origin, Beside.Extent,
+                           Adash.Source.Where_Is
+                             (Work.Buffer, Beside.Extent.First));
+                     end if;
+                  end;
+               end loop;
+
             end;
          end loop;
       end Fill_In_Positions;

@@ -450,6 +450,61 @@ package body Adash.Scripting is
             Shift : Integer := 0;
             Moved : Boolean := False;
          begin
+            --  The places it points at besides its own move with it: they
+            --  are offsets into the same assembled text and would otherwise
+            --  name a line of the script that has nothing to do with them.
+            for Which in 1 .. D.Related_Count (Item) loop
+               declare
+                  Beside : constant D.Related_Location :=
+                    D.Related (Item, Which);
+
+                  There : constant Integer :=
+                    Integer (Beside.Extent.First) - Integer (Carried);
+
+                  Moved : Boolean := False;
+                  Back  : Integer := 0;
+
+                  Place : Adash.Source.Location;
+                  Quote : Unbounded_String;
+               begin
+                  if not Adash.Source.Is_Empty (Beside.Extent)
+                    and then There >= 1
+                  then
+                     for Region of Regions loop
+                        if There >= Region.First and then There <= Region.Last
+                        then
+                           Place_In (To_String (Region.Held),
+                                     There - Region.First + 1, Place, Quote);
+                           D.Locate_Related
+                             (Report, Index, Which,
+                              Adash.Source.Make_Origin
+                                (Adash.Source.Origin_File,
+                                 To_String (Region.From)),
+                              (First => Adash.Source.Byte_Offset
+                                          (There - Region.First + 1),
+                               Last  => Adash.Source.Byte_Offset
+                                          (There - Region.First + 1)),
+                              Place);
+                           Moved := True;
+                           exit;
+
+                        elsif There > Region.Last then
+                           Back := Back + Region.Growth;
+                        end if;
+                     end loop;
+
+                     if not Moved then
+                        Place_In (Text, There - Back, Place, Quote);
+                        D.Locate_Related
+                          (Report, Index, Which, Mine,
+                           (First => Adash.Source.Byte_Offset (There - Back),
+                            Last  => Adash.Source.Byte_Offset (There - Back)),
+                           Place);
+                     end if;
+                  end if;
+               end;
+            end loop;
+
             if Adash.Source.Is_Empty (Extent) or else Here < 1 then
                --  No position, or a position in what the session carried --
                --  which is the session's own text and not this script's.

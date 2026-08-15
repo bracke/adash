@@ -1,6 +1,7 @@
 with AUnit.Assertions;
 
 with Adash.Errors;
+with Adash.Source;
 with Adash.Language.Scopes;
 with Adash.Language.Symbols;
 with Adash.Language.Types;
@@ -424,10 +425,15 @@ package body Adash_Tests.Language_Cases is
       --  Case-insensitively: `total` collided with `Total`.
       Assert (Chain.Local_Count = 1, "the refused declaration was recorded anyway");
 
-      --  And the failure carries where the first one was, because "already
-      --  declared" is only actionable if the user is told where.
-      Assert (Adash.Errors.Arguments (Error)'Length = 2,
-              "the duplicate failure did not carry the first declaration");
+      --  And the chain says where the first one was, because "already
+      --  declared" is only actionable if the reader is told where. As a span
+      --  rather than in the message: a chain has no buffer, so it cannot turn
+      --  an offset into a line, and the message used to claim one it did not
+      --  have.
+      Assert (Adash.Errors.Arguments (Error)'Length = 1,
+              "the duplicate failure says more than which name");
+      Assert (not Adash.Source.Is_Empty (Chain.Clashed_At),
+              "the chain did not keep where the first declaration was");
 
       --  A name the shell provides is a different refusal. Nothing declared it,
       --  so there is no line to send the reader to: reporting one meant naming

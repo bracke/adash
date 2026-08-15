@@ -126,6 +126,7 @@ package body Adash.Diagnostics is
          --  placeholder unfilled.
          Result.Detail := Failure.Detail;
          Result.Fills  := Failure.Fills;
+
       end return;
    end From_Error;
 
@@ -372,6 +373,34 @@ package body Adash.Diagnostics is
          return Mark;
       end;
    end Caret;
+
+   ---------------------
+   -- Locate_Related --
+   ---------------------
+
+   procedure Locate_Related
+     (Item   : in out List;
+      Index  : Positive;
+      Which  : Positive;
+      Origin : Adash.Source.Origin;
+      Extent : Adash.Source.Span;
+      Place  : Adash.Source.Location)
+   is
+      Moved : Diagnostic := Item.Entries.Element (Index);
+   begin
+      if Which > Moved.Related_Count then
+         return;
+      end if;
+
+      Moved.Related (Which).Origin := Origin;
+      Moved.Related (Which).Place := Place;
+
+      if not Adash.Source.Is_Empty (Extent) then
+         Moved.Related (Which).Extent := Extent;
+      end if;
+
+      Item.Entries.Replace_Element (Index, Moved);
+   end Locate_Related;
 
    --------------
    -- Position --

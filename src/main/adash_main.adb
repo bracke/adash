@@ -252,6 +252,36 @@ procedure Adash_Main is
                      Adash.Diagnostics.Caret (Item),
                      Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
                end if;
+
+               --  What else this is about: the earlier declaration behind
+               --  "already declared", and anything else a subsystem thought a
+               --  reader would want to be sent to. Each says where it is and
+               --  what it is, in the same form as the diagnostic itself.
+               for Which in 1 .. Adash.Diagnostics.Related_Count (Item) loop
+                  declare
+                     Beside : constant Adash.Diagnostics.Related_Location :=
+                       Adash.Diagnostics.Related (Item, Which);
+                  begin
+                     if Adash.Source."=" (Adash.Source.Kind (Beside.Origin),
+                                          Adash.Source.Origin_File)
+                       and then Adash.Source.Name (Beside.Origin) /= ""
+                       and then not Adash.Source.Is_Empty (Beside.Extent)
+                     then
+                        Put_Line_Styled
+                          (IO.Standard_Error,
+                           Catalog.Text
+                             (Msg.Msg_Line_Diagnostic_At,
+                              [Msg.Named
+                                 ("path", Adash.Source.Name (Beside.Origin)),
+                               Msg.Named ("line", Trimmed (Beside.Place.Line)),
+                               Msg.Named
+                                 ("column", Trimmed (Beside.Place.Column)),
+                               Msg.Named
+                                 ("text", Catalog.Text (Beside.Message))]),
+                           Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
+                     end if;
+                  end;
+               end loop;
             end;
          end loop;
       end Render_Diagnostics;

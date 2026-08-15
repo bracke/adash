@@ -90,8 +90,16 @@ line with a caret under what it is about:
     put_line (Total'Image);
               ^~~~~
 
+A diagnostic that is about two places says both:
+
+    report.adash:6:1: Total is already declared in this scope
+    Total : Integer := 2;
+    ^~~~~
+    report.adash:4:1: declared here
+
 A file a script read in names *itself*, so a mistake in a module is reported
-where it was written rather than where it was used. A line typed at the prompt
+where it was written rather than where it was used — and a name declared in a
+module and again in the script that read it in shows one line from each file. A line typed at the prompt
 gets no position: it is on the screen above, and a position in front of it
 would point at itself. Neither does something with no place in the text — a
 file that could not be read at all, or a program that raised, which is a run

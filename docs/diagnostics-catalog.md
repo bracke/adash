@@ -7,6 +7,12 @@ at the boundary. That is what lets a conformance case assert which diagnostic
 was produced rather than how it was worded, a log record one structurally, and a
 translation replace all of it without touching Ada.
 
+A diagnostic may point at a **second place** — the earlier declaration behind
+"already declared" — and carries it as a related location with its own message,
+`note.declared_here`. Where the place is comes from the subsystem that found it,
+as a span; what line that is comes from the engine, which has the buffer. A
+subsystem that knew a line would be a subsystem that had read the file.
+
 Placeholders are written `{name}` and are declared by the identifier itself:
 `Adash.Messages.Placeholders` says which each takes, and a unit test renders
 every identifier with its own declared placeholders, so an entry that exists but

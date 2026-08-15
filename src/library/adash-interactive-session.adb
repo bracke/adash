@@ -286,6 +286,39 @@ package body Adash.Interactive.Session is
                        (Adash.Diagnostics.Caret (Item),
                         Adash.Terminal.Role_Muted, Stderr_Is_Terminal));
                end if;
+
+               --  What else it is about, for the places that have a file to
+               --  name: the earlier declaration behind "already declared", and
+               --  anything else a subsystem thought a reader should be sent
+               --  to.
+               for Which in 1 .. Adash.Diagnostics.Related_Count (Item) loop
+                  declare
+                     Beside : constant Adash.Diagnostics.Related_Location :=
+                       Adash.Diagnostics.Related (Item, Which);
+                  begin
+                     if Adash.Source."=" (Adash.Source.Kind (Beside.Origin),
+                                          Adash.Source.Origin_File)
+                       and then Adash.Source.Name (Beside.Origin) /= ""
+                       and then not Adash.Source.Is_Empty (Beside.Extent)
+                     then
+                        Put_Line
+                          (Standard_Error,
+                           Adash.Terminal.Styled
+                             (Catalog.Text
+                                (Adash.Messages.Msg_Line_Diagnostic_At,
+                                 [Adash.Messages.Named
+                                    ("path",
+                                     Adash.Source.Name (Beside.Origin)),
+                                  Adash.Messages.Named
+                                    ("line", Counted (Beside.Place.Line)),
+                                  Adash.Messages.Named
+                                    ("column", Counted (Beside.Place.Column)),
+                                  Adash.Messages.Named
+                                    ("text", Catalog.Text (Beside.Message))]),
+                              Adash.Terminal.Role_Muted, Stderr_Is_Terminal));
+                     end if;
+                  end;
+               end loop;
             end;
          end loop;
 

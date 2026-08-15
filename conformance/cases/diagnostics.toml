@@ -109,18 +109,23 @@ diagnostics = [
 ]
 
 [[case]]
-id = "diagnostics.a-real-redeclaration-still-names-the-line"
+id = "diagnostics.a-real-redeclaration-points-at-the-first-one"
 requirement = """
 Where there is a first declaration to point at, it is still pointed at: this did
 not become one message for two situations. Written on one line because a name
 declared by an earlier submission may be redeclared by a later one -- that is
 what makes a session a session -- so a collision needs both in the same one.
+
+The message no longer carries the place. It used to say "on line {line}" and be
+handed a *byte offset*, which looked like a line and was one only by accident;
+where the first declaration is now travels as a related location, and the
+engine gives it a line from the buffer it was analysed in.
 """
 script = "Total : Integer := 1; Total : Integer := 2; quit (0);"
 exit_status = 0
 output = []
 diagnostics = [
-  "!error.name_already_declared{name=Total,line= 1}!",
+  "!error.name_already_declared{name=Total}!",
 ]
 
 [[case]]
@@ -212,4 +217,24 @@ diagnostics = [
   "!line.diagnostic_at{path={root}/conformance/fixtures/modules/misspelt.adash,line=6,column=11,text=!error.name_undeclared{name=Nowhere_At_All}!}!",
   "put_line (Nowhere_At_All);",
   "          ^~~~~~~~~~~~~~",
+]
+
+[[case]]
+id = "diagnostics.and-says-where-the-first-one-is"
+requirement = """
+"X is already declared" is only actionable if the reader is told where the
+other one is. The place travels as a related location -- a span the scope chain
+knows and a line the engine works out -- and is printed under the diagnostic in
+the same form, so a reader can go straight to it.
+
+Where the two declarations are in *different* files, which reading a module in
+makes possible, each names its own.
+"""
+arguments = ["{root}/conformance/fixtures/modules/twice.adash"]
+exit_status = 2
+diagnostics = [
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/twice.adash,line=6,column=1,text=!error.name_already_declared{name=Total}!}!",
+  "Total : Integer := 2;",
+  "^~~~~",
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/twice.adash,line=4,column=1,text=!note.declared_here!}!",
 ]

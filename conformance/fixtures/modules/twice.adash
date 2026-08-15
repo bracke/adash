@@ -1,0 +1,6 @@
+--  Declared twice on purpose: what the diagnostic has to say is where the
+--  other one is.
+
+Total : Integer := 1;
+
+Total : Integer := 2;

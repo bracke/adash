@@ -373,6 +373,10 @@ package Adash.Messages is
       --  because that is what an editor and a person both already read.
       Msg_Line_Diagnostic_At,
 
+      --  What a related location says about a place: the note that goes under
+      --  a diagnostic, pointing at what it is about somewhere else.
+      Msg_Note_Declared_Here,
+
       Msg_Line_Job_Started,
       Msg_Line_Job_Finished,
       Msg_Line_Job_Signalled,
