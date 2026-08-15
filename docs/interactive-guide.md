@@ -52,9 +52,18 @@ misbehaves, or a screen reader that prefers to see the line once, needs.
 several things match, they are listed and the line is left as it was, so nothing
 is chosen on the user's behalf.
 
-What it offers is the shell's own vocabulary — the internal commands, the
-predefined entities, and what the session has declared — because that is what
-the analyser knows about. It does not offer file names.
+What it offers, in this order, is the internal commands, the predefined
+entities, the language's reserved words, and — when the prefix looks like a
+path, meaning it starts with `.` or `/` — the files and directories under it.
+Ordering is by source and then by name, never by what was used recently: a
+ranking that depends on history is one nobody can learn and no test can pin.
+
+Paths only on that prefix, because listing the working directory for every empty
+prefix would bury the shell's own vocabulary under whatever happens to be in the
+directory. What the *session* has declared is not offered: completion reads the
+registries and the filesystem and never the analyser's scope, since a line under
+construction is exactly the input that must not be evaluated to find out what
+could follow it.
 
 ## History
 

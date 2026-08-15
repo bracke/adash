@@ -46,9 +46,13 @@ as `!key{argument=value}!`. A case therefore says *which* diagnostic was
 produced, not how it happened to be worded, and rewording the catalog never
 breaks the suite.
 
-**The environment is replaced, not inherited.** A case sees `PATH=/usr/bin:/bin`
-and nothing else it did not set, so it gives the same answer on a developer's
-machine as in CI.
+**The environment is replaced, not inherited**, so a case gives the same answer
+on a developer's machine as in CI. On Linux and macOS a case sees
+`PATH=/usr/bin:/bin` and nothing else it did not set. Windows needs more than
+that to start a process at all — `SystemRoot`, `windir`, a `PATH` reaching
+`System32`, `TEMP`, `TMP`, `APPDATA` and `USERPROFILE` — so the runner builds
+that set there. Replaced either way: nothing of the developer's own travels
+into a case.
 
 **Each case gets a store of its own**, emptied before it runs: `{store}` in a
 script *or in an expectation* expands to a directory the case may write in, and
@@ -75,10 +79,11 @@ test, with whatever suffix the host puts on one — a case that named
 `{root}/bin/adash` was asking about a file that does not exist on Windows.
 
 **`platforms` restricts a case** to the hosts it can hold on — `["linux",
-"macos"]`, say. Four cases use it, all about a job ending by signal: Windows
-has none, `stop` there opens the process and terminates it, and what comes back
-is an exit status nobody chose. That is a capability the host does not have,
-which is what the key is for.
+"macos"]`, say. Five cases use it, and together they cover job control on every
+host: four assert the half that needs signals to exist, and the fifth asserts
+what Windows does instead, where `stop`, `suspend` and `resume` report that the
+system does not support job control and the job runs to completion. That is a
+capability the host does not have, which is what the key is for.
 
 It is not for a case that merely needs a *program*: name `{emit}` or `{upcase}`
 and it runs everywhere. **A gated case is a case one host of the three never

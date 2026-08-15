@@ -5,7 +5,7 @@ Every package that exists, its owning subsystem, and what it depends on.
 it agrees with the filesystem in both directions; this document explains the
 shape that inventory has.
 
-Fifty-four packages in the shell crate, in nineteen subsystems. What makes them
+Fifty-four packages in the shell crate, in eighteen subsystems. What makes them
 readable as a whole is that the dependencies point one way: a package depends on
 what is below it and never on what is above, and no two subsystems depend on
 each other.

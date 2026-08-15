@@ -8,7 +8,8 @@ maintainers-logins = ["bracke"]
 licenses = "MIT"
 long-description = "The child crate of adash: its AUnit suites and every program that checks, documents, measures or releases the repository. Adash keeps runtime code and tooling in separate crates so that no tool can be reached from the shell binary, and so that AUnit and project_tools are never dependencies of the thing users install."
 project-files = ["adash_tests.gpr"]
-executables = ["adash_tests", "adash_check", "adash_test_emit", "adash_test_upcase"]
+executables = ["adash_tests", "adash_conformance", "adash_check", "adash_bench",
+               "adash_test_emit", "adash_test_upcase"]
 
 [[depends-on]]
 gnat_native = "=15.2.1"

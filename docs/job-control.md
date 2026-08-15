@@ -19,9 +19,15 @@ the foreground reports.
 `jobs` lists what the shell is running, one line per job, each carrying the
 number, what was started, and the state — running, stopped, or finished.
 
-`stop` asks a job to stop and reports that it signalled it. What arrives is a
-termination signal, so a program that traps it may still be running afterwards;
-what the shell promises is that it asked.
+`stop` asks a job to stop and says nothing when the host took the request:
+what arrives is a termination signal, a program that traps it may still be
+running afterwards, and how the job actually ended is what `wait` reports. It
+speaks when it could not ask — a host without job control, or a table that
+refused — because that is the case a reader cannot infer from silence.
+
+`suspend` and `resume` do report, each naming the job's new state: they leave
+the job in the table, so that line is the only word a user would otherwise
+get.
 
 `wait` on a job that has already finished answers with what it ended as rather
 than waiting for something that will not happen again, and `wait` on a number
