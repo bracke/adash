@@ -1691,7 +1691,10 @@ what changed.
   interpreter for it itself. This was written down the other way round first,
   from reading how process creation works rather than from watching it, and a
   conformance case gated to that host reported the shell running a batch file
-  perfectly well. The case stays, asserting what the host does.
+  perfectly well. Both sides of the boundary are cases now: a batch file named
+  in full runs, and a `.ps1` named in full is refused while the session goes
+  on. Which diagnostic Windows produces for a failed process creation is left
+  unasserted -- that is the host's word rather than this shell's behaviour.
 
   Case is folded, as it is everywhere else in the list: the prefix is handed
   over as the class of each letter's two cases, so `GI` completes to `git` on a

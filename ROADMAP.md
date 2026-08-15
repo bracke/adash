@@ -2994,6 +2994,12 @@ first -- from reading how process creation works rather than from watching it
 perfectly well. Reading a manual is not the same as asking the machine, and the
 case is what asked.
 
+Both sides of the boundary are cases now. A batch file named in full runs; a
+`.ps1` named in full is refused and the session goes on. What is asserted of
+the second is the shell's half -- that it refuses and survives -- and not
+Windows's word for a failed process creation, which is an error code and not
+behaviour worth pinning here.
+
 What is offered is the name a user would type. Windows supplies `.exe` for a
 name written without one -- which is why `run ("git")` starts `git.exe` there --
 so offering `git.exe` would be offering the spelling nobody uses.
