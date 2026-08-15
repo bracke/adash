@@ -500,6 +500,30 @@ package body Adash.Interactive.Completion is
                            declare
                               Simple : constant String :=
                                 Ada.Directories.Simple_Name (Found);
+
+                              --  What a user would type. Windows supplies
+                              --  ".exe" for a name written without one, so
+                              --  offering `git.exe` would be offering the
+                              --  spelling nobody uses for the program `git`.
+                              --  Everything else keeps the name it has: a
+                              --  `.bat` is run by the command interpreter
+                              --  rather than by the loader, and its name has
+                              --  to be written out.
+                              Supplied : constant String :=
+                                Hostkit.Fs.Executable_Suffix;
+
+                              Offered : constant String :=
+                                (if Supplied /= ""
+                                   and then Simple'Length > Supplied'Length
+                                   and then Adash.Language.Symbols.Fold
+                                     (Simple
+                                        (Simple'Last - Supplied'Length + 1
+                                         .. Simple'Last))
+                                     = Adash.Language.Symbols.Fold (Supplied)
+                                 then Simple
+                                        (Simple'First
+                                         .. Simple'Last - Supplied'Length)
+                                 else Simple);
                            begin
                               --  The name is matched before the host is asked
                               --  whether the file can be run. The question
@@ -507,16 +531,16 @@ package body Adash.Interactive.Completion is
                               --  thousand of them answered on every Tab is a
                               --  pause a user feels; the prefix rules out
                               --  nearly all of them for nothing.
-                              if Matches (Simple)
-                                and then not Already (Simple)
+                              if Matches (Offered)
+                                and then not Already (Offered)
                                 and then Hostkit.Fs.Is_Executable
                                            (Ada.Directories.Compose
                                               (Directory, Simple))
                               then
                                  Names.Append
                                    (Candidate'
-                                      (Insertion   => To_Unbounded_String (Simple),
-                                       Display     => To_Unbounded_String (Simple),
+                                      (Insertion   => To_Unbounded_String (Offered),
+                                       Display     => To_Unbounded_String (Offered),
                                        Source      => From_Program,
                                        Replaces    =>
                                          (First => Positive'Max (First, 1),

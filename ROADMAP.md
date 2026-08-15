@@ -2972,6 +2972,13 @@ handful of calls rather than thousands. `adash_bench` has a row for it now,
 which is also what says a cache is not needed: three milliseconds is not a
 figure worth a second copy of the truth.
 
+What is offered is the name a user would type. Windows supplies `.exe` for a
+name written without one -- which is why `run ("git")` starts `git.exe` there --
+so offering `git.exe` would be offering the spelling nobody uses.
+`Hostkit.Fs.Executable_Suffix` says what that suffix is, and says only that:
+the rest of PATHEXT is not the same thing, because a `.bat` is run by the
+command interpreter rather than by the loader and has to be named in full.
+
 A host glob cares about case where the rest of this list does not, so the
 prefix goes over as the class of each letter's two cases: `GI` completes to
 `git` on a host whose file names are case-sensitive, as `QU` completes to

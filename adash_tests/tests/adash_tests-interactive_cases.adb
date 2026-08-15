@@ -850,6 +850,26 @@ package body Adash_Tests.Interactive_Cases is
          Assert (not Offers_Starting_With (Starred, Runnable),
                  "a prefix with a pattern character in it matched as a "
                  & "pattern rather than as the text it is");
+
+         --  And what is offered is what a user would type. Where the host
+         --  supplies a suffix for a name written without one, offering the
+         --  file's own name would offer the spelling nobody uses.
+         if Hostkit.Fs.Executable_Suffix /= "" then
+            for Index in 1 .. Named.Count loop
+               declare
+                  Text : constant String :=
+                    Comp.Insertion (Named.Element (Index));
+
+                  Suffix : constant String := Hostkit.Fs.Executable_Suffix;
+               begin
+                  Assert (Text'Length < Suffix'Length
+                          or else Text (Text'Last - Suffix'Length + 1
+                                        .. Text'Last) /= Suffix,
+                          "a program was offered with the suffix this host "
+                          & "supplies for itself: " & Text);
+               end;
+            end loop;
+         end if;
       end;
 
       Ada.Directories.Delete_Tree (Room);

@@ -75,6 +75,11 @@ The path is the session's own. `set ("PATH=…")` changes what a child is starte
 with, so it changes what Tab offers; a completion that read the shell's own
 environment would offer the programs of a path it no longer uses.
 
+**What is offered is what you would type.** Where a host supplies a suffix for
+a name written without one — Windows appends `.exe` — the offer leaves it off,
+because `git` is the program's name there as much as here. A `.bat` or a `.cmd`
+keeps its own, being run by the command interpreter rather than by the loader.
+
 **Case is folded here as it is everywhere else in the list.** `QU` completes to
 `quit` because the language does not care, and `GI` completes to `git` for the
 same reason — even where the filesystem does care, since what is inserted is

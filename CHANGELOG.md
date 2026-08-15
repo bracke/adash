@@ -1674,6 +1674,13 @@ what changed.
   `adash_bench` has a row for it, because it is the one completion that leaves
   this process's memory.
 
+  What is offered is what a user would type: where the host supplies a suffix
+  for a name written without one -- Windows appends `.exe` -- the offer leaves
+  it off, `git` being the program's name there as much as anywhere.
+  `Hostkit.Fs.Executable_Suffix` is new for that, and is deliberately not the
+  whole of PATHEXT: a `.bat` is run by the command interpreter rather than by
+  the loader, so its name has to be written out and is offered as it stands.
+
   Case is folded, as it is everywhere else in the list: the prefix is handed
   over as the class of each letter's two cases, so `GI` completes to `git` on a
   host whose file names are case-sensitive too. What is inserted is the
