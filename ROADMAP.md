@@ -3225,16 +3225,24 @@ consumer degrades on them explicitly:
   answer is the pseudo-console, a differently shaped API; implementing it
   belongs in hostkit when a consumer needs it.
 
-`Hostkit.Spawn` cannot start a **session**. It places a child in a process
-group and hands it a terminal's foreground, which is what job control needs,
-but a child it spawns never *controls* the terminal it was given -- and a
-terminal turns Ctrl-C into a signal for the foreground group of the session
-that controls it. The consequence is a test rather than a user: driving the
-interrupt through a pseudo-terminal is the one interactive behaviour
-`Adash_Tests.Interactive_Cases` cannot cover, and it says so where the other
-four terminal cases are written. What covers the interrupt instead is
-`Adash.Execution`'s own cases, which test the half that is this repository's
-code.
+`Hostkit.Spawn` **can start a session**, as of the work this section used to
+record as missing. `Options.Controlling_Terminal` makes the child a session
+leader and gives it that terminal, which is what a Ctrl-C needs to become a
+signal: a terminal signals the foreground group of the session that controls
+it, and a child merely *handed* a pseudo-terminal controls nothing.
+`Supports_Sessions` answers for the host and Windows refuses rather than
+starting a child that would be interruptible on one host and not another. The
+same work emptied the child's signal mask, which `Reset_Signals` had left
+alone -- a caller using Ada tasking has a mask it never chose, and a child that
+inherits a blocked SIGINT cannot be interrupted however its dispositions were
+reset.
+
+The shell's interactive cases start it that way now. What is still not covered
+is the interrupt itself: driven from a standalone program the shell behaves
+exactly as documented -- a loop announces itself, a typed Ctrl-C ends it, the
+prompt returns marked -- and the same sequence inside the AUnit suite does not,
+for a reason not yet found. `Adash_Tests.Interactive_Cases` records what is
+known and what to look at next.
 
 ## Definition of done
 

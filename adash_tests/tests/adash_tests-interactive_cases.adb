@@ -879,6 +879,16 @@ package body Adash_Tests.Interactive_Cases is
       Options.Output := Item.Pair.Device;
       Options.Error_Output := Item.Pair.Device;
 
+      --  A session of its own, with this terminal as the controlling one.
+      --  Without it the shell would be reading a terminal it does not control,
+      --  and a Ctrl-C typed here would reach nobody: the line discipline
+      --  signals the foreground group of the session that controls the
+      --  terminal. Where the host has no such thing -- Windows -- the shell is
+      --  started without it and the case that needs it says so.
+      if Hostkit.Spawn.Supports_Sessions then
+         Options.Controlling_Terminal := Item.Pair.Device;
+      end if;
+
       Assert (Hostkit.Descriptors.Set_Inheritable (Item.Pair.Device, True),
               "the terminal end could not be handed to the child");
 
@@ -1317,23 +1327,28 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after an edited line");
    end Backspace_Removes_A_Character_Through_A_Terminal;
 
-   --  What is *not* here: the interrupt.
+   --  What is *not* here: the interrupt, and what is known about why.
    --
-   --  A terminal turns Ctrl-C into a signal for its foreground process group,
-   --  and a child has one only when it leads a session whose controlling
-   --  terminal is that pseudo-terminal. Hostkit.Spawn can place a child in a
-   --  process group and hand it a terminal's foreground, but it cannot start a
-   --  session -- so a child spawned here never controls the terminal it was
-   --  given, and neither a typed Ctrl-C nor a signal sent to the process
-   --  reaches a running submission reliably. Driving it by hand, from a shell
-   --  that does control its terminal, works every time.
+   --  Hostkit.Spawn can now start a child in a session of its own with a
+   --  terminal as its controlling one -- Start_On_A_Terminal asks for it -- so
+   --  the shell driven by these cases *does* control the terminal it reads.
+   --  Checked rather than assumed: a program run from it reports the session
+   --  id as the shell's own pid, the terminal's foreground group as the
+   --  shell's group, and ISIG on while a submission runs. hostkit's own suite
+   --  asserts the mechanism from the other side: a child started that way dies
+   --  of a Ctrl-C written to the controller.
    --
-   --  The capability belongs in hostkit, which is where anything that differs
-   --  because the operating system differs belongs. Until it is there, what
-   --  covers the interrupt is Adash.Execution's own cases -- a cancellation
-   --  request is sticky until reset, a cancelled pipeline stops and reports
-   --  it, an interrupt is recorded rather than discarded -- and those test the
-   --  half that is this repository's code.
+   --  Driven from a standalone program the shell behaves exactly as it should:
+   --  a loop announces itself, a typed Ctrl-C ends it, and the prompt comes
+   --  back carrying its failure marker. The same sequence inside this suite
+   --  does not, and the reason is not yet known -- the line is not echoed
+   --  there, which says the shell read it without its editor, and that is
+   --  where the next look should start. A test that passes on a developer's
+   --  machine and not in a suite is worse than no test, so it is not here.
+   --
+   --  What covers the interrupt meanwhile is Adash.Execution's own cases -- a
+   --  cancellation request is sticky until reset, a cancelled pipeline stops
+   --  and reports it, an interrupt is recorded rather than discarded.
 
    --------------------
 
