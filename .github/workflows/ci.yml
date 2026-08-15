@@ -69,10 +69,36 @@ jobs:
         run: |
           set -eu
           cd Ada
+
+          # Three tries each. A clone that dies halfway -- "RPC failed; curl 56
+          # Recv failure", which is a runner's network and not this repository
+          # -- failed the whole job and read like a real failure until somebody
+          # opened the log. Fourteen clones in a row is fourteen chances of
+          # that, and the answer to a transient fault is to try it again rather
+          # than to make a person do it.
+          #
+          # The partial clone goes before each retry: git will not clone into a
+          # directory that is already there, so a second attempt on top of a
+          # first would fail for a reason that has nothing to do with the
+          # network.
           for crate in hostkit messages terminal_styles project_tools \
                        jsonlib tomllib i18n httpclient ssllib cryptolib \
                        truststores zlib awklib regexp; do
-            git clone --depth 1 "https://github.com/bracke/${crate}.git" "${crate}"
+            for attempt in 1 2 3; do
+              if git clone --depth 1 \
+                   "https://github.com/bracke/${crate}.git" "${crate}"; then
+                break
+              fi
+
+              if [ "${attempt}" = 3 ]; then
+                echo "could not clone ${crate} after three attempts"
+                exit 1
+              fi
+
+              echo "cloning ${crate} failed; trying again"
+              rm -rf "${crate}"
+              sleep 5
+            done
           done
 
       - name: Install Alire
