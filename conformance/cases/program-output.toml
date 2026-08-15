@@ -702,3 +702,32 @@ quit (0);"""
 exit_status = 0
 output = ["ran it"]
 platforms = ["windows"]
+
+[[case]]
+id = "run.a-file-nothing-starts-is-refused-and-said-so"
+requirement = """
+Windows counts a `.ps1` an executable and starts none from a name: a script for
+another shell is read by that shell, and this one invokes nothing to help. So a
+name the host would call a program can still be a name nothing here can run.
+
+What is asserted is that it is refused and that the session goes on -- the run
+fails, `Status` says so, and the next submission runs. Which diagnostic the host
+produces is left unasserted on purpose: it is Windows's word for a failed
+process creation, and pinning it here would pin an error code into a case about
+the shell's behaviour.
+
+The neighbouring case says what happens to a `.bat`, which this host *does*
+start by running the command interpreter for it. The two together are the
+boundary, and completion offers what falls on the near side of it.
+"""
+script = """
+write_file ("Write-Host hello", "{store}/thing.ps1");
+run ("{store}/thing.ps1");
+if Status = 0 then
+   quit (3);
+end if;
+put_line ("refused, and still here");
+quit (0);"""
+exit_status = 0
+output = ["refused, and still here"]
+platforms = ["windows"]
