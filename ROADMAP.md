@@ -3237,12 +3237,15 @@ alone -- a caller using Ada tasking has a mask it never chose, and a child that
 inherits a blocked SIGINT cannot be interrupted however its dispositions were
 reset.
 
-The shell's interactive cases start it that way now. What is still not covered
-is the interrupt itself: driven from a standalone program the shell behaves
-exactly as documented -- a loop announces itself, a typed Ctrl-C ends it, the
-prompt returns marked -- and the same sequence inside the AUnit suite does not,
-for a reason not yet found. `Adash_Tests.Interactive_Cases` records what is
-known and what to look at next.
+The shell's interactive cases start it that way now, and one of them types a
+Ctrl-C at a running loop and asserts that the prompt comes back marked and the
+session answers the next line. That case looked for a while as though the shell
+were at fault: it failed while the same sequence driven by hand worked. The
+shell was right and the assertion was wrong -- the prompt writes its failure
+marker and then an escape sequence to dim the directory, so `!` and the space
+after it are never adjacent in the bytes, and a test looking for `"! "` in what
+the terminal sent could not match. Assertions about a terminal ask about the
+text now, with the control sequences taken out, which is what a reader sees.
 
 ## Definition of done
 

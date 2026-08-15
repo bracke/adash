@@ -91,9 +91,18 @@ evaluation -- the machine, execution and commands, the engine, the interactive
 session, persistence, configuration, predefined entities, messages and styling,
 and the repository checks themselves.
 
-Four of those cases drive the shell **through a pseudo-terminal**: a whole
-session, Tab completing a word, Up recalling a line, and backspace removing a
-character rather than a byte. Everything else about the interactive session
+Five of those cases drive the shell **through a pseudo-terminal**: a whole
+session, Tab completing a word, Up recalling a line, backspace removing a
+character rather than a byte, and a Ctrl-C stopping a loop. The shell is
+started in a session of its own with that terminal as its controlling one --
+`Hostkit.Spawn.Options.Controlling_Terminal` -- which is what makes a keystroke
+into a signal; without it a child controls nothing and Ctrl-C reaches nobody.
+
+**An assertion about a terminal asks about the text, not the bytes.** What
+comes back is text and control mixed, and the two are interleaved: the prompt
+writes its failure marker and then an escape sequence, so `!` and the space
+after it are not next to each other. Looking for them together reported a
+working interrupt as a broken one for half a day. Everything else about the interactive session
 tests a piece -- the buffer, the decoder, the history, the completion registry
 -- and a piece can be right while what a user meets is not. Each opens a
 terminal, spawns the built binary on it, types, and reads bounded: a test that

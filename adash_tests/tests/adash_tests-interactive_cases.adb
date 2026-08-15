@@ -846,6 +846,12 @@ package body Adash_Tests.Interactive_Cases is
 
    --  How many times something has been seen, which is how a test tells one
    --  answer from the same answer twice.
+   --  As Waited_For, asking about the text rather than the bytes.
+   function Waited_For_Plainly
+     (Item   : in out Terminal_Session;
+      Marker : String;
+      Tries  : Positive := 200) return Boolean;
+
    function Times_Seen (Item : Terminal_Session; Marker : String) return Natural;
 
    --  End the session: ask the shell to quit, wait for it, and close the
@@ -999,6 +1005,69 @@ package body Adash_Tests.Interactive_Cases is
 
       return False;
    end Waited_For;
+
+   --  What was seen, with the escape sequences taken out.
+   --
+   --  A terminal answer is text and control mixed: the prompt writes its
+   --  failure marker and then an escape sequence to dim the directory, so `!`
+   --  and the space after it are not next to each other in the bytes. A test
+   --  that looked for them together found nothing and reported that the
+   --  interrupt had not worked -- which it had. What a reader sees is the text
+   --  without the control, so that is what an assertion should ask about.
+   function Plainly (Item : Terminal_Session) return String;
+
+   function Plainly (Item : Terminal_Session) return String is
+      Whole  : constant String := Ada.Strings.Unbounded.To_String (Item.Seen);
+      Result : String (1 .. Whole'Length);
+      Kept   : Natural := 0;
+      Index  : Positive := Whole'First;
+   begin
+      while Index <= Whole'Last loop
+         if Whole (Index) = Character'Val (16#1B#)
+           and then Index < Whole'Last
+           and then Whole (Index + 1) = '['
+         then
+            --  A CSI sequence: ESC [ then parameters, then a letter.
+            Index := Index + 2;
+
+            while Index <= Whole'Last
+              and then Whole (Index) not in 'A' .. 'Z' | 'a' .. 'z'
+            loop
+               Index := Index + 1;
+            end loop;
+
+            Index := Index + 1;
+
+         else
+            Kept := Kept + 1;
+            Result (Kept) := Whole (Index);
+            Index := Index + 1;
+         end if;
+      end loop;
+
+      return Result (1 .. Kept);
+   end Plainly;
+
+   function Waited_For_Plainly
+     (Item   : in out Terminal_Session;
+      Marker : String;
+      Tries  : Positive := 200) return Boolean is
+   begin
+      for Attempt in 1 .. Tries loop
+         declare
+            More : constant Boolean := Drained (Item);
+         begin
+            if Ada.Strings.Fixed.Index (Plainly (Item), Marker) > 0 then
+               return True;
+            end if;
+
+            exit when not More;
+            delay 0.05;
+         end;
+      end loop;
+
+      return False;
+   end Waited_For_Plainly;
 
    function Times_Seen (Item : Terminal_Session; Marker : String) return Natural
    is
@@ -1327,28 +1396,69 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after an edited line");
    end Backspace_Removes_A_Character_Through_A_Terminal;
 
-   --  What is *not* here: the interrupt, and what is known about why.
+   --  Ctrl-C stops a program of the shell's own and leaves the session
+   --  standing, through the terminal.
    --
-   --  Hostkit.Spawn can now start a child in a session of its own with a
-   --  terminal as its controlling one -- Start_On_A_Terminal asks for it -- so
-   --  the shell driven by these cases *does* control the terminal it reads.
-   --  Checked rather than assumed: a program run from it reports the session
-   --  id as the shell's own pid, the terminal's foreground group as the
-   --  shell's group, and ISIG on while a submission runs. hostkit's own suite
-   --  asserts the mechanism from the other side: a child started that way dies
-   --  of a Ctrl-C written to the controller.
+   --  The keystroke is typed rather than the signal sent, which is the point:
+   --  what a user does is press a key, and what turns that key into a signal
+   --  is the terminal signalling the foreground group of the session that
+   --  controls it. The shell is started in a session of its own for exactly
+   --  this -- see Start_On_A_Terminal -- and until Hostkit.Spawn could do
+   --  that, no test could reach this behaviour at all.
    --
-   --  Driven from a standalone program the shell behaves exactly as it should:
-   --  a loop announces itself, a typed Ctrl-C ends it, and the prompt comes
-   --  back carrying its failure marker. The same sequence inside this suite
-   --  does not, and the reason is not yet known -- the line is not echoed
-   --  there, which says the shell read it without its editor, and that is
-   --  where the next look should start. A test that passes on a developer's
-   --  machine and not in a suite is worse than no test, so it is not here.
-   --
-   --  What covers the interrupt meanwhile is Adash.Execution's own cases -- a
-   --  cancellation request is sticky until reset, a cancelled pipeline stops
-   --  and reports it, an interrupt is recorded rather than discarded.
+   --  The loop says when it has started and never ends by itself, so nothing
+   --  here is timed: what follows the interrupt is the proof that it arrived.
+   procedure An_Interrupt_Stops_A_Loop_Through_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+   begin
+      if not Hostkit.Spawn.Supports_Sessions
+        or else not Hostkit.Signals.Is_Supported
+                      (Hostkit.Signals.Signal_Interrupt)
+      then
+         --  Windows: no session to control the terminal with, and no signal
+         --  for the terminal to send. What that host does instead -- decline
+         --  rather than pretend -- the conformance suite asserts.
+         return;
+      end if;
+
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""running"")); loop null; end loop;"
+         & String'(1 => Character'Val (13)));
+
+      Assert (Waited_For (Session, "RUNNING", Tries => 600),
+              "the loop never started: ["
+              & Plainly (Session) & "]");
+
+      --  Ctrl-C, as a user types it.
+      Type_Into (Session, String'(1 => Character'Val (3)));
+
+      --  The prompt comes back carrying its failure marker: a submission the
+      --  interrupt ended is a submission that failed.
+      Assert (Waited_For_Plainly (Session, "! ", Tries => 600),
+              "the interrupt did not bring the prompt back: ["
+              & Plainly (Session) & "]");
+
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""alive""));" & String'(1 => Character'Val (13)));
+
+      Assert (Waited_For (Session, "ALIVE", Tries => 600),
+              "the session did not answer after the interrupt: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after an interrupt");
+   end An_Interrupt_Stops_A_Loop_Through_A_Terminal;
 
    --------------------
 
@@ -1400,6 +1510,8 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine
         (T, Backspace_Removes_A_Character_Through_A_Terminal'Access,
          "backspace removes a character through a terminal");
+      Register_Routine (T, An_Interrupt_Stops_A_Loop_Through_A_Terminal'Access,
+                        "an interrupt stops a loop through a terminal");
       Register_Routine (T, A_Session_Answers_Through_A_Terminal'Access,
                         "a session answers through a pseudo-terminal");
    end Register_Tests;
