@@ -82,9 +82,12 @@ a host cannot express the question rather than guessing — and Adash treats
 - Persistence writes are atomic, so an interrupted write cannot truncate
   authoritative state.
 - The store distinguishes what can be rebuilt from what cannot, so that a
-  corrupt cache never costs a user their history or their settings. Nothing is
+  system emptying the cache — which it is entitled to do, unasked and on a
+  schedule — never costs a user their history or their settings. Nothing is
   cached today; the distinction is in `Adash.Persistence` for the first thing
-  that is.
+  that is, and the guarantee is under test rather than assumed: the three
+  directories are distinct and neither the history nor the settings is inside
+  the cache. An unused mechanism is one nobody would notice going wrong.
 - Configuration that is invalid in a way that would materially change behaviour
   is reported, never silently ignored.
 - Job control degrades explicitly on platforms where hostkit reports the

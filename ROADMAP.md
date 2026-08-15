@@ -2931,6 +2931,20 @@ thousandth line of a session onwards, every line was recalled and none was
 kept. `Record_Line` answers that question itself now, because a count never
 could.
 
+**Nothing is cached, and the promise that says why is tested.** Three stores:
+settings, data, and the one a system may empty without asking. This build
+writes to two of them, and will go on doing so until something is genuinely
+worth a second copy -- a cache is a second copy of the truth, and every one is
+a chance to answer from the stale one.
+
+What is under test is the guarantee rather than the mechanism: the three
+directories are distinct, and neither the history nor the settings is inside
+the cache, so emptying it costs a user nothing they would miss. An unused
+mechanism is one nobody would notice going wrong, and the first thing to put a
+file there should find that already established. The likeliest first user is an
+index of the programs on `PATH`, for completing a command name without walking
+every directory on every Tab -- which is a feature this shell does not have.
+
 **Configuration is still per-user.** Only history gained a per-session notion.
 
 **A subprogram declared on one line is callable on the next.** The session keeps

@@ -80,3 +80,21 @@ interface this project promises to keep: they are how *this* shell remembers
 between sessions. What is promised is that a file this build wrote, this build
 reads — and that a file it cannot read leaves the defaults in place and says so
 once, rather than refusing to start.
+
+## The cache
+
+`Adash.Persistence` knows three stores and this build writes to two of them.
+The third — the cache — is where anything that can be *rebuilt* would go, and
+it is kept separate because a system is entitled to empty a cache directory
+without asking: what is in there has to be something whose loss costs nothing.
+
+Nothing is cached today, and nothing will be until something is worth caching;
+a cache is a second copy of the truth, and every one of them is a chance to
+serve a stale answer. The likeliest first user is an index of the programs on
+`PATH`, for completing a command name without walking every directory on every
+Tab — which is a feature this shell does not have yet.
+
+What is tested is the promise rather than the mechanism: the three directories
+are distinct, and neither the history file nor the configuration file is inside
+the cache. The first thing to put a file there should find that already
+guaranteed instead of having to establish it.

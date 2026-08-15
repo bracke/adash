@@ -57,6 +57,8 @@ package body Adash_Tests.Persistence_Cases is
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Paths_Are_Under_One_Directory
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure A_Cache_Holds_Nothing_That_Cannot_Be_Rebuilt
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Forgetting_Takes_The_Last_Occurrence
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Forgetting_Leaves_What_The_File_Did_Not_Hold
@@ -500,6 +502,76 @@ package body Adash_Tests.Persistence_Cases is
       return AUnit.Format ("Adash.Persistence");
    end Name;
 
+   -------------------------------------------------
+   -- A_Cache_Holds_Nothing_That_Cannot_Be_Rebuilt --
+   -------------------------------------------------
+
+   --  The promise the three stores exist to make, tested rather than assumed.
+   --
+   --  A cache directory is the one a system is entitled to empty without
+   --  asking -- and some do, on a schedule, without telling anybody. What must
+   --  follow is that emptying it costs a user nothing they would miss, and
+   --  what makes that true is that nothing they would miss is in it: the
+   --  history is under the data directory and the settings under the
+   --  configuration one, and neither is under the cache.
+   --
+   --  Nothing in this build writes a cache yet. That is exactly why this is
+   --  here: an unused mechanism is one nobody would notice going wrong, and
+   --  the first thing to put a file there should find the guarantee already
+   --  under test rather than have to establish it.
+   procedure A_Cache_Holds_Nothing_That_Cannot_Be_Rebuilt
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      --  Whether one path is inside the directory another names.
+      function Inside (Path : String; Directory : String) return Boolean;
+
+      function Inside (Path : String; Directory : String) return Boolean is
+      begin
+         return Directory'Length > 0
+           and then Path'Length > Directory'Length
+           and then Path (Path'First .. Path'First + Directory'Length - 1)
+                    = Directory;
+      end Inside;
+
+      Cached   : constant String := P.Path_For (P.Cache_Store, "sample.txt");
+      Kept     : constant String := P.Path_For (P.Data_Store, "sample.txt");
+      Settings : constant String :=
+        P.Path_For (P.Configuration_Store, "sample.txt");
+
+      --  The directory each of those files sits in.
+      function Holding (Path : String) return String
+      is (if Path = "" then ""
+          else Ada.Directories.Containing_Directory (Path));
+   begin
+      if Cached = "" then
+         --  A host with no cache directory. Refusing to say where one would be
+         --  is an answer, and a caller that must not lose anything is no worse
+         --  off for it.
+         return;
+      end if;
+
+      Assert (Kept /= "" and then Settings /= "",
+              "a host that has a cache directory has no data or configuration "
+              & "one, so what cannot be rebuilt has nowhere else to go");
+
+      --  Three distinct places. Two of them sharing would mean a system
+      --  emptying the cache took the history with it, which is the whole
+      --  failure this arrangement is against.
+      Assert (Holding (Cached) /= Holding (Kept),
+              "the cache and the data store are the same directory: "
+              & Holding (Cached));
+      Assert (Holding (Cached) /= Holding (Settings),
+              "the cache and the configuration store are the same directory: "
+              & Holding (Cached));
+
+      --  And the two files that exist today are outside it by name, not by
+      --  reasoning: the history is what a user would miss most.
+      Assert (not Inside (H.Path, Holding (Cached)),
+              "the history file is inside the cache directory: " & H.Path);
+   end A_Cache_Holds_Nothing_That_Cannot_Be_Rebuilt;
+
    ------------------------------------------
    -- Forgetting_Takes_The_Last_Occurrence --
    ------------------------------------------
@@ -641,6 +713,8 @@ package body Adash_Tests.Persistence_Cases is
                         "a history entry survives, newlines and all");
       Register_Routine (T, Paths_Are_Under_One_Directory'Access,
                         "every store puts its files under one adash directory");
+      Register_Routine (T, A_Cache_Holds_Nothing_That_Cannot_Be_Rebuilt'Access,
+                        "a cache holds nothing that cannot be rebuilt");
       Register_Routine (T, Forgetting_Takes_The_Last_Occurrence'Access,
                         "forgetting a line takes its last occurrence");
       Register_Routine (T, Forgetting_Leaves_What_The_File_Did_Not_Hold'Access,

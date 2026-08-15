@@ -1646,6 +1646,16 @@ what changed.
   names a secret contains it. What is reported is what was asked for, counted
   once whether it was in the log, the file, or both.
 
+- **The cache store's promise is tested rather than assumed.** Nothing in this
+  build caches anything -- a cache is a second copy of the truth and every one
+  is a chance to serve a stale answer, so there will be none until something is
+  worth caching. What the three stores exist for is that a system emptying the
+  cache directory, which it may do unasked, costs a user nothing they would
+  miss; that now has a case behind it, asserting the three directories are
+  distinct and that neither the history nor the settings is inside the cache.
+  An unused mechanism is one nobody would notice going wrong.
+  `persistence-formats.md` says what would use it first.
+
 ### Fixed
 
 - **The history file stopped being written once the log was full.** The session
