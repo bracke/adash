@@ -1566,6 +1566,17 @@ what changed.
   already take, so a line another session appends meanwhile is not lost. It is
   the only operation that rewrites a history file rather than appending to it.
 
+- **The recorded benchmark figures are current again.** `benchmarks/README.md`
+  now carries a run of this build beside the first one, and the finding is that
+  a month of work moved nothing: the analyser's fastest run is 780.9 us against
+  779.6 us recorded before. Diagnostics that carry a position cost nothing on a
+  submission that has none, source inclusion happens once per script rather
+  than per line, and the history work is in the frontend. The one gap in the
+  report -- analysis, whose fastest run sits a tenth below its median -- was
+  checked at 200, 2000 and 5000 repetitions: the fastest stays at 765-795 us
+  and the median near 890, so it is scheduling noise on the largest figure and
+  not an operation that degrades as it repeats.
+
 ### Fixed
 
 - **`already declared` named a line that was a byte offset.** The message said

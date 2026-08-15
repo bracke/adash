@@ -637,6 +637,13 @@ recorded rather than fixed, because this phase is about characterizing
 performance and optimizing before behaviour is pinned produces a fast
 implementation of the wrong thing.
 
+It has since inverted, which is why the record is kept beside the current
+figures rather than replaced by them: the machine is Adash's own now, so
+lowering and running is 6 us, and analysis -- 14 us then -- is the dominant cost
+at about 0.9 ms. The refresh after the diagnostics work moved nothing at all,
+the analyser's fastest run landing a microsecond from where it had been, which
+is a thing a benchmark is for as much as a regression is.
+
 **Release engineering** is `docs/RELEASE.md`: the checks, in order, what each is
 for, and what is *not* claimed. Byte-identical binaries are not — `-g` embeds
 absolute paths, so two checkouts in different directories produce different

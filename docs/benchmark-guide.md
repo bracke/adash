@@ -77,5 +77,13 @@ rendezvous work also *removed* a duplicate — a second reading of what a formal
 list means — and one implementation asked twice is cheaper than two that can
 disagree.
 
+A month of work on diagnostics -- a position, a quoted line, a caret, related
+locations -- moved none of them, and that is the other thing these numbers are
+for. The cost of a diagnostic falls on a submission that has one; the measured
+pipeline analyses a program that is correct. Being able to say *this did not
+cost anything* needs the same measurement as being able to say what a change
+cost, and a figure nobody re-runs says neither.
+
 That is the shape of the judgement these numbers are for. They are not a gate;
-they are a way to be able to say what a change cost.
+they are a way to be able to say what a change cost. `benchmarks/README.md`
+carries the current figures and the previous ones beside them.
