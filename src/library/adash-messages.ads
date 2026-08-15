@@ -368,6 +368,11 @@ package Adash.Messages is
       Msg_Line_Settings_Saved,
       Msg_Line_Job,
       Msg_Line_History_Entry,
+      --  A diagnostic with a place: what a reader needs in front of it to
+      --  find the line it is about. Written the way every compiler writes one,
+      --  because that is what an editor and a person both already read.
+      Msg_Line_Diagnostic_At,
+
       Msg_Line_Job_Started,
       Msg_Line_Job_Finished,
       Msg_Line_Job_Signalled,

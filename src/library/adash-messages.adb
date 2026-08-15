@@ -512,6 +512,7 @@ package body Adash.Messages is
          when Msg_Command_Append_File_Doc   =>
             return "command.append_file.doc";
          when Msg_Line_History_Entry         => return "line.history_entry";
+         when Msg_Line_Diagnostic_At       => return "line.diagnostic_at";
          when Msg_Line_Job_Started           => return "line.job_started";
          when Msg_Line_Job_Finished          => return "line.job_finished";
          when Msg_Line_Job_Signalled         => return "line.job_signalled";
@@ -835,6 +836,9 @@ package body Adash.Messages is
 
          when Msg_Line_History_Entry =>
             return [N ("number"), N ("line")];
+
+         when Msg_Line_Diagnostic_At =>
+            return [N ("path"), N ("line"), N ("column"), N ("text")];
 
          when Msg_Line_Job_Started =>
             return [N ("id"), N ("what")];

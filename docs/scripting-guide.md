@@ -46,6 +46,9 @@ filter has.
 `execution-model.md` describes running, redirection and pipelines;
 `internal-commands.md` lists what each command takes.
 
+A mistake in a script is reported with its place — `report.adash:12:7:` — and a
+mistake in a file the script read in names that file and its own line.
+
 A failing command does **not** stop the script — the test above is how a script
 says it should. That is Ada's rule for a procedure that reported a failure, and
 `sh -c` behaves the same way.

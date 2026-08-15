@@ -178,6 +178,17 @@ package Adash.Diagnostics is
    --  @return Where its source came from.
    function Origin (Item : Diagnostic) return Adash.Source.Origin;
 
+   --  Where a reader would find it, as a line and a column.
+   --
+   --  Filled in where the buffer is known -- by the engine once a submission
+   --  has been analysed, and by Adash.Scripting for anything that came from a
+   --  file it read in. (1, 1) when nothing filled it in, which is what a
+   --  diagnostic with no position has.
+   --
+   --  @param Item Diagnostic to inspect.
+   --  @return Its line and column.
+   function Position (Item : Diagnostic) return Adash.Source.Location;
+
    --  @param Item Diagnostic to inspect.
    --  @return Where in that source it is about.
    function Extent (Item : Diagnostic) return Adash.Source.Span;
@@ -270,7 +281,8 @@ package Adash.Diagnostics is
      (Item   : in out List;
       Index  : Positive;
       Origin : Adash.Source.Origin;
-      Extent : Adash.Source.Span);
+      Extent : Adash.Source.Span;
+      Place  : Adash.Source.Location := (Line => 1, Column => 1));
 
    --  How many diagnostics of a given severity the list holds.
    --
@@ -322,6 +334,11 @@ private
 
       --  What this one quotes, and where it goes. Carried from the failure it
       --  was made from, so the two say the same thing.
+      --  Where a reader would find it. Held beside the extent rather than
+      --  computed from it: what turns a byte offset into a line is the buffer,
+      --  and the buffer is gone by the time anything renders.
+      Place          : Adash.Source.Location := (Line => 1, Column => 1);
+
       Detail         : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
       Fills          : Adash.Messages.Placeholder_Name := [others => ' '];
       Detail_Count   : Natural range 0 .. Max_Arguments := 0;

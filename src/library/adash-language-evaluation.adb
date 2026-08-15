@@ -7313,7 +7313,13 @@ package body Adash.Language.Evaluation is
                      Of_Kind   => D.Category_Runtime,
                      Raised_By => D.Owner_Language,
                      Origin    => Origin,
-                     Extent    => S.Extent (Tree, S.Root (Tree)),
+
+                     --  No extent. What raised is a *run*, not a place: the
+                     --  whole program was the only span this had to offer, and
+                     --  a position in front of the message would point at the
+                     --  first byte of a file that is not where anything went
+                     --  wrong. A raise carries which exception instead.
+                     Extent    => Adash.Source.Nowhere,
                      Arguments =>
                        [1 => Adash.Messages.Named
                                ("exception", Raised_Name)],

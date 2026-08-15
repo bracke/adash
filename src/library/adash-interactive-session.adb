@@ -20,6 +20,7 @@ with Hostkit.Locks;
 
 with Adash.Persistence.History;
 with Adash.Scripting.Startup;
+with Ada.Strings.Fixed;
 with Adash.Source;
 with Adash.Terminal;
 
@@ -203,6 +204,12 @@ package body Adash.Interactive.Session is
 
       procedure Render_Diagnostics is
          use Ada.Text_IO;
+
+         --  A number as a person writes one, without the space Ada's Image
+         --  puts where a sign would go.
+         function Counted (Value : Natural) return String
+         is (Ada.Strings.Fixed.Trim
+               (Natural'Image (Value), Ada.Strings.Both));
       begin
          Report.Sort;
 
@@ -218,15 +225,48 @@ package body Adash.Interactive.Session is
                         Adash.Terminal.Role_Warning,
                      when others                             =>
                         Adash.Terminal.Role_Error);
+               Said : constant String :=
+                 Catalog.Text (Adash.Diagnostics.Message (Item),
+                               Adash.Diagnostics.Arguments (Item),
+                               Adash.Diagnostics.Detail (Item),
+                               Adash.Diagnostics.Detail_Placeholder (Item),
+                               Adash.Diagnostics.Detail_Arguments (Item));
+
+               --  Where to find it, in front of what it says -- but only for a
+               --  file, which at a prompt means one a `source` brought in. The
+               --  line the user just typed is on the screen above; a position
+               --  in front of it would point at itself.
+               From : constant Adash.Source.Origin :=
+                 Adash.Diagnostics.Origin (Item);
+
+               Place : constant Adash.Source.Location :=
+                 Adash.Diagnostics.Position (Item);
+
+               --  Only where there is a position to give. A file that
+               --  could not be read at all, or a failure with no place in the
+               --  text, has none -- and `path:1:1:` in front of it would be a
+               --  position pointing at nothing.
+               Known : constant Boolean :=
+                 Adash.Source."=" (Adash.Source.Kind (From),
+                                   Adash.Source.Origin_File)
+                 and then Adash.Source.Name (From) /= ""
+                 and then not Adash.Source.Is_Empty
+                                (Adash.Diagnostics.Extent (Item));
             begin
                Put_Line
                  (Standard_Error,
                   Adash.Terminal.Styled
-                    (Catalog.Text (Adash.Diagnostics.Message (Item),
-                                   Adash.Diagnostics.Arguments (Item),
-                                   Adash.Diagnostics.Detail (Item),
-                                   Adash.Diagnostics.Detail_Placeholder (Item),
-                                   Adash.Diagnostics.Detail_Arguments (Item)),
+                    ((if Known
+                      then Catalog.Text
+                             (Adash.Messages.Msg_Line_Diagnostic_At,
+                              [Adash.Messages.Named
+                                 ("path", Adash.Source.Name (From)),
+                               Adash.Messages.Named
+                                 ("line", Counted (Place.Line)),
+                               Adash.Messages.Named
+                                 ("column", Counted (Place.Column)),
+                               Adash.Messages.Named ("text", Said)])
+                      else Said),
                      Role, Stderr_Is_Terminal));
             end;
          end loop;

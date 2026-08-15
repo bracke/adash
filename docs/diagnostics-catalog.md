@@ -219,6 +219,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | Identifier | Says |
 |---|---|
 | `line.history_entry` | {number}  {line} |
+| `line.diagnostic_at` | {path}:{line}:{column}: {text} |
 | `line.job_started` | [{id}] started {what} |
 | `line.job_finished` | [{id}] finished with status {status} |
 | `line.job_signalled` | [{id}] was ended by {signal} |

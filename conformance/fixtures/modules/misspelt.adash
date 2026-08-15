@@ -1,0 +1,6 @@
+--  Wrong on purpose, and on a known line: what a diagnostic about a file has
+--  to say is where in the file to look.
+
+put_line ("before");
+
+put_line (Nowhere_At_All);

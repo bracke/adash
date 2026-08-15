@@ -122,8 +122,11 @@ package body Adash.Scripting is
       First : Positive := 1;
       Last  : Natural := 0;
 
-      --  The file it came from.
+      --  The file it came from, and what it held: a position inside this
+      --  stretch is a line and a column in *that* text, and nothing else has
+      --  it by the time anything asks.
       From : Unbounded_String;
+      Held : Unbounded_String;
 
       --  How much longer the text became here: the file's length less the
       --  length of the call it replaced. What a diagnostic after this point
@@ -333,6 +336,8 @@ package body Adash.Scripting is
                                                     + (Extent.First - 1 - Taken)
                                                     + Inner'Length - 1,
                                           From   => Found.Path,
+                                          Held   =>
+                                            To_Unbounded_String (Inner),
                                           Growth => Inner'Length - Replaced));
 
                                     Taken := Extent.Last;
@@ -377,17 +382,46 @@ package body Adash.Scripting is
       From    : Natural;
       Regions : Region_Vectors.Vector;
       Carried : Natural;
-      Path    : String);
+      Path    : String;
+      Text    : String);
 
    procedure Relocate
      (Report  : in out D.List;
       From    : Natural;
       Regions : Region_Vectors.Vector;
       Carried : Natural;
-      Path    : String)
+      Path    : String;
+      Text    : String)
    is
       Mine : constant Adash.Source.Origin :=
         Adash.Source.Make_Origin (Adash.Source.Origin_File, Path);
+
+      --  A line and a column in a text, which is what a reader counts. Read
+      --  from a buffer rather than by counting newlines here: a column is in
+      --  characters and this language is UTF-8, and Adash.Source already knows
+      --  that.
+      function Place_In
+        (What : String; Offset : Natural) return Adash.Source.Location;
+
+      function Place_In
+        (What : String; Offset : Natural) return Adash.Source.Location
+      is
+         Buffer : Adash.Source.Buffer;
+         Error  : Adash.Errors.Error_Info;
+      begin
+         if Offset < 1
+           or else not Adash.Source.Load
+                         (Buffer,
+                          Adash.Source.Make_Origin
+                            (Adash.Source.Origin_File, Path),
+                          What, Error)
+         then
+            return (Line => 1, Column => 1);
+         end if;
+
+         return Adash.Source.Where_Is
+                  (Buffer, Adash.Source.Byte_Offset (Offset));
+      end Place_In;
    begin
       if Regions.Is_Empty then
          return;
@@ -422,7 +456,9 @@ package body Adash.Scripting is
                                     (Here - Region.First + 1),
                          Last  => Adash.Source.Byte_Offset
                                     (Integer (Extent.Last) - Integer (Carried)
-                                     - Region.First + 1)));
+                                     - Region.First + 1)),
+                        Place_In (To_String (Region.Held),
+                                  Here - Region.First + 1));
                      Moved := True;
                      exit;
 
@@ -439,7 +475,8 @@ package body Adash.Scripting is
                      (First => Adash.Source.Byte_Offset (Here - Shift),
                       Last  => Adash.Source.Byte_Offset
                                  (Integer (Extent.Last) - Integer (Carried)
-                                  - Shift)));
+                                  - Shift)),
+                     Place_In (Text, Here - Shift));
                end if;
             end if;
          end;
@@ -552,7 +589,8 @@ package body Adash.Scripting is
             --  Every position in what came back is a position in the text the
             --  session assembled. What a reader needs is the file and the line
             --  they wrote, and only this knows how the two line up.
-            Relocate (Report, Before, Regions, Carried, Path);
+            Relocate (Report, Before, Regions, Carried, Path,
+                      To_String (Content));
          end;
 
          Context.Active.Delete_Last;

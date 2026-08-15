@@ -83,6 +83,17 @@ An error names what it is about. `X is not declared here`, `expected end here`,
 which is how the same session can be read in another language and how the tests
 assert on diagnostics rather than on wording.
 
+In a **file** it says where, in the form every compiler uses:
+
+    report.adash:12:7: Total is not declared here
+
+A file a script read in names *itself*, so a mistake in a module is reported
+where it was written rather than where it was used. A line typed at the prompt
+gets no position: it is on the screen above, and a position in front of it
+would point at itself. Neither does something with no place in the text — a
+file that could not be read at all, or a program that raised, which is a run
+rather than a place.
+
 ## Settings and files
 
     settings;                          -- list them

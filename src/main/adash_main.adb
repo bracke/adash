@@ -1,10 +1,12 @@
 with Ada.Command_Line;
+with Ada.Strings.Fixed;
 with Ada.Text_IO;
 
 with Adash.Commands;
 with Adash.Configuration;
 with Adash.Configuration.Files;
 with Adash.Diagnostics;
+with Adash.Source;
 with Adash.Engine;
 with Adash.Execution;
 with Adash.Interactive.Session;
@@ -36,6 +38,11 @@ procedure Adash_Main is
    package CLI renames Ada.Command_Line;
    package IO renames Ada.Text_IO;
    package Msg renames Adash.Messages;
+
+   --  A number as a person writes one, without the space Ada's Image puts
+   --  where a sign would go.
+   function Trimmed (Value : Natural) return String
+   is (Ada.Strings.Fixed.Trim (Natural'Image (Value), Ada.Strings.Both));
    package Render renames Adash.Messages.Rendering;
 
    --  Exit statuses this program produces. The shell-wide exit-status model --
@@ -191,14 +198,43 @@ procedure Adash_Main is
                      when Adash.Diagnostics.Severity_Note    => Adash.Terminal.Role_Muted,
                      when Adash.Diagnostics.Severity_Warning => Adash.Terminal.Role_Warning,
                      when others                             => Adash.Terminal.Role_Error);
+               Said : constant String :=
+                 Catalog.Text (Adash.Diagnostics.Message (Item),
+                               Adash.Diagnostics.Arguments (Item),
+                               Adash.Diagnostics.Detail (Item),
+                               Adash.Diagnostics.Detail_Placeholder (Item),
+                               Adash.Diagnostics.Detail_Arguments (Item));
+
+               --  Where to find it, in front of what it says -- but only for a
+               --  file. A line typed at a prompt is on the screen already, and
+               --  a position in front of it is noise pointing at itself.
+               Origin : constant Adash.Source.Origin :=
+                 Adash.Diagnostics.Origin (Item);
+
+               Place : constant Adash.Source.Location :=
+                 Adash.Diagnostics.Position (Item);
+
+               --  Only where there is a position to give. A file that
+               --  could not be read at all, or a failure with no place in the
+               --  text, has none -- and `path:1:1:` in front of it would be a
+               --  position pointing at nothing.
+               Known : constant Boolean :=
+                 Adash.Source."=" (Adash.Source.Kind (Origin),
+                                   Adash.Source.Origin_File)
+                 and then Adash.Source.Name (Origin) /= ""
+                 and then not Adash.Source.Is_Empty
+                                (Adash.Diagnostics.Extent (Item));
             begin
                Put_Line_Styled
                  (IO.Standard_Error,
-                  Catalog.Text (Adash.Diagnostics.Message (Item),
-                                Adash.Diagnostics.Arguments (Item),
-                                Adash.Diagnostics.Detail (Item),
-                                Adash.Diagnostics.Detail_Placeholder (Item),
-                                Adash.Diagnostics.Detail_Arguments (Item)),
+                  (if Known
+                   then Catalog.Text
+                          (Msg.Msg_Line_Diagnostic_At,
+                           [Msg.Named ("path", Adash.Source.Name (Origin)),
+                            Msg.Named ("line", Trimmed (Place.Line)),
+                            Msg.Named ("column", Trimmed (Place.Column)),
+                            Msg.Named ("text", Said)])
+                   else Said),
                   Role, Stderr_Is_Terminal);
             end;
          end loop;

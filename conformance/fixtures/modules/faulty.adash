@@ -1,0 +1,8 @@
+--  Read into whatever asks for it, and wrong on purpose: what a diagnostic
+--  about this file must say is *this* file and the line in it, not the script
+--  that read it in.
+
+procedure Broken is
+begin
+   put_line (Nowhere_At_All);
+end Broken;

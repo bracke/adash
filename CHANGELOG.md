@@ -1512,6 +1512,15 @@ what changed.
   is left as one, so running it reports the cycle. Diagnostics about what was
   read in name the file it was written in.
 
+- **A diagnostic about a file says where.** `report.adash:12:7: Total is not
+  declared here`, in the form every compiler writes: the position was in the
+  data all along and nothing printed it, so a script with a mistake on line
+  forty said what was wrong and left the reader to find it. A file a script
+  read in names itself and its own line. A line typed at a prompt gets no
+  position -- it is on the screen already -- and neither does something with no
+  place in the text: a file that could not be read, or a program that raised,
+  which is a run rather than a place.
+
 ### Removed
 
 - `alias`, which had been registered and unavailable since Phase 9. Within a

@@ -303,6 +303,15 @@ package body Adash.Diagnostics is
       return Item.Entries.Element (Index);
    end Element;
 
+   --------------
+   -- Position --
+   --------------
+
+   function Position (Item : Diagnostic) return Adash.Source.Location is
+   begin
+      return Item.Place;
+   end Position;
+
    ------------
    -- Locate --
    ------------
@@ -311,11 +320,13 @@ package body Adash.Diagnostics is
      (Item   : in out List;
       Index  : Positive;
       Origin : Adash.Source.Origin;
-      Extent : Adash.Source.Span)
+      Extent : Adash.Source.Span;
+      Place  : Adash.Source.Location := (Line => 1, Column => 1))
    is
       Moved : Diagnostic := Item.Entries.Element (Index);
    begin
       Moved.Origin := Origin;
+      Moved.Place := Place;
 
       if not Adash.Source.Is_Empty (Extent) then
          Moved.Extent := Extent;

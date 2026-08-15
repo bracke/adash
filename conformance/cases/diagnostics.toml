@@ -181,3 +181,29 @@ exit_status = 0
 diagnostics = [
   "!error.array_too_long{name=Big,limit= 4096}!",
 ]
+
+[[case]]
+id = "diagnostics.a-diagnostic-about-a-file-says-where"
+requirement = """
+A diagnostic carries a file and a position, and until now nothing printed
+either: a script with a mistake on line forty said what was wrong and left the
+reader to find it. A file read into another says its own name and its own line,
+which the scripting cases assert against the data -- here the path is the
+machine's own and only the shape can be pinned. It is written the way every compiler writes one --
+path, line, column -- because that is what a person and an editor both already
+read.
+
+Only where there is a position to give. A file that could not be read at all,
+and a program that raised, have none: what raised is a run rather than a place,
+and a position in front of it would point at the first byte of a file that is
+not where anything went wrong.
+"""
+arguments = ["{root}/conformance/fixtures/modules/misspelt.adash"]
+
+# A script the analyser refuses exits 2, which is what makes this a run whose
+# diagnostic is worth reading.
+exit_status = 2
+output = []
+diagnostics = [
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/misspelt.adash,line=6,column=11,text=!error.name_undeclared{name=Nowhere_At_All}!}!",
+]

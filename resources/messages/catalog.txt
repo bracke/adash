@@ -375,6 +375,7 @@ en.command.append_file.doc = Add text to the end of a file: append_file (TEXT, F
 en.command.settings.doc = List the settings, or change one: settings (NAME, VALUE).
 en.command.save_settings.doc = Write the current settings to the configuration file.
 en.line.history_entry = {number}  {line}
+en.line.diagnostic_at = {path}:{line}:{column}: {text}
 en.line.job_started = [{id}] started {what}
 en.line.job_finished = [{id}] finished with status {status}
 en.line.job_signalled = [{id}] was ended by {signal}

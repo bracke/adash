@@ -967,6 +967,34 @@ package body Adash.Engine is
 
       Was_Busy : constant Boolean := Item.Busy;
 
+      --  Where each diagnostic is, as a reader would count it.
+      --
+      --  Here because this is the last place the buffer exists: a byte offset
+      --  becomes a line and a column only against the text it is an offset
+      --  into, and every subsystem that reported one has long since returned.
+      --  An entry that already carries a position -- a nested run's, mapped by
+      --  whoever assembled that one -- is left alone.
+      procedure Fill_In_Positions (From : Natural);
+
+      procedure Fill_In_Positions (From : Natural) is
+         use type Adash.Source.Location;
+      begin
+         for Index in From + 1 .. D.Count (Report) loop
+            declare
+               Item  : constant D.Diagnostic := D.Element (Report, Index);
+               Where : constant Adash.Source.Span := D.Extent (Item);
+            begin
+               if not Adash.Source.Is_Empty (Where)
+                 and then D.Position (Item) = (Line => 1, Column => 1)
+               then
+                  D.Locate
+                    (Report, Index, D.Origin (Item), Where,
+                     Adash.Source.Where_Is (Work.Buffer, Where.First));
+               end if;
+            end;
+         end loop;
+      end Fill_In_Positions;
+
       --  The submission proper. A procedure rather than the body of Submit so
       --  that the busy flag is put back in one place: there are five ways out
       --  of it, and a flag left set would make the *next* submission think it
@@ -1162,6 +1190,7 @@ package body Adash.Engine is
             end case;
          end;
       end Run_Submission;
+
    begin
       Outcome := (Kind          => Nothing_Submitted,
                   Status        => Adash.Execution.Success,
@@ -1178,7 +1207,14 @@ package body Adash.Engine is
       Item.Shell.Interrupt := Item.Cancel'Unchecked_Access;
 
       Item.Busy := True;
-      Run_Submission;
+
+      declare
+         Before : constant Natural := D.Count (Report);
+      begin
+         Run_Submission;
+         Fill_In_Positions (Before);
+      end;
+
       Item.Busy := Was_Busy;
    end Submit;
 
