@@ -3225,6 +3225,17 @@ consumer degrades on them explicitly:
   answer is the pseudo-console, a differently shaped API; implementing it
   belongs in hostkit when a consumer needs it.
 
+`Hostkit.Spawn` cannot start a **session**. It places a child in a process
+group and hands it a terminal's foreground, which is what job control needs,
+but a child it spawns never *controls* the terminal it was given -- and a
+terminal turns Ctrl-C into a signal for the foreground group of the session
+that controls it. The consequence is a test rather than a user: driving the
+interrupt through a pseudo-terminal is the one interactive behaviour
+`Adash_Tests.Interactive_Cases` cannot cover, and it says so where the other
+four terminal cases are written. What covers the interrupt instead is
+`Adash.Execution`'s own cases, which test the half that is this repository's
+code.
+
 ## Definition of done
 
 A **package** is complete when its spec and body are implemented, ownership and

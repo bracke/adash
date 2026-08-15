@@ -91,6 +91,16 @@ evaluation -- the machine, execution and commands, the engine, the interactive
 session, persistence, configuration, predefined entities, messages and styling,
 and the repository checks themselves.
 
+Four of those cases drive the shell **through a pseudo-terminal**: a whole
+session, Tab completing a word, Up recalling a line, and backspace removing a
+character rather than a byte. Everything else about the interactive session
+tests a piece -- the buffer, the decoder, the history, the completion registry
+-- and a piece can be right while what a user meets is not. Each opens a
+terminal, spawns the built binary on it, types, and reads bounded: a test that
+reads until end of file from a shell waiting for input is a test that hangs,
+and a hang in CI is a job that reports nothing. They return without asserting
+where `Hostkit.Pty.Is_Supported` is False, which is Windows.
+
 `adash_conformance` covers the language and the shell *as a user meets them*:
 each case is a submission and what it must print, exit with, and report. It
 compares message **identifiers** rather than English, so a case says which

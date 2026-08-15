@@ -3,6 +3,7 @@ with Ada.Strings.Fixed;
 with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Pty;
+with Hostkit.Signals;
 with Hostkit.Spawn;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
@@ -790,6 +791,270 @@ package body Adash_Tests.Interactive_Cases is
       return Here;
    end Shell_Under_Test;
 
+   ---------------------------------------------------------------------------
+   --  A shell on the other end of a pseudo-terminal
+   --
+   --  Everything above tests a piece: the buffer, the decoder, the history,
+   --  the completion. What a user meets is those pieces behind a terminal --
+   --  keys arriving as bytes, a line redrawn, a program's output between two
+   --  prompts -- and that was the part verified by a person driving it by
+   --  hand.
+   --
+   --  Bounded at every step. A test that reads until end of file from a shell
+   --  waiting for input is a test that hangs, and a hang in CI is a job that
+   --  reports nothing at all.
+   ---------------------------------------------------------------------------
+
+   --  What one of these tests holds while it runs.
+   type Terminal_Session is limited record
+      Pair    : Hostkit.Pty.Pair;
+      Child   : Hostkit.Spawn.Process_Handle;
+
+      --  Everything read from the terminal so far: the shell's own output and
+      --  the echo of what was typed, which is what a terminal gives back.
+      Seen    : Ada.Strings.Unbounded.Unbounded_String;
+
+      Started : Boolean := False;
+   end record;
+
+   --  Open a terminal and start the shell under test on it.
+   --
+   --  @param Item The session to fill in.
+   --  @return False when this host has no pseudo-terminals, in which case
+   --          nothing was started and the caller has nothing to do.
+   function Start_On_A_Terminal (Item : in out Terminal_Session) return Boolean;
+
+   --  Type into the terminal, as a user would.
+   procedure Type_Into (Item : in out Terminal_Session; Text : String);
+
+   --  Take whatever the terminal has to give right now, without waiting.
+   --
+   --  @param Item The session.
+   --  @return False at end of file, which is a shell that has gone.
+   function Drained (Item : in out Terminal_Session) return Boolean;
+
+   --  Read until what was asked for has been seen, or the tries run out.
+   --
+   --  @param Item The session.
+   --  @param Marker What to wait for.
+   --  @param Tries How many turns of a twentieth of a second to give it.
+   --  @return True when it arrived.
+   function Waited_For
+     (Item   : in out Terminal_Session;
+      Marker : String;
+      Tries  : Positive := 200) return Boolean;
+
+   --  How many times something has been seen, which is how a test tells one
+   --  answer from the same answer twice.
+   function Times_Seen (Item : Terminal_Session; Marker : String) return Natural;
+
+   --  End the session: ask the shell to quit, wait for it, and close the
+   --  terminal. A child still running when a test ends is a test that leaves
+   --  work behind, so this asks the host to end one that would not go.
+   procedure Finish (Item : in out Terminal_Session; Ended : out Boolean);
+
+   function Start_On_A_Terminal (Item : in out Terminal_Session) return Boolean
+   is
+      use type Hostkit.Spawn.Spawn_Outcome;
+
+      Options : Hostkit.Spawn.Options;
+      Args    : Hostkit.String_Vectors.Vector;
+   begin
+      if not Hostkit.Pty.Is_Supported then
+         --  Windows has none, which Hostkit.Pty answers for. What the shell
+         --  does there is checked by the conformance suite, which needs no
+         --  terminal.
+         return False;
+      end if;
+
+      Assert (Hostkit.Pty.Open (Item.Pair), "could not open a pseudo-terminal");
+
+      --  Read without waiting, so that draining the terminal is something a
+      --  test can do between two other questions rather than a place it can
+      --  stop.
+      Assert (Hostkit.Descriptors.Set_Non_Blocking (Item.Pair.Controller, True),
+              "the terminal could not be read without waiting");
+
+      Options.Input := Item.Pair.Device;
+      Options.Output := Item.Pair.Device;
+      Options.Error_Output := Item.Pair.Device;
+
+      Assert (Hostkit.Descriptors.Set_Inheritable (Item.Pair.Device, True),
+              "the terminal end could not be handed to the child");
+
+      Assert (Hostkit.Spawn.Start
+                (Shell_Under_Test, Args, Options, Item.Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start on a terminal");
+
+      --  The parent's copy of the child's end, closed so the shell owns its
+      --  terminal alone.
+      Hostkit.Descriptors.Close (Item.Pair.Device);
+      Item.Started := True;
+
+      --  Wait for the prompt before anything is typed. Until the shell has
+      --  taken the terminal into raw mode, the *driver* is still handling
+      --  keys -- and its own erase key deletes a byte, which is exactly the
+      --  behaviour one of these tests exists to say the shell does not have.
+      --  A user waits for the prompt too; this only says so.
+      Assert (Waited_For (Item, "adash"),
+              "no prompt arrived on the terminal");
+
+      return True;
+   end Start_On_A_Terminal;
+
+   procedure Type_Into (Item : in out Terminal_Session; Text : String) is
+      use type Hostkit.Descriptors.Transfer_Outcome;
+
+      Data : Ada.Streams.Stream_Element_Array (1 .. Text'Length);
+      Last : Ada.Streams.Stream_Element_Offset;
+   begin
+      for Index in Text'Range loop
+         Data (Ada.Streams.Stream_Element_Offset (Index - Text'First + 1)) :=
+           Ada.Streams.Stream_Element (Character'Pos (Text (Index)));
+      end loop;
+
+      declare
+         Sent : constant Hostkit.Descriptors.Transfer_Outcome :=
+           Hostkit.Descriptors.Write (Item.Pair.Controller, Data, Last);
+
+         --  All of it, or the test is asserting about a line the shell never
+         --  saw the whole of.
+         Whole : constant Boolean := Ada.Streams."=" (Last, Data'Last);
+      begin
+         Assert (Sent = Hostkit.Descriptors.Transfer_Ok and then Whole,
+                 "could not type into the terminal");
+      end;
+   end Type_Into;
+
+   function Drained (Item : in out Terminal_Session) return Boolean is
+      use type Hostkit.Descriptors.Transfer_Outcome;
+
+      Alive : Boolean := True;
+   begin
+      --  Everything the terminal has, not one bufferful of it. A shell
+      --  redrawing the line for every keystroke writes far more than it
+      --  reads, and a reader that takes one bufferful per turn leaves the
+      --  terminal full -- which stops the *shell*, since a program writing
+      --  into a full terminal waits. That is what made a typed line arrive at
+      --  two characters a second here.
+      --
+      --  Bounded anyway: a child that never stopped writing would otherwise
+      --  keep this turn for ever.
+      for Turn in 1 .. 64 loop
+         declare
+            Buffer : Ada.Streams.Stream_Element_Array (1 .. 4096);
+            Last   : Ada.Streams.Stream_Element_Offset;
+            Status : constant Hostkit.Descriptors.Transfer_Outcome :=
+              Hostkit.Descriptors.Read (Item.Pair.Controller, Buffer, Last);
+         begin
+            if Status = Hostkit.Descriptors.Transfer_End_Of_File then
+               Alive := False;
+               exit;
+            end if;
+
+            exit when Status /= Hostkit.Descriptors.Transfer_Ok;
+
+            for Index in Buffer'First .. Last loop
+               Ada.Strings.Unbounded.Append
+                 (Item.Seen, Character'Val (Natural (Buffer (Index))));
+            end loop;
+         end;
+      end loop;
+
+      return Alive;
+   end Drained;
+
+   function Waited_For
+     (Item   : in out Terminal_Session;
+      Marker : String;
+      Tries  : Positive := 200) return Boolean is
+   begin
+      for Attempt in 1 .. Tries loop
+         declare
+            More : constant Boolean := Drained (Item);
+         begin
+            if Marker'Length > 0
+              and then Ada.Strings.Fixed.Index
+                         (Ada.Strings.Unbounded.To_String (Item.Seen),
+                          Marker) > 0
+            then
+               return True;
+            end if;
+
+            exit when not More;
+            delay 0.05;
+         end;
+      end loop;
+
+      return False;
+   end Waited_For;
+
+   function Times_Seen (Item : Terminal_Session; Marker : String) return Natural
+   is
+      Whole : constant String := Ada.Strings.Unbounded.To_String (Item.Seen);
+      Count : Natural := 0;
+      From  : Positive := Whole'First;
+   begin
+      while From <= Whole'Last loop
+         declare
+            Found : constant Natural :=
+              Ada.Strings.Fixed.Index (Whole (From .. Whole'Last), Marker);
+         begin
+            exit when Found = 0;
+            Count := Count + 1;
+            From := Found + Marker'Length;
+         end;
+      end loop;
+
+      return Count;
+   end Times_Seen;
+
+   procedure Finish (Item : in out Terminal_Session; Ended : out Boolean) is
+      use type Hostkit.Spawn.Wait_State;
+
+      Result : Hostkit.Spawn.Status;
+   begin
+      Ended := False;
+      Type_Into (Item, "quit (0);" & String'(1 => Character'Val (13)));
+
+      --  Kept drained while it ends. A terminal holds what a program wrote
+      --  until somebody reads it, and a program writing into a full one waits
+      --  -- so a wait loop that does not read is a wait for a process that
+      --  cannot reach its own exit.
+      for Attempt in 1 .. 200 loop
+         if Hostkit.Spawn.Wait (Item.Child, Hostkit.Spawn.Wait_Poll, Result)
+           and then Result.State /= Hostkit.Spawn.Wait_Running
+         then
+            Ended := Result.State = Hostkit.Spawn.Wait_Exited;
+            exit;
+         end if;
+
+         declare
+            Ignored : constant Boolean := Drained (Item);
+            pragma Unreferenced (Ignored);
+         begin
+            delay 0.05;
+         end;
+      end loop;
+
+      if not Ended then
+         --  It would not go. Asked to stop rather than left behind: a test
+         --  that fails must not also leak a process into the rest of the run.
+         declare
+            Stopped : constant Boolean :=
+              Hostkit.Signals.Send_To_Process
+                (Hostkit.Spawn.Process_Id (Item.Child),
+                 Hostkit.Signals.Signal_Terminate);
+            pragma Unreferenced (Stopped);
+         begin
+            null;
+         end;
+      end if;
+
+      Hostkit.Descriptors.Close (Item.Pair.Controller);
+   end Finish;
+
    --  A whole session, through a pseudo-terminal.
    --
    --  Everything else here tests a piece: the buffer, the decoder, the
@@ -935,6 +1200,141 @@ package body Adash_Tests.Interactive_Cases is
       Hostkit.Descriptors.Close (Pair.Controller);
    end A_Session_Answers_Through_A_Terminal;
 
+   --  Tab completes, through the terminal.
+   --
+   --  The unit case above asks Adash.Interactive.Completion what it would
+   --  offer; this asks what a user gets for pressing Tab: the keystroke
+   --  decoded, the candidate chosen because it is the only one, and the rest
+   --  of the word written into the line the shell then runs.
+   procedure Completion_Finishes_A_Word_Through_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      --  `ver` names one thing in the whole vocabulary, so Tab has an answer.
+      --  The semicolon and the return are typed after it, which is what makes
+      --  the completed word a statement the shell runs -- and running it is
+      --  how this knows what the line held, rather than reading an echo it
+      --  would have to parse.
+      Type_Into (Session, "ver" & String'(1 => Character'Val (9)));
+      Type_Into (Session, ";" & String'(1 => Character'Val (13)));
+
+      Assert (Waited_For (Session, "adash "),
+              "Tab did not complete `ver` into a command that ran: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after completing a word");
+   end Completion_Finishes_A_Word_Through_A_Terminal;
+
+   --  Up recalls what was typed, through the terminal.
+   procedure History_Recalls_A_Line_Through_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      --  Written by the program rather than typed, so the echo of the line
+      --  cannot be mistaken for the answer to it: what is typed is lower case
+      --  and what comes back is not.
+      Answer : constant String := "RECALLED";
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""recalled""));" & String'(1 => Character'Val (13)));
+
+      Assert (Waited_For (Session, Answer),
+              "the first line did not run: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+
+      --  Up, as a terminal sends it, and then a return: the recalled line runs
+      --  again and the answer arrives a second time.
+      Type_Into
+        (Session,
+         String'(1 => Character'Val (27)) & "[A"
+         & String'(1 => Character'Val (13)));
+
+      for Attempt in 1 .. 200 loop
+         exit when Times_Seen (Session, Answer) >= 2;
+
+         declare
+            Ignored : constant Boolean := Drained (Session);
+            pragma Unreferenced (Ignored);
+         begin
+            delay 0.05;
+         end;
+      end loop;
+
+      Assert (Times_Seen (Session, Answer) >= 2,
+              "Up did not bring the line back: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after recalling a line");
+   end History_Recalls_A_Line_Through_A_Terminal;
+
+   --  Backspace removes a character rather than a byte, through the terminal.
+   --
+   --  The accented character is two bytes and one character. An editor that
+   --  stepped by bytes would leave half of it in the line, the text would not
+   --  be UTF-8, and the shell would report that instead of answering -- which
+   --  is the failure this asserts the absence of, by asking for an answer only
+   --  a whole deletion can produce.
+   procedure Backspace_Removes_A_Character_Through_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into (Session, "put_line (To_Upper (""ok" & Accented);
+      Type_Into (Session, String'(1 => Character'Val (16#7F#)));
+      Type_Into (Session, """));" & String'(1 => Character'Val (13)));
+
+      Assert (Waited_For (Session, "OK"),
+              "backspace did not remove the whole character: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after an edited line");
+   end Backspace_Removes_A_Character_Through_A_Terminal;
+
+   --  What is *not* here: the interrupt.
+   --
+   --  A terminal turns Ctrl-C into a signal for its foreground process group,
+   --  and a child has one only when it leads a session whose controlling
+   --  terminal is that pseudo-terminal. Hostkit.Spawn can place a child in a
+   --  process group and hand it a terminal's foreground, but it cannot start a
+   --  session -- so a child spawned here never controls the terminal it was
+   --  given, and neither a typed Ctrl-C nor a signal sent to the process
+   --  reaches a running submission reliably. Driving it by hand, from a shell
+   --  that does control its terminal, works every time.
+   --
+   --  The capability belongs in hostkit, which is where anything that differs
+   --  because the operating system differs belongs. Until it is there, what
+   --  covers the interrupt is Adash.Execution's own cases -- a cancellation
+   --  request is sticky until reset, a cancelled pipeline stops and reports
+   --  it, an interrupt is recorded rather than discarded -- and those test the
+   --  half that is this repository's code.
+
    --------------------
 
    overriding procedure Register_Tests (T : in out Case_Type) is
@@ -978,6 +1378,13 @@ package body Adash_Tests.Interactive_Cases is
                         "the common prefix is shared by every candidate");
       Register_Routine (T, Highlighting_Covers_Unparsable_Input'Access,
                         "highlighting works on input that does not parse");
+      Register_Routine (T, Completion_Finishes_A_Word_Through_A_Terminal'Access,
+                        "Tab completes a word through a terminal");
+      Register_Routine (T, History_Recalls_A_Line_Through_A_Terminal'Access,
+                        "Up recalls a line through a terminal");
+      Register_Routine
+        (T, Backspace_Removes_A_Character_Through_A_Terminal'Access,
+         "backspace removes a character through a terminal");
       Register_Routine (T, A_Session_Answers_Through_A_Terminal'Access,
                         "a session answers through a pseudo-terminal");
    end Register_Tests;
