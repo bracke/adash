@@ -377,6 +377,10 @@ package Adash.Messages is
       --  a diagnostic, pointing at what it is about somewhere else.
       Msg_Note_Declared_Here,
 
+      --  And what the *first* of a pair says: the component already given, the
+      --  choice already covered, the alternative that follows an `others`.
+      Msg_Note_First_Here,
+
       Msg_Line_Job_Started,
       Msg_Line_Job_Finished,
       Msg_Line_Job_Signalled,

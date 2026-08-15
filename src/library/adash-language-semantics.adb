@@ -1092,10 +1092,17 @@ package body Adash.Language.Semantics is
          Resolved_Type : Types.Type_Kind;
          Resolved      : Symbols.Symbol := Symbols.Nothing);
 
+      --  @param Also Somewhere else the complaint is about -- the first of a
+      --         pair, the declaration a name could have meant -- or No_Node
+      --         when it is about one place only.
+      --  @param Also_Says What to say about that place.
       procedure Complain
         (Code      : Adash.Errors.Error_Code;
          Node      : S.Node_Id;
-         Arguments : Adash.Messages.Argument_List);
+         Arguments : Adash.Messages.Argument_List;
+         Also      : S.Node_Id := S.No_Node;
+         Also_Says : Adash.Messages.Message_Id :=
+           Adash.Messages.Msg_Error_None);
 
       --  @param Expected What the context requires, or Type_None where it
       --         requires nothing. Only overload resolution reads it: a call to
@@ -2307,21 +2314,93 @@ package body Adash.Language.Semantics is
       procedure Complain
         (Code      : Adash.Errors.Error_Code;
          Node      : S.Node_Id;
-         Arguments : Adash.Messages.Argument_List)
+         Arguments : Adash.Messages.Argument_List;
+         Also      : S.Node_Id := S.No_Node;
+         Also_Says : Adash.Messages.Message_Id :=
+           Adash.Messages.Msg_Error_None)
       is
-      begin
-         Legal := False;
-
-         Report.Emit
-           (D.Make
+         Said : D.Diagnostic :=
+           D.Make
               (Message   => Adash.Errors.Message (Code),
                Level     => D.Severity_Error,
                Of_Kind   => D.Category_Semantic,
                Raised_By => D.Owner_Language,
                Origin    => Origin,
                Extent    => S.Extent (Tree, Node),
-               Arguments => Arguments));
+               Arguments => Arguments);
+      begin
+         Legal := False;
+
+         --  The other place, when there is one. A complaint about a pair --
+         --  the second of two declarations, the second of two choices, a name
+         --  two subprograms answer to -- is only actionable when a reader can
+         --  see both.
+         if S.Is_Present (Also) then
+            D.Add_Related
+              (Said,
+               (Origin  => Origin,
+                Extent  => S.Extent (Tree, Also),
+                Place   => (Line => 1, Column => 1),
+                Message => Also_Says));
+         end if;
+
+         Report.Emit (Said);
       end Complain;
+
+      --  Complain about a name several declarations answer to, and say where
+      --  each of them is.
+      --
+      --  An ambiguity is the diagnostic a reader can do least with on its own:
+      --  what they have to decide is which of the things called that they
+      --  meant, and they cannot decide it without seeing them. Up to four,
+      --  which is what a diagnostic carries; a name with five meanings is
+      --  already past what a reader will work through.
+      --
+      --  @param Code Which ambiguity.
+      --  @param Node Where the name was written.
+      --  @param Arguments What the message says.
+      --  @param Name The name, as the scope chain knows it.
+      procedure Complain_Of_Candidates
+        (Code      : Adash.Errors.Error_Code;
+         Node      : S.Node_Id;
+         Arguments : Adash.Messages.Argument_List;
+         Name      : String);
+
+      procedure Complain_Of_Candidates
+        (Code      : Adash.Errors.Error_Code;
+         Node      : S.Node_Id;
+         Arguments : Adash.Messages.Argument_List;
+         Name      : String)
+      is
+         Pool  : Adash.Language.Scopes.Symbol_List;
+         Count : Natural := 0;
+
+         Said : D.Diagnostic :=
+           D.Make
+              (Message   => Adash.Errors.Message (Code),
+               Level     => D.Severity_Error,
+               Of_Kind   => D.Category_Semantic,
+               Raised_By => D.Owner_Language,
+               Origin    => Origin,
+               Extent    => S.Extent (Tree, Node),
+               Arguments => Arguments);
+      begin
+         Legal := False;
+         Chain.Candidates (Name, Pool, Count);
+
+         for Index in 1 .. Count loop
+            if not Adash.Source.Is_Empty (Symbols.Extent (Pool (Index))) then
+               D.Add_Related
+                 (Said,
+                  (Origin  => Origin,
+                   Extent  => Symbols.Extent (Pool (Index)),
+                   Place   => (Line => 1, Column => 1),
+                   Message => Adash.Messages.Msg_Note_Declared_Here));
+            end if;
+         end loop;
+
+         Report.Emit (Said);
+      end Complain_Of_Candidates;
 
       --  The type a type name denotes, or Type_None when it is not a type.
       function Number_Type (Node : S.Node_Id) return Types.Type_Kind is
@@ -2545,11 +2624,12 @@ package body Adash.Language.Semantics is
                               --  where either would do is ambiguous, and
                               --  taking one of them silently would make the
                               --  program mean whichever was written last.
-                              Complain
+                              Complain_Of_Candidates
                                 (Adash.Errors.Error_Ambiguous_Literal, Node,
                                  [Adash.Messages.Named ("name", Name),
                                   Adash.Messages.Named
-                                    ("count", Natural'Image (Named))]);
+                                    ("count", Natural'Image (Named))],
+                                 Visible_Name (Name));
                               Note (Node, Types.Type_None);
                               return Types.Type_None;
                            end if;
@@ -2590,7 +2670,7 @@ package body Adash.Language.Semantics is
                            --  arguments, and nothing here says which is meant.
                            --  Falling through would have taken whichever was
                            --  declared last, silently.
-                           Complain
+                           Complain_Of_Candidates
                              ((if Fitting = 0
                                then Adash.Errors.Error_No_Matching_Subprogram
                                else Adash.Errors.Error_Ambiguous_Call),
@@ -2599,7 +2679,8 @@ package body Adash.Language.Semantics is
                                Adash.Messages.Named
                                  ("count",
                                   Natural'Image (if Fitting = 0 then Offered
-                                                 else Fitting))]);
+                                                 else Fitting))],
+                              Visible_Name (Name));
                            Note (Node, Types.Type_None);
                            return Types.Type_None;
                         end if;
@@ -2880,8 +2961,11 @@ package body Adash.Language.Semantics is
                   --  Positional, or named against the record's components.
                   --  The same shape a call takes, and told apart the same way.
                   declare
-                     Filled : array (1 .. Wanted) of Boolean :=
-                       [others => False];
+                     --  Which value filled each part, so that a part given
+                     --  twice can point at the first one rather than only
+                     --  saying that there was one.
+                     Filled : array (1 .. Wanted) of S.Node_Id :=
+                       [others => S.No_Node];
                      Naming : Boolean := False;
                      Sound  : Boolean := True;
 
@@ -3008,17 +3092,22 @@ package body Adash.Language.Semantics is
                                                 Here : constant Natural :=
                                                   Natural (Each - Base) + 1;
                                              begin
-                                                if Filled (Here) then
+                                                if S.Is_Present (Filled (Here))
+                                                then
                                                    Complain
                                                      (Adash.Errors.Error_Part_Given_Twice,
                                                       One,
                                                       [1 => Adash.Messages.Named
                                                               ("name",
                                                                Long_Long_Integer'Image
-                                                                 (Each))]);
+                                                                 (Each))],
+                                                      Also      => Filled (Here),
+                                                      Also_Says =>
+                                                        Adash.Messages
+                                                          .Msg_Note_First_Here);
                                                    Sound := False;
                                                 else
-                                                   Filled (Here) := True;
+                                                   Filled (Here) := One;
                                                 end if;
                                              end;
                                           end loop;
@@ -3085,13 +3174,16 @@ package body Adash.Language.Semantics is
                                                - First_Index (Into, Expected))
                                       + 1;
 
-                                    if Filled (Slot) then
+                                    if S.Is_Present (Filled (Slot)) then
                                        Complain
                                          (Adash.Errors.Error_Part_Given_Twice,
                                           One,
                                           [1 => Adash.Messages.Named
                                                   ("name",
-                                                   Long_Long_Integer'Image (Where))]);
+                                                   Long_Long_Integer'Image (Where))],
+                                          Also      => Filled (Slot),
+                                          Also_Says =>
+                                            Adash.Messages.Msg_Note_First_Here);
                                        Sound := False;
                                     end if;
                                  end if;
@@ -3115,13 +3207,16 @@ package body Adash.Language.Semantics is
                                      Adash.Messages.Named
                                        ("found", Types.Name (Expected))]);
                                  Sound := False;
-                              elsif Filled (Slot) then
+                              elsif S.Is_Present (Filled (Slot)) then
                                  Complain
                                    (Adash.Errors.Error_Part_Given_Twice, One,
                                     [1 => Adash.Messages.Named
                                             ("name",
                                              Part_Name
-                                               (Into, Expected, Slot))]);
+                                               (Into, Expected, Slot))],
+                                    Also      => Filled (Slot),
+                                    Also_Says =>
+                                      Adash.Messages.Msg_Note_First_Here);
                                  Sound := False;
                               end if;
 
@@ -3135,7 +3230,7 @@ package body Adash.Language.Semantics is
                            end if;
 
                            if Sound and then Slot in 1 .. Wanted then
-                              Filled (Slot) := True;
+                              Filled (Slot) := One;
 
                               declare
                                  Holds : constant Types.Type_Kind :=
@@ -3169,9 +3264,9 @@ package body Adash.Language.Semantics is
                            Left : Natural := 0;
                         begin
                            for Index in Filled'Range loop
-                              if not Filled (Index) then
+                              if not S.Is_Present (Filled (Index)) then
                                  Left := Left + 1;
-                                 Filled (Index) := True;
+                                 Filled (Index) := Rest;
                               end if;
                            end loop;
 
@@ -3208,7 +3303,7 @@ package body Adash.Language.Semantics is
                            Covered : Natural := 0;
                         begin
                            for Index in Filled'Range loop
-                              if Filled (Index) then
+                              if S.Is_Present (Filled (Index)) then
                                  Covered := Covered + 1;
                               end if;
                            end loop;
@@ -4584,7 +4679,7 @@ package body Adash.Language.Semantics is
                      --  Several things it could mean, and the arguments do not
                      --  single one out. Reporting the count says whether the
                      --  problem is that none fit or that too many do.
-                     Complain
+                     Complain_Of_Candidates
                        ((if Fitting = 0
                          then Adash.Errors.Error_No_Matching_Subprogram
                          else Adash.Errors.Error_Ambiguous_Call),
@@ -4593,7 +4688,8 @@ package body Adash.Language.Semantics is
                          Adash.Messages.Named
                            ("count",
                             Natural'Image (if Fitting = 0 then Offered
-                                           else Fitting))]);
+                                           else Fitting))],
+                        Visible_Name (Name));
                      Note (Node, Types.Type_None);
                      return Types.Type_None;
                   end if;
@@ -8343,6 +8439,10 @@ package body Adash.Language.Semantics is
                   type Covered is record
                      Low  : Long_Long_Integer := 0;
                      High : Long_Long_Integer := 0;
+
+                     --  Which choice covered it, so that a value covered twice
+                     --  can point at the one that got there first.
+                     By   : S.Node_Id := S.No_Node;
                   end record;
 
                   Spans   : array (1 .. 256) of Covered;
@@ -8369,7 +8469,10 @@ package body Adash.Language.Semantics is
                         then
                            Complain
                              (Adash.Errors.Error_Case_Choice_Covered_Twice,
-                              At_Node, Adash.Messages.No_Arguments);
+                              At_Node, Adash.Messages.No_Arguments,
+                              Also      => Spans (Index).By,
+                              Also_Says =>
+                                Adash.Messages.Msg_Note_First_Here);
                            return;
                         end if;
                      end loop;
@@ -8386,7 +8489,7 @@ package body Adash.Language.Semantics is
                      end if;
 
                      Count := Count + 1;
-                     Spans (Count) := (Low => Low, High => High);
+                     Spans (Count) := (Low => Low, High => High, By => At_Node);
 
                      --  How many values this span covers, worked out without
                      --  a number too big to hold at any step. `Integer'First

@@ -7,9 +7,12 @@ at the boundary. That is what lets a conformance case assert which diagnostic
 was produced rather than how it was worded, a log record one structurally, and a
 translation replace all of it without touching Ada.
 
-A diagnostic may point at a **second place** — the earlier declaration behind
-"already declared" — and carries it as a related location with its own message,
-`note.declared_here`. Where the place is comes from the subsystem that found it,
+A diagnostic may point at **other places** — the earlier declaration behind
+"already declared", the first of a component given twice, every declaration an
+ambiguous name could have meant — and carries each as a related location with
+its own message: `note.declared_here` or `note.first_here`. Four at most, which
+is what a diagnostic holds; a name with five meanings is already past what a
+reader will work through. Where the place is comes from the subsystem that found it,
 as a span; what line that is comes from the engine, which has the buffer. A
 subsystem that knew a line would be a subsystem that had read the file.
 
@@ -226,6 +229,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 |---|---|
 | `line.history_entry` | {number}  {line} |
 | `line.diagnostic_at` | {path}:{line}:{column}: {text} |
+| `note.declared_here` | declared here |
+| `note.first_here` | the first one is here |
 | `line.job_started` | [{id}] started {what} |
 | `line.job_finished` | [{id}] finished with status {status} |
 | `line.job_signalled` | [{id}] was ended by {signal} |

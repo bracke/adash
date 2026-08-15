@@ -514,6 +514,7 @@ package body Adash.Messages is
          when Msg_Line_History_Entry         => return "line.history_entry";
          when Msg_Line_Diagnostic_At       => return "line.diagnostic_at";
          when Msg_Note_Declared_Here       => return "note.declared_here";
+         when Msg_Note_First_Here          => return "note.first_here";
          when Msg_Line_Job_Started           => return "line.job_started";
          when Msg_Line_Job_Finished          => return "line.job_finished";
          when Msg_Line_Job_Signalled         => return "line.job_signalled";
@@ -656,7 +657,8 @@ package body Adash.Messages is
             | Msg_Case_Choice_Covered_Twice
             | Msg_Case_Range_Is_Empty
             | Msg_Case_Others_Not_Last
-            | Msg_Note_Declared_Here =>
+            | Msg_Note_Declared_Here
+            | Msg_Note_First_Here =>
             return No_Placeholders;
 
          when Msg_Number_Not_A_Literal =>

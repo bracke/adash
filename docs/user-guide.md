@@ -90,7 +90,9 @@ line with a caret under what it is about:
     put_line (Total'Image);
               ^~~~~
 
-A diagnostic that is about two places says both:
+A diagnostic that is about more than one place says all of them — the earlier
+declaration behind "already declared", the first of a pair given twice, every
+declaration an ambiguous name could have meant:
 
     report.adash:6:1: Total is already declared in this scope
     Total : Integer := 2;

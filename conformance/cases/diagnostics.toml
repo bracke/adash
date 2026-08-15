@@ -238,3 +238,38 @@ diagnostics = [
   "^~~~~",
   "!line.diagnostic_at{path={root}/conformance/fixtures/modules/twice.adash,line=4,column=1,text=!note.declared_here!}!",
 ]
+
+[[case]]
+id = "diagnostics.and-an-ambiguity-shows-what-it-could-have-meant"
+requirement = """
+An ambiguity is the diagnostic a reader can do least with on its own: what they
+have to decide is which of the things called that they meant, and they cannot
+decide it without seeing them. Every declaration the name could denote is named
+under the complaint, innermost first, up to the four a diagnostic carries.
+"""
+arguments = ["{root}/conformance/fixtures/modules/ambiguous.adash"]
+exit_status = 2
+diagnostics = [
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/ambiguous.adash,line=9,column=11,text=!error.ambiguous_call{name=F,count= 2}!}!",
+  "put_line (F'Image);",
+  "          ^",
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/ambiguous.adash,line=7,column=10,text=!note.declared_here!}!",
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/ambiguous.adash,line=5,column=10,text=!note.declared_here!}!",
+]
+
+[[case]]
+id = "diagnostics.and-a-part-given-twice-points-at-the-first"
+requirement = """
+The same shape wherever a complaint is about a pair: the second is where the
+diagnostic stands and the first is named under it. An aggregate that gives a
+component twice is one, and a case choice covering a value an earlier one
+covered is another.
+"""
+arguments = ["{root}/conformance/fixtures/modules/twice-given.adash"]
+exit_status = 2
+diagnostics = [
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/twice-given.adash,line=6,column=23,text=!error.part_given_twice{name=X}!}!",
+  "P : Point := (X => 1, X => 2, Y => 3);",
+  "                      ^~~~~~",
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/twice-given.adash,line=6,column=15,text=!note.first_here!}!",
+]

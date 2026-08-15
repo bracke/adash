@@ -377,6 +377,7 @@ en.command.save_settings.doc = Write the current settings to the configuration f
 en.line.history_entry = {number}  {line}
 en.line.diagnostic_at = {path}:{line}:{column}: {text}
 en.note.declared_here = declared here
+en.note.first_here = the first one is here
 en.line.job_started = [{id}] started {what}
 en.line.job_finished = [{id}] finished with status {status}
 en.line.job_signalled = [{id}] was ended by {signal}

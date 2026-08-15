@@ -1524,8 +1524,12 @@ what changed.
   place in the text: a file that could not be read, or a program that raised,
   which is a run rather than a place.
 
-- **A diagnostic that is about two places says both.** "X is already declared"
-  now prints `declared here` under it, pointing at the first one — including
+- **A diagnostic that is about more than one place says all of them.** "X is
+  already declared" prints `declared here` under it, pointing at the first one;
+  an aggregate that gives a component twice and a case choice that covers a
+  value twice each print `the first one is here`; and an ambiguous name prints
+  every declaration it could have meant, which is the diagnostic a reader can
+  do least with on its own — including
   when the two are in different files, which reading a module in makes
   possible. The place travels as a related location: the scope chain keeps the
   span it has, the analyser attaches it, and the engine gives it a line from

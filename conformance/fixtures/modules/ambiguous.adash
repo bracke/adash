@@ -1,0 +1,9 @@
+--  Two things called F, and a call that could mean either: what a reader has
+--  to decide is which one they meant, and they cannot decide it without being
+--  shown both.
+
+function F return Integer is begin return 1; end F;
+
+function F return String is begin return "x"; end F;
+
+put_line (F'Image);

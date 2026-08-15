@@ -1,0 +1,6 @@
+--  A component given twice: the complaint points at the second one and the
+--  note at the first.
+
+type Point is record X : Integer; Y : Integer; end record;
+
+P : Point := (X => 1, X => 2, Y => 3);
