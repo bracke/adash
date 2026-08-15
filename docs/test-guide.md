@@ -172,12 +172,16 @@ the pseudo-console it does not reach the client as an interrupt, and the loop
 under test was still going thirty seconds later. That was found by letting the
 host try, on the reading that a console can report a Ctrl-C even where there
 are no signals -- it can, and not to a client in the middle of something. And
-the **accented** half of the backspace case, because a console host turns what
-arrives into key events and re-encodes them, so writing two UTF-8 bytes at it is
-not typing that character. The shell was asked about that one: after such a line
-it goes on answering, so what is missing is the keystroke rather than the
-editor. That the editor steps by characters and not by bytes is asserted on
-every host by the buffer and decoder cases.
+the **accented** half of the backspace case. A console host turns what arrives
+into key events and re-encodes them, so writing two UTF-8 bytes at it is not
+typing that character -- and neither, it turns out, is sending the key event
+the console asks for when it writes `ESC [ ? 9001 h` on attaching: virtual key
+and scan code nothing, the code point itself, down and then up. Both were tried
+there and neither reached the shell; the line was never submitted. The shell
+was asked about the first: after such a line it goes on answering, so what is
+missing is the keystroke rather than the editor. That the editor steps by
+characters and not by bytes is asserted on every host by the buffer and decoder
+cases.
 
 Windows found five defects the day CI first ran there, and three of them were
 tests asserting POSIX rather than asserting the shell.

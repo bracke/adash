@@ -2914,12 +2914,16 @@ loop was still going thirty seconds later. What Ctrl-C does there is asserted
 where it does something: at the prompt, abandoning the line being typed, which
 is the editor's half and needs no signal at all.
 
-And the accented half of the backspace case: a console host turns what
-arrives into key events and re-encodes them for the client, so writing two
-UTF-8 bytes at it is not typing that character. The shell was asked about that
-one -- after such a line it goes on answering -- so what is missing is the
-keystroke and not the editor, and that the editor steps by characters is
-asserted on every host by the buffer and decoder cases.
+And the accented half of the backspace case. A console host turns what arrives
+into key events and re-encodes them for the client, so writing two UTF-8 bytes
+at it is not typing that character -- and neither, it turns out, is sending the
+key event the console asks for when it writes `ESC [ ? 9001 h` on attaching:
+virtual key and scan code nothing, the code point itself, down and then up.
+Both were tried on that host and neither reached the shell; the line was never
+submitted and nothing came back. The shell was asked about the first -- after
+such a line it goes on answering -- so what is missing is the keystroke and not
+the editor, and that the editor steps by characters is asserted on every host
+by the buffer and decoder cases.
 
 **`forget` also takes a line by its text.** `forget ("git push --token=abc")`
 removes every copy of that line from the session and from the file. A count
