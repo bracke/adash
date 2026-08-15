@@ -363,7 +363,9 @@ package body Adash.Persistence.History is
    procedure Forget
      (Lines     : in out Log;
       Result    : out Adash.Persistence.Outcome;
-      From_File : String := "")
+      Removed   : out Natural;
+      From_File : String := "";
+      Every     : Boolean := False)
    is
       Chosen : constant String := (if From_File = "" then Path else From_File);
 
@@ -371,6 +373,10 @@ package body Adash.Persistence.History is
       --  outside Drop because Drop runs under the store's lock and what it
       --  learns has to outlive it.
       Left : Log;
+
+      --  Counted inside Drop, which runs under the store's lock, and reported
+      --  after it.
+      Taken : Natural := 0;
 
       procedure Drop
         (Text : in out Adash.Persistence.Contents; Changed : out Boolean);
@@ -392,18 +398,23 @@ package body Adash.Persistence.History is
                --  the user has just typed is the most recent of however many
                --  times it was ever typed, and an older identical line is a
                --  different day's work that they did not ask about.
+               --
+               --  Unless every one of them was asked for. A caller naming a
+               --  line by its text wants it gone, and the copy from last week
+               --  is the same secret as the copy from this morning.
                for Place in reverse 1 .. Natural (Held.Lines.Length) loop
                   if Held.Lines.Element (Place) = Wanted then
                      Found := Place;
-                     exit;
+                     Held.Lines.Delete (Place);
+                     Changed := True;
+                     Taken := Taken + 1;
+
+                     exit when not Every;
                   end if;
                end loop;
 
                if Found = 0 then
                   Left.Lines.Append (Wanted);
-               else
-                  Held.Lines.Delete (Found);
-                  Changed := True;
                end if;
             end;
          end loop;
@@ -424,6 +435,8 @@ package body Adash.Persistence.History is
       end Drop;
 
    begin
+      Removed := 0;
+
       Adash.Persistence.Update (Chosen, Drop'Access, Result);
 
       --  Only when Drop ran. A file that is not there leaves every line still
@@ -431,6 +444,7 @@ package body Adash.Persistence.History is
       --  was gone from a file it never reached.
       if Adash.Persistence.Succeeded (Result) then
          Lines.Lines := Left.Lines;
+         Removed := Taken;
       end if;
    end Forget;
 

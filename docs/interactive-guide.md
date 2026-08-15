@@ -88,8 +88,10 @@ construct is one entry, so the first character of its first line decides, and
 the indentation Ada is written with is left to mean what it says. Set
 `history.ignore-space` to false to record every line as typed instead.
 
-**`forget;` takes back a line that is already recorded** — the last one, or the
-last *Count* with a number — out of the session and out of the file. The mark
+**`forget;` takes back a line that is already recorded** — the last one, the
+last *Count* with a number, or the line that is exactly the text you give it —
+out of the session and out of the file. The text form takes every copy, and
+reaches lines older than `history.limit` that this session never read. The mark
 has to be typed before the line, and this is for the time you did not think of
 it. `forget` takes itself with it and does not count itself: a history whose
 last entry is the command that emptied it has kept a record of the act. A count

@@ -80,6 +80,10 @@ package body Adash_Tests.Interactive_Cases is
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Forgets_Its_Most_Recent_Entries
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure History_Forgets_Every_Copy_Of_A_Line
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure History_At_Its_Limit_Still_Takes_A_Line
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Drops_Oldest_At_Its_Limit
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Searches_Backwards
@@ -482,6 +486,86 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Removed = 0,
               "forgetting from an empty log removed" & Natural'Image (Removed));
    end History_Forgets_Its_Most_Recent_Entries;
+
+   -----------------------------------------
+   -- History_Forgets_Every_Copy_Of_A_Line --
+   -----------------------------------------
+
+   procedure History_Forgets_Every_Copy_Of_A_Line
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Log     : Hist.Log;
+      Removed : Natural;
+   begin
+      Hist.Record_Line (Log, "secret;");
+      Hist.Record_Line (Log, "pwd;");
+      Hist.Record_Line (Log, "secret;");
+      Hist.Record_Line (Log, "env;");
+
+      Hist.Forget_Matching (Log, "secret;", Removed);
+
+      --  Every copy. The one from earlier is the same line as the one from
+      --  just now, and a user naming it means the line rather than an
+      --  occurrence of it.
+      Assert (Removed = 2,
+              "forgetting a line by its text removed" & Natural'Image (Removed)
+              & " of the 2 copies");
+      Assert (Hist.Count (Log) = 2,
+              "the log kept" & Natural'Image (Hist.Count (Log))
+              & " entries rather than 2");
+      Assert (Hist.Entry_At (Log, 1) = "pwd;"
+              and then Hist.Entry_At (Log, 2) = "env;",
+              "forgetting by text took an entry it was not asked about");
+
+      --  A line the log has not got is not an error to forget.
+      Hist.Forget_Matching (Log, "never-typed;", Removed);
+      Assert (Removed = 0,
+              "forgetting a line that was never typed removed"
+              & Natural'Image (Removed));
+   end History_Forgets_Every_Copy_Of_A_Line;
+
+   ------------------------------------------------
+   -- History_At_Its_Limit_Still_Takes_A_Line --
+   ------------------------------------------------
+
+   procedure History_At_Its_Limit_Still_Takes_A_Line
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Log      : Hist.Log;
+      Recorded : Boolean := False;
+   begin
+      Hist.Set_Limit (Log, 2);
+
+      Hist.Record_Line (Log, "one;", False, Recorded);
+      Assert (Recorded, "the first line was not taken");
+
+      Hist.Record_Line (Log, "two;", False, Recorded);
+      Assert (Recorded, "the second line was not taken");
+
+      --  Full now. Taking a third drops the first, so the *count* does not
+      --  move -- and a caller reading the count as the answer would decide
+      --  the line had not been taken and stop writing it to the file. Which
+      --  is what the session did, from the moment it had typed as many lines
+      --  as the log holds.
+      Hist.Record_Line (Log, "three;", False, Recorded);
+
+      Assert (Recorded, "a log at its limit said it had not taken a line");
+      Assert (Hist.Count (Log) = 2,
+              "a log at its limit grew to" & Natural'Image (Hist.Count (Log)));
+      Assert (Hist.Most_Recent (Log) = "three;",
+              "the line taken at the limit was " & Hist.Most_Recent (Log));
+
+      --  And what it refuses, it refuses out loud: a repeat of the line
+      --  before it is not a new entry.
+      Hist.Record_Line (Log, "three;", False, Recorded);
+      Assert (not Recorded,
+              "a consecutive duplicate said it had been taken");
+
+      Hist.Record_Line (Log, "hidden;", True, Recorded);
+      Assert (not Recorded, "a sensitive line said it had been taken");
+   end History_At_Its_Limit_Still_Takes_A_Line;
 
    ----------------------------------------------
    -- History_Drops_Oldest_At_Its_Limit --
@@ -1687,6 +1771,10 @@ package body Adash_Tests.Interactive_Cases is
                         "a leading space marks a submission unrecorded");
       Register_Routine (T, History_Forgets_Its_Most_Recent_Entries'Access,
                         "forgetting takes the newest entries and no more");
+      Register_Routine (T, History_Forgets_Every_Copy_Of_A_Line'Access,
+                        "forgetting by text takes every copy of that line");
+      Register_Routine (T, History_At_Its_Limit_Still_Takes_A_Line'Access,
+                        "a log at its limit still says it took the line");
       Register_Routine (T, History_Drops_Oldest_At_Its_Limit'Access,
                         "history drops its oldest entry at the limit");
       Register_Routine (T, History_Searches_Backwards'Access,

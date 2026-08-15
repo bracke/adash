@@ -311,6 +311,28 @@ package Adash.Commands is
       Forgotten : out Natural;
       Failed    : out Boolean) is abstract;
 
+   --  Take out every entry that is exactly this line, here and on disk.
+   --
+   --  The other way of saying which: a user who can see the line names it,
+   --  rather than counting backwards to it. It reaches further than a count
+   --  does -- a count can only remove what the session's log holds, and this
+   --  removes what the *file* holds as well, including what was written before
+   --  the log's limit and never read back.
+   --
+   --  The `forget` line itself goes too, as it does for a count -- and here it
+   --  matters more, because the line that names a secret contains it.
+   --
+   --  @param Source The session's log.
+   --  @param Text The entry, exactly as it was typed.
+   --  @param Forgotten How many entries went, in the session and in the files
+   --         together, not counting the `forget` line.
+   --  @param Failed True when a file could not be rewritten.
+   procedure Forget_Line
+     (Source    : in out History_Source;
+      Text      : String;
+      Forgotten : out Natural;
+      Failed    : out Boolean) is abstract;
+
    type History_Access is access all History_Source'Class;
 
    type Script_Runner is limited interface;

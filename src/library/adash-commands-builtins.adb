@@ -44,6 +44,18 @@ package body Adash.Commands.Builtins is
    is (if Index <= Arguments.Count
        then Adash.Language.Values.Image (Arguments.Given (Index)) else "");
 
+   --  Whether a command's argument is a String.
+   --
+   --  Asked of the value rather than of the profile, because the parameter
+   --  takes whatever it is given: `forget (3)` and `forget ("git push")` are
+   --  the same command told which entry two different ways.
+   function Text_Argument
+     (Arguments : Argument_Set; Index : Positive) return Boolean
+   is (Index <= Arguments.Count
+       and then Adash.Language.Types."="
+                  (Adash.Language.Values.Kind (Arguments.Given (Index)),
+                   Adash.Language.Types.Type_String));
+
    --  A command's argument as a whole number.
    --
    --  @return False when there is no such argument or it is not an Integer.
@@ -976,24 +988,38 @@ package body Adash.Commands.Builtins is
                                  M.No_Arguments);
                end if;
 
-               --  A count that is not a positive number is refused rather than
-               --  read as "all of it". `history (0)` listing everything costs
-               --  a screen; `forget (0)` taking everything would cost the
-               --  history, and a command that destroys more than it was asked
-               --  to must not be reachable by a typing mistake.
-               if Given >= 1
-                 and then (not Whole_Argument (Arguments, 1, Wanted)
-                           or else Wanted < 1)
-               then
-                  return Failed
-                    (Adash.Errors.Error_Command_Wrong_Arguments,
-                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
-               end if;
+               --  Two ways of saying which entry, told apart by what was
+               --  given rather than by a second command: a number is how many
+               --  of the most recent, and a line of text is that line wherever
+               --  it is -- including in the file, beyond what this session
+               --  ever read back.
+               if Given >= 1 and then Text_Argument (Arguments, 1) then
+                  Shell.History.Forget_Line
+                    (Text => Argument (Arguments, 1),
+                     Forgotten => Forgotten,
+                     Failed => Failed_To);
 
-               Shell.History.Forget_Recent
-                 (Count => Positive (Wanted),
-                  Forgotten => Forgotten,
-                  Failed => Failed_To);
+               else
+                  --  A count that is not a positive number is refused rather
+                  --  than read as "all of it". `history (0)` listing
+                  --  everything costs a screen; `forget (0)` taking everything
+                  --  would cost the history, and a command that destroys more
+                  --  than it was asked to must not be reachable by a typing
+                  --  mistake.
+                  if Given >= 1
+                    and then (not Whole_Argument (Arguments, 1, Wanted)
+                              or else Wanted < 1)
+                  then
+                     return Failed
+                       (Adash.Errors.Error_Command_Wrong_Arguments,
+                        [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+                  end if;
+
+                  Shell.History.Forget_Recent
+                    (Count => Positive (Wanted),
+                     Forgotten => Forgotten,
+                     Failed => Failed_To);
+               end if;
 
                if Failed_To then
                   --  The session has forgotten it and the file has not, which

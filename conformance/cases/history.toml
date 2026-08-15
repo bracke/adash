@@ -121,3 +121,49 @@ output = [
 diagnostics = [
   "!error.command.wrong_arguments{name=forget}!",
 ]
+
+[[case]]
+id = "history.forget-takes-a-line-by-its-text"
+requirement = """
+The other way of saying which entry: a user who can see the line names it,
+rather than counting backwards to it. Every copy of it goes, because the one
+from earlier is the same line as the one from just now.
+
+The `forget` line itself goes with them, and here that matters more than it
+does for a count: the line that names a secret contains it. What is reported is
+what the user asked to be rid of, not the asking.
+
+One command rather than two. The parameter takes whatever it is given and the
+command reads a number as "how many of the most recent" and a string as "this
+line" -- two commands for that would be two things to learn and one of them
+would be learned wrong.
+"""
+script = "put_line (\"one\");\nput_line (\"secret\");\nput_line (\"one\");\nforget (\"put_line (\"\"secret\"\");\");\nhistory;\nquit (0);"
+exit_status = 0
+output = [
+  "one",
+  "secret",
+  "one",
+  "!line.forgotten{count=1}!",
+  "!line.history_entry{number=1,line=put_line (\"one\");}!",
+  "!line.history_entry{number=2,line=put_line (\"one\");}!",
+  "!line.history_entry{number=3,line=history;}!",
+]
+diagnostics = []
+
+[[case]]
+id = "history.forget-by-text-says-when-it-found-nothing"
+requirement = """
+A line that is not there is not an error to forget -- a user tidying up should
+not have to know whether they already did -- and the count says what happened
+rather than leaving them to check.
+"""
+script = "put_line (\"a\");\nforget (\"never typed this;\");\nhistory;\nquit (0);"
+exit_status = 0
+output = [
+  "a",
+  "!line.forgotten{count=0}!",
+  "!line.history_entry{number=1,line=put_line (\"a\");}!",
+  "!line.history_entry{number=2,line=history;}!",
+]
+diagnostics = []

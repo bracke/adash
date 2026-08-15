@@ -22,6 +22,14 @@ package body Adash.Commands is
    function Whole (Of_Name : String) return Parameter is
      (Name => Named (Of_Name), Of_Type => Adash.Language.Types.Type_Integer);
 
+   --  A parameter with a name and no type: it takes whatever it is given, and
+   --  the command decides what to do from the value's own kind. `put_line` has
+   --  had one since the beginning; `forget` has one because a count and a line
+   --  of text are two ways of saying which entry, and two commands for that
+   --  would be two things to learn.
+   function Anything (Of_Name : String) return Parameter is
+     (Name => Named (Of_Name), Of_Type => Adash.Language.Types.Type_None);
+
    Nothing : constant Parameter :=
      (Name => Named (""), Of_Type => Adash.Language.Types.Type_None);
 
@@ -59,7 +67,7 @@ package body Adash.Commands is
       (Command_History, Named ("history"), 0, Any_Number, [1 => Whole ("Count"), others => Nothing],
        Reports_Only,
        M.Msg_Command_History_Doc, M.Msg_Command_Hint, Available),
-      (Command_Forget, Named ("forget"), 0, Any_Number, [1 => Whole ("Count"), others => Nothing],
+      (Command_Forget, Named ("forget"), 0, Any_Number, [1 => Anything ("What"), others => Nothing],
        Changes_State,
        M.Msg_Command_Forget_Doc, M.Msg_Command_Hint, Available),
       (Command_Source, Named ("source"), 1, 1, [1 => Text ("Path"), others => Nothing],

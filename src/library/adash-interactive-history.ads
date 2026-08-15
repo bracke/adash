@@ -60,6 +60,23 @@ package Adash.Interactive.History is
       Line      : String;
       Sensitive : Boolean := False);
 
+   --  The same, saying whether the line was taken.
+   --
+   --  Asked rather than worked out from the count. A log at its limit drops
+   --  its oldest entry as it takes a new one, so the count does not move --
+   --  and a caller that read the count as the answer stopped writing to the
+   --  file the moment the session had typed as many lines as the log holds.
+   --
+   --  @param Item Log to add to.
+   --  @param Line The line exactly as typed.
+   --  @param Sensitive True to record nothing at all.
+   --  @param Recorded True when this log now holds it.
+   procedure Record_Line
+     (Item      : in out Log;
+      Line      : String;
+      Sensitive : Boolean;
+      Recorded  : out Boolean);
+
    --  Whether a line carries the mark that says "do not remember this".
    --
    --  The mark is a leading space, as in other shells: it is the one thing a
@@ -125,6 +142,22 @@ package Adash.Interactive.History is
    procedure Forget_Last
      (Item    : in out Log;
       Count   : Natural;
+      Removed : out Natural);
+
+   --  Forget every entry that is exactly this line.
+   --
+   --  What `forget ("...")` does to the session's own log. By text rather than
+   --  by position, because a user who names a line is naming one they can see
+   --  in the history rather than counting backwards to it -- and every copy,
+   --  because the one from last week is the same line as the one from this
+   --  morning.
+   --
+   --  @param Item Log to shorten.
+   --  @param Line The entry, exactly as it was typed.
+   --  @param Removed How many went; zero when the log had none.
+   procedure Forget_Matching
+     (Item    : in out Log;
+      Line    : String;
       Removed : out Natural);
 
    --  Forget everything.

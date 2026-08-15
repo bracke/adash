@@ -62,10 +62,12 @@ shells wrote, interleaved, and a position there is not a line. The file is read
 and rewritten under one lock, so a line another session appends meanwhile is not
 lost.
 
-It reaches what the session's log holds, which includes what was loaded from
-the file at start-up: a line typed yesterday can be forgotten today. What it
-does not reach is a line older than `history.limit`, which the session never
-read. Editing the file is the answer there, and it is the only case left.
+A count reaches what the session's log holds, which includes what was loaded
+from the file at start-up. Naming the line instead — `forget ("…")` — reaches
+the **file**, whether or not this session ever read that line back, and takes
+every copy of it; the line older than `history.limit` is exactly the one a
+count cannot get to. The `forget` line goes with them, which matters most in
+the naming form, because the line that names a secret contains it.
 
 **Confident wrong answers about the host.** A permission check that silently
 becomes a no-op reports that all is well for as long as it exists. Adash asks

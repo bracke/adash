@@ -54,7 +54,8 @@ does not record it, and what the file gets is what the session recorded. See
 `interactive-guide.md`.
 
 `forget` is the one operation that **rewrites** this file rather than appending
-to it. It takes the last occurrence of each line it is forgetting, by text
+to it, and `forget ("…")` is the one that reads it looking for something the
+session never held. It takes the last occurrence of each line it is forgetting, by text
 rather than by position — a shared file holds what several shells wrote,
 interleaved — and the read and the write happen under one lock, so a line
 another session appends meanwhile is not lost.

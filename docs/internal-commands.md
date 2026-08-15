@@ -31,7 +31,7 @@ registry in `Adash.Commands` declares. `help;` lists them at the prompt and
 | `version` | 0 | reports which build this is |
 | `help (Topic : String)` | 0 .. 1 | lists the commands, or describes one |
 | `history (Count : Integer)` | 0 .. any | lists what has been typed this session |
-| `forget (Count : Integer)` | 0 .. 1 | forgets the last lines, in the session and in the file |
+| `forget (What)` | 0 .. 1 | forgets the last lines, or the line named, in the session and in the file |
 | `source (Path : String)` | 1 | reads and runs a script in this session |
 
 `quit` is spelled that way because `exit` is a keyword of the language.
@@ -56,7 +56,16 @@ there: see `interactive-guide.md`.
 
 `forget` is the other half of that. A space in front of a line keeps it out of
 the history, and `forget` takes out a line already in: the last one by default,
-the last *Count* with a number, from the session and from the file both. **It
+the last *Count* with a number, and with a **string** the line that is exactly
+that text — every copy of it, from the session and from the file both.
+
+The string form reaches further than the count. A count can only take what the
+session's log holds, which is the last `history.limit` entries and no more; a
+line named by its text is taken out of the file whether or not this session
+ever read it back, which is exactly the line a count cannot get to.
+
+One command rather than two: the parameter takes whatever it is given, and a
+number means how many while a string means which. **It
 takes itself with it**, uncounted — a history whose last entry is the command
 that emptied it has kept a record of the act. A count below one is refused
 rather than read as "all of it", which is what `history (0)` does: a command

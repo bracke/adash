@@ -173,10 +173,20 @@ package Adash.Persistence.History is
    --  @param Result What became of it. Store_Absent when there is no such
    --         file, which is a session that has written nothing yet.
    --  @param From_File Which file; the shared one when empty.
+   --  @param Every True to take out every occurrence rather than the last.
+   --         What a caller forgetting a line by its *text* means: the point of
+   --         naming it is that it should not be in the file, and leaving the
+   --         copies from other days would answer half the request.
+   --  @param Removed How many entries this file gave up. A caller reporting
+   --         what it forgot cannot count them itself: what the file held is
+   --         not what its own log held, which is the whole reason for asking
+   --         a file at all.
    procedure Forget
      (Lines     : in out Log;
       Result    : out Adash.Persistence.Outcome;
-      From_File : String := "");
+      Removed   : out Natural;
+      From_File : String := "";
+      Every     : Boolean := False);
 
    --  Add an entry to a log in memory, without writing anything.
    --

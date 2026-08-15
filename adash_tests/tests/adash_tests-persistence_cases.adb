@@ -518,6 +518,8 @@ package body Adash_Tests.Persistence_Cases is
       Going : H.Log;
       Held  : H.Log;
 
+      Taken : Natural;
+
       procedure Put (Line : String);
 
       --  Each write checked where it happens. A short file would make every
@@ -536,7 +538,7 @@ package body Adash_Tests.Persistence_Cases is
       Put ("secret;");
 
       H.Add (Going, "secret;");
-      H.Forget (Going, Result, File);
+      H.Forget (Going, Result, Taken, File);
 
       Assert (Result = P.Store_Ok,
               "forgetting reported " & P.Outcome'Image (Result));
@@ -578,6 +580,7 @@ package body Adash_Tests.Persistence_Cases is
 
       Written : P.Outcome;
       Result  : P.Outcome;
+      Taken   : Natural;
 
       Going : H.Log;
    begin
@@ -587,7 +590,7 @@ package body Adash_Tests.Persistence_Cases is
       H.Add (Going, "here;");
       H.Add (Going, "elsewhere;");
 
-      H.Forget (Going, Result, File);
+      H.Forget (Going, Result, Taken, File);
 
       --  What is left is exactly what this file did not have, which is how a
       --  session carries the rest to the shared file rather than guessing
@@ -601,7 +604,7 @@ package body Adash_Tests.Persistence_Cases is
       --  A file that is not there leaves everything still to be forgotten. A
       --  caller told otherwise would report a secret gone from a file it never
       --  reached.
-      H.Forget (Going, Result, Gone);
+      H.Forget (Going, Result, Taken, Gone);
 
       Assert (Result = P.Store_Absent,
               "a missing file reported " & P.Outcome'Image (Result));

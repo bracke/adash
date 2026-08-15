@@ -3934,6 +3934,11 @@ package body Adash.Language.Semantics is
                   Fitting : Natural;
                   Found   : Symbols.Symbol;
 
+                  --  How much had been reported before the arguments were
+                  --  analysed, so that a complaint about one of them can be
+                  --  told from silence.
+                  Said_Before : Natural := 0;
+
                   --  What every subprogram of this name that could take a call
                   --  of this shape requires at one position, or Type_None
                   --  where they disagree.
@@ -4801,6 +4806,8 @@ package body Adash.Language.Semantics is
                   --  Arguments are analysed whatever the prefix turns out to
                   --  be, so an error inside one is reported even when the call
                   --  itself is wrong.
+                  Said_Before := Report.Count;
+
                   for Index in 1 .. S.Child_Count (Tree, Arguments) loop
                      declare
                         Ignored : constant Types.Type_Kind :=
@@ -4827,19 +4834,35 @@ package body Adash.Language.Semantics is
 
                   if Offered > 1 and then Fitting /= 1 then
                      --  Several things it could mean, and the arguments do not
-                     --  single one out. Reporting the count says whether the
-                     --  problem is that none fit or that too many do.
-                     Complain_Of_Candidates
-                       ((if Fitting = 0
-                         then Adash.Errors.Error_No_Matching_Subprogram
-                         else Adash.Errors.Error_Ambiguous_Call),
-                        Node,
-                        [Adash.Messages.Named ("name", Name),
-                         Adash.Messages.Named
-                           ("count",
-                            Natural'Image (if Fitting = 0 then Offered
-                                           else Fitting))],
-                        Visible_Name (Name));
+                     --  single one out. Whether it is *said* depends on
+                     --  whether an argument was already complained about: a
+                     --  call cannot be resolved from an argument whose own
+                     --  type could not be worked out, so saying the call is
+                     --  ambiguous as well is the same fault counted twice --
+                     --  and the second telling names this call rather than the
+                     --  argument, which is where the reader has to go. The
+                     --  argument's type is let through the resolution for the
+                     --  same reason; this is the other half of that.
+                     --
+                     --  Unresolved either way. Falling through to a candidate
+                     --  because the complaint was left unsaid would make the
+                     --  program mean whichever body was declared first.
+                     if Report.Count = Said_Before then
+                        --  Reporting the count says whether the problem is
+                        --  that none fit or that too many do.
+                        Complain_Of_Candidates
+                          ((if Fitting = 0
+                            then Adash.Errors.Error_No_Matching_Subprogram
+                            else Adash.Errors.Error_Ambiguous_Call),
+                           Node,
+                           [Adash.Messages.Named ("name", Name),
+                            Adash.Messages.Named
+                              ("count",
+                               Natural'Image (if Fitting = 0 then Offered
+                                              else Fitting))],
+                           Visible_Name (Name));
+                     end if;
+
                      Note (Node, Types.Type_None);
                      return Types.Type_None;
                   end if;

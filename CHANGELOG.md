@@ -1636,7 +1636,24 @@ what changed.
   requires a number, so `-F` and `abs F` are the F that yields one where
   exactly one reading does.
 
+- **`forget ("...")` takes a line by its text**, every copy of it, from the
+  session and from the file. It reaches what a count cannot: a count can only
+  remove what the session's log holds -- the last `history.limit` entries --
+  and a line older than that is in the file and was never read back. One
+  command rather than two, the parameter taking whatever it is given, because
+  a number and a line of text are two ways of saying which entry. The `forget`
+  line goes with them, which matters more here than for a count: the line that
+  names a secret contains it. What is reported is what was asked for, counted
+  once whether it was in the log, the file, or both.
+
 ### Fixed
+
+- **The history file stopped being written once the log was full.** The session
+  decided whether a line had been recorded by asking whether the in-memory
+  log's *count* had grown -- and a log at its limit drops its oldest entry as
+  it takes a new one, so from the thousandth line of a session onwards nothing
+  reached the file at all. `Record_Line` says whether it took the line now, and
+  the count is nobody's answer to that question.
 
 - **`already declared` named a line that was a byte offset.** The message said
   "on line {line}" and was handed `Extent.First` — a number that looked like a

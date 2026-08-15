@@ -325,11 +325,15 @@ is nothing to narrow with. `put_line` takes any type and both interpretations
 stand, which is Ada's answer as well -- and the honest one, since taking the
 last-declared candidate would make the program mean whichever body was written
 second.
+
+**One fault, one telling.** The inner call is what cannot be resolved, and the
+outer one cannot be resolved *because* of it: saying so twice would name the
+outer call as the place to look, which is not where the reader has to go. So
+what is reported is the argument.
 """
 script = "function Make return Integer is begin return 7; end Make; function Make return String is begin return \"seven\"; end Make; function Show (V : Integer) return Integer is begin return V; end Show; function Show (V : String) return String is begin return V; end Show;\nput_line (Show (Make)'Image);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.ambiguous_call{name=Show,count= 2}!",
   "!error.ambiguous_call{name=Make,count= 2}!",
 ]
 
@@ -369,11 +373,14 @@ nothing else to go on: each reading is as good as the other, which is Ada's
 answer as well. The narrowing is what the closed arguments do, so where none is
 closed there is nothing to narrow with -- and taking the last-declared
 candidate would make the program mean whichever body was written second.
+
+Both arguments are reported and the call is not. Each F is a place the reader
+can act on -- qualify it, or name the one that was meant -- and the call is
+only where the consequence showed up.
 """
 script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F; procedure P (A : Integer; B : Integer) is begin put_line (\"i\"); end P; procedure P (A : String; B : String) is begin put_line (\"s\"); end P;\nP (F, F);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.ambiguous_call{name=P,count= 2}!",
   "!error.ambiguous_call{name=F,count= 2}!",
   "!error.ambiguous_call{name=F,count= 2}!",
 ]

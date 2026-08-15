@@ -258,7 +258,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.help.doc` | List the internal commands, or describe one. |
 | `command.version.doc` | Report which build this is. |
 | `command.history.doc` | List what has been typed this session. |
-| `command.forget.doc` | Forget recent history, in this session and in the file: forget (COUNT). |
+| `command.forget.doc` | Forget history, in this session and in the file: forget (COUNT) or forget ("LINE"). |
 | `command.run.doc` | Run a program and wait for it to finish. |
 | `command.run_into.doc` | Run a program with its output written to a file, replacing what was there. |
 | `command.run_from.doc` | Run a program with its input read from a file. |

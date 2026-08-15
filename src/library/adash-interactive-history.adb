@@ -24,7 +24,19 @@ package body Adash.Interactive.History is
       Line      : String;
       Sensitive : Boolean := False)
    is
+      Ignored : Boolean;
    begin
+      Record_Line (Item, Line, Sensitive, Ignored);
+   end Record_Line;
+
+   procedure Record_Line
+     (Item      : in out Log;
+      Line      : String;
+      Sensitive : Boolean;
+      Recorded  : out Boolean)
+   is
+   begin
+      Recorded := False;
       --  Nothing at all, not even a placeholder. An entry saying a secret was
       --  here is still a record of when one was typed.
       if Sensitive then
@@ -47,7 +59,11 @@ package body Adash.Interactive.History is
       end if;
 
       Item.Lines.Append (To_Unbounded_String (Line));
+      Recorded := True;
 
+      --  At the limit, taking one drops the oldest. The log's length is the
+      --  same afterwards, which is why the answer is this flag and not the
+      --  count.
       while Natural (Item.Lines.Length) > Item.Limit loop
          Item.Lines.Delete_First;
       end loop;
@@ -149,6 +165,31 @@ package body Adash.Interactive.History is
          Item.Lines.Delete_Last;
       end loop;
    end Forget_Last;
+
+   ---------------------
+   -- Forget_Matching --
+   ---------------------
+
+   procedure Forget_Matching
+     (Item    : in out Log;
+      Line    : String;
+      Removed : out Natural)
+   is
+      Index : Natural := Natural (Item.Lines.Length);
+   begin
+      Removed := 0;
+
+      --  Backwards, so that removing one does not move the ones still to be
+      --  looked at.
+      while Index >= 1 loop
+         if To_String (Item.Lines.Element (Index)) = Line then
+            Item.Lines.Delete (Index);
+            Removed := Removed + 1;
+         end if;
+
+         Index := Index - 1;
+      end loop;
+   end Forget_Matching;
 
    -----------
    -- Clear --

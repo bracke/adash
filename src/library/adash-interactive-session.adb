@@ -383,6 +383,12 @@ package body Adash.Interactive.Session is
          Forgotten : out Natural;
          Failed    : out Boolean);
 
+      overriding procedure Forget_Line
+        (Source    : in out Typed_Lines;
+         Text      : String;
+         Forgotten : out Natural;
+         Failed    : out Boolean);
+
       overriding function Recorded (Source : Typed_Lines) return Natural is
          pragma Unreferenced (Source);
       begin
@@ -454,10 +460,11 @@ package body Adash.Interactive.Session is
 
             procedure Take_From (File : String) is
                Result : Adash.Persistence.Outcome;
+               Taken  : Natural;
 
                use type Adash.Persistence.Outcome;
             begin
-               Adash.Persistence.History.Forget (Going, Result, File);
+               Adash.Persistence.History.Forget (Going, Result, Taken, File);
 
                --  Absent is a file this session has not written yet, and
                --  Unavailable is a host with no data store: neither is a
@@ -483,6 +490,120 @@ package body Adash.Interactive.Session is
             end if;
          end;
       end Forget_Recent;
+
+      --  Take out every entry that is exactly this line, here and on disk.
+      --
+      --  It reaches further than a count does. A count can only take what this
+      --  session's log holds, which is the last history.limit entries of the
+      --  file and no more; a line named by its text is taken out of the files
+      --  whether or not this session ever read it back. That is the whole
+      --  reason for the second form: a secret typed a thousand lines ago is
+      --  exactly the one a count cannot get to.
+      overriding procedure Forget_Line
+        (Source    : in out Typed_Lines;
+         Text      : String;
+         Forgotten : out Natural;
+         Failed    : out Boolean)
+      is
+         pragma Unreferenced (Source);
+
+         --  What was asked for, and separately this command's own line -- the
+         --  `forget` line carries the text as its argument, so leaving it
+         --  would leave the secret in the history under a different spelling.
+         --  Kept apart because the count reported is what the user asked to be
+         --  rid of and not the asking.
+         Asked_For : Adash.Persistence.History.Log;
+         This_Line : Adash.Persistence.History.Log;
+
+         Mine : constant String :=
+           (if This_Line_Recorded
+            then Adash.Interactive.History.Most_Recent (Recall) else "");
+
+         Removed : Natural;
+
+         Shared : constant String := Adash.Persistence.History.Path;
+
+         Mine_File : constant String :=
+           Ada.Strings.Unbounded.To_String (Writing_To);
+
+         --  Take a list out of one file, saying how many it gave up. The list
+         --  is copied per file rather than carried: the same text can be in
+         --  both, written on different days, and each is asked about all of
+         --  it.
+         procedure Take_From
+           (File : String;
+            What : Adash.Persistence.History.Log;
+            Gave : out Natural);
+
+         procedure Take_From
+           (File : String;
+            What : Adash.Persistence.History.Log;
+            Gave : out Natural)
+         is
+            Asking : Adash.Persistence.History.Log := What;
+            Result : Adash.Persistence.Outcome;
+
+            use type Adash.Persistence.Outcome;
+         begin
+            Adash.Persistence.History.Forget
+              (Asking, Result, Gave, File, Every => True);
+
+            if Result /= Adash.Persistence.Store_Ok
+              and then Result /= Adash.Persistence.Store_Absent
+              and then Result /= Adash.Persistence.Store_Unavailable
+            then
+               Failed := True;
+            end if;
+         end Take_From;
+      begin
+         Failed := False;
+
+         Adash.Interactive.History.Forget_Matching (Recall, Text, Removed);
+
+         --  What the session gave up, to be compared with what the files did
+         --  rather than added to it: the file holds what the log holds, so a
+         --  line taken out of both is one entry forgotten and not two.
+         Forgotten := Removed;
+
+         Adash.Persistence.History.Add (Asked_For, Text);
+
+         if Mine /= "" and then Mine /= Text then
+            declare
+               Ignored : Natural;
+            begin
+               Adash.Interactive.History.Forget_Matching (Recall, Mine, Ignored);
+               Adash.Persistence.History.Add (This_Line, Mine);
+            end;
+         end if;
+
+         if not Recording then
+            return;
+         end if;
+
+         declare
+            Gave       : Natural;
+            From_Files : Natural := 0;
+         begin
+            Take_From (Mine_File, Asked_For, Gave);
+            From_Files := From_Files + Gave;
+
+            Take_From (Mine_File, This_Line, Gave);
+
+            if Mine_File /= Shared then
+               Take_From (Shared, Asked_For, Gave);
+               From_Files := From_Files + Gave;
+
+               Take_From (Shared, This_Line, Gave);
+            end if;
+
+            --  The larger of the two, because they are the same entries seen
+            --  twice -- except where they are not: a line older than the log's
+            --  limit is in the file and was never in the session, and that is
+            --  exactly the line a count could not reach. Reporting nothing for
+            --  it would say the command had done nothing.
+            Forgotten := Natural'Max (Forgotten, From_Files);
+         end;
+      end Forget_Line;
 
       Reporting : aliased Typed_Lines;
 
@@ -939,26 +1060,18 @@ package body Adash.Interactive.Session is
             --  file either. It still runs: the mark says what to forget, not
             --  what to refuse.
             declare
-               Before : constant Natural :=
-                 Adash.Interactive.History.Count (Recall);
-
                Marked : constant Boolean :=
                  Honouring_The_Mark
                    and then Adash.Interactive.History.Marked_Sensitive (Line);
             begin
                Adash.Interactive.History.Record_Line
-                 (Recall, Line, Sensitive => Marked);
-
-               This_Line_Recorded :=
-                 Adash.Interactive.History.Count (Recall) > Before;
+                 (Recall, Line, Marked, This_Line_Recorded);
 
                --  Written only when the in-memory log actually took it, so the
                --  file gets the same treatment for blanks and consecutive
                --  duplicates as recall does. Two policies would drift, and the
                --  one on disk is the one nobody checks.
-               if Recording
-                 and then Adash.Interactive.History.Count (Recall) > Before
-               then
+               if Recording and then This_Line_Recorded then
                   declare
                      Result : Adash.Persistence.Outcome;
                   begin

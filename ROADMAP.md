@@ -2907,6 +2907,30 @@ one -- after such a line it goes on answering -- so what is missing is the
 keystroke and not the editor, and that the editor steps by characters is
 asserted on every host by the buffer and decoder cases.
 
+**`forget` also takes a line by its text.** `forget ("git push --token=abc")`
+removes every copy of that line from the session and from the file. A count
+reaches only what the session's log holds -- the last `history.limit` entries --
+so the line a user most wants gone, typed long enough ago to have scrolled out
+of the log, is precisely the one a count cannot get to. Naming it reads the
+file instead.
+
+One command rather than two. The parameter takes whatever it is given and the
+command reads a number as "how many of the most recent" and a string as "this
+line"; two commands would be two things to learn, and the one learned wrong
+would be the one that destroys something.
+
+The `forget` line goes with them either way, and in this form it has to: the
+line that names a secret contains it. What is reported is what the user asked
+to be rid of, counted once whether it was in the log, in the file, or in both.
+
+**A defect the same work turned up: nothing had been written to the history
+file since the log was full.** The session asked whether a line had been
+recorded by looking at whether the in-memory log's *count* had grown, and a log
+at its limit drops its oldest entry as it takes a new one -- so from the
+thousandth line of a session onwards, every line was recalled and none was
+kept. `Record_Line` answers that question itself now, because a count never
+could.
+
 **Configuration is still per-user.** Only history gained a per-session notion.
 
 **A subprogram declared on one line is callable on the next.** The session keeps
