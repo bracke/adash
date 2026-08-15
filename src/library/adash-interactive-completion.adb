@@ -531,9 +531,19 @@ package body Adash.Interactive.Completion is
                               --  thousand of them answered on every Tab is a
                               --  pause a user feels; the prefix rules out
                               --  nearly all of them for nothing.
+                              --  What the shell could actually start, which
+                              --  is narrower than what the host calls a
+                              --  program: a `.bat`, a `.cmd`, a `.ps1` and an
+                              --  `.msi` are all executables to Windows and
+                              --  none of them is started by the loader.
+                              --  Offering one would be offering a name that
+                              --  fails when it is run, which is worse than
+                              --  offering nothing -- the user would read the
+                              --  failure as being about the program rather
+                              --  than about the shell.
                               if Matches (Offered)
                                 and then not Already (Offered)
-                                and then Hostkit.Fs.Is_Executable
+                                and then Hostkit.Fs.Starts_Without_An_Interpreter
                                            (Ada.Directories.Compose
                                               (Directory, Simple))
                               then

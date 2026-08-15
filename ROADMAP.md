@@ -2972,6 +2972,16 @@ handful of calls rather than thousands. `adash_bench` has a row for it now,
 which is also what says a cache is not needed: three milliseconds is not a
 figure worth a second copy of the truth.
 
+Only what the shell could start is offered. Windows calls a `.bat`, a `.cmd`, a
+`.ps1` and an `.msi` executables, and its process loader starts none of them --
+each needs something else run first, and Adash invokes nothing. A completion
+that offered one would be offering a name that fails when it is run, and the
+failure would read as being about the program rather than about the shell.
+`Hostkit.Fs.Starts_Without_An_Interpreter` is that narrower question, kept
+apart from `Is_Executable` because both are true facts about a file and a
+consumer needs to say which it is asking. What the shell does with such a file
+named in full is a case of its own, gated to the host that has them.
+
 What is offered is the name a user would type. Windows supplies `.exe` for a
 name written without one -- which is why `run ("git")` starts `git.exe` there --
 so offering `git.exe` would be offering the spelling nobody uses.

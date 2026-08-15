@@ -1678,8 +1678,17 @@ what changed.
   for a name written without one -- Windows appends `.exe` -- the offer leaves
   it off, `git` being the program's name there as much as anywhere.
   `Hostkit.Fs.Executable_Suffix` is new for that, and is deliberately not the
-  whole of PATHEXT: a `.bat` is run by the command interpreter rather than by
-  the loader, so its name has to be written out and is offered as it stands.
+  whole of PATHEXT.
+
+  And only what this shell could start. Windows calls a `.bat`, a `.cmd`, a
+  `.ps1` and an `.msi` executables and its loader starts none of them; Adash
+  invokes no interpreter, so offering one would be offering a name that fails
+  when it is run, and the failure would read as being about the program.
+  `Hostkit.Fs.Starts_Without_An_Interpreter` is the narrower question --
+  the same answer as `Is_Executable` on POSIX, where the kernel starts what
+  has the bit set -- and a conformance case gated to Windows says what the
+  shell does with a batch file named in full: it refuses it, says so, and goes
+  on.
 
   Case is folded, as it is everywhere else in the list: the prefix is handed
   over as the class of each letter's two cases, so `GI` completes to `git` on a
