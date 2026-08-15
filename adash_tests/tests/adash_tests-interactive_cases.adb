@@ -1043,6 +1043,11 @@ package body Adash_Tests.Interactive_Cases is
       --  Bounded anyway: a child that never stopped writing would otherwise
       --  keep this turn for ever.
       for Turn in 1 .. 64 loop
+         --  Asked before it is read. A read that would wait *does* wait where
+         --  the host has no non-blocking mode, and a drain that waited would
+         --  be a test that hangs rather than one that says what it found.
+         exit when not Hostkit.Descriptors.Wait_Readable (Item.Pair.From_Child, 0);
+
          declare
             Buffer : Ada.Streams.Stream_Element_Array (1 .. 4096);
             Last   : Ada.Streams.Stream_Element_Offset;
@@ -1301,6 +1306,12 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Wrote (Typed), "could not type into the terminal");
 
       for Attempt in 1 .. 200 loop
+         --  Asked before it is read, because a read that would wait does wait
+         --  where the host has no non-blocking mode.
+         if not Hostkit.Descriptors.Wait_Readable (Pair.From_Child, 50) then
+            goto Next_Turn;
+         end if;
+
          declare
             Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
             Last   : Ada.Streams.Stream_Element_Offset;
@@ -1322,6 +1333,8 @@ package body Adash_Tests.Interactive_Cases is
 
             delay 0.05;
          end;
+
+         <<Next_Turn>>
       end loop;
 
       Assert (Ada.Strings.Fixed.Index
@@ -1339,19 +1352,21 @@ package body Adash_Tests.Interactive_Cases is
          exit when Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Poll, Result)
                      and then Result.State /= Hostkit.Spawn.Wait_Running;
 
-         declare
-            Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
-            Last   : Ada.Streams.Stream_Element_Offset;
-            Status : constant Hostkit.Descriptors.Transfer_Outcome :=
-              Hostkit.Descriptors.Read (Pair.From_Child, Buffer, Last);
-         begin
-            if Status = Hostkit.Descriptors.Transfer_Ok then
-               for Index in Buffer'First .. Last loop
-                  Ada.Strings.Unbounded.Append
-                    (Seen, Character'Val (Natural (Buffer (Index))));
-               end loop;
-            end if;
-         end;
+         if Hostkit.Descriptors.Wait_Readable (Pair.From_Child, 50) then
+            declare
+               Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
+               Last   : Ada.Streams.Stream_Element_Offset;
+               Status : constant Hostkit.Descriptors.Transfer_Outcome :=
+                 Hostkit.Descriptors.Read (Pair.From_Child, Buffer, Last);
+            begin
+               if Status = Hostkit.Descriptors.Transfer_Ok then
+                  for Index in Buffer'First .. Last loop
+                     Ada.Strings.Unbounded.Append
+                       (Seen, Character'Val (Natural (Buffer (Index))));
+                  end loop;
+               end if;
+            end;
+         end if;
 
          delay 0.05;
       end loop;

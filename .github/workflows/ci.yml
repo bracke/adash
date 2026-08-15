@@ -113,7 +113,31 @@ jobs:
 
       - name: Run the AUnit suite
         working-directory: Ada/adash/adash_tests
-        run: ./bin/adash_tests${{ matrix.suffix }}
+        run: |
+          set -eu
+          # A watchdog, because five of these cases drive the shell through a
+          # terminal and a case that waits for a byte that never comes would
+          # otherwise hold the job until the six-hour limit -- with no output,
+          # since a killed job prints nothing. Killed here instead, the step
+          # fails, the log survives, and the last test AUnit printed names the
+          # one that did not finish. Written out rather than `timeout`, which
+          # macOS does not have.
+          ./bin/adash_tests${{ matrix.suffix }} &
+          suite=$!
+
+          for _ in $(seq 1 600); do
+            kill -0 "$suite" 2>/dev/null || break
+            sleep 1
+          done
+
+          if kill -0 "$suite" 2>/dev/null; then
+            echo "the suite was still running after ten minutes; killing it"
+            kill -9 "$suite" 2>/dev/null || true
+            wait "$suite" 2>/dev/null || true
+            exit 1
+          fi
+
+          wait "$suite"
 
       - name: Run the conformance suite
         working-directory: Ada/adash/adash_tests
