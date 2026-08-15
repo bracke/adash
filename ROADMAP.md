@@ -2895,8 +2895,15 @@ else decides them; attaching to a console fills in only what is not already
 there. A parent whose own output is a pipe -- every parent under a build
 service -- therefore hands the child that pipe, and the child writes into the
 parent's output and reads end-of-file from the parent's input while the console
-it was given sits untouched. Cleared for the length of the call, and put back
-after it.
+it was given sits untouched.
+
+The first fix took this process's own handles away for the length of the call
+and put them back after. It worked, and left a window in which this process had
+no output of its own: a thread writing during it wrote to nothing, and no lock
+could have helped, the hand-over being by inheritance and inheritance being
+process-wide. Saying the *child's* three handles are nothing -- which is what
+STARTF_USESTDHANDLES is for -- stops the copy without touching the parent at
+all. A caveat removed rather than documented.
 
 Two things stay off that host, each named by the host rather than left as a
 gap. Ctrl-C, because there are no signals there and a keystroke cannot become
