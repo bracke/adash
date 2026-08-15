@@ -1613,10 +1613,21 @@ what changed.
   first, because a Windows pipe has no non-blocking mode and a read of an empty
   terminal waits; the AUnit step gained a watchdog for when that is not enough.
 
-  Ctrl-C stays off that host -- no signals, so a keystroke cannot become one --
-  and so does the accented half of the backspace case: a console host turns
-  what arrives into key events and re-encodes them, so writing two UTF-8 bytes
-  at it is not typing that character. The shell was asked, and goes on
+  **Ctrl-C at the prompt** is asserted everywhere too: it abandons the line
+  being typed, the next line runs, and the abandoned one never does. That is
+  the editor's half of an interrupt and needs no signal.
+
+  Ctrl-C *while a program is running* stays off Windows, for a reason measured
+  rather than assumed. hostkit separates "has signals" from "can report an
+  arrival" and that host is the second without the first, so the case was let
+  loose there: typed into the pseudo-console while the shell ran a loop, the
+  byte did not reach it as an interrupt and the loop was still going thirty
+  seconds later. A console can report a Ctrl-C, and not to a client in the
+  middle of something.
+
+  The accented half of the backspace case stays off as well: a console host
+  turns what arrives into key events and re-encodes them, so writing two UTF-8
+  bytes at it is not typing that character. The shell was asked, and goes on
   answering afterwards, so what is missing is the keystroke rather than the
   editor.
 
