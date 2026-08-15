@@ -13,8 +13,7 @@ with Adash.Source;
 --
 --  This is Adash's own parser, and it was Adash's own before the rest of the
 --  front end was: the compiler this project once depended on parsed straight to
---  object code and kept no tree, so there was nothing to reuse even then. See
---  `docs/hac-assessment.md`, which records how that dependency ended.
+--  object code and kept no tree, so there was nothing to reuse even then.
 --
 --  Syntax only. The parser does not know what a name denotes, whether a call is
 --  a function or an array index -- Ada spells both `X (1)` -- or whether an

@@ -62,7 +62,7 @@ inside it is resolution, which asks each candidate about each argument.
 
 ## What the first run found
 
-**This is history**, from the build that ran on HAC's p-code interpreter. It is
+**This is history**, from the build that ran on an outside interpreter. It is
 kept because the shape it describes is the one the section above inverted.
 
 On a development build (`-Og`), 200 repetitions:
@@ -82,11 +82,11 @@ On a development build (`-Og`), 200 repetitions:
 
 **Lowering and running costs about forty times everything else combined**, and
 the median and the fastest are close, so it is a constant cost rather than
-something that degrades. That is not a surprise once stated: `Adash.Language.
-Evaluation` calls HAC's `Init_for_new_Build` for every submission, which builds
-the compiler's tables from scratch to emit a handful of instructions. The
-per-line pipeline that a user feels — lex, parse, analyse, highlight — is around
-50 us, and the 1.7 ms sits on top of it.
+something that degrades. That is not a surprise once stated: the lowering
+rebuilt an outside compiler's tables from scratch for every submission in order
+to emit a handful of instructions. The per-line pipeline that a user feels —
+lex, parse, analyse, highlight — is around 50 us, and the 1.7 ms sits on top of
+it.
 
 At 1.7 ms nobody typing will notice. It matters for a script of many
 submissions, and it is the obvious first thing to look at if evaluation ever

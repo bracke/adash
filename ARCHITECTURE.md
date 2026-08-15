@@ -97,9 +97,8 @@ them:
   sequence. It owns the vocabulary of roles; `terminal_styles` owns the bytes.
 - **JSON** — `jsonlib`. **TOML** — `tomllib`.
 - **The virtual machine** — `Adash.Machine`, this repository's own. A stack
-  machine with frames, static links and one call out to the shell. It replaced
-  `hac`; `docs/hac-assessment.md` records what that dependency gave, what it
-  cost, and why it ended.
+  machine with frames, static links and one call out to the shell. It is not a
+  dependency and never was one: no crate outside this repository provides it.
 
 When one of those lacks something Adash needs, the capability is added there and
 consumed through the approved adapter. It is never duplicated here.
@@ -198,14 +197,14 @@ decision is recorded rather than left implicit.
   `Language.Syntax`, semantic analysis, the lowering, and the machine it lowers
   to are all this repository's.
 
-  It was not always so. HAC ran the p-code until the front end had grown to
-  9,400 lines -- rivalling the 11,400-line compiler it existed to replace -- in
-  order to reach a 4,000-line interpreter. Worse, it reached that interpreter by
-  building HAC's own compiler tables: identifier entries, block entries,
-  activation records of a fixed shape, a display vector to keep in step. That
-  seam produced defects rather than preventing them -- a display vector not
-  restored after a call, frame slots taken from whichever frame happened to be
-  emitting, argument cells given the wrong type.
+  It was not always so. An outside interpreter ran the instructions until the
+  front end had grown to rival the compiler that interpreter came from, and it
+  was reached by building that compiler's own tables: identifier entries, block
+  entries, activation records of a fixed shape, a display vector to keep in
+  step. The seam produced defects rather than preventing them -- a display
+  vector not restored after a call, frame slots taken from whichever frame
+  happened to be emitting, argument cells given the wrong type. Owning the
+  machine removed the seam and the defects with it.
 
   The machine's instruction set is what the lowering emits and nothing else.
   Ada's semantics are kept where they were load-bearing: `Real` is `digits

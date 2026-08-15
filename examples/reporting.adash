@@ -10,9 +10,9 @@
 --  Boolean and Float. A computed value goes on its own line here; see
 --  attributes.adash for putting one inside a sentence with 'Image.
 --
---  A Float is written the way HAC writes one, which is Ada's own default form
---  rather than a shorter one: the same program means the same thing under
---  either, and a shorter form would drop digits the number was carrying.
+--  A Float is written in Ada's own default form rather than a shorter one, so
+--  the same program means the same thing here as under a compiler, and a
+--  shorter form would drop digits the number was carrying.
 
 Word  : String := "ab";
 Built : String := "";

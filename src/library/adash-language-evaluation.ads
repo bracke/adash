@@ -12,8 +12,7 @@ with Adash.Source;
 --  The instruction set is what this package emits and nothing else. That is the
 --  point of owning the machine: an opcode exists because a construct needs it,
 --  so there is no encoding to get right against somebody else's compiler and no
---  table to populate on their behalf. `docs/hac-assessment.md` records the
---  dependency this replaced and why it ended.
+--  table to populate on their behalf.
 --
 --  Three consequences worth stating, because all three are visible from
 --  outside:

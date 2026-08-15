@@ -18,7 +18,7 @@ built is under *What Adash cannot do yet*, in words rather than by omission.
 | 2 | Source model, diagnostics, structured results, version, message identifiers, terminal style roles | **complete** |
 | 3 | Language values, types, symbols, scopes, immutable core models | **complete** |
 | 4 | Lexer and source mapping | **complete** |
-| 5 | Adash parser and syntax representation (no HAC) | **complete** |
+| 5 | Adash parser and syntax representation | **complete** |
 | 6 | Semantic analysis | **complete** |
 | 7 | Evaluation: lowering to machine instructions, then interpretation | **complete** |
 | 8 | Predefined values, functions, procedures, constructors, metadata registration | **complete** |
@@ -126,7 +126,7 @@ below.
 | Named arguments and default parameters | **complete** |
 | Position attributes: `'Pos`, `'Val`, `'Succ`, `'Pred` | **complete** |
 | A scalar type's own bounds: `Integer'First`, `Integer'Last` | **complete** |
-| Adash's own virtual machine; the HAC dependency ended | **complete** |
+| Adash's own virtual machine | **complete** |
 | Exception handlers on a block and on a body | **complete** |
 | Job control: `start`, `jobs`, `wait`, `stop` | **complete** |
 | Display width in cells, for wide and combining characters | **complete** |
@@ -203,8 +203,8 @@ the corners; a language where two names are equal on one machine and not another
 is worse than one that says ASCII and means it. Non-ASCII is fine wherever it is
 data — strings, character literals, comments.
 
-Phase 5 is complete: `Adash.Language.Syntax` and `Adash.Language.Parser`, and
-no HAC is involved — as the assessment decided, it enters at Phase 7.
+Phase 5 is complete: `Adash.Language.Syntax` and `Adash.Language.Parser`, both
+this repository's own.
 
 **Nodes live in an arena and are addressed by index.** That is the decision the
 rest of the tree follows from. A `Node_Id` is a stable key, so the semantic pass
@@ -269,9 +269,8 @@ Parameter association — matching arguments to formals and checking their types
 waits for Phase 8, which introduces the first callable things with profiles.
 Until something has one, there is nothing to check against.
 
-Phase 7 is complete: `Adash.Language.Evaluation`, the only package that reaches
-into HAC. An Adash program is lexed, parsed, analysed, lowered to p-code and run
-on HAC's virtual machine.
+Phase 7 is complete: `Adash.Language.Evaluation`, the only package that emits
+instructions. An Adash program is lexed, parsed, analysed, lowered and run.
 
 Lowered *at that point* — this section records what each phase left behind, not
 what the language does now; see "What the language gained" below for that:
@@ -319,7 +318,7 @@ Semantics no longer seeds its own predefined names; that list is gone rather
 than duplicated, so there is one answer to what is predefined.
 
 Writing is Integer-only so far. Boolean, Character and String each have their
-own count of format parameters that HAC's runtime reads from the stack, and
+own count of format parameters the runtime reads from the stack, and
 String is pushed as an address and a length; a `Put_Line` of those reports
 `Not_Lowerable` rather than pushing the wrong number of values, which would
 misalign the stack rather than fail.
@@ -619,9 +618,9 @@ produces what it claims fails the build rather than being found by a reader.
 **Benchmarks** (`adash_bench`, `benchmarks/README.md`) report the median *and*
 the fastest of N runs, because a median alone hides the shape. The first run
 found something worth recording: **lowering and running a submission costs about
-1.7 ms, roughly forty times the rest of the pipeline combined**, because
-`Adash.Language.Evaluation` calls HAC's `Init_for_new_Build` for every
-submission. Nobody typing will notice; a script of many submissions will. It is
+1.7 ms, roughly forty times the rest of the pipeline combined**, because the
+lowering rebuilt an outside compiler's tables for every submission. Nobody
+typing will notice; a script of many submissions will. It is
 recorded rather than fixed, because this phase is about characterizing
 performance and optimizing before behaviour is pinned produces a fast
 implementation of the wrong thing.
@@ -647,9 +646,9 @@ writes one, in upper case, and an Integer, a Character and a Boolean are
 unpadded: the width is zero, so a value takes exactly the room it needs rather
 than Ada's default of padding a Boolean to the width of the longer literal.
 
-A **Float** is the exception, and deliberately: it is written with HAC's own
-defaults, so `put_line (1.5)` gives ` 1.50000000000000000E+00` — what the same
-program compiled by HAC gives. A prettier form was available and was not taken:
+A **Float** is the exception, and deliberately: it is written in Ada's own
+default form, so `put_line (1.5)` gives ` 1.50000000000000000E+00` — what the
+same program compiled gives. A prettier form was available and was not taken:
 it would have made a Float print differently here than in the language Adash
 claims to be a subset of, while quietly dropping precision from anything that
 needed it. Padding a Boolean is noise; shortening a number is a change to what
@@ -666,8 +665,8 @@ written here would print something else under GNAT.
 
 `'Image` of a `String` is refused, and that is not an omission. Ada 2022 defines
 it -- as the text *in quotes*, with non-graphic characters bracketed, which is
-not the text itself. Returning the text would be the plausible wrong answer, and
-HAC refuses it too. Every other attribute is refused as an attribute rather than
+not the text itself. Returning the text would be the plausible wrong answer.
+Every other attribute is refused as an attribute rather than
 as an undeclared name, which is what it used to be reported as.
 
 **Interpolated string literals work too.** `f"hello {Name}!"`, Ada 2022's own
@@ -725,7 +724,7 @@ by-reference parameter -- and what it needed was for a read and a write of such
 a parameter to use different instructions from a variable's. The pair looks
 inverted and is not: for a variable the address is its slot, and for a
 by-reference parameter the slot *contains* the address, so pushing its value is
-what yields one. HAC's own compiler makes the same choice at the same place.
+what yields one. A compiler makes the same choice at the same place.
 
 Two rules fall out of this and are enforced. An `in` parameter cannot be
 assigned to -- Ada says so, and before modes existed this language could not,
@@ -744,9 +743,9 @@ written here that relies on it would not mean the same thing under GNAT.
 of the body it was declared in, two or nineteen levels out, and each call sees
 the frame of the call it came from rather than the first or the last.
 
-That works because the machine already did it. HAC's `Do_Call` filled a display
-slot one level below the callee and recorded a static link; what this lowering
-had to stop doing was assuming every frame was at level two. A routine carries
+That works because the machine already did it: the call instruction fills a
+display slot one level below the callee and records a static link. What the
+lowering had to stop doing was assuming every frame was at level two. A routine carries
 the level it was declared at, and a name reaching outward says how many levels
 out it is. When the machine became this repository's own the display went and
 the static links stayed, so the lowering did not change: `Outward` still emits a
@@ -1085,9 +1084,9 @@ of it.
 Indexing is written the way a call is, so which one it is depends on what the
 name denotes -- a question only the semantic pass can answer, and it asks the
 *symbol* rather than the text, because a parameter named after a function is a
-parameter. The lowering is HAC's own `SF_Element`, `SF_Slice` and `SF_Length`,
-so a position past the end raises where HAC raises rather than reading whatever
-was next in the frame.
+parameter. The lowering is the machine's own element, slice and length
+instructions, so a position past the end raises there rather than reading
+whatever was next in the frame.
 
 `'First` is one and `'Last` is the length, because every String here begins at
 one -- there are no other index ranges to have, which is why neither needs a
@@ -1239,9 +1238,9 @@ This is what the reading a shell had just learned to do was missing. `Read_Line`
 answers with a String, and a String can be compared and joined and taken apart
 and not added up: a program could read a number and had no way to make it one.
 
-Ada's own spelling, and HAC's own `SF_Value_Attribute_*` builtins, so what is
-accepted is what Ada accepts and text that does not hold a value raises rather
-than answering with something nobody wrote.
+Ada's own spelling, and one instruction per scalar type, so what is accepted is
+what Ada accepts and text that does not hold a value raises rather than
+answering with something nobody wrote.
 
 A type's attribute is a call -- the prefix is a type name and the argument is
 what it applies to -- so it needed the analyser to recognise that shape before
@@ -2468,20 +2467,21 @@ Nothing removes a file. Unmaking things is what programs are for.
 
 **Adash runs on its own virtual machine.** `Adash.Machine`: a stack machine
 with frames, static links and one call out to the shell, in 1,325 lines against
-the 3,995 of HAC's interpreter it replaces -- because it is only what the
+the 3,995 of the interpreter it replaces -- because it is only what the
 lowering emits, and nothing else.
 
 The dependency was worth entering and stopped being worth keeping. It was
-entered for the runtime, HAC's compiler being unusable here: it has no syntax
-tree, so there is nothing to annotate for highlighting, completion or a separate
-semantic pass, and `Build_Main` compiles a whole unit, which a shell prompt is
+entered for the runtime, its compiler being unusable here: that compiler has no
+syntax tree, so there is nothing to annotate for highlighting, completion or a
+separate semantic pass, and it compiles a whole unit, which a shell prompt is
 not. So Adash wrote a front end. By the time that front end was 9,400 lines it
 rivalled the 11,400-line compiler it existed to replace, in order to reach 4,000
 lines of interpreter.
 
 What actually decided it was the seam. The lowering did not use a published
-interface: it built HAC's own identifier tables, block tables and activation
-records, and kept a display vector in step -- it impersonated compiler output.
+interface: it built that compiler's own identifier tables, block tables and
+activation records, and kept a display vector in step -- it impersonated
+compiler output.
 Every defect that seam produced was of one kind, and this repository fixed three
 of them in as many months: a display vector not restored after a call to the
 command stub; bridge slots taken from whichever frame happened to be emitting;
@@ -2497,7 +2497,8 @@ activation record, no answer cell, no halt cell.
 Ada's semantics were kept where they were load-bearing: `Real` is `digits
 System.Max_Digits` and the whole number is 64-bit, so `'Image` renders and
 `Integer'Last` reads exactly as before. Two exception details are now this
-repository's words rather than HAC's, and two conformance cases record it.
+repository's words rather than the old interpreter's, and two conformance cases
+record it.
 
 **A block or a body can answer for what went wrong.** `begin ... exception when
 Constraint_Error => ... when others => ... end;`, on a block and on a subprogram
@@ -2505,8 +2506,9 @@ body, with the four exceptions anything here raises: Ada's three, plus the one
 Ada.Strings defines for an index outside a string.
 
 This was the first thing built after the machine, and it is why the machine was
-built. Under HAC it would have meant reverse-engineering somebody else's
-exception machinery through a seam that was already the source of three defects.
+built. Before it, this would have meant reverse-engineering somebody else's
+exception machinery through a seam that was already the source of three
+defects.
 Owning the machine, it is a handler stack, an unwind in the one place that
 already reported failures, and three opcodes.
 
@@ -2651,8 +2653,8 @@ was obvious from the outside:
   variable, set on the way in and cleared on the way out. A nested run cleared
   it, and the outer program lost the ability to call anything. Saved and put
   back now.
-- The stub file HAC needs a source stream for had a fixed name, so a nested run
-  reopened a file the outer run still held open. It carries the process id and a
+- The stub file the interpreter needed a source stream for had a fixed name, so
+  a nested run reopened a file the outer run still held open. It carries the process id and a
   serial now -- which also fixes two shells running at once, which had the same
   collision and nobody had hit yet.
 
@@ -3222,83 +3224,6 @@ consumer degrades on them explicitly:
 - **No pseudo-terminals.** `Hostkit.Pty.Is_Supported` is False. The host's
   answer is the pseudo-console, a differently shaped API; implementing it
   belongs in hostkit when a consumer needs it.
-
-**`hac` is history, and nothing here depends on it.** Everything from this
-point to the end of the section described a dependency that ended: Adash lowered
-into HAC's p-code interpreter, and `Adash.Machine` is the virtual machine now.
-`alire.toml` names no such crate, no source mentions it, and `../hac` is a
-checkout nothing builds against. `docs/hac-assessment.md` says why the
-dependency ended and what it cost; `docs/command-calls.md` is the other document
-kept for its reasoning rather than its mechanism.
-
-It stays because the reasoning is still worth reading -- what a lowering target
-has to provide, why a parse tree was Adash's own to own, and what the estimate
-got wrong -- and because a section that simply disappeared would leave a reader
-wondering what had been decided.
-
-<details>
-<summary>The HAC-era assessment, kept as written</summary>
-
-**`hac` is vendored at `../hac`, version 0.42.0, with two local changes.** It
-builds, runs, and is now linked into Adash: `hac_lib.gpr` exports `HAC_Sys` as a
-library, and the crate's manifest points at it. Fork change 1 is done.
-
-**Phase 7's mechanism is proved.** A spike emits p-code into a `Compiler_Data`
-Adash populated itself and HAC's virtual machine runs it — verified with a
-division by zero as the control, which reports an unhandled exception where the
-same program without it reports none.
-
-The frame setup turned out to be four fields and one `Blocks_Table` entry, not
-the reimplementation of `Parser.Block` an earlier note in this file estimated;
-that estimate was wrong and `docs/hac-assessment.md` records the correction and
-the working recipe. Two entanglements remain worth knowing:
-`Compiler.Init_for_new_Build` calls the scanner, so a source stream must be
-attached before it, and `Co_Defs` is internal and upstream promises nothing
-about its shape.
-
-What remains is the lowering itself: walking the analysed tree and emitting the
-instructions for each node kind, plus evaluation contexts, frames, calls and
-exceptions. See `docs/hac-assessment.md` for the assessment and `../hac/FORK.md`
-for provenance and required changes.
-
-**The integration is decided: Adash parses into its own tree and lowers into
-HAC.** Adash owns the lexer, the parser, `Language.Syntax` and semantic
-analysis; HAC contributes its virtual machine, its 123-instruction p-code set
-and its runtime library.
-
-The lowering target is `HAC_Sys.PCode` through `HAC_Sys.Compiler.PCode_Emit`,
-not `HAC_Sys.Targets`. Targets is an abstract-machine interface its own author
-describes as needing "likely hundreds of methods in the end"; at 0.42.0 it has
-six that emit code, and 141 of the compiler's own emissions bypass it against 29
-that use it. P-code is complete because the compiler depends on it being so.
-
-**This is not a competing parser under §2.1.** That rule forbids reimplementing
-functionality *HAC already provides*, and HAC's parser does not provide a parse
-tree — it emits object code as it goes and keeps nothing. Adash's parser
-produces something HAC has not got and cannot be asked for. Adash still writes
-no bytecode engine and no interpreter; lowering to p-code is how it avoids
-doing so.
-
-**Consequence: HAC enters at Phase 7, not Phase 5.** Phases 4, 5 and 6 involve
-no HAC at all, which makes them independent of the fork and of upstream churn.
-
-Costs, recorded rather than discovered later:
-
-- Adash will depend on `HAC_Sys.Co_Defs`, an internal package. `Interpret` takes
-  a `Build_Data` holding a `Compiler_Data`, and that record carries the object
-  code alongside the arrays, blocks, float-constant, string-constant and task
-  tables the interpreter reads at run time. Adash's lowering must populate all
-  of it, and upstream promises nothing about its shape.
-- Three fork changes are needed: a library project file, a diagnostic code in
-  `Defs.Diagnostic_Kit`, and that library exporting `Co_Defs`, `PCode` and
-  `Compiler.PCode_Emit` rather than only the `Builder` façade.
-
-What it buys beyond the tree: the REPL gets *easier*. The symbol table between
-prompt lines becomes Adash's own, so a line is analysed against the session's
-accumulated scope and only its new statements are lowered and run. HAC never has
-to hold a compilation context across units — which was the substantial change
-the alternative would have required.
-</details>
 
 ## Definition of done
 

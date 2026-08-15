@@ -102,7 +102,7 @@ id = "attributes.reads-a-number-back-from-text"
 requirement = """
 `Integer'Value` turns text into a number, which is what a program that has just
 read a line needs before it can do anything but compare it. Ada's own spelling
-and HAC's own builtin, so what it accepts is what Ada accepts.
+so what it accepts is what Ada accepts.
 """
 script = "N : Integer := Integer'Value (\"42\"); put_line (N + 1); quit (0);"
 exit_status = 0

@@ -95,7 +95,7 @@ diagnostics = []
 
 [[case]]
 id = "output.float"
-requirement = "put_line writes a Float in the form HAC's own compiler writes one, so the same program means the same thing under either. A prettier form was available and would have printed a Float differently here than in the language Adash is a subset of."
+requirement = "put_line writes a Float in Ada's own default form, so the same program means the same thing here as under a compiler. A prettier form was available and would have printed a Float differently here than in the language Adash is a subset of."
 script = "put_line (1.5);"
 exit_status = 0
 output = [" 1.50000000000000000E+00"]
@@ -444,9 +444,9 @@ diagnostics = []
 [[case]]
 id = "string.a-position-past-the-end-raises"
 requirement = """
-Out of range raises rather than reading whatever was next. The check is HAC's
-own, which is the point of lowering to its builtins rather than writing the
-indexing again.
+Out of range raises rather than reading whatever was next. The check is the
+machine's own instruction, so every way of reaching a position -- an index, a
+slice, a part of a part -- is checked in one place rather than in each of them.
 """
 script = "S : String := \"abc\"; put_line (S (9)); quit (0);"
 exit_status = 0

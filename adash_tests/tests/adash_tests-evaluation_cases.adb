@@ -1119,7 +1119,7 @@ package body Adash_Tests.Evaluation_Cases is
       --  the text in quotes with non-graphic characters bracketed -- not the
       --  text itself. Returning the text would be the plausible wrong answer,
       --  and a program relying on it would mean something else under a real
-      --  compiler. HAC refuses this too.
+      --  compiler.
       Assert (Execute ("S : String := ""hi""; put_line (S'Image);") = Ev.Refused,
               "'Image of a String was not refused");
 

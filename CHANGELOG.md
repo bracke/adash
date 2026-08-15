@@ -624,10 +624,11 @@ what changed.
   language still owes its users", two files away from the example that shows it
   done. It now shows a command mixed with statements instead of denying it.
 - `docs/command-calls.md` read as current design for work that landed long ago,
-  and described HAC's p-code -- a dependency that ended. It says at the top what
-  it is now: history, kept for the reasoning rather than the mechanism, because
-  the expensive finding was that there were *two* gaps and that one mechanism
-  had to close both. Its "what this will make possible" is written as what it
+  and described the instruction set of a machine this build no longer runs. It
+  said at the top what it was: history, kept for the reasoning rather than the
+  mechanism, because the expensive finding was that there were *two* gaps and
+  that one mechanism had to close both. Its "what this will make possible" is
+  written as what it
   made possible, with each claim in it run before saying so.
   `docs/README.md` lists it as history.
 - **`X'Range`** stands wherever a range stands -- a loop, forwards or
@@ -693,8 +694,8 @@ what changed.
   contradictions, both in the section that describes what the language does
   now: `ROADMAP.md` said this shell does not have persistence -- a definition
   typed on one line and used on the next -- sixty lines after describing the
-  mechanism that gives it, and explained the hand-back's design by what HAC's
-  interpreter did not offer, a dependency that ended. Both corrected, and what
+  mechanism that gives it, and explained the hand-back's design by what an
+  interpreter this build no longer runs did not offer. Both corrected, and what
   a session carries is now pinned by cases rather than described: a protected
   object keeps the state it ended with, a task object is not carried.
 - **A sweep of the documented limits against what the build actually does.**
@@ -1344,8 +1345,8 @@ what changed.
   written. A statement before `begin` is refused, as Ada refuses it.
 - A String can be taken apart: `S (2)` is the Character at that position,
   `S (7 .. 11)` is the String between two, and `'Length`, `'First` and `'Last`
-  say how far it goes. Lowered to HAC's own `SF_Element`, `SF_Slice` and
-  `SF_Length`, so an index past the end raises where HAC raises.
+  say how far it goes. Lowered to the element, slice and length instructions,
+  so an index past the end raises there rather than reading what was next.
 - `&` joins a String and a Character, either way round -- Ada's rule for an
   array and one of its components. Two Characters are refused, as Ada refuses
   them.
@@ -1453,7 +1454,7 @@ what changed.
   their spans; nesting falls out of the same mechanism. `\{`, `\}` and `\\`
   are the escapes this build defines, and any other is refused by name.
 - The `'Image` attribute, for `Integer`, `Float`, `Boolean` and `Character`,
-  emitted as HAC's own `SF_Image_Attribute_*` builtins so the text is Ada's.
+  emitted as one instruction per type so the text is Ada's.
   This is what string formatting was waiting for: a computed value can now go
   inside a sentence.
 - Parameter modes: `in`, `out` and `in out`. The last two pass the caller's
@@ -1512,12 +1513,12 @@ what changed.
 
 ### Changed
 
-- **Adash no longer depends on HAC.** The lowering emits `Adash.Machine`
-  instructions rather than HAC p-code, and the manifest no longer names the
-  crate. The front end had grown to rival the compiler it replaced, and reached
-  HAC's interpreter by building that compiler's own identifier and block tables
-  -- a seam that produced defects rather than preventing them. See
-  `docs/hac-assessment.md`.
+- **Adash runs its own virtual machine.** The lowering emits `Adash.Machine`
+  instructions, and the manifest no longer names an outside interpreter. The
+  front end had grown to rival the compiler that interpreter came from, and
+  reached it by building that compiler's own identifier and block tables -- a
+  seam that produced defects rather than preventing them. `ROADMAP.md` records
+  what the dependency gave, what it cost, and why it ended.
 - A program's output goes through the machine's own `Write`, `Write_Line` and
   `New_Line`, which is where the format-parameter counting per type went: the
   machine carries the type with the value, so there is no count to get wrong.
@@ -1621,8 +1622,8 @@ what changed.
   around it, so the lowering counts the blocks it is inside rather than asking
   either.
 - A comment in the lowering said String concatenation was refused, and stood
-  directly above the code that emits it. It described a HAC defect that no
-  longer reproduces.
+  directly above the code that emits it. It described a defect in the machine
+  of the day that no longer reproduces.
 - `end` was accepted-if-present rather than required for `if`, `while`, `for`
   and `loop`, so an unfinished construct parsed as a finished one with an empty
   body: `if C then` at the end of the input ran and did nothing, and `loop` on
@@ -1726,7 +1727,7 @@ what changed.
 - Three reentrancy defects that a submission made during another submission
   would have hit, found while making `source` work: the engine reused one
   buffer, token stream and tree across submissions; the evaluator cleared its
-  command sink on the way out rather than restoring it; and HAC's lowering stub
+  command sink on the way out rather than restoring it; and the lowering stub
   had a fixed filename, so a nested run reopened a file the outer run held open.
   The last also collided between two shells running at once.
 - The lowering stub file was left in the temporary directory after every run.

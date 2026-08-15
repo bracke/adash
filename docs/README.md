@@ -56,12 +56,6 @@ instead: a pseudo-terminal, the real binary, and every claim typed at it.
 - [`test-guide.md`](test-guide.md) — how to run and extend the suites.
 - [`benchmark-guide.md`](benchmark-guide.md) — what `adash_bench` measures,
   what its numbers are and are not, and what to make of one that moves.
-- [`hac-assessment.md`](hac-assessment.md) — what the HAC dependency gave the
-  language subsystem while it lasted, why it ended, and what replaced it.
-- [`command-calls.md`](command-calls.md) — history: the spike that found there
-  were two gaps between commands and the language, not one, and that a single
-  mechanism had to close both. The reasoning still holds; the p-code it
-  describes is HAC's, not `Adash.Machine`'s.
 
 Everything else in the table above is outstanding. `ROADMAP.md` and
 `CHANGELOG.md` are what a reader has instead: between them they say what the

@@ -42,15 +42,11 @@ Adash is the failure mode all of them exist to prevent.
   an escape sequence in Adash source.
 - **project_tools only**, in Ada, for repository tooling. No shell scripts, no
   Make, no Python, no Node.
-- **hac** is the language foundation for *execution*. Do not write a bytecode
-  engine or an interpreter: Adash lowers to HAC's p-code and HAC runs it.
-
-  Adash **does** own its lexer, parser and syntax tree, and that is not a
-  violation of the rule above. §2.1 forbids reimplementing what HAC already
-  provides; HAC's parser provides no parse tree — it emits object code as it
-  parses and keeps nothing — so there is nothing there to reuse. The reasoning
-  is recorded in `docs/hac-assessment.md`; read it before concluding the code
-  contradicts the rule.
+- **Adash owns its language.** The lexer, the parser, the syntax tree, the
+  analyser, the lowering and the virtual machine are all Adash's, and that is
+  the one place the "never a second copy" rule does not send you to another
+  crate: no dependency provides them. `Adash.Machine` is the machine — do not
+  add a second interpreter beside it, and do not lower to anything else.
 
 `adash_check` enforces the mechanically checkable subset. Run it.
 
@@ -63,13 +59,10 @@ Adash is the failure mode all of them exist to prevent.
 4. Consume it through the approved adapter.
 5. Do **not** add a duplicate implementation inside Adash, not even temporarily.
 
-Gaps open right now; see ROADMAP.md. `jsonlib` and `tomllib` do not exist.
-`hac` is vendored at `../hac` and assessed — it has **no syntax tree**, so do not
-plan anything on retrieving one, and do not lower to `HAC_Sys.Targets`, which
-covers six emission operations and is bypassed by most of HAC's own compiler.
-Lower to `HAC_Sys.PCode` through `HAC_Sys.Compiler.PCode_Emit`. HAC is not
-involved in Phases 4 to 6 at all. Read `docs/hac-assessment.md` first. Until each is resolved, the dependent
-phase does not start — it is not unblocked by writing the capability here.
+No gaps are open. `jsonlib`, `tomllib` and `hostkit` are sibling crates that
+carry everything Adash asks of them; `ROADMAP.md` records what each gave. When
+a new gap opens, the dependent work does not start until it is closed *there* —
+it is not unblocked by writing the capability here.
 
 `hostkit` provides the platform side in full: `Hostkit.Descriptors`,
 `Hostkit.Signals`, `Hostkit.Spawn`, `Hostkit.Terminal_Control`, `Hostkit.Pty`
@@ -134,35 +127,40 @@ exactly once, in the released build.
 
 ## How to add an internal command
 
-Not yet possible — Phase 9. When it is: register it with `Adash.Commands`,
-give it structured metadata and a documentation key, put every string it emits
-in the catalog, add conformance cases for its observable behaviour, and document
-it in the internal command reference.
+Register it with `Adash.Commands`, give it structured metadata and a
+documentation key, put every string it emits in the catalog, add conformance
+cases for its observable behaviour, and document it in
+`docs/internal-commands.md`. A command is callable from a program like any
+other entity, so its arguments are evaluated by the machine and its count is
+checked against its own registry entry.
 
 ## How to add a predefined function
 
-Not yet possible — Phase 8. When it is: register it in `Adash.Predefined` with
-complete metadata — stable identifier, name, signature, parameters, result type,
-side effects, exceptions, availability, documentation key, completion
-description key. Registration order must not affect behaviour.
+Register it in `Adash.Predefined` with complete metadata — stable identifier,
+name, signature, parameters, result type, side effects, exceptions,
+availability, documentation key, completion description key. Registration order
+must not affect behaviour. Where the machine can answer it from values it
+already holds, emit an instruction rather than a call out to the shell.
 
 ## How to add a language construct
 
-Not yet possible — Phases 4 through 7. When it is, it touches, in this order:
-the lexer (`Language.Lexer`), the syntax model (`Language.Syntax`), the parser
+It touches these, in this order: the lexer (`Language.Lexer`) if it needs a
+token, the syntax model (`Language.Syntax`) for the node kind, the parser
 (`Language.Parser`), semantic analysis (`Language.Semantics`), and the lowering
-to p-code (`Language.Evaluation`) — plus conformance cases and the grammar
-reference. It never touches only one of them.
+(`Language.Evaluation`) — plus conformance cases, the grammar reference, and
+whichever of `ROADMAP.md` and `docs/language-reference.md` describes the
+boundary it moves. It never touches only one of them.
 
-Note the order: Adash's own parser builds Adash's own tree, and HAC sees nothing
-until the lowering step.
+`adash_check` holds `docs/grammar-reference.md` to `Language.Syntax`'s
+enumeration in *both* directions, so a node kind the parser can build without a
+production named for it fails the checks.
 
 ## How to add a persistence field or change configuration
 
-Not yet possible — Phase 15, and blocked on `jsonlib` and `tomllib`. When it is:
-bump the schema version, add a migration, add defaults, add validation, decide
+Bump the schema version, add a migration, add defaults, add validation, decide
 the unknown-key policy, keep the write atomic, and add a conformance case for
-the migration.
+the migration. TOML goes through tomllib and JSON through jsonlib; neither
+format is ever parsed or written by hand here.
 
 ## How to add a conformance case
 
