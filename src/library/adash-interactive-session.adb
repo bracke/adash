@@ -268,6 +268,24 @@ package body Adash.Interactive.Session is
                                Adash.Messages.Named ("text", Said)])
                       else Said),
                      Role, Stderr_Is_Terminal));
+
+               --  The line itself, and a caret under what it is about. Only
+               --  for a file: a line typed here is on the screen above, and
+               --  quoting it back would say the same thing twice.
+               if Known
+                 and then Adash.Diagnostics.Quoted_Line (Item) /= ""
+               then
+                  Put_Line
+                    (Standard_Error,
+                     Adash.Terminal.Styled
+                       (Adash.Diagnostics.Quoted_Line (Item),
+                        Adash.Terminal.Role_Muted, Stderr_Is_Terminal));
+                  Put_Line
+                    (Standard_Error,
+                     Adash.Terminal.Styled
+                       (Adash.Diagnostics.Caret (Item),
+                        Adash.Terminal.Role_Muted, Stderr_Is_Terminal));
+               end if;
             end;
          end loop;
 

@@ -1,3 +1,5 @@
+with Adash.Display_Width;
+
 package body Adash.Diagnostics is
 
    use type Adash.Messages.Message_Id;
@@ -303,6 +305,74 @@ package body Adash.Diagnostics is
       return Item.Entries.Element (Index);
    end Element;
 
+   ------------------
+   -- Quoted_Line --
+   ------------------
+
+   function Quoted_Line (Item : Diagnostic) return String is
+   begin
+      return Ada.Strings.Unbounded.To_String (Item.Quote);
+   end Quoted_Line;
+
+   -----------
+   -- Caret --
+   -----------
+
+   function Caret (Item : Diagnostic) return String is
+      Line : constant String :=
+        Ada.Strings.Unbounded.To_String (Item.Quote);
+
+      --  Where the diagnostic starts in the line, in bytes, found by walking
+      --  the characters before it: a column counts characters and a slice
+      --  counts bytes, and the two differ from the first accented letter on.
+      Index  : Positive := Line'First;
+      Indent : Natural := 0;
+      Seen   : Positive := 1;
+   begin
+      if Line'Length = 0 then
+         return "";
+      end if;
+
+      while Seen < Item.Place.Column and then Index <= Line'Last loop
+         declare
+            Code   : Natural;
+            Length : Positive;
+         begin
+            Adash.Display_Width.Decode (Line, Index, Code, Length);
+            Indent := Indent + Adash.Display_Width.Cells (Code);
+            Index := Index + Length;
+            Seen := Seen + 1;
+         end;
+      end loop;
+
+      declare
+         --  How far the diagnostic reaches on this line: its own extent,
+         --  stopped at the end of the line, since a span may cross lines and
+         --  a caret may not.
+         Covers : constant Natural :=
+           (if Adash.Source.Is_Empty (Item.Extent) then 1
+            else Natural'Min
+                   (Natural (Item.Extent.Last - Item.Extent.First) + 1,
+                    Line'Last - Index + 1));
+
+         Width : constant Natural :=
+           (if Index > Line'Last or else Covers = 0 then 1
+            else Adash.Display_Width.Cells
+                   (Line (Index .. Index + Covers - 1)));
+
+         Mark : String (1 .. Indent + Natural'Max (Width, 1)) :=
+           [others => ' '];
+      begin
+         Mark (Indent + 1) := '^';
+
+         for Cell in Indent + 2 .. Mark'Last loop
+            Mark (Cell) := '~';
+         end loop;
+
+         return Mark;
+      end;
+   end Caret;
+
    --------------
    -- Position --
    --------------
@@ -321,12 +391,14 @@ package body Adash.Diagnostics is
       Index  : Positive;
       Origin : Adash.Source.Origin;
       Extent : Adash.Source.Span;
-      Place  : Adash.Source.Location := (Line => 1, Column => 1))
+      Place  : Adash.Source.Location := (Line => 1, Column => 1);
+      Quote  : String := "")
    is
       Moved : Diagnostic := Item.Entries.Element (Index);
    begin
       Moved.Origin := Origin;
       Moved.Place := Place;
+      Moved.Quote := Ada.Strings.Unbounded.To_Unbounded_String (Quote);
 
       if not Adash.Source.Is_Empty (Extent) then
          Moved.Extent := Extent;

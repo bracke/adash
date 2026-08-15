@@ -236,6 +236,22 @@ procedure Adash_Main is
                             Msg.Named ("text", Said)])
                    else Said),
                   Role, Stderr_Is_Terminal);
+
+               --  The line itself, and a caret under what it is about. Dimmed:
+               --  what a reader is looking for is the message, and the quote
+               --  is there to save them opening the file.
+               if Known
+                 and then Adash.Diagnostics.Quoted_Line (Item) /= ""
+               then
+                  Put_Line_Styled
+                    (IO.Standard_Error,
+                     Adash.Diagnostics.Quoted_Line (Item),
+                     Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
+                  Put_Line_Styled
+                    (IO.Standard_Error,
+                     Adash.Diagnostics.Caret (Item),
+                     Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
+               end if;
             end;
          end loop;
       end Render_Diagnostics;

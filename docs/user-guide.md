@@ -83,9 +83,12 @@ An error names what it is about. `X is not declared here`, `expected end here`,
 which is how the same session can be read in another language and how the tests
 assert on diagnostics rather than on wording.
 
-In a **file** it says where, in the form every compiler uses:
+In a **file** it says where, in the form every compiler uses, and shows the
+line with a caret under what it is about:
 
     report.adash:12:7: Total is not declared here
+    put_line (Total'Image);
+              ^~~~~
 
 A file a script read in names *itself*, so a mistake in a module is reported
 where it was written rather than where it was used. A line typed at the prompt

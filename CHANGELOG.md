@@ -1512,10 +1512,13 @@ what changed.
   is left as one, so running it reports the cycle. Diagnostics about what was
   read in name the file it was written in.
 
-- **A diagnostic about a file says where.** `report.adash:12:7: Total is not
-  declared here`, in the form every compiler writes: the position was in the
-  data all along and nothing printed it, so a script with a mistake on line
-  forty said what was wrong and left the reader to find it. A file a script
+- **A diagnostic about a file says where, and shows the line.**
+  `report.adash:12:7: Total is not declared here`, then the line itself with a
+  caret under what it is about, in the form every compiler writes: the position
+  was in the data all along and nothing printed it, so a script with a mistake
+  on line forty said what was wrong and left the reader to find it. The caret
+  is placed in terminal *cells*, so a line holding an accented or a wide
+  character still carries one that points at the right place. A file a script
   read in names itself and its own line. A line typed at a prompt gets no
   position -- it is on the screen already -- and neither does something with no
   place in the text: a file that could not be read, or a program that raised,

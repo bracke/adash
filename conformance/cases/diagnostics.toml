@@ -193,6 +193,10 @@ machine's own and only the shape can be pinned. It is written the way every comp
 path, line, column -- because that is what a person and an editor both already
 read.
 
+The line itself follows, with a caret under what the diagnostic is about --
+measured in terminal cells, so a line holding an accented or a wide character
+still carries a caret that points at the right place.
+
 Only where there is a position to give. A file that could not be read at all,
 and a program that raised, have none: what raised is a run rather than a place,
 and a position in front of it would point at the first byte of a file that is
@@ -206,4 +210,6 @@ exit_status = 2
 output = []
 diagnostics = [
   "!line.diagnostic_at{path={root}/conformance/fixtures/modules/misspelt.adash,line=6,column=11,text=!error.name_undeclared{name=Nowhere_At_All}!}!",
+  "put_line (Nowhere_At_All);",
+  "          ^~~~~~~~~~~~~~",
 ]

@@ -2,6 +2,8 @@ private with Ada.Containers.Vectors;
 
 with Adash.Errors;
 with Adash.Messages;
+private with Ada.Strings.Unbounded;
+
 with Adash.Source;
 
 --  What went wrong, as data a consumer can render, log, sort or assert on.
@@ -178,6 +180,34 @@ package Adash.Diagnostics is
    --  @return Where its source came from.
    function Origin (Item : Diagnostic) return Adash.Source.Origin;
 
+   --  The line the diagnostic is about, as it was written.
+   --
+   --  Carried rather than looked up: what a line *is* comes from the buffer
+   --  that was analysed, and by the time anything renders, the buffer is gone
+   --  and the file may have been edited. Empty when nothing filled it in.
+   --
+   --  Long lines are kept whole. A caret is placed by display width, so a
+   --  reader whose terminal is narrower than the line sees a wrapped line and
+   --  a caret that still lines up under it.
+   --
+   --  @param Item Diagnostic to inspect.
+   --  @return The line's text, without its terminator.
+   function Quoted_Line (Item : Diagnostic) return String;
+
+   --  A caret line to print under the quoted one.
+   --
+   --  Spaces to the column, then a caret, then a tilde for each further cell
+   --  the diagnostic covers on that line. Measured in *cells* rather than
+   --  bytes or characters, because what has to line up is what a terminal
+   --  draws: a line holding an accented character or a wide one would
+   --  otherwise carry a caret that points at the wrong place.
+   --
+   --  Empty when there is no quoted line to point into.
+   --
+   --  @param Item Diagnostic to inspect.
+   --  @return The caret line, without a terminator.
+   function Caret (Item : Diagnostic) return String;
+
    --  Where a reader would find it, as a line and a column.
    --
    --  Filled in where the buffer is known -- by the engine once a submission
@@ -282,7 +312,8 @@ package Adash.Diagnostics is
       Index  : Positive;
       Origin : Adash.Source.Origin;
       Extent : Adash.Source.Span;
-      Place  : Adash.Source.Location := (Line => 1, Column => 1));
+      Place  : Adash.Source.Location := (Line => 1, Column => 1);
+      Quote  : String := "");
 
    --  How many diagnostics of a given severity the list holds.
    --
@@ -338,6 +369,9 @@ private
       --  computed from it: what turns a byte offset into a line is the buffer,
       --  and the buffer is gone by the time anything renders.
       Place          : Adash.Source.Location := (Line => 1, Column => 1);
+
+      --  The line it is about, as written. See Quoted_Line.
+      Quote          : Ada.Strings.Unbounded.Unbounded_String;
 
       Detail         : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
       Fills          : Adash.Messages.Placeholder_Name := [others => ' '];

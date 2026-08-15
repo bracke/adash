@@ -400,15 +400,24 @@ package body Adash.Scripting is
       --  from a buffer rather than by counting newlines here: a column is in
       --  characters and this language is UTF-8, and Adash.Source already knows
       --  that.
-      function Place_In
-        (What : String; Offset : Natural) return Adash.Source.Location;
+      procedure Place_In
+        (What   : String;
+         Offset : Natural;
+         Place  : out Adash.Source.Location;
+         Quote  : out Unbounded_String);
 
-      function Place_In
-        (What : String; Offset : Natural) return Adash.Source.Location
+      procedure Place_In
+        (What   : String;
+         Offset : Natural;
+         Place  : out Adash.Source.Location;
+         Quote  : out Unbounded_String)
       is
          Buffer : Adash.Source.Buffer;
          Error  : Adash.Errors.Error_Info;
       begin
+         Place := (Line => 1, Column => 1);
+         Quote := Null_Unbounded_String;
+
          if Offset < 1
            or else not Adash.Source.Load
                          (Buffer,
@@ -416,11 +425,13 @@ package body Adash.Scripting is
                             (Adash.Source.Origin_File, Path),
                           What, Error)
          then
-            return (Line => 1, Column => 1);
+            return;
          end if;
 
-         return Adash.Source.Where_Is
-                  (Buffer, Adash.Source.Byte_Offset (Offset));
+         Place := Adash.Source.Where_Is
+                    (Buffer, Adash.Source.Byte_Offset (Offset));
+         Quote := To_Unbounded_String
+                    (Adash.Source.Line_Text (Buffer, Place.Line));
       end Place_In;
    begin
       if Regions.Is_Empty then
@@ -448,17 +459,26 @@ package body Adash.Scripting is
                for Region of Regions loop
                   if Here >= Region.First and then Here <= Region.Last then
                      --  Inside a module: its own file, at its own offset.
-                     D.Locate
-                       (Report, Index,
-                        Adash.Source.Make_Origin
-                          (Adash.Source.Origin_File, To_String (Region.From)),
-                        (First => Adash.Source.Byte_Offset
-                                    (Here - Region.First + 1),
-                         Last  => Adash.Source.Byte_Offset
-                                    (Integer (Extent.Last) - Integer (Carried)
-                                     - Region.First + 1)),
+                     declare
+                        Place : Adash.Source.Location;
+                        Quote : Unbounded_String;
+                     begin
                         Place_In (To_String (Region.Held),
-                                  Here - Region.First + 1));
+                                  Here - Region.First + 1, Place, Quote);
+
+                        D.Locate
+                          (Report, Index,
+                           Adash.Source.Make_Origin
+                             (Adash.Source.Origin_File,
+                              To_String (Region.From)),
+                           (First => Adash.Source.Byte_Offset
+                                       (Here - Region.First + 1),
+                            Last  => Adash.Source.Byte_Offset
+                                       (Integer (Extent.Last)
+                                        - Integer (Carried)
+                                        - Region.First + 1)),
+                           Place, To_String (Quote));
+                     end;
                      Moved := True;
                      exit;
 
@@ -470,13 +490,20 @@ package body Adash.Scripting is
                if not Moved and then Shift /= 0 then
                   --  After a module: the script's own text, moved back by what
                   --  the reading added before it.
-                  D.Locate
-                    (Report, Index, Mine,
-                     (First => Adash.Source.Byte_Offset (Here - Shift),
-                      Last  => Adash.Source.Byte_Offset
-                                 (Integer (Extent.Last) - Integer (Carried)
-                                  - Shift)),
-                     Place_In (Text, Here - Shift));
+                  declare
+                     Place : Adash.Source.Location;
+                     Quote : Unbounded_String;
+                  begin
+                     Place_In (Text, Here - Shift, Place, Quote);
+
+                     D.Locate
+                       (Report, Index, Mine,
+                        (First => Adash.Source.Byte_Offset (Here - Shift),
+                         Last  => Adash.Source.Byte_Offset
+                                    (Integer (Extent.Last) - Integer (Carried)
+                                     - Shift)),
+                        Place, To_String (Quote));
+                  end;
                end if;
             end if;
          end;

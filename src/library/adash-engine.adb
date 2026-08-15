@@ -987,9 +987,14 @@ package body Adash.Engine is
                if not Adash.Source.Is_Empty (Where)
                  and then D.Position (Item) = (Line => 1, Column => 1)
                then
-                  D.Locate
-                    (Report, Index, D.Origin (Item), Where,
-                     Adash.Source.Where_Is (Work.Buffer, Where.First));
+                  declare
+                     Place : constant Adash.Source.Location :=
+                       Adash.Source.Where_Is (Work.Buffer, Where.First);
+                  begin
+                     D.Locate
+                       (Report, Index, D.Origin (Item), Where, Place,
+                        Adash.Source.Line_Text (Work.Buffer, Place.Line));
+                  end;
                end if;
             end;
          end loop;
