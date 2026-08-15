@@ -653,3 +653,26 @@ script = "write_file (\"x\", \"{store}/s.txt\"); if Status = 0 then put_line (\"
 exit_status = 0
 output = ["saved"]
 diagnostics = []
+
+[[case]]
+id = "run.the-shell-can-run-the-shell"
+requirement = """
+`{shell}` is the binary under test, with whatever suffix the host puts on an
+executable -- `.exe` on Windows and nothing on the other two. Starting it as a
+child is the one case where the shell meets the same question a user does: a
+case that named `{root}/bin/adash` would be asking about a file that does not
+exist on one of the three hosts, and would fail there for a reason that has
+nothing to do with what it meant to assert.
+
+What comes back is what `--version` prints, through a pipe rather than a
+terminal, so it also says that the version report is an answer on standard
+output rather than something only a terminal sees.
+"""
+script = "run (\"{shell}\", \"--version\");\nquit (Status);"
+exit_status = 0
+output = [
+  "!version.line{version=0.1.0-dev}!",
+  "!version.build{profile=development,os={os},arch={arch}}!",
+  "!version.prerelease_notice!",
+]
+diagnostics = []

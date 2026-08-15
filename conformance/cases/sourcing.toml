@@ -354,3 +354,28 @@ script = "Where : String := \"{store}/late.adash\"; write_file (\"put_line (\"\"
 exit_status = 0
 output = ["late ran"]
 diagnostics = []
+
+[[case]]
+id = "scripting.a-file-a-windows-editor-wrote-runs"
+requirement = """
+Every line of `crlf.adash` ends CR LF, which is what a Windows editor writes.
+The shell reads it as it reads any other script: the carriage returns end lines
+and do not become part of them, so a string is not one character longer than it
+was typed and a comment does not swallow what follows it.
+
+The fixture is held at CR LF by `.gitattributes`, which holds the rest of this
+repository to LF, so this asserts the same thing on all three hosts rather than
+on whichever one's checkout happened to produce those bytes. That entry is
+there because a checkout that turned LF into CR LF once made 374 message keys
+missing from a catalog that had every one of them -- the same bytes, read the
+other way round.
+"""
+arguments = ["{root}/conformance/fixtures/crlf.adash"]
+exit_status = 0
+output = [
+  "a line that ends with a carriage return",
+  "hello, world",
+  "line 1",
+  "line 2",
+]
+diagnostics = []

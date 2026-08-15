@@ -1048,3 +1048,25 @@ script = "type Row is array (1 .. 2) of Integer; function Head (V : Row) return 
 exit_status = 0
 output = [" 5 8"]
 diagnostics = []
+
+[[case]]
+id = "strings.a-windows-path-is-a-plain-string"
+requirement = """
+An ordinary string literal is Ada's: a backslash is a backslash, so a Windows
+path can be written the way a Windows user writes it. Adash gives backslash a
+meaning only inside an interpolated string, where braces are the delimiters and
+something has to be able to escape them -- and there the same path needs its
+backslashes doubled.
+
+Both halves are here because either one alone is the trap. A reader who knows
+only the f-string rule doubles them everywhere and gets doubled paths; a reader
+who knows only the literal rule writes an f-string with one backslash before
+`Users` and loses the U to an escape.
+"""
+script = "put_line (\"C:\\Users\\bent\");\nDrive : String := \"C:\";\nput_line (f\"{Drive}\\\\Users\\\\bent\");\nquit (0);"
+exit_status = 0
+output = [
+  "C:\\Users\\bent",
+  "C:\\Users\\bent",
+]
+diagnostics = []

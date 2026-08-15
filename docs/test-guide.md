@@ -133,17 +133,41 @@ validated. **A case that needs a program names a companion**, `{emit}` or
 `{upcase}`, rather than a POSIX utility -- so capture, redirection and pipelines
 are checked on all three hosts rather than two.
 
-Four cases are gated to `["linux", "macos"]` and one to `["windows"]`, and
+Four cases are gated to `["linux", "macos"]` and two to `["windows"]`, and
 together they cover job control on every host. Windows has no process groups, so
 a job is not a thing that can be signalled as one: `stop`, `suspend` and
 `resume` each report that the system does not support job control and the job
-runs to completion. The other four assert the half that needs signals to exist.
-A capability the host lacks is what the key is for; a program it is missing is
-what the companions removed.
+runs to completion, and a job is still listed as running while it does. The
+other four assert the half that needs signals to exist. A capability the host
+lacks is what the key is for; a program it is missing is what the companions
+removed.
+
+**What is asserted *because* a host is Windows.** A gate keeps a case off a host
+that cannot hold it; the harder question is what nobody is checking there at
+all. So: a script whose every line ends CR LF runs, and a diagnostic about one
+gives the right line and column and quotes the line without the carriage return
+that ended it — the fixtures are pinned to CR LF in `.gitattributes`, which
+holds the rest of the repository to LF, so all three hosts assert it. A
+backslash in an ordinary string is a backslash, which is how a Windows path is
+written, and needs doubling only in an interpolated string. The shell runs the
+shell through `{shell}`, which carries whatever suffix the host puts on an
+executable. And where hostkit reports no signals, a unit case asserts that the
+shell does not believe it armed a disposition: installing succeeds, being
+installed does not, nothing is ever pending, and sending refuses.
 
 Four examples are skipped on Windows for a different reason again: an example is
 documentation and reads `Output_Of ("echo", ...)`, which a reader understands and
 that host does not have.
+
+What is still not asserted there is the interactive frontend. The six cases that
+drive the shell through a pseudo-terminal return without asserting where
+`Hostkit.Pty.Is_Supported` is False, which is Windows: its answer is the
+pseudo-console, `CreatePseudoConsole` and a pair of ordinary pipes, which is a
+different shape of API rather than the same one under another name, and hostkit
+does not implement it. Raw-mode editing, key decoding through a console and
+Ctrl-C are therefore exercised on two hosts of the three. Everything the
+frontend does that is not the console -- the buffer, the decoder, history,
+completion, the session loop over a pipe -- runs everywhere.
 
 Windows found five defects the day CI first ran there, and three of them were
 tests asserting POSIX rather than asserting the shell.

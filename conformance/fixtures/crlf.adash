@@ -1,0 +1,14 @@
+--  A script as a Windows editor writes one: every line ends CR LF.
+--
+--  Kept with those bytes on purpose -- see .gitattributes, which holds the
+--  rest of this repository to LF. A shell that reads a file only a Unix
+--  editor wrote is a shell nobody can write a script for on Windows.
+
+put_line ("a line that ends with a carriage return");
+
+Name : constant String := "world";
+put_line ("hello, " & Name);
+
+for Index in 1 .. 2 loop
+   put_line ("line" & Integer'Image (Index));
+end loop;

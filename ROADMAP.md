@@ -2839,6 +2839,42 @@ appending in the gap has its line overwritten by a rewrite that never saw it.
 This is the only operation on a history file that is not an append, which is
 why the gap had never mattered before.
 
+**Windows asserts more of what it does.** Gating keeps a case off a host that
+cannot hold it, and it is easy to mistake a full gate list for coverage: what
+matters is what nobody checks on that host at all.
+
+A script whose every line ends CR LF runs, and a diagnostic about one lands on
+the right line and column and quotes the line without the carriage return -- the
+fixtures are pinned to CR LF in `.gitattributes`, which holds everything else in
+the repository to LF, so the claim is made on all three hosts rather than on
+whichever checkout happened to produce those bytes. That entry exists because
+the opposite conversion once made 374 message keys missing from a catalog that
+had every one of them.
+
+A backslash in an ordinary string is a backslash, which is how a Windows path is
+written; it needs doubling only inside an interpolated string, where braces are
+delimiters and something must escape them. Both halves are asserted, because
+either rule alone is the trap.
+
+The shell runs the shell, named through `{shell}` so the executable suffix is
+the host's business. A job is listed as running by a host that cannot signal it,
+which is the half of `jobs` the signal-gated cases could not reach. And where
+hostkit reports no signals, the shell is asserted not to believe it armed one:
+installing succeeds -- there is nothing to install and nothing went wrong -- but
+`Is_Installed` stays False, nothing is ever pending, and sending refuses.
+"Arranged" and "not needed here" must not read alike, or a caller waits for a
+Ctrl-C that cannot arrive.
+
+What is still not asserted on that host is the interactive frontend. Six cases
+drive the shell through a pseudo-terminal and return without asserting where
+`Hostkit.Pty.Is_Supported` is False. Windows answers pseudo-terminals with the
+pseudo-console -- `CreatePseudoConsole` and a pair of ordinary pipes, attached
+to a child through a process-thread attribute rather than handed to it as its
+standard streams -- which is a different shape of API, not the same one renamed,
+and hostkit says so rather than implementing half of it. Raw-mode editing, key
+decoding and Ctrl-C are exercised on two hosts of the three; everything else the
+frontend does runs everywhere.
+
 **Configuration is still per-user.** Only history gained a per-session notion.
 
 **A subprogram declared on one line is callable on the next.** The session keeps

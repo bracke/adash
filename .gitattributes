@@ -11,3 +11,10 @@
 
 #  Recorded output of the examples: byte-for-byte what the shell printed.
 *.expected -text
+
+#  The two fixtures whose whole point is their line endings: a script as a
+#  Windows editor writes one. Held at CR LF everywhere, so the case that says a
+#  shell reads such a file is asserting that on every host rather than only on
+#  the one whose checkout happened to produce it.
+conformance/fixtures/crlf.adash -text
+conformance/fixtures/crlf-faulty.adash -text

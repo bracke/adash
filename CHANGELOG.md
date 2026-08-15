@@ -1577,6 +1577,31 @@ what changed.
   and the median near 890, so it is scheduling noise on the largest figure and
   not an operation that degrades as it repeats.
 
+- **Windows asserts more of what it does.** A gate keeps a case off a host that
+  cannot hold it; what nobody was checking on that host at all is the harder
+  question, and five things now are. A script whose every line ends CR LF runs,
+  and a diagnostic about one gives the right line and column and quotes the
+  line without the carriage return that ended it -- the two fixtures are pinned
+  to CR LF in `.gitattributes`, which holds the rest of the repository to LF,
+  so all three hosts assert it. A backslash in an ordinary string is a
+  backslash, which is how a Windows path is written, and needs doubling only in
+  an interpolated string. The shell runs the shell through `{shell}`, which
+  carries whatever suffix the host puts on an executable. A job is listed as
+  running by a host that cannot signal it, which is the half of `jobs` that the
+  signal-gated cases could not reach. And where hostkit reports no signals, a
+  unit case asserts the shell does not believe it armed a disposition:
+  installing succeeds, being installed does not, nothing is ever pending, and
+  sending refuses.
+
+  Three case requirements said "what Windows does instead is not asserted at
+  all yet" and described `stop` there as terminating the process. Both had
+  stopped being true: the Windows case asserts that `stop` refuses. Prose in a
+  test is a claim like any other.
+
+  Two cases still started `sleep`, a POSIX utility, where the rule this suite
+  states is that a case needing a program names a companion. They name
+  `{emit} --sleep=5` now.
+
 ### Fixed
 
 - **`already declared` named a line that was a byte offset.** The message said

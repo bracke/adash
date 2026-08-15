@@ -91,12 +91,12 @@ requirement = """
 A stopped job ends by signal, and says so rather than reporting an exit status
 it never chose.
 
-A job ending by signal is a POSIX thing to be. Windows has none: `stop` there
-opens the process and terminates it, and what comes back is an exit status
-nobody chose rather than a signal anybody sent. So this is asserted where
-signals exist, and what Windows does instead is not asserted at all yet --
-which is a gap named here rather than a case quietly passing for the wrong
-reason.
+A job ending by signal is a POSIX thing to be, and Windows has neither signals
+nor process groups: hostkit reports job control as absent there and `stop`
+refuses rather than reaching for something that would merely look like it
+worked. So this is asserted on the two hosts that have signals, and what Windows
+does instead is asserted by the two cases gated to it -- the three refusals, and
+a job listed while it runs and finishing on its own.
 """
 script = "start (\"{emit}\", \"--sleep=30\"); stop (1); wait (1);"
 exit_status = 0
@@ -164,12 +164,12 @@ enumeration literal `JOB_RUNNING`, which is what `jobs` printed for as long as
 with the catalog pointed at a path that does not exist -- and it appears as a
 message key, which is what shows that nothing turned it into text early.
 
-A job ending by signal is a POSIX thing to be. Windows has none: `stop` there
-opens the process and terminates it, and what comes back is an exit status
-nobody chose rather than a signal anybody sent. So this is asserted where
-signals exist, and what Windows does instead is not asserted at all yet --
-which is a gap named here rather than a case quietly passing for the wrong
-reason.
+A job ending by signal is a POSIX thing to be, and Windows has neither signals
+nor process groups: hostkit reports job control as absent there and `stop`
+refuses rather than reaching for something that would merely look like it
+worked. So this is asserted on the two hosts that have signals, and what Windows
+does instead is asserted by the two cases gated to it -- the three refusals, and
+a job listed while it runs and finishing on its own.
 """
 script = "start (\"{emit}\", \"--sleep=30\"); jobs; stop (1); wait (1); quit (0);"
 exit_status = 0
@@ -190,15 +190,15 @@ was complete and tested and nothing called it -- and nothing could have used it
 if it had, because nothing in the shell could stop a job and the pipeline layer
 could not see a stopped one.
 
-A job ending by signal is a POSIX thing to be. Windows has none: `stop` there
-opens the process and terminates it, and what comes back is an exit status
-nobody chose rather than a signal anybody sent. So this is asserted where
-signals exist, and what Windows does instead is not asserted at all yet --
-which is a gap named here rather than a case quietly passing for the wrong
-reason.
+A job ending by signal is a POSIX thing to be, and Windows has neither signals
+nor process groups: hostkit reports job control as absent there and `stop`
+refuses rather than reaching for something that would merely look like it
+worked. So this is asserted on the two hosts that have signals, and what Windows
+does instead is asserted by the two cases gated to it -- the three refusals, and
+a job listed while it runs and finishing on its own.
 """
 script = """
-start ("sleep", "5");
+start ("{emit}", "--sleep=5");
 suspend (1);
 jobs;
 resume (1);
@@ -208,11 +208,11 @@ wait (1);
 quit (0);"""
 exit_status = 0
 output = [
-  "!line.job_started{id=1,what=sleep 5}!",
-  "!line.job{job=1,description=sleep 5,state=!job.state.stopped!}!",
-  "!line.job{job=1,description=sleep 5,state=!job.state.stopped!}!",
-  "!line.job{job=1,description=sleep 5,state=!job.state.running!}!",
-  "!line.job{job=1,description=sleep 5,state=!job.state.running!}!",
+  "!line.job_started{id=1,what={emit} --sleep=5}!",
+  "!line.job{job=1,description={emit} --sleep=5,state=!job.state.stopped!}!",
+  "!line.job{job=1,description={emit} --sleep=5,state=!job.state.stopped!}!",
+  "!line.job{job=1,description={emit} --sleep=5,state=!job.state.running!}!",
+  "!line.job{job=1,description={emit} --sleep=5,state=!job.state.running!}!",
   "!line.job_signalled{id=1,signal=!signal.terminate!}!",
 ]
 diagnostics = []
@@ -227,15 +227,15 @@ stopped. The host reports a stop once, so a blocking wait afterwards has no
 event left to return and never comes back -- which is what this did the first
 time a job could be suspended at all.
 
-A job ending by signal is a POSIX thing to be. Windows has none: `stop` there
-opens the process and terminates it, and what comes back is an exit status
-nobody chose rather than a signal anybody sent. So this is asserted where
-signals exist, and what Windows does instead is not asserted at all yet --
-which is a gap named here rather than a case quietly passing for the wrong
-reason.
+A job ending by signal is a POSIX thing to be, and Windows has neither signals
+nor process groups: hostkit reports job control as absent there and `stop`
+refuses rather than reaching for something that would merely look like it
+worked. So this is asserted on the two hosts that have signals, and what Windows
+does instead is asserted by the two cases gated to it -- the three refusals, and
+a job listed while it runs and finishing on its own.
 """
 script = """
-start ("sleep", "5");
+start ("{emit}", "--sleep=5");
 suspend (1);
 wait (1);
 resume (1);
@@ -244,9 +244,9 @@ wait (1);
 quit (0);"""
 exit_status = 0
 output = [
-  "!line.job_started{id=1,what=sleep 5}!",
-  "!line.job{job=1,description=sleep 5,state=!job.state.stopped!}!",
-  "!line.job{job=1,description=sleep 5,state=!job.state.running!}!",
+  "!line.job_started{id=1,what={emit} --sleep=5}!",
+  "!line.job{job=1,description={emit} --sleep=5,state=!job.state.stopped!}!",
+  "!line.job{job=1,description={emit} --sleep=5,state=!job.state.running!}!",
   "!line.job_signalled{id=1,signal=!signal.terminate!}!",
 ]
 diagnostics = [
@@ -254,3 +254,26 @@ diagnostics = [
 ]
 
 platforms = ["linux", "macos"]
+
+[[case]]
+id = "jobs.a-running-job-is-listed-where-there-is-no-job-control"
+requirement = """
+The other half of what Windows does. `jobs.state-is-said-in-words` asserts that
+a job's state reaches the user as words from the catalog rather than as the
+enumeration literal `JOB_RUNNING`, and it is gated to the hosts with signals
+because it ends by stopping the job. A host without job control can still say
+what is running: the state comes from the job table rather than from a signal.
+
+So the same claim is made here for the host that has to reach it the other way
+-- listed as running, then finishing on its own, because nothing there can stop
+it.
+"""
+script = "start (\"{emit}\", \"--sleep=1\"); jobs; wait (1); quit (0);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what={emit} --sleep=1}!",
+  "!line.job{job=1,description={emit} --sleep=1,state=!job.state.running!}!",
+  "!line.job_finished{id=1,status=0}!",
+]
+diagnostics = []
+platforms = ["windows"]

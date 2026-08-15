@@ -1,0 +1,5 @@
+--  The same, with a mistake on line five: a diagnostic about a file a
+--  Windows editor wrote has to point at the right line and quote it without
+--  the carriage return that ends it.
+
+put_line (Missing);

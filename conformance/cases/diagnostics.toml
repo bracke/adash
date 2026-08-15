@@ -273,3 +273,22 @@ diagnostics = [
   "                      ^~~~~~",
   "!line.diagnostic_at{path={root}/conformance/fixtures/modules/twice-given.adash,line=6,column=15,text=!note.first_here!}!",
 ]
+
+[[case]]
+id = "diagnostics.a-place-in-a-file-a-windows-editor-wrote"
+requirement = """
+A position counts lines, and a line that ends CR LF must count as one line and
+not as one line plus a stray character. The mistake is on line five of
+`crlf-faulty.adash`, at column eleven, and the quoted line under the diagnostic
+must come back without the carriage return that ended it: a terminal given one
+returns the cursor to the start of the line, which would draw the caret over
+the quote instead of under it.
+"""
+arguments = ["{root}/conformance/fixtures/crlf-faulty.adash"]
+exit_status = 2
+output = []
+diagnostics = [
+  "!line.diagnostic_at{path={root}/conformance/fixtures/crlf-faulty.adash,line=5,column=11,text=!error.name_undeclared{name=Missing}!}!",
+  "put_line (Missing);",
+  "          ^~~~~~~",
+]

@@ -79,11 +79,12 @@ test, with whatever suffix the host puts on one — a case that named
 `{root}/bin/adash` was asking about a file that does not exist on Windows.
 
 **`platforms` restricts a case** to the hosts it can hold on — `["linux",
-"macos"]`, say. Five cases use it, and together they cover job control on every
-host: four assert the half that needs signals to exist, and the fifth asserts
-what Windows does instead, where `stop`, `suspend` and `resume` report that the
-system does not support job control and the job runs to completion. That is a
-capability the host does not have, which is what the key is for.
+"macos"]`, say. Six cases use it, and together they cover job control on every
+host: four assert the half that needs signals to exist, and two assert what
+Windows does instead — `stop`, `suspend` and `resume` reporting that the system
+does not support job control while the job runs to completion, and a job listed
+as running by a host that cannot signal it. That is a capability the host does
+not have, which is what the key is for.
 
 It is not for a case that merely needs a *program*: name `{emit}` or `{upcase}`
 and it runs everywhere. **A gated case is a case one host of the three never

@@ -766,6 +766,56 @@ package body Adash_Tests.Execution_Cases is
 
    ------------------------------------------------------------------
 
+   --  The other host's half of the same question, asserted where the first one
+   --  cannot run at all. On Windows hostkit reports every signal unsupported --
+   --  deliberately, because SetConsoleCtrlHandler is a different mechanism and
+   --  no process there asks another to stop in a way it may decline -- and what
+   --  matters then is that the shell does not believe it armed anything.
+   procedure An_Interrupt_Is_Declined_Where_The_Host_Has_None
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Taken : constant Adash.Errors.Error_Info :=
+        Adash.Execution.Signals.Install;
+   begin
+      if Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
+         --  A host that has them. The test above is the one that applies, and
+         --  sending an interrupt to this process to prove the negative here
+         --  would end the suite.
+         return;
+      end if;
+
+      --  Installing is not a failure. There is nothing to install and nothing
+      --  went wrong, and a start-up that refused to run on a host without
+      --  signals would be a shell that does not run on Windows at all.
+      Assert (not Adash.Errors.Is_Failure (Taken),
+              "installing dispositions failed on a host that has none");
+
+      --  But it is not in force either, and that is the distinction the flag
+      --  exists for: "arranged" and "not needed here" must not read alike, or
+      --  a caller will wait for a Ctrl-C that can never arrive.
+      Assert (not Adash.Execution.Signals.Is_Installed,
+              "the shell believed it had armed dispositions this host has not");
+
+      Assert (not Adash.Platform.Is_Available (Adash.Platform.Capability_Signals),
+              "the platform claimed signals on a host where hostkit has none");
+
+      --  Nothing is ever pending, and sending refuses rather than reporting a
+      --  success nobody can act on.
+      Assert (not Adash.Execution.Signals.Interrupt_Pending,
+              "an interrupt was pending on a host that cannot deliver one");
+
+      Assert (not Hostkit.Signals.Send_To_Process
+                    (Hostkit.Host.Own_Process_Id,
+                     Hostkit.Signals.Signal_Interrupt),
+              "sending a signal reported success on a host without signals");
+
+      Assert (not Adash.Execution.Signals.Interrupt_Pending,
+              "a refused send left an interrupt pending");
+   end An_Interrupt_Is_Declined_Where_The_Host_Has_None;
+
+   ------------------------------------------------------------------
+
    procedure The_Shell_Can_Read_Its_Own_Input
      (Test : in out AUnit.Test_Cases.Test_Case'Class)
    is
@@ -878,6 +928,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, An_Interrupt_Is_Recorded_Not_Discarded'Access,
          "execution : an interrupt is recorded rather than discarded");
+      Register_Routine
+        (T, An_Interrupt_Is_Declined_Where_The_Host_Has_None'Access,
+         "execution : a host without signals is not believed to have them");
    end Register_Tests;
 
 end Adash_Tests.Execution_Cases;
