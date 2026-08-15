@@ -678,31 +678,27 @@ output = [
 diagnostics = []
 
 [[case]]
-id = "run.a-file-the-loader-does-not-start-is-refused"
+id = "run.a-batch-file-runs-where-the-host-starts-one"
 requirement = """
-Windows counts a `.bat` an executable and its process loader will not start
-one: a batch file is read by the command interpreter, which this shell does not
-invoke. So a name that the host would call a program can still be a name
-nothing here can run.
+Windows starts a batch file when it is named: the host runs the command
+interpreter for it, which is a fact about the host rather than a language this
+shell has adopted. So `run ("thing.bat")` runs it, and its exit status is the
+status of the run.
 
-What matters is that it is *refused*, and that the session goes on -- the shell
-reports it, `Status` says so, and the next submission runs. Which diagnostic
-the host produces is left unasserted on purpose: it is the host's word for a
-failed process creation, and pinning it here would be pinning a Windows error
-code into a case about the shell's behaviour.
-
-Completion is the other half of the same fact and is asserted where it lives:
-Tab offers only what the loader starts, so this is a name a user has to write
-out to reach.
+This case exists because the opposite was written down first, from reading how
+process creation works rather than from watching it: completion was made to
+leave batch files out, and a case gated to this host said the shell had run one
+perfectly well. What is asserted here is what the host does; what completion
+offers follows from it.
 """
 script = """
 write_file ("@echo off", "{store}/batch.bat");
 run ("{store}/batch.bat");
-if Status = 0 then
+if Status /= 0 then
    quit (3);
 end if;
-put_line ("still here");
+put_line ("ran it");
 quit (0);"""
 exit_status = 0
-output = ["still here"]
+output = ["ran it"]
 platforms = ["windows"]

@@ -79,11 +79,12 @@ environment would offer the programs of a path it no longer uses.
 a name written without one — Windows appends `.exe` — the offer leaves it off,
 because `git` is the program's name there as much as here.
 
-**And only what this shell could start.** Windows counts a `.bat`, a `.cmd`, a
-`.ps1` and an `.msi` executables; its process loader starts none of them, and
-Adash invokes no interpreter to help. Offering one would be offering a name
-that fails when it is run — and the failure would read as being about the
-program rather than about the shell.
+**And only what this shell could start.** Windows counts a `.ps1` and an `.msi`
+executables and starts neither from a name — one is read by another shell, the
+other by the installer — so neither is offered: a name that fails when it is
+run reads as a broken program rather than as a shell that suggested it. A
+`.bat` and a `.cmd` *are* offered, because that host runs the command
+interpreter for them itself.
 
 **Case is folded here as it is everywhere else in the list.** `QU` completes to
 `quit` because the language does not care, and `GI` completes to `git` for the

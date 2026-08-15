@@ -1680,15 +1680,18 @@ what changed.
   `Hostkit.Fs.Executable_Suffix` is new for that, and is deliberately not the
   whole of PATHEXT.
 
-  And only what this shell could start. Windows calls a `.bat`, a `.cmd`, a
-  `.ps1` and an `.msi` executables and its loader starts none of them; Adash
-  invokes no interpreter, so offering one would be offering a name that fails
-  when it is run, and the failure would read as being about the program.
-  `Hostkit.Fs.Starts_Without_An_Interpreter` is the narrower question --
-  the same answer as `Is_Executable` on POSIX, where the kernel starts what
-  has the bit set -- and a conformance case gated to Windows says what the
-  shell does with a batch file named in full: it refuses it, says so, and goes
-  on.
+  And only what this shell could start. Windows calls a `.ps1` and an `.msi`
+  executables and starts neither from a name, so offering one would be offering
+  a name that fails when it is run -- and the failure would read as being about
+  the program. `Hostkit.Fs.Starts_When_Named` is that narrower question, the
+  same answer as `Is_Executable` on POSIX where the kernel starts what has the
+  bit set.
+
+  A `.bat` is offered, because that host does start one: it runs the command
+  interpreter for it itself. This was written down the other way round first,
+  from reading how process creation works rather than from watching it, and a
+  conformance case gated to that host reported the shell running a batch file
+  perfectly well. The case stays, asserting what the host does.
 
   Case is folded, as it is everywhere else in the list: the prefix is handed
   over as the class of each letter's two cases, so `GI` completes to `git` on a

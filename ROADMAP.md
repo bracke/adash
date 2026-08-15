@@ -2972,15 +2972,20 @@ handful of calls rather than thousands. `adash_bench` has a row for it now,
 which is also what says a cache is not needed: three milliseconds is not a
 figure worth a second copy of the truth.
 
-Only what the shell could start is offered. Windows calls a `.bat`, a `.cmd`, a
-`.ps1` and an `.msi` executables, and its process loader starts none of them --
-each needs something else run first, and Adash invokes nothing. A completion
-that offered one would be offering a name that fails when it is run, and the
-failure would read as being about the program rather than about the shell.
-`Hostkit.Fs.Starts_Without_An_Interpreter` is that narrower question, kept
-apart from `Is_Executable` because both are true facts about a file and a
-consumer needs to say which it is asking. What the shell does with such a file
-named in full is a case of its own, gated to the host that has them.
+Only what the shell could start is offered. Windows calls a `.ps1` and an `.msi`
+executables and starts neither from a name -- one is read by another shell, the
+other by the installer -- so a completion offering one would be offering a name
+that fails when it is run, and the failure would read as being about the
+program rather than about the shell. `Hostkit.Fs.Starts_When_Named` is that
+narrower question, kept apart from `Is_Executable` because both are true facts
+about a file and a consumer has to say which it means.
+
+A `.bat` and a `.cmd` are offered, because that host starts them: it runs the
+command interpreter for them itself. This was written down the other way round
+first -- from reading how process creation works rather than from watching it
+-- and the case gated to that host reported the shell having run a batch file
+perfectly well. Reading a manual is not the same as asking the machine, and the
+case is what asked.
 
 What is offered is the name a user would type. Windows supplies `.exe` for a
 name written without one -- which is why `run ("git")` starts `git.exe` there --
