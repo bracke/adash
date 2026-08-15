@@ -162,17 +162,22 @@ documentation and reads `Output_Of ("echo", ...)`, which a reader understands an
 that host does not have.
 
 The interactive frontend is asserted there too now. hostkit grew a
-pseudo-console body, so the six terminal cases run on Windows: a whole session,
+pseudo-console body, so seven terminal cases run on Windows: a whole session,
 Tab completing a word, Up recalling a line, Up *not* recalling a line typed with
-a space in front of it, and backspace removing something. Two things stay off
-that host, each for a reason the host names rather than a gap: Ctrl-C, because
-`Hostkit.Signals.Is_Supported` is False there and a keystroke cannot become a
-signal; and the *accented* half of the backspace case, because a console host
-turns what arrives into key events and re-encodes them for the client, so
-writing two UTF-8 bytes at it is not typing that character. The shell was asked
-about the second: after such a line it goes on answering, so what is missing is
-the keystroke rather than the editor. That the editor steps by characters and
-not by bytes is asserted on every host by the buffer and decoder cases.
+a space in front of it, backspace removing something, and **Ctrl-C at the
+prompt** abandoning the line being typed so that the next one runs.
+
+Two things stay off that host. **Ctrl-C while a program is running**: typed into
+the pseudo-console it does not reach the client as an interrupt, and the loop
+under test was still going thirty seconds later. That was found by letting the
+host try, on the reading that a console can report a Ctrl-C even where there
+are no signals -- it can, and not to a client in the middle of something. And
+the **accented** half of the backspace case, because a console host turns what
+arrives into key events and re-encodes them, so writing two UTF-8 bytes at it is
+not typing that character. The shell was asked about that one: after such a line
+it goes on answering, so what is missing is the keystroke rather than the
+editor. That the editor steps by characters and not by bytes is asserted on
+every host by the buffer and decoder cases.
 
 Windows found five defects the day CI first ran there, and three of them were
 tests asserting POSIX rather than asserting the shell.

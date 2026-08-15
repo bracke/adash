@@ -1828,6 +1828,50 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after an edited line");
    end Backspace_Removes_A_Character_Through_A_Terminal;
 
+   --  Ctrl-C at the prompt abandons the line and leaves the session standing,
+   --  through the terminal.
+   --
+   --  The half of an interrupt that is the *editor's* rather than the host's:
+   --  the byte arrives as a keystroke, the line being typed is dropped, and
+   --  the next prompt is a fresh one. No signal is needed for that, which is
+   --  why this runs on every host that can give a child a terminal -- and on
+   --  the one where an interrupt cannot stop a running loop, this is what
+   --  Ctrl-C does do.
+   procedure An_Interrupt_At_The_Prompt_Abandons_The_Line
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+      Ctrl_C     : constant String := [1 => Character'Val (3)];
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      --  A line that would say something if it ever ran.
+      Type_Into (Session, "put_line (To_Upper (""abandoned""))");
+      Type_Into (Session, Ctrl_C);
+
+      --  And then a line that does run. If the first had survived the
+      --  interrupt, the two would be one line and neither would run.
+      Type_Into (Session, "put_line (To_Upper (""after""));" & Return_Key);
+
+      Assert (Waited_For (Session, "AFTER", Tries => 600),
+              "the session did not answer after an interrupt at the prompt: ["
+              & Plainly (Session) & "]");
+
+      Assert (Times_Seen (Session, "ABANDONED") = 0,
+              "the line the interrupt abandoned ran anyway: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after an abandoned line");
+   end An_Interrupt_At_The_Prompt_Abandons_The_Line;
+
    --  Ctrl-C stops a program of the shell's own and leaves the session
    --  standing, through the terminal.
    --
@@ -1848,16 +1892,17 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      if not Hostkit.Signals.Can_Record (Hostkit.Signals.Signal_Interrupt) then
-         --  A host that cannot tell a program the user asked to interrupt.
-         --  Asked as Can_Record rather than as Is_Supported, which is the
-         --  narrower question and the one this is about: Windows has no
-         --  signals -- nothing to number, send or give a disposition to -- and
-         --  its console can still say that Ctrl-C was typed. That is enough
-         --  for a shell, and Hostkit.Pty.Attach has already arranged whatever
-         --  this host needs for a keystroke to reach the child: a session and
-         --  a controlling terminal where there are sessions, a console where
-         --  there is a console.
+      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
+         --  A host where a keystroke does not become an interrupt while a
+         --  program is running.
+         --
+         --  This was tried the other way round, asking Can_Record -- Windows
+         --  has no signals and its console can still report a Ctrl-C, which
+         --  sounded like enough. It is not: typed into the pseudo-console
+         --  while the shell was running a loop, the byte did not reach the
+         --  shell as an interrupt and the loop was still going thirty seconds
+         --  later. What that host does with Ctrl-C *at the prompt* is the case
+         --  below, which does run there.
          return;
       end if;
 
@@ -1957,6 +2002,8 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine
         (T, Backspace_Removes_A_Character_Through_A_Terminal'Access,
          "backspace removes a character through a terminal");
+      Register_Routine (T, An_Interrupt_At_The_Prompt_Abandons_The_Line'Access,
+                        "Ctrl-C at the prompt abandons the line");
       Register_Routine (T, An_Interrupt_Stops_A_Loop_Through_A_Terminal'Access,
                         "an interrupt stops a loop through a terminal");
       Register_Routine (T, A_Session_Answers_Through_A_Terminal'Access,

@@ -2905,9 +2905,16 @@ process-wide. Saying the *child's* three handles are nothing -- which is what
 STARTF_USESTDHANDLES is for -- stops the copy without touching the parent at
 all. A caveat removed rather than documented.
 
-Two things stay off that host, each named by the host rather than left as a
-gap. Ctrl-C, because there are no signals there and a keystroke cannot become
-one. And the accented half of the backspace case: a console host turns what
+Two things stay off that host. Ctrl-C **while a program is running**: hostkit
+separates "has signals" from "can report an arrival", and Windows is the second
+without the first, so this was tried there on the reading that a console
+reporting a Ctrl-C is all a shell needs. It is not. Typed into the pseudo-console
+while the shell ran a loop, the byte never reached it as an interrupt and the
+loop was still going thirty seconds later. What Ctrl-C does there is asserted
+where it does something: at the prompt, abandoning the line being typed, which
+is the editor's half and needs no signal at all.
+
+And the accented half of the backspace case: a console host turns what
 arrives into key events and re-encodes them for the client, so writing two
 UTF-8 bytes at it is not typing that character. The shell was asked about that
 one -- after such a line it goes on answering -- so what is missing is the
