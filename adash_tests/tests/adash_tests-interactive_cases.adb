@@ -1548,11 +1548,28 @@ package body Adash_Tests.Interactive_Cases is
          return;
       end if;
 
-      Type_Into (Session, "put_line (To_Upper (""ok" & Accented);
-      Type_Into (Session, String'(1 => Character'Val (16#7F#)));
+      --  First that backspace removes anything at all, in ASCII, so that a
+      --  failure below is about the character and not about the key. The
+      --  editor reads both DEL and BS as backspace; BS is what a console host
+      --  sends, DEL is what a line discipline sends, and typing BS is the one
+      --  that means the same thing to both.
+      Type_Into (Session, "put_line (To_Upper (""okz");
+      Type_Into (Session, String'(1 => Character'Val (16#08#)));
       Type_Into (Session, """));" & String'(1 => Character'Val (13)));
 
       Assert (Waited_For (Session, "OK"),
+              "backspace removed nothing at all: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+
+      --  Then the character. Two bytes, one character: an editor stepping by
+      --  bytes leaves half of it, the line is no longer UTF-8, and the shell
+      --  reports that rather than answering -- which is what asking for an
+      --  answer only a whole deletion can produce asserts the absence of.
+      Type_Into (Session, "put_line (To_Upper (""fine" & Accented);
+      Type_Into (Session, String'(1 => Character'Val (16#08#)));
+      Type_Into (Session, """));" & String'(1 => Character'Val (13)));
+
+      Assert (Waited_For (Session, "FINE"),
               "backspace did not remove the whole character: ["
               & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
 
