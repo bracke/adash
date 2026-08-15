@@ -1152,6 +1152,24 @@ package body Adash_Tests.Interactive_Cases is
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
 
+   --  Type one character, however this host's terminal takes one.
+   --
+   --  A pseudo-terminal carries bytes: the character's UTF-8 goes in as it
+   --  stands. A pseudo-console does not -- it asks the terminal for keys in
+   --  *win32-input-mode*, which is what the `ESC [ ? 9001 h` it writes on
+   --  attaching means, and what arrives outside that encoding is turned into
+   --  key events and re-encoded on the way to the client. So a character that
+   --  is not ASCII has to be sent as the key event it would be: virtual key
+   --  and scan code nothing, the code point itself, down and then up.
+   --
+   --  @param Item The session.
+   --  @param Text The character, as its UTF-8 bytes.
+   --  @param Code_Point What it is, for the host that wants the number.
+   procedure Type_Character
+     (Item       : in out Terminal_Session;
+      Text       : String;
+      Code_Point : Natural);
+
    --  Take whatever the terminal has to give right now, without waiting.
    --
    --  @param Item The session.
@@ -1241,6 +1259,34 @@ package body Adash_Tests.Interactive_Cases is
 
       return True;
    end Start_On_A_Terminal;
+
+   procedure Type_Character
+     (Item       : in out Terminal_Session;
+      Text       : String;
+      Code_Point : Natural)
+   is
+      function Number (Value : Natural) return String
+      is (Ada.Strings.Fixed.Trim (Natural'Image (Value), Ada.Strings.Both));
+
+      Escape : constant String := [1 => Character'Val (27)];
+   begin
+      --  Asked of the console rather than of the device side, which the
+      --  parent gives up as soon as the child has it: by the time anything is
+      --  typed there is no device here to ask about, and a pair that has a
+      --  console has it for as long as the session does.
+      if not Hostkit.Spawn.Is_Attached (Item.Pair.Console) then
+         Type_Into (Item, Text);
+         return;
+      end if;
+
+      --  ESC [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _ -- nothing for the keys a
+      --  keyboard would have pressed, the code point for what it produced,
+      --  once down and once up.
+      Type_Into
+        (Item,
+         Escape & "[0;0;" & Number (Code_Point) & ";1;0;1_"
+         & Escape & "[0;0;" & Number (Code_Point) & ";0;0;1_");
+   end Type_Character;
 
    procedure Type_Into (Item : in out Terminal_Session; Text : String) is
       use type Hostkit.Descriptors.Transfer_Outcome;
@@ -1814,15 +1860,18 @@ package body Adash_Tests.Interactive_Cases is
       --  it goes on answering, so what is missing is the keystroke and not the
       --  editor. The editor's own answer -- that a character is not a byte --
       --  is asserted on every host by the buffer and decoder cases above.
-      if Hostkit.Descriptors.Is_Valid (Session.Pair.Device) then
-         Type_Into (Session, "put_line (To_Upper (""fine" & Accented);
-         Type_Into (Session, String'(1 => Character'Val (16#08#)));
-         Type_Into (Session, """));" & String'(1 => Character'Val (13)));
+      Type_Into (Session, "put_line (To_Upper (""fine");
 
-         Assert (Waited_For (Session, "FINE"),
-                 "backspace did not remove the whole character: ["
-                 & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
-      end if;
+      --  The character itself, however this terminal takes one: two bytes on
+      --  a host that carries bytes, a key event on a host that carries keys.
+      Type_Character (Session, Accented, 16#E9#);
+
+      Type_Into (Session, String'(1 => Character'Val (16#08#)));
+      Type_Into (Session, """));" & String'(1 => Character'Val (13)));
+
+      Assert (Waited_For (Session, "FINE"),
+              "backspace did not remove the whole character: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
 
       Finish (Session, Ended);
       Assert (Ended, "the shell did not end after an edited line");
