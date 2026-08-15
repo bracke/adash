@@ -45,6 +45,7 @@ row-to-row *shape* from this and not the last digit.
 | lower and run | 6.1 us | 5.9 us |
 | highlight (per keystroke) | 12.8 us | 12.7 us |
 | complete a command prefix | 24.3 us | 24.1 us |
+| complete a program name | 3147.7 us | 2761.9 us |
 | encode a history entry | 0.7 us | 0.7 us |
 | parse a configuration file | 12.4 us | 11.4 us |
 | open an engine session | 112.3 us | 104.4 us |
@@ -61,6 +62,20 @@ At under a millisecond nobody typing will notice, and a script pays it once per
 submission rather than once per line. It is the obvious first thing to look at
 if the pipeline ever needs to be faster, and the obvious first place to look
 inside it is resolution, which asks each candidate about each argument.
+
+### The one that walks the search path
+
+Completing a *program* name is the only thing here that leaves the process's own
+memory for anything but a single file, and it is worth the row it takes. The
+first version listed every directory on the path and matched the names itself:
+58 milliseconds, which is a pause a user feels on every Tab. Handing the prefix
+to the host as the search pattern -- so the directory is filtered where it is
+read -- brought it to about 3, and asking whether a file can be run only for the
+names that already matched keeps the calls to a handful rather than thousands.
+
+Three milliseconds is not nothing, and it is the figure to watch if the path
+ever grows a directory on a network filesystem. It is also the number that says
+a cache is not needed yet, which is the useful thing to have measured.
 
 ### What the last refresh found
 

@@ -562,6 +562,7 @@ package body Adash.Messages is
          when Msg_Start_Reason_Stream_Setup => return "start.reason.stream_setup";
          when Msg_Completion_Keyword         => return "completion.keyword";
          when Msg_Completion_Path            => return "completion.path";
+         when Msg_Completion_Program         => return "completion.program";
          when Msg_Prompt_Primary             => return "prompt.primary";
          when Msg_Prompt_Continuation        => return "prompt.continuation";
          when Msg_Prompt_Failed              => return "prompt.failed";
@@ -914,6 +915,7 @@ package body Adash.Messages is
             return [1 => N ("source")];
 
          when Msg_Completion_Keyword | Msg_Completion_Path
+            | Msg_Completion_Program
             | Msg_Prompt_Primary | Msg_Prompt_Continuation
             | Msg_Prompt_Failed
             | Msg_Interactive_Line_Editing_Unavailable

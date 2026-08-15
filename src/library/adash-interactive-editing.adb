@@ -738,6 +738,7 @@ package body Adash.Interactive.Editing is
       Prompt_Width : Natural;
       Recall       : Adash.Interactive.History.Log;
       Allow_Editing : Boolean := True;
+      Search_Path  : String := "";
       Into         : out String;
       Last         : out Natural) return Read_Outcome
    is
@@ -981,7 +982,7 @@ package body Adash.Interactive.Editing is
          Candidates : constant Adash.Interactive.Completion.Candidate_List :=
            Adash.Interactive.Completion.Complete
              (Adash.Interactive.Completion.Make_Request
-                (Text, Positive (Line.Cursor + 1)));
+                (Text, Positive (Line.Cursor + 1), Search_Path));
 
          Ignored : Boolean;
 

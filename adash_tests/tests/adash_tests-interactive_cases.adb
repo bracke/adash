@@ -1,7 +1,9 @@
 with Ada.Directories;
 with Ada.Strings.Fixed;
+with Ada.Text_IO;
 with Hostkit;
 with Hostkit.Descriptors;
+with Hostkit.Fs;
 with Hostkit.Pty;
 with Hostkit.Signals;
 with Hostkit.Spawn;
@@ -95,6 +97,8 @@ package body Adash_Tests.Interactive_Cases is
    procedure Completion_Is_Ordered_And_Deterministic
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Completion_Prefix_Is_Never_A_Guess
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Completion_Offers_Programs_Where_One_Is_Named
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Highlighting_Covers_Unparsable_Input
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
@@ -720,6 +724,114 @@ package body Adash_Tests.Interactive_Cases is
               "the first candidate came from "
               & Comp.Source_Kind'Image (Comp.Source (First.Element (1))));
    end Completion_Is_Ordered_And_Deterministic;
+
+   ---------------------------------------------------
+   -- Completion_Offers_Programs_Where_One_Is_Named --
+   ---------------------------------------------------
+
+   --  A program name is offered inside the string that says which program to
+   --  run, and nowhere else.
+   --
+   --  The search path is given rather than read from this process, so the test
+   --  says what is on it: the directory this suite's own binaries are in,
+   --  which certainly holds programs that can be run, and a directory of its
+   --  own holding a file that cannot.
+   procedure Completion_Offers_Programs_Where_One_Is_Named
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      Room : constant String :=
+        Hostkit.Fs.Create_Temporary_Directory ("adash-completion-test");
+
+      Binaries : constant String := Hostkit.Fs.Own_Executable_Directory;
+
+      Path : constant String :=
+        Binaries & Hostkit.Fs.Search_Path_Delimiter & Room;
+
+      --  A companion this crate ships, so it is there on every host -- with
+      --  whatever suffix the host puts on an executable, which is why what is
+      --  asserted is that a candidate *begins* with the name.
+      Runnable : constant String := "adash_test_emit";
+
+      --  And a file that is not a program, in a directory of its own.
+      Plain : constant String := "zzplainfile.txt";
+
+      function Offers_Starting_With
+        (Item : Comp.Candidate_List; Text : String) return Boolean;
+
+      function Offers_Starting_With
+        (Item : Comp.Candidate_List; Text : String) return Boolean is
+      begin
+         for Index in 1 .. Item.Count loop
+            declare
+               Insertion : constant String :=
+                 Comp.Insertion (Item.Element (Index));
+            begin
+               if Insertion'Length >= Text'Length
+                 and then Insertion
+                            (Insertion'First
+                             .. Insertion'First + Text'Length - 1) = Text
+               then
+                  return True;
+               end if;
+            end;
+         end loop;
+
+         return False;
+      end Offers_Starting_With;
+   begin
+      declare
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create
+           (File, Ada.Text_IO.Out_File, Hostkit.Fs.Join (Room, Plain));
+         Ada.Text_IO.Put_Line (File, "not a program");
+         Ada.Text_IO.Close (File);
+      end;
+
+      declare
+         --  Inside the string that names the program.
+         Named : constant Comp.Candidate_List :=
+           Comp.Complete
+             (Comp.Make_Request ("run (""adash_test_", 16, Path));
+
+         --  The same prefix where a program name means nothing.
+         Bare : constant Comp.Candidate_List :=
+           Comp.Complete (Comp.Make_Request ("adash_test_", 12, Path));
+
+         --  A string argument that is not a program: `set` takes NAME=VALUE.
+         Elsewhere : constant Comp.Candidate_List :=
+           Comp.Complete
+             (Comp.Make_Request ("set (""adash_test_", 16, Path));
+
+         --  And the file that cannot be run.
+         Unrunnable : constant Comp.Candidate_List :=
+           Comp.Complete (Comp.Make_Request ("run (""zzplain", 13, Path));
+      begin
+         Assert (Offers_Starting_With (Named, Runnable),
+                 "a program on the search path was not offered where one is "
+                 & "named");
+
+         --  Nothing but programs there. A command name or a keyword inside a
+         --  string is not something a user could have meant.
+         for Index in 1 .. Named.Count loop
+            Assert (Comp.Source (Named.Element (Index)) = Comp.From_Program,
+                    "a candidate inside a program string came from "
+                    & Comp.Source_Kind'Image
+                        (Comp.Source (Named.Element (Index))));
+         end loop;
+
+         Assert (not Offers_Starting_With (Bare, Runnable),
+                 "a program was offered where a name in the language belongs");
+         Assert (not Offers_Starting_With (Elsewhere, Runnable),
+                 "a program was offered for a string that is not one");
+         Assert (not Offers_Starting_With (Unrunnable, "zzplain"),
+                 "a file that cannot be run was offered as a program");
+      end;
+
+      Ada.Directories.Delete_Tree (Room);
+   end Completion_Offers_Programs_Where_One_Is_Named;
 
    ------------------------------------------------
    -- Completion_Prefix_Is_Never_A_Guess --
@@ -1785,6 +1897,8 @@ package body Adash_Tests.Interactive_Cases is
                         "a full queue drops advisories before job news");
       Register_Routine (T, Completion_Is_Ordered_And_Deterministic'Access,
                         "completion is deterministic and ordered by source");
+      Register_Routine (T, Completion_Offers_Programs_Where_One_Is_Named'Access,
+                        "programs are offered where a program is named");
       Register_Routine (T, Completion_Prefix_Is_Never_A_Guess'Access,
                         "the common prefix is shared by every candidate");
       Register_Routine (T, Highlighting_Covers_Unparsable_Input'Access,

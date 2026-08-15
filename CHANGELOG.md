@@ -1656,6 +1656,24 @@ what changed.
   An unused mechanism is one nobody would notice going wrong.
   `persistence-formats.md` says what would use it first.
 
+- **Tab completes the name of a program to run.** Inside the string that says
+  which program -- `run ("gi`, `start (`, `pipe (`, `Output_Of (`, and the
+  file-taking forms at their second argument -- the search path is walked and
+  what could be run is offered. Nothing else is offered there: a command name
+  or a keyword inside a string is not something anybody could have meant, and
+  until now that is exactly what a Tab there produced.
+
+  The path is the session's own, threaded from the engine rather than read from
+  this process's environment: `set ("PATH=...")` changes what a child is
+  started with, so it changes what Tab offers.
+
+  The host does the matching. Listing every directory on the path and filtering
+  the names here cost 58 milliseconds a Tab -- a pause a user feels -- and
+  handing the prefix over as the search pattern brought it to about three, with
+  the question "can this be run" asked only of the names that already matched.
+  `adash_bench` has a row for it, because it is the one completion that leaves
+  this process's memory.
+
 ### Fixed
 
 - **The history file stopped being written once the log was full.** The session

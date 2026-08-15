@@ -513,6 +513,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `tooling.bench.what.run` | lower and run |
 | `tooling.bench.what.highlight` | highlight (per keystroke) |
 | `tooling.bench.what.complete` | complete a command prefix |
+| `tooling.bench.what.complete_program` | complete a program name |
 | `tooling.bench.what.history` | encode a history entry |
 | `tooling.bench.what.config` | parse a configuration file |
 | `tooling.bench.what.session` | open an engine session |

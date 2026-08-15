@@ -307,11 +307,17 @@ package Adash.Interactive.Editing is
    --  @param Into The line as typed, without its terminator.
    --  @param Last Index of the last byte written into Into.
    --  @return How the line ended.
+   --  @param Search_Path Where Tab looks for programs, as the host writes a
+   --         search path. The session's own rather than this process's: `set
+   --         ("PATH=...")` changes what a child is started with, and a
+   --         completion that read its own environment would offer the programs
+   --         of a path the shell no longer uses. "" offers none.
    function Read_Line
      (Prompt       : String;
       Prompt_Width : Natural;
       Recall       : Adash.Interactive.History.Log;
       Allow_Editing : Boolean := True;
+      Search_Path  : String := "";
       Into         : out String;
       Last         : out Natural) return Read_Outcome;
 

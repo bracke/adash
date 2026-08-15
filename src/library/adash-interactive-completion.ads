@@ -43,6 +43,15 @@ package Adash.Interactive.Completion is
       --  A reserved word of the language.
       From_Keyword,
 
+      --  A program on the search path, for the argument that names one.
+      --
+      --  Offered only inside the string that says which program to run --
+      --  `run ("gi` and the like -- because that is the only place a program
+      --  name means anything. Elsewhere the shell's own vocabulary is what a
+      --  user is reaching for, and a list of every executable on the machine
+      --  would bury it.
+      From_Program,
+
       --  A file or directory.
       From_Path);
 
@@ -54,6 +63,15 @@ package Adash.Interactive.Completion is
       --  Where the cursor is, as a byte offset from one. A cursor past the end
       --  of the line means completing at the end, which is the usual case.
       Cursor : Positive := 1;
+
+      --  Where to look for programs, as the host writes a search path.
+      --
+      --  Passed in rather than read here, because the session's PATH is not
+      --  this process's: `set ("PATH=...")` changes what a child is started
+      --  with, and completion that read its own environment would offer the
+      --  programs of a path the shell no longer uses. Empty means offer none,
+      --  which is what a caller that has no session to ask gets.
+      Search_Path : Adash.Messages.Argument;
    end record;
 
    --  One thing the user could mean.
@@ -125,8 +143,12 @@ package Adash.Interactive.Completion is
    --
    --  @param Line The line as typed.
    --  @param Cursor Byte offset of the cursor, from one.
+   --  @param Search_Path Where to look for programs; "" to offer none.
    --  @return The request.
-   function Make_Request (Line : String; Cursor : Positive) return Request;
+   function Make_Request
+     (Line        : String;
+      Cursor      : Positive;
+      Search_Path : String := "") return Request;
 
 private
 

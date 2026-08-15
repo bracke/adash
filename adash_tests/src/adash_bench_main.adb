@@ -8,6 +8,7 @@ with Adash.Configuration.Files;
 with Adash.Diagnostics;
 with Adash.Engine;
 with Adash.Errors;
+with Adash.Execution.Environment;
 with Adash.Interactive.Completion;
 with Adash.Interactive.Highlighting;
 with Adash.Language.Evaluation;
@@ -326,6 +327,30 @@ begin
 
       pragma Assert (Candidates.Count >= 0);
       Report ("complete", Samples);
+   end;
+
+   --  And completion where a program is named, which is the one that walks the
+   --  search path: every directory on it is listed, and the host is asked
+   --  whether a file can be run only for the names the prefix already matched.
+   --  That ordering is the whole reason this is worth measuring -- a Tab that
+   --  asked about every file on the path would be a pause a user feels.
+   declare
+      Candidates : Adash.Interactive.Completion.Candidate_List;
+
+      Path : constant String :=
+        Adash.Execution.Environment.Value
+          (Adash.Execution.Environment.Inherited, "PATH");
+   begin
+      for Index in 1 .. Repetitions loop
+         Started := RT.Clock;
+         Candidates := Adash.Interactive.Completion.Complete
+           (Adash.Interactive.Completion.Make_Request
+              ("run (""ada", 10, Path));
+         Samples (Index) := RT.Clock - Started;
+      end loop;
+
+      pragma Assert (Candidates.Count >= 0);
+      Report ("complete_program", Samples);
    end;
 
    --  Encoding a history entry happens once per accepted line, and goes

@@ -2945,6 +2945,33 @@ file there should find that already established. The likeliest first user is an
 index of the programs on `PATH`, for completing a command name without walking
 every directory on every Tab -- which is a feature this shell does not have.
 
+**Tab completes the name of a program to run.** Inside the string that names
+one -- and only there. A program name means nothing outside it, and a list of
+every executable on the machine offered at a bare prompt would bury the shell's
+own vocabulary; inside it, the shell's vocabulary is what means nothing, and
+until now a Tab there offered keywords.
+
+Which argument names a program is a short table rather than a reading of the
+command registry, which says a parameter is a String without saying that the
+String is a program: `set ("PATH=...")` takes one too. Where the cursor is
+inside a string, and inside which call's argument, is read from the line by
+counting quotes, parentheses and commas -- not parsed, because a half-typed
+line is exactly the input a parser reports as broken when what is wanted is a
+prefix.
+
+The path is the session's own, threaded from the engine through the editor:
+`set ("PATH=...")` changes what a child is started with, so it must change what
+Tab offers.
+
+**And the host does the matching.** The first version listed every directory on
+the path and filtered the names here: 58 milliseconds per Tab, which is a pause
+a user feels. Handing the prefix over as the search pattern -- the directory
+filtered where it is read -- brought it to about three, and asking whether a
+file can be run only for names that already matched keeps that question to a
+handful of calls rather than thousands. `adash_bench` has a row for it now,
+which is also what says a cache is not needed: three milliseconds is not a
+figure worth a second copy of the truth.
+
 **Configuration is still per-user.** Only history gained a per-session notion.
 
 **A subprogram declared on one line is callable on the next.** The session keeps

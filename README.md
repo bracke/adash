@@ -194,7 +194,8 @@ What the shell has: `cd`, `pwd`, `set`, `unset`, `env`, `quit`, `version`,
 through `start`, `jobs`, `wait`,
 `stop`, `suspend` and `resume`; `settings` and `save_settings` for its own
 configuration — every one of them working, none registered-but-missing.
-Line editing with completion and highlighting, history that survives the
+Line editing with completion — of commands, keywords, paths, and of programs on
+the search path where one is named — and highlighting, history that survives the
 session and leaves out a line typed with a space in front of it, TOML
 configuration, cancellation with Ctrl-C, and a conformance suite that runs the
 built binary from the outside.

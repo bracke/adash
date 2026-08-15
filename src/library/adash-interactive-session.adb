@@ -8,6 +8,7 @@ with Adash.Diagnostics;
 with Adash.Engine;
 with Adash.Errors;
 with Adash.Execution;
+with Adash.Execution.Environment;
 with Adash.Execution.Signals;
 with Adash.Interactive.Editing;
 with Adash.Interactive.History;
@@ -984,6 +985,14 @@ package body Adash.Interactive.Session is
                  Prompt_Width => Prompt_Width (Asking),
                  Recall       => Recall,
                  Allow_Editing => Editing_Allowed,
+
+                 --  The session's PATH, not this process's: `set
+                 --  ("PATH=...")` changes what a child is started with, and
+                 --  Tab has to offer the programs of the path that would run
+                 --  them.
+                 Search_Path  =>
+                   Adash.Execution.Environment.Value
+                     (Adash.Engine.Environment (Shell), "PATH"),
                  Into         => Typed,
                  Last         => Last);
 

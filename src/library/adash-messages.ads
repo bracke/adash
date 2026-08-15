@@ -438,6 +438,7 @@ package Adash.Messages is
       --  Completion.
       Msg_Completion_Keyword,
       Msg_Completion_Path,
+      Msg_Completion_Program,
 
       --  The prompt.
       Msg_Prompt_Primary,

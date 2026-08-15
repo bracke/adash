@@ -1,6 +1,8 @@
 with Ada.Directories;
 
 with Adash.Commands;
+with Hostkit.Fs;
+
 with Adash.Language.Lexer;
 with Adash.Language.Symbols;
 with Adash.Language.Tokens;
@@ -18,10 +20,14 @@ package body Adash.Interactive.Completion is
    -- Make_Request --
    --------------------
 
-   function Make_Request (Line : String; Cursor : Positive) return Request is
+   function Make_Request
+     (Line        : String;
+      Cursor      : Positive;
+      Search_Path : String := "") return Request is
    begin
-      return (Line   => M.Named ("line", Line),
-              Cursor => Cursor);
+      return (Line        => M.Named ("line", Line),
+              Cursor      => Cursor,
+              Search_Path => M.Named ("path", Search_Path));
    end Make_Request;
 
    ---------------
@@ -129,6 +135,133 @@ package body Adash.Interactive.Completion is
          return To_String (Result);
       end;
    end Common_Prefix;
+
+   --  Whether this callee takes a program name at this argument, folded as
+   --  the language folds a name.
+   --
+   --  Written out rather than derived from the command registry, which says a
+   --  parameter is a String without saying that the String is a program: `set
+   --  ("PATH=...")` takes one too and completing a program there would be
+   --  nonsense. The list is short because the shell has one way of running a
+   --  program and a handful of spellings for it.
+   --
+   --  @param Callee The name in front of the parenthesis, folded.
+   --  @param Argument Which argument the cursor is in, from one.
+   --  @return True when a program name belongs there.
+   function Runs_A_Program
+     (Callee : String; Argument : Positive) return Boolean
+   is (case Argument is
+          when 1 =>
+             Callee in "run" | "start" | "pipe" | "output_of" | "status_of",
+          when 2 =>
+             Callee in "run_into" | "run_append" | "run_new" | "run_from",
+          when others => False);
+
+   --  Whether the word starting here is inside the string that names a
+   --  program to run.
+   --
+   --  Two questions, both answered by reading the line rather than parsing it:
+   --  a half-typed line is exactly the input a parser reports as broken, and
+   --  what is wanted is a prefix.
+   --
+   --  Is the cursor inside a string at all -- counted by quotes, where a
+   --  doubled one inside a literal toggles twice and so leaves the count where
+   --  it was. And is that string the argument that names a program: the call
+   --  it belongs to is found by walking back to the parenthesis that is still
+   --  open, the name in front of that is the callee, and the commas between
+   --  say which argument this is.
+   --
+   --  @param Line The line as typed.
+   --  @param Word Where the word being completed starts.
+   --  @return True when a program name belongs there.
+   function Naming_A_Program (Line : String; Word : Natural) return Boolean;
+
+   function Naming_A_Program (Line : String; Word : Natural) return Boolean is
+      Inside : Boolean := False;
+      Depth  : Natural := 0;
+
+      --  Where the innermost call that is still open begins, and how many
+      --  commas have been passed inside it.
+      Opened : Natural := 0;
+      Commas : Natural := 0;
+
+      --  A stack would be the general answer; two levels is what a program
+      --  argument is ever written at -- `run ("x")` and `pipe (Output_Of
+      --  ("y"))` -- and the innermost open call is the only one this asks
+      --  about.
+      Marks : array (1 .. 16) of Natural := [others => 0];
+      Counts : array (1 .. 16) of Natural := [others => 0];
+   begin
+      if Word <= Line'First then
+         return False;
+      end if;
+
+      for Index in Line'First .. Natural'Min (Word - 1, Line'Last) loop
+         if Line (Index) = '"' then
+            Inside := not Inside;
+
+         elsif not Inside then
+            case Line (Index) is
+               when '(' =>
+                  Depth := Depth + 1;
+
+                  if Depth <= Marks'Last then
+                     Marks (Depth) := Index;
+                     Counts (Depth) := 0;
+                  end if;
+
+               when ')' =>
+                  if Depth > 0 then
+                     Depth := Depth - 1;
+                  end if;
+
+               when ',' =>
+                  if Depth in 1 .. Counts'Last then
+                     Counts (Depth) := Counts (Depth) + 1;
+                  end if;
+
+               when others =>
+                  null;
+            end case;
+         end if;
+      end loop;
+
+      --  Not in a string, so whatever is being typed is a name in the
+      --  language and not the text of an argument.
+      if not Inside or else Depth not in 1 .. Marks'Last then
+         return False;
+      end if;
+
+      Opened := Marks (Depth);
+      Commas := Counts (Depth);
+
+      --  The name in front of the parenthesis.
+      declare
+         Stop : Natural := Opened - 1;
+      begin
+         while Stop >= Line'First and then Line (Stop) = ' ' loop
+            Stop := Stop - 1;
+         end loop;
+
+         declare
+            Start : Natural := Stop;
+         begin
+            while Start > Line'First
+              and then Adash.Language.Lexer.Is_Identifier_Part (Line (Start - 1))
+            loop
+               Start := Start - 1;
+            end loop;
+
+            if Start > Stop then
+               return False;
+            end if;
+
+            return Runs_A_Program
+                     (Adash.Language.Symbols.Fold (Line (Start .. Stop)),
+                      Commas + 1);
+         end;
+      end;
+   end Naming_A_Program;
 
    --  The word the cursor is in or at the end of, and where it starts.
    procedure Word_At
@@ -242,6 +375,140 @@ package body Adash.Interactive.Completion is
             end if;
          end;
       end loop;
+
+      --  Programs, where the cursor is in the string that says which one to
+      --  run. Nowhere else: a program name means nothing outside that string,
+      --  and a list of every executable on the machine offered at a bare
+      --  prompt would bury the shell's own vocabulary.
+      if Naming_A_Program (Line, First) and then Prefix'Length > 0 then
+         declare
+            Path : constant String := M.Value (For_Request.Search_Path);
+
+            --  Collected and then sorted, because a directory listing comes
+            --  back in whatever order the filesystem holds it, and because the
+            --  same name in two directories on the path is one program to
+            --  offer rather than two.
+            Names : Candidate_Vectors.Vector;
+
+            function Already (Text : String) return Boolean;
+
+            function Already (Text : String) return Boolean is
+            begin
+               for Item of Names loop
+                  if To_String (Item.Insertion) = Text then
+                     return True;
+                  end if;
+               end loop;
+
+               return False;
+            end Already;
+
+            From : Natural := Path'First;
+         begin
+            while From <= Path'Last loop
+               declare
+                  Stop : Natural := From;
+               begin
+                  while Stop <= Path'Last
+                    and then Path (Stop) /= Hostkit.Fs.Search_Path_Delimiter
+                  loop
+                     Stop := Stop + 1;
+                  end loop;
+
+                  declare
+                     Directory : constant String := Path (From .. Stop - 1);
+
+                     Search : Ada.Directories.Search_Type;
+                     Found  : Ada.Directories.Directory_Entry_Type;
+                  begin
+                     if Directory /= ""
+                       and then Ada.Directories.Exists (Directory)
+                       and then Ada.Directories.Kind (Directory)
+                                = Ada.Directories.Directory
+                     then
+                        --  Asked of the host with the prefix in it, rather
+                        --  than listing the directory and matching here. A
+                        --  search path is ten directories of a few thousand
+                        --  files, and walking all of them per keystroke costs
+                        --  tens of milliseconds -- a pause a user feels on
+                        --  every Tab. The host answers the same question from
+                        --  its own index in a fraction of that.
+                        Ada.Directories.Start_Search
+                          (Search, Directory, Prefix & "*",
+                           [Ada.Directories.Ordinary_File => True,
+                            Ada.Directories.Directory     => False,
+                            Ada.Directories.Special_File  => False]);
+
+                        while Ada.Directories.More_Entries (Search) loop
+                           Ada.Directories.Get_Next_Entry (Search, Found);
+
+                           declare
+                              Simple : constant String :=
+                                Ada.Directories.Simple_Name (Found);
+                           begin
+                              --  The name is matched before the host is asked
+                              --  whether the file can be run. The question
+                              --  costs a call per file, and a directory of two
+                              --  thousand of them answered on every Tab is a
+                              --  pause a user feels; the prefix rules out
+                              --  nearly all of them for nothing.
+                              if Matches (Simple)
+                                and then not Already (Simple)
+                                and then Hostkit.Fs.Is_Executable
+                                           (Ada.Directories.Compose
+                                              (Directory, Simple))
+                              then
+                                 Names.Append
+                                   (Candidate'
+                                      (Insertion   => To_Unbounded_String (Simple),
+                                       Display     => To_Unbounded_String (Simple),
+                                       Source      => From_Program,
+                                       Replaces    =>
+                                         (First => Positive'Max (First, 1),
+                                          Last  => Last),
+                                       Description => M.Msg_Completion_Program,
+                                       Role        => Adash.Terminal.Role_Known_Name));
+                              end if;
+                           end;
+                        end loop;
+
+                        Ada.Directories.End_Search (Search);
+                     end if;
+                  exception
+                     when others =>
+                        --  A directory on the path that cannot be listed --
+                        --  removed, or not ours to read -- is one fewer place
+                        --  to look, not a failure of the whole answer.
+                        null;
+                  end;
+
+                  From := Stop + 1;
+               end;
+            end loop;
+
+            --  Insertion sort by insertion text, as the paths below: short
+            --  list, stable and total, so two runs agree.
+            for Outer in 2 .. Natural (Names.Length) loop
+               declare
+                  Current : constant Candidate := Names.Element (Outer);
+                  Inner   : Natural := Outer - 1;
+               begin
+                  while Inner >= 1
+                    and then Names.Element (Inner).Insertion > Current.Insertion
+                  loop
+                     Names.Replace_Element (Inner + 1, Names.Element (Inner));
+                     Inner := Inner - 1;
+                  end loop;
+
+                  Names.Replace_Element (Inner + 1, Current);
+               end;
+            end loop;
+
+            for Item of Names loop
+               Result.Items.Append (Item);
+            end loop;
+         end;
+      end if;
 
       --  Paths only when the prefix looks like one. Listing the working
       --  directory for every empty prefix would bury the shell's own

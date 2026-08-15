@@ -65,6 +65,16 @@ registries and the filesystem and never the analyser's scope, since a line under
 construction is exactly the input that must not be evaluated to find out what
 could follow it.
 
+**Tab inside the string that names a program offers programs.** `run ("gi` and
+`start ("gi`, `pipe (`, `Output_Of (`, and the file-taking forms at their second
+argument: the search path is walked, the host is asked which names match, and
+what comes back is what could be run. Nothing else is offered there — a command
+name or a keyword inside a string is not something anybody could have meant.
+
+The path is the session's own. `set ("PATH=…")` changes what a child is started
+with, so it changes what Tab offers; a completion that read the shell's own
+environment would offer the programs of a path it no longer uses.
+
 ## History
 
 **Up** and **Down** walk what was typed this session, most recent first. What is
