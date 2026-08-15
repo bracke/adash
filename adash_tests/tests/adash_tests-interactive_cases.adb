@@ -954,35 +954,32 @@ package body Adash_Tests.Interactive_Cases is
       Args    : Hostkit.String_Vectors.Vector;
    begin
       if not Hostkit.Pty.Is_Supported then
-         --  Windows has none, which Hostkit.Pty answers for. What the shell
-         --  does there is checked by the conformance suite, which needs no
-         --  terminal.
+         --  A host with neither pseudo-terminals nor a console of its own.
+         --  What the shell does there is checked by the conformance suite,
+         --  which needs no terminal.
          return False;
       end if;
 
       Assert (Hostkit.Pty.Open (Item.Pair), "could not open a pseudo-terminal");
 
-      --  Read without waiting, so that draining the terminal is something a
-      --  test can do between two other questions rather than a place it can
-      --  stop.
-      Assert (Hostkit.Descriptors.Set_Non_Blocking (Item.Pair.Controller, True),
-              "the terminal could not be read without waiting");
+      --  Read without waiting where the host can express it. Where it cannot
+      --  -- an anonymous pipe on Windows has no such mode -- the reads below
+      --  ask Wait_Readable first, which is the same question asked the other
+      --  way round. A refusal here is therefore not a failure.
+      declare
+         Ignored : constant Boolean :=
+           Hostkit.Descriptors.Set_Non_Blocking (Item.Pair.From_Child, True);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
 
-      Options.Input := Item.Pair.Device;
-      Options.Output := Item.Pair.Device;
-      Options.Error_Output := Item.Pair.Device;
-
-      --  A session of its own, with this terminal as the controlling one.
-      --  Without it the shell would be reading a terminal it does not control,
-      --  and a Ctrl-C typed here would reach nobody: the line discipline
-      --  signals the foreground group of the session that controls the
-      --  terminal. Where the host has no such thing -- Windows -- the shell is
-      --  started without it and the case that needs it says so.
-      if Hostkit.Spawn.Supports_Sessions then
-         Options.Controlling_Terminal := Item.Pair.Device;
-      end if;
-
-      Assert (Hostkit.Descriptors.Set_Inheritable (Item.Pair.Device, True),
+      --  The child's side, and the session and controlling terminal that turn
+      --  a keystroke into a signal where the host has them. Hostkit.Pty.Attach
+      --  is what knows which of those this host has: a pseudo-terminal is
+      --  three streams and a session, a pseudo-console is a console handed
+      --  over a different way entirely.
+      Assert (Hostkit.Pty.Attach (Item.Pair, Options),
               "the terminal end could not be handed to the child");
 
       Assert (Hostkit.Spawn.Start
@@ -990,9 +987,10 @@ package body Adash_Tests.Interactive_Cases is
               = Hostkit.Spawn.Spawn_Ok,
               "the shell would not start on a terminal");
 
-      --  The parent's copy of the child's end, closed so the shell owns its
-      --  terminal alone.
-      Hostkit.Descriptors.Close (Item.Pair.Device);
+      --  The parent's copy of the child's end, given up so the shell owns its
+      --  terminal alone. Nothing to give up where the host's answer is a
+      --  console, and asking is how this stays one program.
+      Hostkit.Pty.Close_Device (Item.Pair);
       Item.Started := True;
 
       --  Wait for the prompt before anything is typed. Until the shell has
@@ -1019,7 +1017,7 @@ package body Adash_Tests.Interactive_Cases is
 
       declare
          Sent : constant Hostkit.Descriptors.Transfer_Outcome :=
-           Hostkit.Descriptors.Write (Item.Pair.Controller, Data, Last);
+           Hostkit.Descriptors.Write (Item.Pair.To_Child, Data, Last);
 
          --  All of it, or the test is asserting about a line the shell never
          --  saw the whole of.
@@ -1049,7 +1047,7 @@ package body Adash_Tests.Interactive_Cases is
             Buffer : Ada.Streams.Stream_Element_Array (1 .. 4096);
             Last   : Ada.Streams.Stream_Element_Offset;
             Status : constant Hostkit.Descriptors.Transfer_Outcome :=
-              Hostkit.Descriptors.Read (Item.Pair.Controller, Buffer, Last);
+              Hostkit.Descriptors.Read (Item.Pair.From_Child, Buffer, Last);
          begin
             if Status = Hostkit.Descriptors.Transfer_End_Of_File then
                Alive := False;
@@ -1218,7 +1216,7 @@ package body Adash_Tests.Interactive_Cases is
          end;
       end if;
 
-      Hostkit.Descriptors.Close (Item.Pair.Controller);
+      Hostkit.Pty.Close (Item.Pair);
    end Finish;
 
    --  A whole session, through a pseudo-terminal.
@@ -1265,7 +1263,7 @@ package body Adash_Tests.Interactive_Cases is
               Ada.Streams.Stream_Element (Character'Pos (Item (Index)));
          end loop;
 
-         return Hostkit.Descriptors.Write (Pair.Controller, Data, Last)
+         return Hostkit.Descriptors.Write (Pair.To_Child, Data, Last)
                 = Hostkit.Descriptors.Transfer_Ok;
       end Wrote;
    begin
@@ -1281,14 +1279,15 @@ package body Adash_Tests.Interactive_Cases is
       --  Read without waiting, so that draining the terminal is something
       --  this test can do between two other questions rather than a place it
       --  can stop.
-      Assert (Hostkit.Descriptors.Set_Non_Blocking (Pair.Controller, True),
-              "the terminal could not be read without waiting");
+      declare
+         Ignored : constant Boolean :=
+           Hostkit.Descriptors.Set_Non_Blocking (Pair.From_Child, True);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
 
-      Options.Input := Pair.Device;
-      Options.Output := Pair.Device;
-      Options.Error_Output := Pair.Device;
-
-      Assert (Hostkit.Descriptors.Set_Inheritable (Pair.Device, True),
+      Assert (Hostkit.Pty.Attach (Pair, Options),
               "the terminal end could not be handed to the child");
 
       Assert (Hostkit.Spawn.Start (Shell_Under_Test, Args, Options, Child)
@@ -1297,7 +1296,7 @@ package body Adash_Tests.Interactive_Cases is
 
       --  The parent's copy of the child's end, closed so the shell owns its
       --  terminal alone.
-      Hostkit.Descriptors.Close (Pair.Device);
+      Hostkit.Pty.Close_Device (Pair);
 
       Assert (Wrote (Typed), "could not type into the terminal");
 
@@ -1306,7 +1305,7 @@ package body Adash_Tests.Interactive_Cases is
             Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
             Last   : Ada.Streams.Stream_Element_Offset;
             Status : constant Hostkit.Descriptors.Transfer_Outcome :=
-              Hostkit.Descriptors.Read (Pair.Controller, Buffer, Last);
+              Hostkit.Descriptors.Read (Pair.From_Child, Buffer, Last);
          begin
             if Status = Hostkit.Descriptors.Transfer_Ok then
                for Index in Buffer'First .. Last loop
@@ -1344,7 +1343,7 @@ package body Adash_Tests.Interactive_Cases is
             Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
             Last   : Ada.Streams.Stream_Element_Offset;
             Status : constant Hostkit.Descriptors.Transfer_Outcome :=
-              Hostkit.Descriptors.Read (Pair.Controller, Buffer, Last);
+              Hostkit.Descriptors.Read (Pair.From_Child, Buffer, Last);
          begin
             if Status = Hostkit.Descriptors.Transfer_Ok then
                for Index in Buffer'First .. Last loop
@@ -1363,7 +1362,7 @@ package body Adash_Tests.Interactive_Cases is
               & " after ["
               & Ada.Strings.Unbounded.To_String (Seen) & "]");
 
-      Hostkit.Descriptors.Close (Pair.Controller);
+      Hostkit.Pty.Close (Pair);
    end A_Session_Answers_Through_A_Terminal;
 
    --  Tab completes, through the terminal.
