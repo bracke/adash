@@ -1244,6 +1244,36 @@ package body Adash.Language.Semantics is
          end loop;
       end Possible_Types;
 
+      --  The one numeric type an open expression could have, or Type_None.
+      --
+      --  What a sign requires of what it is applied to when nothing requires
+      --  anything of the sign. `-F` where F names three subprograms and one of
+      --  them yields a number is that one; where two do, the sign says nothing
+      --  and the ordinary ambiguity is reported.
+      --
+      --  @param Node An expression.
+      --  @return Its one numeric reading, when it has exactly one.
+      function Only_Numeric (Node : S.Node_Id) return Types.Type_Kind;
+
+      function Only_Numeric (Node : S.Node_Id) return Types.Type_Kind is
+         Could  : Possible_List;
+         Many   : Natural := 0;
+         Answer : Types.Type_Kind := Types.Type_None;
+         Fits   : Natural := 0;
+      begin
+         Possible_Types (Node, Could, Many);
+
+         for Index in 1 .. Many loop
+            if Types.Is_Numeric (Could (Index)) and then Answer /= Could (Index)
+            then
+               Fits := Fits + 1;
+               Answer := Could (Index);
+            end if;
+         end loop;
+
+         return (if Fits = 1 then Answer else Types.Type_None);
+      end Only_Numeric;
+
       --  The one type two open expressions could both have, or Type_None.
       --
       --  @param Left One expression.
@@ -2733,12 +2763,32 @@ package body Adash.Language.Semantics is
 
                   --  `-X` and `abs X` have the type of what they are applied
                   --  to, so what the context requires of the whole is what it
-                  --  requires of the operand. `not` is Boolean either way.
+                  --  requires of the operand.
+                  --
+                  --  `not` is Boolean either way -- which is a statement about
+                  --  its *operand* as much as about its result, and requiring
+                  --  it is what settles a name several declarations could
+                  --  answer. Passing nothing down instead left `not F` unable
+                  --  to choose between the F that yields a Boolean and the
+                  --  ones that do not, in a place where only one of them can
+                  --  be meant.
+                  --
+                  --  A sign with nothing required of it says only that its
+                  --  operand is numeric, and that rules out the readings which
+                  --  are not: when one numeric reading is left, it is the one.
+                  Sign_Wants : constant Types.Type_Kind :=
+                    (if Op in S.Op_Plus | S.Op_Minus | S.Op_Abs
+                       and then Expected = Types.Type_None
+                     then Only_Numeric (S.First (Tree, Node))
+                     else Expected);
+
                   Operand : constant Types.Type_Kind :=
                     Analyse_Expression
                       (S.First (Tree, Node),
                        (if Op in S.Op_Plus | S.Op_Minus | S.Op_Abs
-                        then Expected else Types.Type_None));
+                        then Sign_Wants
+                        elsif Op = S.Op_Not then Types.Type_Boolean
+                        else Types.Type_None));
                   Result  : Types.Type_Kind := Types.Type_None;
                begin
                   case Op is
@@ -3437,10 +3487,17 @@ package body Adash.Language.Semantics is
                   --  operands are not, so requiring Boolean of them would
                   --  resolve them to the wrong thing rather than to nothing.
                   Wanted : constant Types.Type_Kind :=
-                    (if Op in S.Op_Multiply | S.Op_Divide | S.Op_Add
+                    (if Op in S.Op_And | S.Op_Or | S.Op_Xor | S.Op_And_Then
+                            | S.Op_Or_Else
+                     then
+                       --  Boolean on both sides, whatever the context says --
+                       --  and where it says nothing, this is what settles a
+                       --  name several declarations could answer. In this
+                       --  subset there is nothing else `and` applies to.
+                       Types.Type_Boolean
+                     elsif Op in S.Op_Multiply | S.Op_Divide | S.Op_Add
                             | S.Op_Subtract | S.Op_Mod | S.Op_Rem
-                            | S.Op_Power | S.Op_Concat | S.Op_And | S.Op_Or
-                            | S.Op_Xor | S.Op_And_Then | S.Op_Or_Else
+                            | S.Op_Power | S.Op_Concat
                      then Expected else Types.Type_None);
 
                   --  A comparison's operands have each other's type, even
@@ -4007,6 +4064,99 @@ package body Adash.Language.Semantics is
                               end if;
 
                               return Symbols.Of_Type (Pool (1));
+                           end;
+
+                        when S.Node_Qualified =>
+                           --  `Integer'(F)` says what it is whatever F could
+                           --  be. That is the whole point of writing one.
+                           return Named_Type (S.First (Tree, Inner));
+
+                        when S.Node_Membership =>
+                           --  Boolean in every reading that is legal at all.
+                           return Types.Type_Boolean;
+
+                        when S.Node_Unary_Operation =>
+                           declare
+                              Op : constant S.Operation :=
+                                S.Operator (Tree, Inner);
+
+                              Operand : constant Types.Type_Kind :=
+                                Settled_Value (S.First (Tree, Inner));
+                           begin
+                              case Op is
+                                 when S.Op_Not =>
+                                    return Types.Type_Boolean;
+
+                                 when S.Op_Plus | S.Op_Minus | S.Op_Abs =>
+                                    --  The operand's type is the whole's.
+                                    return (if Types.Is_Numeric (Operand)
+                                            then Operand else Types.Type_None);
+
+                                 when others =>
+                                    return Types.Type_None;
+                              end case;
+                           end;
+
+                        when S.Node_Binary_Operation =>
+                           --  What the operator yields, from whichever operand
+                           --  says what it is. The rules are the ones the
+                           --  analysis of a binary operation applies below,
+                           --  read the other way round: there it knows both
+                           --  operands and asks what the result is, and here it
+                           --  knows one and asks the same question of the
+                           --  readings that are legal at all.
+                           declare
+                              Op : constant S.Operation :=
+                                S.Operator (Tree, Inner);
+
+                              Left  : constant Types.Type_Kind :=
+                                Settled_Value (S.First (Tree, Inner));
+                              Right : constant Types.Type_Kind :=
+                                Settled_Value (S.Second (Tree, Inner));
+
+                              --  Either end will do. An operator whose result
+                              --  is its operands' type takes one type on both
+                              --  sides, so a settled end says what the other
+                              --  has to be as well as what the whole is.
+                              Known : constant Types.Type_Kind :=
+                                (if Left /= Types.Type_None then Left
+                                 else Right);
+                           begin
+                              case Op is
+                                 when S.Op_Multiply | S.Op_Divide | S.Op_Add
+                                    | S.Op_Subtract | S.Op_Power =>
+                                    return (if Types.Is_Numeric (Known)
+                                            then Known else Types.Type_None);
+
+                                 when S.Op_Mod | S.Op_Rem =>
+                                    return (if Known = Types.Type_Integer
+                                            then Types.Type_Integer
+                                            else Types.Type_None);
+
+                                 when S.Op_Concat =>
+                                    --  A String on either side makes the whole
+                                    --  a String. A settled *Character* does
+                                    --  not: with a String beside it the whole
+                                    --  is a String, and with another Character
+                                    --  it is nothing at all -- Ada refuses two
+                                    --  of them -- so one Character alone
+                                    --  answers nothing.
+                                    return (if Left = Types.Type_String
+                                              or else Right = Types.Type_String
+                                            then Types.Type_String
+                                            else Types.Type_None);
+
+                                 when S.Op_Equal | S.Op_Not_Equal | S.Op_Less
+                                    | S.Op_Less_Equal | S.Op_Greater
+                                    | S.Op_Greater_Equal | S.Op_And | S.Op_Or
+                                    | S.Op_Xor | S.Op_And_Then | S.Op_Or_Else =>
+                                    --  Boolean in every reading that is legal,
+                                    --  whatever the operands turn out to be.
+                                    return Types.Type_Boolean;
+
+                                 when others =>
+                                    return Types.Type_None;
+                              end case;
                            end;
 
                         when others =>

@@ -3175,11 +3175,18 @@ Ada and is refused here, by name, on purpose. None of it is pending work.
   the call's arguments -- as far down as they nest -- an argument that can only
   be one thing rules candidates out for the others beside it, whether it was
   written positionally or by name, and an operator's settled operand rules out
-  what its open one can be. Between two open ends with nothing required of
-  either, it asks which single type both could have. What it does not do is
-  enumerate a whole statement's interpretations the way Ada does; what is left
-  of the difference is the case where *every* end is open and more than one
-  reading survives, which Ada calls ambiguous as well.
+  what its open one can be. An argument that is an *expression* says what it is
+  too: what a concatenation, an arithmetic operator, a comparison, a logical
+  connective, a membership test or a qualified expression yields is known from
+  the parts of it that are settled, and that settles the call around it.
+  `not` requires a Boolean of what it negates and `and`, `or` and `xor` of both
+  their sides, which is what makes `not F` the F that yields one; a sign
+  requires a number, and where exactly one reading is numeric that is the one.
+  Between two open ends with nothing required of either, it asks which single
+  type both could have. What it does not do is enumerate a whole statement's
+  interpretations the way Ada does; what is left of the difference is the case
+  where *every* end is open and more than one reading survives, which Ada calls
+  ambiguous as well.
 - **Nothing at submission level can be named after a predefined entity or an
   internal command.** For a subprogram the reason is resolution: those accept
   any type, so a user's version would fit every call the original does and every

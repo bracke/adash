@@ -421,3 +421,67 @@ diagnostics = [
   "!error.ambiguous_call{name=F,count= 2}!",
   "!error.ambiguous_call{name=G,count= 2}!",
 ]
+
+[[case]]
+id = "overloading.an-operator-argument-settles-the-call"
+requirement = """
+An argument that is an expression rather than a name says what it is too. `F &
+"z"` can only be a String, whatever else F could be, so a call whose candidates
+differ in that position is settled by it -- and the F inside it is settled in
+turn, by the parameter the chosen candidate has there.
+
+Before this, only a literal or a name with one meaning counted as saying
+anything, so an operator expression left every candidate standing and the call
+was reported ambiguous with the answer written in front of it.
+"""
+script = "function A return Integer is begin return 1; end A;\nfunction A return String is begin return \"a\"; end A;\nprocedure Show (X : Integer; Y : Integer) is begin put_line (\"ints\"); end Show;\nprocedure Show (X : String; Y : String) is begin put_line (\"strings \" & X & Y); end Show;\nShow (A, A & \"z\");\nquit (0);"
+exit_status = 0
+output = ["strings aaz"]
+diagnostics = []
+
+[[case]]
+id = "overloading.not-requires-a-boolean-of-what-it-negates"
+requirement = """
+`not` yields a Boolean and takes one, and the second half is what settles a
+name several declarations could answer: `not F` is the F that yields a Boolean,
+because the others could not be negated at all.
+
+The same reading for `and`, `or` and `xor`, which take Boolean on both sides
+and nothing else in this subset. A sign is the numeric version of the same
+thing: `-F` is the F that yields a number, when exactly one of them does.
+"""
+script = "function A return Integer is begin return 2; end A;\nfunction A return String is begin return \"a\"; end A;\nfunction A return Boolean is begin return True; end A;\nput_line (Boolean'Image (not A));\nput_line (Boolean'Image (A and A));\nput_line (Integer'Image (-A));\nput_line (Integer'Image (abs A));\nquit (0);"
+exit_status = 0
+output = ["FALSE", "TRUE", "-2", " 2"]
+diagnostics = []
+
+[[case]]
+id = "overloading.a-qualified-argument-says-what-it-is"
+requirement = """
+`Integer'(F)` is the whole point of writing one: it says which F is meant where
+nothing else does. It counts as an argument that has settled, so the call
+around it is settled too.
+"""
+script = "function A return Integer is begin return 3; end A;\nfunction A return String is begin return \"a\"; end A;\nprocedure Show (X : Integer) is begin put_line (\"int\" & Integer'Image (X)); end Show;\nprocedure Show (X : String) is begin put_line (\"str \" & X); end Show;\nShow (Integer'(A));\nquit (0);"
+exit_status = 0
+output = ["int 3"]
+diagnostics = []
+
+[[case]]
+id = "overloading.two-open-ends-stay-ambiguous"
+requirement = """
+The other half of the same rule, and the reason it is a rule rather than a
+guess. `F = F` where F names three subprograms has three readings and Ada calls
+that ambiguous too: an operator settles an open operand from a *settled* one,
+and there is none here. Reported rather than chosen.
+"""
+script = "function A return Integer is begin return 1; end A;\nfunction A return String is begin return \"a\"; end A;\nput_line (Boolean'Image (A = A));\nquit (0);"
+
+# The submission that is refused is one of four; the session goes on and the
+# last of them decides what the shell exits with.
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.ambiguous_call{name=A,count= 2}!",
+  "!error.ambiguous_call{name=A,count= 2}!",
+]

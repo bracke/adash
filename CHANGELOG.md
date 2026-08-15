@@ -1620,6 +1620,22 @@ what changed.
   answering afterwards, so what is missing is the keystroke rather than the
   editor.
 
+- **An argument that is an expression settles the call it is in.** `Show (F, F
+  & "z")` reads the concatenation as the String it can only be, and the call
+  with it; before, only a literal or a name with one meaning counted as saying
+  anything, so an operator expression left every candidate standing and the
+  call was reported ambiguous with the answer written in front of it. The same
+  for what an arithmetic operator, a comparison, a logical connective, a
+  membership test and a qualified expression yield.
+
+  And in the other direction: **`not` requires a Boolean of what it negates**,
+  which is what makes `not F` the F that yields one -- the code passed nothing
+  down, on the reading that "`not` is Boolean either way" was a statement about
+  its result rather than about its operand. `and`, `or` and `xor` require
+  Boolean of both sides, there being nothing else they apply to here. A sign
+  requires a number, so `-F` and `abs F` are the F that yields one where
+  exactly one reading does.
+
 ### Fixed
 
 - **`already declared` named a line that was a byte offset.** The message said
@@ -1903,11 +1919,13 @@ imperfect.
 - **Overload resolution asks narrower questions than Ada's.** What the context
   requires flows down -- into a call and, through the candidates it rules out,
   into the call's arguments as far down as they nest -- an argument that can
-  only be one thing rules candidates out for the arguments beside it, and a
-  comparison settles one operand from the other. What it does not do is
-  enumerate a whole statement's interpretations, so two *open* arguments read
-  together, each admissible alone and only one pair admissible as a pair, is
-  ambiguous here.
+  only be one thing rules candidates out for the arguments beside it, an
+  argument that is an expression says what it yields, `not` and the logical
+  connectives require Booleans of their operands, a sign requires a number, and
+  a comparison settles one operand from the other. What it does not do is
+  enumerate a whole statement's interpretations, so a call where *every* end is
+  open and more than one reading survives is ambiguous here -- which Ada calls
+  ambiguous as well.
 - **A subprogram cannot be named after a predefined one or an internal
   command.** Those accept any type, so a user's version would fit every call the
   original does and every one would be ambiguous.
