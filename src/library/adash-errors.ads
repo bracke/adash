@@ -377,6 +377,12 @@ package Adash.Errors is
       --  for a build that has it.
       Error_No_History_Here,
 
+      --  `forget` took the lines out of the session and could not take them
+      --  out of the file. Distinct from Error_File_Write_Failed, which names
+      --  a file the user chose: this one is about the store's own, and what
+      --  matters is that the removal was half done.
+      Error_History_Not_Forgotten,
+
       --  `pipe_run` with nothing added. A pipeline of no stages would succeed
       --  and look like it had run something.
       Error_Empty_Pipeline,

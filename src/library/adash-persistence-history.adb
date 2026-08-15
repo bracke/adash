@@ -237,6 +237,57 @@ package body Adash.Persistence.History is
          Count := 0;
    end Abandoned_Session_Files;
 
+   -----------
+   -- Parse --
+   -----------
+
+   --  Turn a file's bytes into entries. Shared by Load and Forget, which are
+   --  the same reading of the same format and would otherwise be two.
+   procedure Parse (Raw : String; Into : out Log);
+
+   procedure Parse (Raw : String; Into : out Log) is
+      First : Natural := Raw'First;
+   begin
+      Into.Lines.Clear;
+      Into.Damaged := 0;
+
+      while First <= Raw'Last loop
+         declare
+            Stop : Natural := First;
+         begin
+            while Stop <= Raw'Last and then Raw (Stop) /= Newline loop
+               Stop := Stop + 1;
+            end loop;
+
+            declare
+               --  A trailing carriage return, from a file that has been
+               --  through a Windows editor. Dropped rather than made part
+               --  of the entry, where it would be invisible and would make
+               --  the line fail to parse.
+               Last : constant Natural :=
+                 (if Stop - 1 >= First
+                    and then Raw (Stop - 1) = Character'Val (16#0D#)
+                  then Stop - 2 else Stop - 1);
+               Value : Adash.Persistence.Contents;
+            begin
+               if Last >= First then
+                  if Decode (Raw (First .. Last), Value) then
+                     Into.Lines.Append (Value);
+                  else
+                     --  A truncated last line is the normal thing to find
+                     --  in a file appended to at the end of a session. It
+                     --  is counted rather than fatal: refusing the file
+                     --  over it would throw away everything the user did.
+                     Into.Damaged := Into.Damaged + 1;
+                  end if;
+               end if;
+            end;
+
+            First := Stop + 1;
+         end;
+      end loop;
+   end Parse;
+
    ----------
    -- Load --
    ----------
@@ -259,55 +310,16 @@ package body Adash.Persistence.History is
          return;
       end if;
 
-      declare
-         Raw   : constant String := To_String (Text);
-         First : Natural := Raw'First;
-      begin
-         while First <= Raw'Last loop
-            declare
-               Stop : Natural := First;
-            begin
-               while Stop <= Raw'Last and then Raw (Stop) /= Newline loop
-                  Stop := Stop + 1;
-               end loop;
+      Parse (To_String (Text), Into);
 
-               declare
-                  --  A trailing carriage return, from a file that has been
-                  --  through a Windows editor. Dropped rather than made part
-                  --  of the entry, where it would be invisible and would make
-                  --  the line fail to parse.
-                  Last : constant Natural :=
-                    (if Stop - 1 >= First
-                       and then Raw (Stop - 1) = Character'Val (16#0D#)
-                     then Stop - 2 else Stop - 1);
-                  Value : Adash.Persistence.Contents;
-               begin
-                  if Last >= First then
-                     if Decode (Raw (First .. Last), Value) then
-                        Into.Lines.Append (Value);
-                     else
-                        --  A truncated last line is the normal thing to find
-                        --  in a file appended to at the end of a session. It
-                        --  is counted rather than fatal: refusing the file
-                        --  over it would throw away everything the user did.
-                        Into.Damaged := Into.Damaged + 1;
-                     end if;
-                  end if;
-               end;
-
-               First := Stop + 1;
-            end;
-         end loop;
-
-         --  Only the most recent are kept, so a long file does not become a
-         --  long start-up. The rest were read and are dropped here rather than
-         --  never read: finding the tail of a file needs the whole file, and
-         --  seeking backwards through variable-length lines is a great deal of
-         --  machinery for a file measured in kilobytes.
-         while Natural (Into.Lines.Length) > Limit loop
-            Into.Lines.Delete_First;
-         end loop;
-      end;
+      --  Only the most recent are kept, so a long file does not become a long
+      --  start-up. The rest were read and are dropped here rather than never
+      --  read: finding the tail of a file needs the whole file, and seeking
+      --  backwards through variable-length lines is a great deal of machinery
+      --  for a file measured in kilobytes.
+      while Natural (Into.Lines.Length) > Limit loop
+         Into.Lines.Delete_First;
+      end loop;
    end Load;
 
    ------------
@@ -343,5 +355,83 @@ package body Adash.Persistence.History is
 
       Adash.Persistence.Write (Chosen, To_String (Text), Result);
    end Save;
+
+   ------------
+   -- Forget --
+   ------------
+
+   procedure Forget
+     (Lines     : in out Log;
+      Result    : out Adash.Persistence.Outcome;
+      From_File : String := "")
+   is
+      Chosen : constant String := (if From_File = "" then Path else From_File);
+
+      --  What is still to be forgotten when this file has been rewritten. Held
+      --  outside Drop because Drop runs under the store's lock and what it
+      --  learns has to outlive it.
+      Left : Log;
+
+      procedure Drop
+        (Text : in out Adash.Persistence.Contents; Changed : out Boolean);
+
+      procedure Drop
+        (Text : in out Adash.Persistence.Contents; Changed : out Boolean)
+      is
+         Held : Log;
+      begin
+         Changed := False;
+         Parse (To_String (Text), Held);
+
+         for Index in 1 .. Natural (Lines.Lines.Length) loop
+            declare
+               Wanted : constant Unbounded_String := Lines.Lines.Element (Index);
+               Found  : Natural := 0;
+            begin
+               --  The last occurrence, searched from the newest end: a line
+               --  the user has just typed is the most recent of however many
+               --  times it was ever typed, and an older identical line is a
+               --  different day's work that they did not ask about.
+               for Place in reverse 1 .. Natural (Held.Lines.Length) loop
+                  if Held.Lines.Element (Place) = Wanted then
+                     Found := Place;
+                     exit;
+                  end if;
+               end loop;
+
+               if Found = 0 then
+                  Left.Lines.Append (Wanted);
+               else
+                  Held.Lines.Delete (Found);
+                  Changed := True;
+               end if;
+            end;
+         end loop;
+
+         if not Changed then
+            return;
+         end if;
+
+         --  Written back as the whole file, which is what Update expects: a
+         --  removal cannot be expressed as an append, and this is the one
+         --  operation on a history file that is not one.
+         Text := Null_Unbounded_String;
+
+         for Index in 1 .. Natural (Held.Lines.Length) loop
+            Append (Text, Encode (To_String (Held.Lines.Element (Index))));
+            Append (Text, Newline);
+         end loop;
+      end Drop;
+
+   begin
+      Adash.Persistence.Update (Chosen, Drop'Access, Result);
+
+      --  Only when Drop ran. A file that is not there leaves every line still
+      --  to be forgotten, and saying otherwise would tell a caller its secret
+      --  was gone from a file it never reached.
+      if Adash.Persistence.Succeeded (Result) then
+         Lines.Lines := Left.Lines;
+      end if;
+   end Forget;
 
 end Adash.Persistence.History;

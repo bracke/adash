@@ -89,6 +89,12 @@ package body Adash.Interactive.Session is
       --  Said once per session, not once per line.
       Reported_Write_Failure : Boolean := False;
 
+      --  Whether the line now running went into the log. What `forget` needs
+      --  in order to take itself out without taking one line too many: a
+      --  marked line, a blank one, or a repeat of the line before it is not
+      --  there to remove.
+      This_Line_Recorded : Boolean := False;
+
       Stdout_Is_Terminal : constant Boolean :=
         Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Output);
       Stderr_Is_Terminal : constant Boolean :=
@@ -371,6 +377,12 @@ package body Adash.Interactive.Session is
       overriding function Recorded_Line
         (Source : Typed_Lines; Index : Positive) return String;
 
+      overriding procedure Forget_Recent
+        (Source    : in out Typed_Lines;
+         Count     : Positive;
+         Forgotten : out Natural;
+         Failed    : out Boolean);
+
       overriding function Recorded (Source : Typed_Lines) return Natural is
          pragma Unreferenced (Source);
       begin
@@ -384,6 +396,93 @@ package body Adash.Interactive.Session is
       begin
          return Adash.Interactive.History.Entry_At (Recall, Index);
       end Recorded_Line;
+
+      --  Take the newest entries out of the session and out of the file.
+      --
+      --  The `forget` line itself goes with them: it is the newest entry,
+      --  because a command runs immediately after its line is recorded. A
+      --  history whose last entry is the command that emptied it has kept a
+      --  record of the act.
+      overriding procedure Forget_Recent
+        (Source    : in out Typed_Lines;
+         Count     : Positive;
+         Forgotten : out Natural;
+         Failed    : out Boolean)
+      is
+         pragma Unreferenced (Source);
+
+         --  Nothing when this line was not recorded at all -- marked with a
+         --  space, blank, or the same as the one before it. Removing an entry
+         --  for a line that never made one would take a line the user did not
+         --  ask about.
+         Mine : constant Natural := (if This_Line_Recorded then 1 else 0);
+
+         Held   : constant Natural := Adash.Interactive.History.Count (Recall);
+         Taking : constant Natural := Natural'Min (Count + Mine, Held);
+
+         --  What to take out of the file, carried as text rather than as
+         --  positions: the shared file holds what several sessions wrote,
+         --  interleaved, so the third line from its end is not this session's
+         --  third line from the end.
+         Going : Adash.Persistence.History.Log;
+
+         Removed : Natural;
+      begin
+         Failed := False;
+
+         for Index in Held - Taking + 1 .. Held loop
+            Adash.Persistence.History.Add
+              (Going, Adash.Interactive.History.Entry_At (Recall, Index));
+         end loop;
+
+         Adash.Interactive.History.Forget_Last (Recall, Taking, Removed);
+
+         --  The user's own lines, not counting this one: they asked to forget
+         --  two and `forget (2);` making three would read as one too many.
+         Forgotten := Removed - Natural'Min (Removed, Mine);
+
+         if not Recording then
+            return;
+         end if;
+
+         declare
+            Shared : constant String := Adash.Persistence.History.Path;
+            Mine_File : constant String :=
+              Ada.Strings.Unbounded.To_String (Writing_To);
+
+            procedure Take_From (File : String);
+
+            procedure Take_From (File : String) is
+               Result : Adash.Persistence.Outcome;
+
+               use type Adash.Persistence.Outcome;
+            begin
+               Adash.Persistence.History.Forget (Going, Result, File);
+
+               --  Absent is a file this session has not written yet, and
+               --  Unavailable is a host with no data store: neither is a
+               --  secret left on disk, which is what Failed is for.
+               if Result /= Adash.Persistence.Store_Ok
+                 and then Result /= Adash.Persistence.Store_Absent
+                 and then Result /= Adash.Persistence.Store_Unavailable
+               then
+                  Failed := True;
+               end if;
+            end Take_From;
+         begin
+            Take_From (Mine_File);
+
+            --  What this session's own file did not hold was typed in an
+            --  earlier session and read in from the shared one at start-up.
+            --  Adash.Persistence.History.Forget leaves exactly those behind,
+            --  so this asks about them and nothing else.
+            if Mine_File /= Shared
+              and then Adash.Persistence.History.Count (Going) > 0
+            then
+               Take_From (Shared);
+            end if;
+         end;
+      end Forget_Recent;
 
       Reporting : aliased Typed_Lines;
 
@@ -849,6 +948,9 @@ package body Adash.Interactive.Session is
             begin
                Adash.Interactive.History.Record_Line
                  (Recall, Line, Sensitive => Marked);
+
+               This_Line_Recorded :=
+                 Adash.Interactive.History.Count (Recall) > Before;
 
                --  Written only when the in-memory log actually took it, so the
                --  file gets the same treatment for blanks and consecutive

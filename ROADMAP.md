@@ -133,6 +133,7 @@ below.
 | Long lines wrap instead of scrolling | **complete** |
 | Per-session history, merged on exit and swept after a crash | **complete** |
 | `history` | **complete** |
+| `forget`, and a leading space that keeps a line out | **complete** |
 | `alias` | **retired, see below** |
 | Declarations carried from one submission to the next | **complete** |
 
@@ -2798,6 +2799,38 @@ the log's.
 On by default. `history.ignore-space` turns it off for someone who wants every
 line as typed, but a protection that has to be switched on first is off in the
 session where it was needed.
+
+**`forget` takes back a line that is already recorded.** The mark has to be
+typed before the line; this is for the time nobody thought of it. `forget;`
+removes the last entry, `forget (3);` the last three, from the session's log and
+from the history file both.
+
+It takes itself with it, and does not count itself. A history whose last entry
+is the command that emptied it has kept a record of the act, which is most of
+what the user was trying not to leave behind. The session knows whether the line
+now running went into the log at all -- a marked line, a blank one, or a repeat
+of the line before it did not -- so `forget` after a line that left no entry
+takes exactly what was asked for and not one more.
+
+A count below one is refused rather than read as "all of it". `history (0)`
+listing everything costs a screen; `forget (0)` taking everything would cost the
+history, and a command that destroys more than it was asked to must not be
+reachable by a typing mistake.
+
+Removal from the file is **by text, last occurrence first**, not by position. A
+shared history file holds what several shells wrote, interleaved, so the third
+line from its end is not this session's third line from the end; and what a user
+forgetting a line means is that text, of which the time they just typed it is
+the most recent. Each entry the file gave up is struck off the list, so what is
+left over is exactly what that file did not hold -- which is how a session with
+a file of its own carries the rest to the shared one rather than guessing.
+
+`Adash.Persistence.Update` is new underneath it: read a file, change what it
+holds, and write it back under the one lock Write and Append_Line already take.
+Reading and writing as two calls takes that lock twice, and another session
+appending in the gap has its line overwritten by a rewrite that never saw it.
+This is the only operation on a history file that is not an append, which is
+why the gap had never mattered before.
 
 **Configuration is still per-user.** Only history gained a per-session notion.
 

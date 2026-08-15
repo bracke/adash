@@ -59,3 +59,65 @@ output = [
   "!line.history_entry{number=1,line=history;}!",
 ]
 diagnostics = []
+
+[[case]]
+id = "history.forget-takes-back-a-line-already-recorded"
+requirement = """
+The mark has to be typed before the line. A user who did not think of it in
+time needs the other half: a line already in the history, taken out of the
+session and out of the file.
+
+`forget` takes itself with it. A history whose last entry is the command that
+emptied it has kept a record of the act, which is most of what the user was
+trying not to leave behind, so the count reports the lines they asked about and
+not the command they used.
+"""
+script = "put_line (\"before\");\nput_line (\"secret\");\nforget;\nhistory;\nquit (0);"
+exit_status = 0
+output = [
+  "before",
+  "secret",
+  "!line.forgotten{count=1}!",
+  "!line.history_entry{number=1,line=put_line (\"before\");}!",
+  "!line.history_entry{number=2,line=history;}!",
+]
+diagnostics = []
+
+[[case]]
+id = "history.forget-takes-as-many-as-it-is-given"
+requirement = """
+A count, because a secret is rarely one line: the command that read the file,
+the one that used what it read. More than the log holds forgets what it holds
+and says so -- a user asking to forget twenty of two meant the two.
+"""
+script = "put_line (\"a\");\nput_line (\"b\");\nforget (20);\nhistory;\nquit (0);"
+exit_status = 0
+output = [
+  "a",
+  "b",
+  "!line.forgotten{count=2}!",
+  "!line.history_entry{number=1,line=history;}!",
+]
+diagnostics = []
+
+[[case]]
+id = "history.forget-refuses-a-count-that-is-not-positive"
+requirement = """
+`history (0)` lists everything, because a count that means nothing there is
+best read as "all of it" and costs a screen. `forget (0)` reading the same way
+would cost the history. A command that destroys more than it was asked to must
+not be reachable by a typing mistake, so a count below one is refused where it
+stands and the log is untouched -- which is why the refused lines are still in
+it below.
+"""
+script = "put_line (\"a\");\nforget (0);\nhistory;\nquit (0);"
+exit_status = 0
+output = [
+  "a",
+  "!line.history_entry{number=1,line=put_line (\"a\");}!",
+  "!line.history_entry{number=2,line=forget (0);}!",
+  "!line.history_entry{number=3,line=history;}!",
+]
+diagnostics = [
+  "!error.command.wrong_arguments{name=forget}!",
+]

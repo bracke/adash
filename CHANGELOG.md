@@ -1550,6 +1550,22 @@ what changed.
   has to be switched on first is off in the session where it was needed --
   and `history.ignore-space` turns it off.
 
+- **`forget` takes back a line already recorded.** The mark above has to be
+  typed before the line, and this is the other half: `forget;` removes the last
+  entry, `forget (3);` the last three, from the session and from the history
+  file both. It takes itself with it and does not count itself -- a history
+  whose last entry is the command that emptied it has kept a record of the act.
+  A count below one is refused rather than read as "all of it", which is what
+  `history (0)` means: a command that destroys more than it was asked to must
+  not be reachable by a typing mistake. Removal is **by text, last occurrence
+  first**, because a shared history file holds what several shells wrote
+  interleaved and a position in it is not a line; it reaches what the session's
+  log holds, which includes what was read from the file at start-up, so a line
+  typed yesterday can be forgotten today. `Adash.Persistence.Update` is new
+  underneath it: read, change and write under the one lock Write and Append
+  already take, so a line another session appends meanwhile is not lost. It is
+  the only operation that rewrites a history file rather than appending to it.
+
 ### Fixed
 
 - **`already declared` named a line that was a byte offset.** The message said

@@ -218,6 +218,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.too_many_kept` | this session already carries {limit} definitions, so {name} will not be remembered |
 | `error.empty_pipeline` | nothing has been added to the pipeline |
 | `error.no_history_here` | this session is not keeping a history |
+| `error.history_not_forgotten` | the history file could not be rewritten; the lines are gone from this session only |
 | `error.command.unavailable` | {name} is not available in this build |
 | `error.command.bad_assignment` | {text} is not of the form NAME=VALUE |
 | `error.script_cycle` | {source} is already being loaded; scripts may not load each other in a cycle |
@@ -228,6 +229,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | Identifier | Says |
 |---|---|
 | `line.history_entry` | {number}  {line} |
+| `line.forgotten` | {count} forgotten |
 | `line.diagnostic_at` | {path}:{line}:{column}: {text} |
 | `note.declared_here` | declared here |
 | `note.first_here` | the first one is here |
@@ -256,6 +258,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.help.doc` | List the internal commands, or describe one. |
 | `command.version.doc` | Report which build this is. |
 | `command.history.doc` | List what has been typed this session. |
+| `command.forget.doc` | Forget recent history, in this session and in the file: forget (COUNT). |
 | `command.run.doc` | Run a program and wait for it to finish. |
 | `command.run_into.doc` | Run a program with its output written to a file, replacing what was there. |
 | `command.run_from.doc` | Run a program with its input read from a file. |
@@ -354,6 +357,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `setting.prompt-failure` | Whether the prompt marks that the last command failed. |
 | `setting.editing` | Whether lines are edited in place rather than read whole. |
 | `setting.history-per-session` | keep this session's history in a file of its own and merge it in when the session ends |
+| `setting.history-ignore-space` | Whether a line typed with a space in front of it is left out of the history. |
 | `setting.session-file` | Whether the per-session startup file runs. |
 
 ## Expectations — what the parser wanted where it stopped

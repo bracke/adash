@@ -493,6 +493,7 @@ package body Adash.Messages is
          when Msg_Command_Help_Doc           => return "command.help.doc";
          when Msg_Command_Version_Doc        => return "command.version.doc";
          when Msg_Command_History_Doc        => return "command.history.doc";
+         when Msg_Command_Forget_Doc         => return "command.forget.doc";
          when Msg_Command_Run_Doc            => return "command.run.doc";
          when Msg_Command_Run_Into_Doc       => return "command.run_into.doc";
          when Msg_Command_Run_From_Doc       => return "command.run_from.doc";
@@ -512,6 +513,7 @@ package body Adash.Messages is
          when Msg_Command_Append_File_Doc   =>
             return "command.append_file.doc";
          when Msg_Line_History_Entry         => return "line.history_entry";
+         when Msg_Line_Forgotten             => return "line.forgotten";
          when Msg_Line_Diagnostic_At       => return "line.diagnostic_at";
          when Msg_Note_Declared_Here       => return "note.declared_here";
          when Msg_Note_First_Here          => return "note.first_here";
@@ -530,6 +532,8 @@ package body Adash.Messages is
          when Msg_Command_Wrong_Arguments    => return "error.command.wrong_arguments";
          when Msg_Command_Unavailable        => return "error.command.unavailable";
          when Msg_No_History_Here            => return "error.no_history_here";
+         when Msg_History_Not_Forgotten      =>
+            return "error.history_not_forgotten";
          when Msg_Empty_Pipeline             => return "error.empty_pipeline";
          when Msg_Too_Many_Kept              => return "error.too_many_kept";
          when Msg_Command_Bad_Assignment     => return "error.command.bad_assignment";
@@ -827,6 +831,7 @@ package body Adash.Messages is
             | Msg_Command_Set_Doc | Msg_Command_Unset_Doc | Msg_Command_Env_Doc
             | Msg_Command_Jobs_Doc | Msg_Command_Help_Doc
             | Msg_Command_Version_Doc | Msg_Command_History_Doc
+            | Msg_Command_Forget_Doc
             | Msg_Command_Source_Doc
             | Msg_Command_Run_Doc | Msg_Command_Run_Into_Doc
             | Msg_Command_Run_From_Doc | Msg_Command_Run_Append_Doc
@@ -842,6 +847,9 @@ package body Adash.Messages is
 
          when Msg_Line_History_Entry =>
             return [N ("number"), N ("line")];
+
+         when Msg_Line_Forgotten =>
+            return [1 => N ("count")];
 
          when Msg_Line_Diagnostic_At =>
             return [N ("path"), N ("line"), N ("column"), N ("text")];
@@ -891,6 +899,12 @@ package body Adash.Messages is
          when Msg_No_History_Here =>
             --  Nothing to name: the session is the subject, and it has no
             --  name a user would recognise.
+            return No_Placeholders;
+
+         when Msg_History_Not_Forgotten =>
+            --  Which file it was is a question with two answers when a session
+            --  keeps one of its own, and the user's problem is the same either
+            --  way: the line is still on disk.
             return No_Placeholders;
 
          when Msg_Command_Bad_Assignment =>

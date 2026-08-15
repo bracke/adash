@@ -78,6 +78,8 @@ package body Adash_Tests.Interactive_Cases is
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Reads_The_Mark_As_A_Leading_Space
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure History_Forgets_Its_Most_Recent_Entries
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Drops_Oldest_At_Its_Limit
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure History_Searches_Backwards
@@ -439,6 +441,47 @@ package body Adash_Tests.Interactive_Cases is
                                      & "end if;"),
               "a marked construct was not marked");
    end History_Reads_The_Mark_As_A_Leading_Space;
+
+   -------------------------------------------
+   -- History_Forgets_Its_Most_Recent_Entries --
+   -------------------------------------------
+
+   procedure History_Forgets_Its_Most_Recent_Entries
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Log     : Hist.Log;
+      Removed : Natural;
+   begin
+      Hist.Record_Line (Log, "first;");
+      Hist.Record_Line (Log, "second;");
+      Hist.Record_Line (Log, "third;");
+
+      Hist.Forget_Last (Log, 2, Removed);
+
+      Assert (Removed = 2,
+              "forgetting two removed" & Natural'Image (Removed));
+      Assert (Hist.Count (Log) = 1,
+              "the log kept" & Natural'Image (Hist.Count (Log))
+              & " entries rather than 1");
+      Assert (Hist.Entry_At (Log, 1) = "first;",
+              "the entry left was " & Hist.Entry_At (Log, 1));
+
+      --  More than it holds takes what it holds. A user asking to forget
+      --  twenty of one meant the one, and a refusal there would leave the
+      --  thing they wanted gone in place.
+      Hist.Forget_Last (Log, 20, Removed);
+
+      Assert (Removed = 1,
+              "forgetting twenty of one removed" & Natural'Image (Removed));
+      Assert (Hist.Count (Log) = 0,
+              "the log was not empty after forgetting everything in it");
+
+      --  And an empty log is not an error to forget from.
+      Hist.Forget_Last (Log, 3, Removed);
+      Assert (Removed = 0,
+              "forgetting from an empty log removed" & Natural'Image (Removed));
+   end History_Forgets_Its_Most_Recent_Entries;
 
    ----------------------------------------------
    -- History_Drops_Oldest_At_Its_Limit --
@@ -1598,6 +1641,8 @@ package body Adash_Tests.Interactive_Cases is
                         "history records nothing at all for a sensitive line");
       Register_Routine (T, History_Reads_The_Mark_As_A_Leading_Space'Access,
                         "a leading space marks a submission unrecorded");
+      Register_Routine (T, History_Forgets_Its_Most_Recent_Entries'Access,
+                        "forgetting takes the newest entries and no more");
       Register_Routine (T, History_Drops_Oldest_At_Its_Limit'Access,
                         "history drops its oldest entry at the limit");
       Register_Routine (T, History_Searches_Backwards'Access,

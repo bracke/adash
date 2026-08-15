@@ -148,6 +148,29 @@ package Adash.Persistence is
       Text   : String;
       Result : out Outcome);
 
+   --  Read a file, change what it holds, and write it back -- all under the
+   --  one lock that Write and Append_Line take.
+   --
+   --  For the operation neither of those can express: a change that depends on
+   --  what is already there. Reading and then writing as two calls takes the
+   --  lock twice, and another session appending in the gap has its line
+   --  overwritten by a rewrite that never saw it. There is no such gap here.
+   --
+   --  The file is not rewritten when Change reports no change, so an operation
+   --  that finds nothing to do leaves the file's timestamp and content alone.
+   --
+   --  @param Path The file. A file that is not there is Store_Absent and
+   --         Change is not called: nothing to change is not a failure, and an
+   --         empty file is not what the caller asked to create.
+   --  @param Change What to do with the contents. Called once, with the lock
+   --         held, so it must not read or write the store itself.
+   --  @param Result What became of it.
+   procedure Update
+     (Path   : String;
+      Change : not null access procedure
+                 (Text : in out Contents; Changed : out Boolean);
+      Result : out Outcome);
+
    --  Whether a file exists and can be read.
    --
    --  @param Path The file.

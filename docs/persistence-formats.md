@@ -53,6 +53,12 @@ A line typed with a space in front of it never reaches the file: the session
 does not record it, and what the file gets is what the session recorded. See
 `interactive-guide.md`.
 
+`forget` is the one operation that **rewrites** this file rather than appending
+to it. It takes the last occurrence of each line it is forgetting, by text
+rather than by position — a shared file holds what several shells wrote,
+interleaved — and the read and the write happen under one lock, so a line
+another session appends meanwhile is not lost.
+
 `history.limit` bounds what is kept; `history.enabled` off means nothing is
 written at all, which is what somebody on a shared machine wants.
 

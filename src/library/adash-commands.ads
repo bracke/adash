@@ -70,8 +70,12 @@ package Adash.Commands is
       --  both have it: history is durable through Adash.Persistence.History,
       --  and `source` reads a script through Adash.Scripting. `history` in a
       --  session with no log -- a script -- reports that it has nothing, which
-      --  is an answer rather than a refusal.
+      --  is an answer rather than a refusal. `forget` is the other direction:
+      --  a line already recorded, taken out of the session and out of the
+      --  file, for the user who typed a secret without the space that would
+      --  have kept it out in the first place.
       Command_History,
+      Command_Forget,
       Command_Source,
 
       --  Job control. `start` is what creates a job at all: nothing else in
@@ -286,6 +290,26 @@ package Adash.Commands is
    --  @return The line as it was typed.
    function Recorded_Line
      (Source : History_Source; Index : Positive) return String is abstract;
+
+   --  Take the most recent entries out, here and on disk.
+   --
+   --  The `forget` line itself goes too, and is not counted: a history whose
+   --  last entry is the command that emptied it has kept a record of the act,
+   --  and a user who wanted the line gone did not want a note saying so.
+   --
+   --  @param Source The session's log.
+   --  @param Count How many entries before this one to forget.
+   --  @param Forgotten How many went, which is fewer than Count when the log
+   --         is shorter than that.
+   --  @param Failed True when the durable file could not be rewritten. What is
+   --         forgotten in the session is forgotten either way; this says the
+   --         file still holds it, which is the half that matters and the half
+   --         a caller must not report as done.
+   procedure Forget_Recent
+     (Source    : in out History_Source;
+      Count     : Positive;
+      Forgotten : out Natural;
+      Failed    : out Boolean) is abstract;
 
    type History_Access is access all History_Source'Class;
 

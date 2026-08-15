@@ -133,6 +133,23 @@ package body Adash.Interactive.History is
       return False;
    end Search_Backwards;
 
+   -----------------
+   -- Forget_Last --
+   -----------------
+
+   procedure Forget_Last
+     (Item    : in out Log;
+      Count   : Natural;
+      Removed : out Natural)
+   is
+   begin
+      Removed := Natural'Min (Count, Natural (Item.Lines.Length));
+
+      for Ignored in 1 .. Removed loop
+         Item.Lines.Delete_Last;
+      end loop;
+   end Forget_Last;
+
    -----------
    -- Clear --
    -----------

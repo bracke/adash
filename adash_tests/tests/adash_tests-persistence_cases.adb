@@ -57,6 +57,10 @@ package body Adash_Tests.Persistence_Cases is
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
    procedure Paths_Are_Under_One_Directory
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Forgetting_Takes_The_Last_Occurrence
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+   procedure Forgetting_Leaves_What_The_File_Did_Not_Hold
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
 
    ---------------------------------
    -- Absence_Is_Not_Failure --
@@ -496,6 +500,117 @@ package body Adash_Tests.Persistence_Cases is
       return AUnit.Format ("Adash.Persistence");
    end Name;
 
+   ------------------------------------------
+   -- Forgetting_Takes_The_Last_Occurrence --
+   ------------------------------------------
+
+   procedure Forgetting_Takes_The_Last_Occurrence
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      Room : constant String := Scratch;
+      File : constant String := Hostkit.Fs.Join (Room, "history.jsonl");
+
+      Written : P.Outcome;
+      Result  : P.Outcome;
+
+      Going : H.Log;
+      Held  : H.Log;
+
+      procedure Put (Line : String);
+
+      --  Each write checked where it happens. A short file would make every
+      --  assertion below one about a file that was never written.
+      procedure Put (Line : String) is
+      begin
+         H.Append (Line, Written, File);
+         Assert (Written = P.Store_Ok, "the file could not be written: " & Line);
+      end Put;
+   begin
+      --  The same line twice, with other work between: a user who ran the same
+      --  command in the morning and again this evening.
+      Put ("pwd;");
+      Put ("secret;");
+      Put ("env;");
+      Put ("secret;");
+
+      H.Add (Going, "secret;");
+      H.Forget (Going, Result, File);
+
+      Assert (Result = P.Store_Ok,
+              "forgetting reported " & P.Outcome'Image (Result));
+
+      --  Nothing left to forget: this file held it.
+      Assert (H.Count (Going) = 0,
+              "an entry the file held was left to be forgotten");
+
+      H.Load (Held, Result, From => File);
+
+      Assert (H.Count (Held) = 3,
+              "the file kept" & Natural'Image (H.Count (Held))
+              & " entries rather than 3");
+
+      --  The *last* occurrence, not the first: what the user has just typed is
+      --  the most recent of however many times it was ever typed, and the
+      --  older one is a different day's work they did not ask about.
+      Assert (H.Entry_At (Held, 1) = "pwd;", "the first entry moved");
+      Assert (H.Entry_At (Held, 2) = "secret;",
+              "the older occurrence went instead of the newer");
+      Assert (H.Entry_At (Held, 3) = "env;",
+              "the entry after the forgotten one moved");
+
+      Discard (Room);
+   end Forgetting_Takes_The_Last_Occurrence;
+
+   -------------------------------------------------
+   -- Forgetting_Leaves_What_The_File_Did_Not_Hold --
+   -------------------------------------------------
+
+   procedure Forgetting_Leaves_What_The_File_Did_Not_Hold
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      Room : constant String := Scratch;
+      File : constant String := Hostkit.Fs.Join (Room, "history.jsonl");
+      Gone : constant String := Hostkit.Fs.Join (Room, "not-written.jsonl");
+
+      Written : P.Outcome;
+      Result  : P.Outcome;
+
+      Going : H.Log;
+   begin
+      H.Append ("here;", Written, File);
+      Assert (Written = P.Store_Ok, "the file could not be written");
+
+      H.Add (Going, "here;");
+      H.Add (Going, "elsewhere;");
+
+      H.Forget (Going, Result, File);
+
+      --  What is left is exactly what this file did not have, which is how a
+      --  session carries the rest to the shared file rather than guessing
+      --  which of the two holds what.
+      Assert (H.Count (Going) = 1,
+              "forgetting left" & Natural'Image (H.Count (Going))
+              & " entries rather than the 1 the file did not hold");
+      Assert (H.Entry_At (Going, 1) = "elsewhere;",
+              "the entry left over was " & H.Entry_At (Going, 1));
+
+      --  A file that is not there leaves everything still to be forgotten. A
+      --  caller told otherwise would report a secret gone from a file it never
+      --  reached.
+      H.Forget (Going, Result, Gone);
+
+      Assert (Result = P.Store_Absent,
+              "a missing file reported " & P.Outcome'Image (Result));
+      Assert (H.Count (Going) = 1,
+              "a missing file was treated as having forgotten something");
+
+      Discard (Room);
+   end Forgetting_Leaves_What_The_File_Did_Not_Hold;
+
    --------------------
    -- Register_Tests --
    --------------------
@@ -523,6 +638,10 @@ package body Adash_Tests.Persistence_Cases is
                         "a history entry survives, newlines and all");
       Register_Routine (T, Paths_Are_Under_One_Directory'Access,
                         "every store puts its files under one adash directory");
+      Register_Routine (T, Forgetting_Takes_The_Last_Occurrence'Access,
+                        "forgetting a line takes its last occurrence");
+      Register_Routine (T, Forgetting_Leaves_What_The_File_Did_Not_Hold'Access,
+                        "forgetting leaves what a file did not hold");
    end Register_Tests;
 
 end Adash_Tests.Persistence_Cases;

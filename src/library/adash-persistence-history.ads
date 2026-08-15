@@ -155,6 +155,29 @@ package Adash.Persistence.History is
       Result    : out Adash.Persistence.Outcome;
       Into_File : String := "");
 
+   --  Take entries out of the file.
+   --
+   --  The **last occurrence** of each line in Lines, not a position: a shared
+   --  history file holds what several sessions wrote, interleaved, so removing
+   --  "the last three lines" of it could take another shell's. What a user
+   --  forgetting a line means is that text, and the last time it was written
+   --  is the time they just typed it.
+   --
+   --  Read and written under one lock, so a line another session appends while
+   --  this runs is not lost.
+   --
+   --  @param Lines The entries to forget. Each one this removes is removed
+   --         from here too, so what is left afterwards is what this file did
+   --         not hold -- which is how a caller carries the rest to another
+   --         file rather than guessing.
+   --  @param Result What became of it. Store_Absent when there is no such
+   --         file, which is a session that has written nothing yet.
+   --  @param From_File Which file; the shared one when empty.
+   procedure Forget
+     (Lines     : in out Log;
+      Result    : out Adash.Persistence.Outcome;
+      From_File : String := "");
+
    --  Add an entry to a log in memory, without writing anything.
    --
    --  For building a log to Save.

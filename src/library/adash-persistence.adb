@@ -247,6 +247,72 @@ package body Adash.Persistence is
       return Result;
    end Under_Lock;
 
+   --------------
+   -- Replaced --
+   --------------
+
+   --  Put text in a file, atomically, with no lock of its own.
+   --
+   --  Separate from Write because Update needs the same act *inside* the lock
+   --  it is already holding, and taking that lock twice is either a deadlock
+   --  or a refusal depending on the host.
+   function Replaced (Path : String; Text : String) return Outcome;
+
+   function Replaced (Path : String; Text : String) return Outcome is
+      use Ada.Streams;
+      use Ada.Streams.Stream_IO;
+
+      --  Beside the destination, not in a temporary directory: a rename
+      --  across filesystems is not atomic, and a temporary directory is
+      --  routinely on a different one.
+      Staging : constant String := Path & ".new";
+      File    : File_Type;
+   begin
+      begin
+         Create (File, Out_File, Staging);
+
+         declare
+            Buffer : Stream_Element_Array
+                       (1 .. Stream_Element_Offset'Max (1, Text'Length));
+         begin
+            for Index in Text'Range loop
+               Buffer (Stream_Element_Offset (Index - Text'First + 1)) :=
+                 Stream_Element (Character'Pos (Text (Index)));
+            end loop;
+
+            if Text'Length > 0 then
+               Write (File, Buffer (1 .. Stream_Element_Offset (Text'Length)));
+            end if;
+         end;
+
+         Close (File);
+      exception
+         when others =>
+            if Is_Open (File) then
+               Close (File);
+            end if;
+
+            return Store_Not_Writable;
+      end;
+
+      --  Private before it is in place, so the finished file is never
+      --  readable by anyone else even for an instant.
+      Restrict (Staging);
+
+      if not Hostkit.Fs.Replace_File (Staging, Path) then
+         begin
+            Ada.Directories.Delete_File (Staging);
+         exception
+            when others =>
+               null;
+         end;
+
+         return Store_Not_Writable;
+      end if;
+
+      return Store_Ok;
+   end Replaced;
+
    -----------
    -- Write --
    -----------
@@ -256,61 +322,11 @@ package body Adash.Persistence is
       Text   : String;
       Result : out Outcome)
    is
-      use Ada.Streams;
-      use Ada.Streams.Stream_IO;
-
       function Do_Write return Outcome;
 
       function Do_Write return Outcome is
-         --  Beside the destination, not in a temporary directory: a rename
-         --  across filesystems is not atomic, and a temporary directory is
-         --  routinely on a different one.
-         Staging : constant String := Path & ".new";
-         File    : File_Type;
       begin
-         begin
-            Create (File, Out_File, Staging);
-
-            declare
-               Buffer : Stream_Element_Array
-                          (1 .. Stream_Element_Offset'Max (1, Text'Length));
-            begin
-               for Index in Text'Range loop
-                  Buffer (Stream_Element_Offset (Index - Text'First + 1)) :=
-                    Stream_Element (Character'Pos (Text (Index)));
-               end loop;
-
-               if Text'Length > 0 then
-                  Write (File, Buffer (1 .. Stream_Element_Offset (Text'Length)));
-               end if;
-            end;
-
-            Close (File);
-         exception
-            when others =>
-               if Is_Open (File) then
-                  Close (File);
-               end if;
-
-               return Store_Not_Writable;
-         end;
-
-         --  Private before it is in place, so the finished file is never
-         --  readable by anyone else even for an instant.
-         Restrict (Staging);
-
-         if not Hostkit.Fs.Replace_File (Staging, Path) then
-            begin
-               Ada.Directories.Delete_File (Staging);
-            exception
-               when others =>
-                  null;
-            end;
-
-            return Store_Not_Writable;
-         end if;
-
-         return Store_Ok;
+         return Replaced (Path, Text);
       end Do_Write;
 
       function Guarded is new Under_Lock (Do_Write);
@@ -328,6 +344,54 @@ package body Adash.Persistence is
 
       Result := Guarded (Path);
    end Write;
+
+   ------------
+   -- Update --
+   ------------
+
+   procedure Update
+     (Path   : String;
+      Change : not null access procedure
+                 (Text : in out Contents; Changed : out Boolean);
+      Result : out Outcome)
+   is
+      function Do_Update return Outcome;
+
+      function Do_Update return Outcome is
+         Held    : Contents;
+         Reading : Outcome;
+         Changed : Boolean;
+      begin
+         Read (Path, Held, Reading);
+
+         if Reading /= Store_Ok then
+            return Reading;
+         end if;
+
+         Change (Held, Changed);
+
+         if not Changed then
+            return Store_Ok;
+         end if;
+
+         return Replaced (Path, To_String (Held));
+      end Do_Update;
+
+      function Guarded is new Under_Lock (Do_Update);
+
+   begin
+      if Path = "" then
+         Result := Store_Unavailable;
+         return;
+      end if;
+
+      if not Ensure_Directory (Path) then
+         Result := Store_Not_Writable;
+         return;
+      end if;
+
+      Result := Guarded (Path);
+   end Update;
 
    ------------------
    -- Append_Line --

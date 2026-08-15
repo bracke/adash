@@ -88,6 +88,13 @@ construct is one entry, so the first character of its first line decides, and
 the indentation Ada is written with is left to mean what it says. Set
 `history.ignore-space` to false to record every line as typed instead.
 
+**`forget;` takes back a line that is already recorded** — the last one, or the
+last *Count* with a number — out of the session and out of the file. The mark
+has to be typed before the line, and this is for the time you did not think of
+it. `forget` takes itself with it and does not count itself: a history whose
+last entry is the command that emptied it has kept a record of the act. A count
+below one is refused rather than read as "all of it".
+
 `history.enabled` off writes nothing to disk while recall still works for the
 session, which is what somebody on a shared machine wants.
 `history.per-session` gives each session its own file, merged into the shared

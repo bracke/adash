@@ -961,6 +961,54 @@ package body Adash.Commands.Builtins is
                return Status;
             end;
 
+         when Command_Forget =>
+            declare
+               Wanted    : Integer := 1;
+               Forgotten : Natural;
+               Failed_To : Boolean;
+            begin
+               if Shell.History = null then
+                  --  Nothing is keeping track, so there is nothing to take
+                  --  out. The same answer `history` gives, for the same
+                  --  reason: this session has no log, and that is not a
+                  --  missing feature.
+                  return Failed (Adash.Errors.Error_No_History_Here,
+                                 M.No_Arguments);
+               end if;
+
+               --  A count that is not a positive number is refused rather than
+               --  read as "all of it". `history (0)` listing everything costs
+               --  a screen; `forget (0)` taking everything would cost the
+               --  history, and a command that destroys more than it was asked
+               --  to must not be reachable by a typing mistake.
+               if Given >= 1
+                 and then (not Whole_Argument (Arguments, 1, Wanted)
+                           or else Wanted < 1)
+               then
+                  return Failed
+                    (Adash.Errors.Error_Command_Wrong_Arguments,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
+               Shell.History.Forget_Recent
+                 (Count => Positive (Wanted),
+                  Forgotten => Forgotten,
+                  Failed => Failed_To);
+
+               if Failed_To then
+                  --  The session has forgotten it and the file has not, which
+                  --  is the half that matters. Reported rather than counted as
+                  --  done: a user told "2 forgotten" would stop looking.
+                  return Failed (Adash.Errors.Error_History_Not_Forgotten,
+                                 M.No_Arguments);
+               end if;
+
+               Say (Produced, M.Msg_Line_Forgotten,
+                    [1 => M.Named ("count", Trim (Forgotten))]);
+
+               return Adash.Execution.Success;
+            end;
+
          when Command_History =>
             declare
                Wanted : Integer;

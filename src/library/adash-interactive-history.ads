@@ -110,6 +110,23 @@ package Adash.Interactive.History is
       Prefix : String;
       Found  : out Entry_Text) return Boolean;
 
+   --  Forget the most recent entries.
+   --
+   --  What `forget` does to the session's own log. The durable file is a
+   --  separate act -- Adash.Persistence.History.Forget -- because a log with
+   --  no file behind it is an ordinary thing here (a script, a test) and this
+   --  package has never known where a file is.
+   --
+   --  @param Item Log to shorten.
+   --  @param Count How many of the newest to drop. More than it holds drops
+   --         what it holds: a user asking to forget twenty of nine meant the
+   --         nine.
+   --  @param Removed How many actually went.
+   procedure Forget_Last
+     (Item    : in out Log;
+      Count   : Natural;
+      Removed : out Natural);
+
    --  Forget everything.
    --
    --  @param Item Log to clear.

@@ -42,7 +42,7 @@ through `terminal_styles`, and remains semantically complete with styling off �
 so nothing depends on escapes surviving.
 
 **Secrets in persisted state.** History is durable, and a shell's history is one
-of the more sensitive files on a system. Three things bear on it. A **line typed
+of the more sensitive files on a system. Four things bear on it. A **line typed
 with a space in front of it is not recorded at all** — not in the session, not
 in the file, and not as a placeholder saying a line was here, since a record of
 *when* a secret was typed is still a record. It is the convention the other
@@ -53,9 +53,19 @@ entirely. And `Adash.Interactive.History.Record_Line` takes the `Sensitive` flag
 the frontend sets, so the policy has one implementation rather than one per
 caller.
 
-What is still not offered is a way to remove something already recorded: a user
-who typed a secret without the mark has to edit the history file. That is a gap,
-and it is a different one from the above.
+**`forget` takes back a line already recorded** — the last one, or the last
+several — out of the session and out of the file, for the user who did not think
+of the space in time. It takes itself with it: a history whose last entry is the
+command that emptied it has kept a record of the act. Removal is by text and
+takes the last occurrence, because a shared history file holds what several
+shells wrote, interleaved, and a position there is not a line. The file is read
+and rewritten under one lock, so a line another session appends meanwhile is not
+lost.
+
+It reaches what the session's log holds, which includes what was loaded from
+the file at start-up: a line typed yesterday can be forgotten today. What it
+does not reach is a line older than `history.limit`, which the session never
+read. Editing the file is the answer there, and it is the only case left.
 
 **Confident wrong answers about the host.** A permission check that silently
 becomes a no-op reports that all is well for as long as it exists. Adash asks
@@ -78,7 +88,8 @@ a host cannot express the question rather than guessing — and Adash treats
 - Job control degrades explicitly on platforms where hostkit reports the
   capability as absent, rather than silently doing something different.
 - A line typed with a space in front of it is kept out of the history without
-  the user having to turn anything on first.
+  the user having to turn anything on first, and `forget` takes back one that
+  was.
 
 ## Status
 
@@ -88,8 +99,9 @@ vectors, styling goes through `terminal_styles` and is off where the
 destination is not a terminal, history and settings are written atomically
 under a lock, job control declines where hostkit reports the capability absent,
 and a line typed with a space in front of it is left out of the history in the
-session and on disk. Each has conformance cases behind it.
+session and on disk while `forget` takes back one that was. Each has conformance
+cases behind it.
 
-Two exceptions are named where they stand: no way to remove a line already
-recorded, and nothing cached yet. Both are stated as gaps in the sections above
-rather than left to be inferred.
+Two exceptions are named where they stand: `forget` reaches only what this
+session's log still holds, and nothing is cached yet. Both are stated as limits
+in the sections above rather than left to be inferred.

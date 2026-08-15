@@ -138,6 +138,7 @@ output = [
   "!line.command_entry{name=help,summary=!command.help.doc!}!",
   "!line.command_entry{name=version,summary=!command.version.doc!}!",
   "!line.command_entry{name=history,summary=!command.history.doc!}!",
+  "!line.command_entry{name=forget,summary=!command.forget.doc!}!",
   "!line.command_entry{name=source,summary=!command.source.doc!}!",
   "!line.command_entry{name=run,summary=!command.run.doc!}!",
   "!line.command_entry{name=run_into,summary=!command.run_into.doc!}!",

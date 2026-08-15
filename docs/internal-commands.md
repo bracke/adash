@@ -31,6 +31,7 @@ registry in `Adash.Commands` declares. `help;` lists them at the prompt and
 | `version` | 0 | reports which build this is |
 | `help (Topic : String)` | 0 .. 1 | lists the commands, or describes one |
 | `history (Count : Integer)` | 0 .. any | lists what has been typed this session |
+| `forget (Count : Integer)` | 0 .. 1 | forgets the last lines, in the session and in the file |
 | `source (Path : String)` | 1 | reads and runs a script in this session |
 
 `quit` is spelled that way because `exit` is a keyword of the language.
@@ -52,6 +53,19 @@ stays the command it was. `scripting-guide.md` says what follows from that.
 which is a different thing from a missing feature and is worded differently. It
 lists what was recorded, so a line typed with a space in front of it is not
 there: see `interactive-guide.md`.
+
+`forget` is the other half of that. A space in front of a line keeps it out of
+the history, and `forget` takes out a line already in: the last one by default,
+the last *Count* with a number, from the session and from the file both. **It
+takes itself with it**, uncounted — a history whose last entry is the command
+that emptied it has kept a record of the act. A count below one is refused
+rather than read as "all of it", which is what `history (0)` does: a command
+that destroys more than it was asked to must not be reachable by a typing
+mistake.
+
+It removes each line by its text, taking the **last** occurrence in the file
+rather than a position. A shared history file holds what several shells wrote,
+interleaved, so "the last three lines" of it may not be this session's three.
 
 ## The environment children inherit
 

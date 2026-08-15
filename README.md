@@ -189,7 +189,7 @@ the value it ended with, so an interactive session builds up a vocabulary and a
 state.
 
 What the shell has: `cd`, `pwd`, `set`, `unset`, `env`, `quit`, `version`,
-`help`, `history`, `source`, `run`, `run_into`, `run_append`, `run_new`,
+`help`, `history`, `forget`, `source`, `run`, `run_into`, `run_append`, `run_new`,
 `run_from`, `pipe`, `pipe_run`, `write_file` and `append_file`, and job control
 through `start`, `jobs`, `wait`,
 `stop`, `suspend` and `resume`; `settings` and `save_settings` for its own

@@ -351,7 +351,8 @@ package Adash.Messages is
       Msg_Command_Cd_Doc, Msg_Command_Pwd_Doc, Msg_Command_Exit_Doc,
       Msg_Command_Set_Doc, Msg_Command_Unset_Doc, Msg_Command_Env_Doc,
       Msg_Command_Jobs_Doc, Msg_Command_Help_Doc, Msg_Command_Version_Doc,
-      Msg_Command_History_Doc, Msg_Command_Source_Doc,
+      Msg_Command_History_Doc,
+      Msg_Command_Forget_Doc, Msg_Command_Source_Doc,
       Msg_Command_Run_Doc, Msg_Command_Run_Into_Doc,
       Msg_Command_Run_From_Doc, Msg_Command_Run_Append_Doc,
       Msg_Command_Run_New_Doc, Msg_Command_Pipe_Doc,
@@ -368,6 +369,11 @@ package Adash.Messages is
       Msg_Line_Settings_Saved,
       Msg_Line_Job,
       Msg_Line_History_Entry,
+
+      --  What `forget` did. Said back rather than done in silence: a command
+      --  whose whole effect is that something is gone leaves nothing for the
+      --  user to look at to see whether it worked.
+      Msg_Line_Forgotten,
       --  A diagnostic with a place: what a reader needs in front of it to
       --  find the line it is about. Written the way every compiler writes one,
       --  because that is what an editor and a person both already read.
@@ -391,6 +397,11 @@ package Adash.Messages is
       Msg_Command_Wrong_Arguments,
       Msg_Command_Unavailable,
       Msg_No_History_Here,
+
+      --  `forget` that emptied the session's log and could not rewrite the
+      --  file. Said rather than counted as done: a user told the line was
+      --  forgotten would stop looking for it.
+      Msg_History_Not_Forgotten,
       Msg_Empty_Pipeline,
       Msg_Too_Many_Kept,
       Msg_Command_Bad_Assignment,

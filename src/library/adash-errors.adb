@@ -31,6 +31,7 @@ package body Adash.Errors is
             | Error_Command_Wrong_Arguments
             | Error_Command_Unavailable
             | Error_No_History_Here
+            | Error_History_Not_Forgotten
             | Error_Empty_Pipeline
             | Error_Too_Many_Kept
             | Error_Command_Bad_Assignment
@@ -396,6 +397,8 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Command_Wrong_Arguments;
          when Error_Command_Unavailable    => return Adash.Messages.Msg_Command_Unavailable;
          when Error_No_History_Here        => return Adash.Messages.Msg_No_History_Here;
+         when Error_History_Not_Forgotten  =>
+            return Adash.Messages.Msg_History_Not_Forgotten;
          when Error_Empty_Pipeline         => return Adash.Messages.Msg_Empty_Pipeline;
          when Error_Too_Many_Kept          => return Adash.Messages.Msg_Too_Many_Kept;
          when Error_Command_Bad_Assignment => return Adash.Messages.Msg_Command_Bad_Assignment;
