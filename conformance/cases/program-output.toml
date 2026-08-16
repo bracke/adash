@@ -1044,7 +1044,25 @@ endings that made the first version of this fail are fixed.
 
 A refusal that says nothing is a defect whatever causes it, so this asserts the
 saying rather than only the refusing.
+
+**Two hosts of three**, and the third is the point rather than an omission. On
+Windows this case comes back with the refusal -- an empty capture and a failing
+status, both asserted below -- and no diagnostic, while the same refusal with
+the test crate's own program says so there perfectly well. What differs is what
+the child does when the pipe closes under it: on POSIX a shell dies of SIGPIPE
+without a word, and Windows has no such signal, so the child shell finds its
+write refused and complains about it -- on the standard error it shares with
+the shell under test, which is where this suite reads diagnostics from. A
+complaint that does not end in a newline takes the next line with it, and the
+next line is the one this case is looking for.
+
+That is an inference from what is ruled out rather than something anybody has
+watched happen, and the thing that would settle it -- giving the child a
+standard error of its own -- is something the language cannot yet say. Until it
+can, the case runs where its answer means something, and says here what it
+would take to finish the story.
 """
+platforms = ["linux", "macos"]
 script = """
 settings ("read.limit", "1");
 put_line ("[" & Output_Of ("{shell}", "{root}/conformance/fixtures/says-too-much.adash") & "]");
