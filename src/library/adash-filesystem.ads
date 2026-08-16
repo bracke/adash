@@ -149,9 +149,12 @@ package Adash.Filesystem is
    --  its first.
    --
    --  @param Path The directory.
-   --  @param Result Write_Refused where something that is not a directory is
-   --         in the way, or the host will not form the name; Write_Failed
-   --         where it could not be made for any other reason.
+   --  @param Result Write_Ok, or Write_Refused where something that is not a
+   --         directory is in the way, the host will not form the name, or it
+   --         would not make it. Never Write_Failed: a write can stop in the
+   --         middle and leave a file that is neither what was there nor what
+   --         was meant, and a directory is made or it is not -- so there is
+   --         never anything half done here for a caller to be told about.
    procedure Make_Directory (Path : String; Result : out Written);
 
    --  Add text to the end of a file, making it when it is not there.

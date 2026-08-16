@@ -213,15 +213,21 @@ package body Adash.Filesystem is
             return;
       end;
 
-      --  Asked rather than assumed: Create_Path is allowed to succeed quietly
-      --  on a host that did not make anything.
+      --  Asked rather than assumed, and this is not a formality: on one host
+      --  a name too long to form raises nothing at all -- Create_Path returns
+      --  quietly having made nothing -- and only this notices.
+      --
+      --  Refused rather than failed, for the same reason the handler above
+      --  is: nothing was made, so there is nothing half done to go looking
+      --  for. Which is why Make_Directory never answers Write_Failed. A write
+      --  can stop in the middle and a directory cannot.
       Result :=
         (if Ada.Directories.Exists (Path) and then Is_Directory (Path)
-         then Write_Ok else Write_Failed);
+         then Write_Ok else Write_Refused);
 
    exception
       when others =>
-         Result := Write_Failed;
+         Result := Write_Refused;
    end Make_Directory;
 
    procedure Write
