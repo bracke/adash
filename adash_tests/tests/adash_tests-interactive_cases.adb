@@ -1836,8 +1836,11 @@ package body Adash_Tests.Interactive_Cases is
       --  than answering, which is what asking for an answer only a whole
       --  deletion can produce asserts the absence of.
       --
-      --  A terminal that is a device carries the bytes. A console host does
-      --  not, and three ways of typing the character at one have been tried:
+      --  Both hosts, now that a console hands its input over as UTF-8 rather
+      --  than in whatever code page it was set to. What follows is what it
+      --  took to find that out, kept because the wrong answers were expensive:
+      --
+      --  Three ways of typing the character at a console were tried:
       --  the UTF-8 as it stands; the key event the console asks for when it
       --  writes `ESC [ ? 9001 h` on attaching, with the virtual key and scan
       --  code left at nothing; and the same with VK_PACKET, which is what
@@ -1857,15 +1860,13 @@ package body Adash_Tests.Interactive_Cases is
       --  missing is the keystroke and not the editor -- and the editor's own
       --  answer, that a character is not a byte, is asserted on every host by
       --  the buffer and decoder cases above.
-      if not Hostkit.Spawn.Is_Attached (Session.Pair.Console) then
-         Type_Into (Session, "put_line (To_Upper (""fine" & Accented);
-         Type_Into (Session, String'(1 => Character'Val (16#08#)));
-         Type_Into (Session, """));" & String'(1 => Character'Val (13)));
+      Type_Into (Session, "put_line (To_Upper (""fine" & Accented);
+      Type_Into (Session, String'(1 => Character'Val (16#08#)));
+      Type_Into (Session, """));" & String'(1 => Character'Val (13)));
 
-         Assert (Waited_For (Session, "FINE"),
-                 "backspace did not remove the whole character: ["
-                 & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
-      end if;
+      Assert (Waited_For (Session, "FINE"),
+              "backspace did not remove the whole character: ["
+              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
 
       Finish (Session, Ended);
       Assert (Ended, "the shell did not end after an edited line");
@@ -2062,9 +2063,16 @@ package body Adash_Tests.Interactive_Cases is
               & "a byte nor a recorded interrupt: ["
               & Ada.Strings.Unbounded.To_String (Said) & "]");
 
-      Assert (Wrote ("byte= 195") or else Wrote ("byte= 233"),
+      --  And the character. Its UTF-8 is 195 169, and what a console hands
+      --  over is whatever its code page says -- 130 for this character in the
+      --  OEM one, which is what this probe found before raw mode started
+      --  asking for UTF-8. Both are accepted here: what this case is for is
+      --  that *something* arrives, and which bytes belong in the answer is
+      --  hostkit's business rather than this test's.
+      Assert (Wrote ("byte= 195") or else Wrote ("byte= 233")
+              or else Wrote ("byte= 130") or else Wrote ("byte= 169"),
               "an accented character typed at the terminal reached the "
-              & "program in neither of its encodings: ["
+              & "program in no encoding at all: ["
               & Ada.Strings.Unbounded.To_String (Said) & "]");
    end A_Terminal_Says_What_Reaches_A_Program;
 
