@@ -1,3 +1,4 @@
+with Ada.Calendar;
 with Ada.Command_Line;
 with Ada.Streams;
 with Ada.Text_IO;
@@ -51,7 +52,8 @@ procedure Adash_Test_Watch is
      Ada.Command_Line.Argument_Count >= 3
        and then (Ada.Command_Line.Argument (3) = "waiting"
                  or else Ada.Command_Line.Argument (3) = "after-a-line"
-                 or else Ada.Command_Line.Argument (3) = "engine");
+                 or else Ada.Command_Line.Argument (3) = "engine"
+                 or else Ada.Command_Line.Argument (3) = "busy");
 
    --  "after-a-line" is "waiting" with the shell's own history: read a line in
    --  raw mode first, put the settings back, and only then ask for an
@@ -65,6 +67,15 @@ procedure Adash_Test_Watch is
    --  report an interrupt, and then run a submission that never ends. What is
    --  recorded is whether it came back, which is what the machine's look
    --  between instructions is for.
+   --  "busy" is the same question without the engine: spin in a tight loop
+   --  asking whether an interrupt arrived, with nothing to yield to. The
+   --  waiting mode asks the same thing with a delay between asks, and is told;
+   --  if this one is not, what matters is being busy rather than anything the
+   --  shell does.
+   Busy_Loop : constant Boolean :=
+     Ada.Command_Line.Argument_Count >= 3
+       and then Ada.Command_Line.Argument (3) = "busy";
+
    Through_The_Engine : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
        and then Ada.Command_Line.Argument (3) = "engine";
@@ -146,6 +157,37 @@ begin
    end if;
 
    Ada.Text_IO.Flush (Report);
+
+   if Busy_Loop then
+      declare
+         Told    : Boolean := False;
+         Started : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+
+         use type Ada.Calendar.Time;
+      begin
+         --  Spun until told, or until the time runs out. Counted turns were
+         --  the first try and they were the wrong bound: ten million asks take
+         --  a fraction of a second, and the loop was over before anything had
+         --  been typed. What is wanted is a program that is *busy while the
+         --  keystroke arrives*.
+         while not Told
+           and then Ada.Calendar.Clock - Started < Seconds
+         loop
+            for Turn in 1 .. 100_000 loop
+               Told := Adash.Execution.Signals.Interrupt_Pending;
+               exit when Told;
+            end loop;
+         end loop;
+
+         Ada.Text_IO.Put_Line
+           (Report, "busy-told=" & Boolean'Image (Told));
+         Ada.Text_IO.Flush (Report);
+      end;
+
+      Ada.Text_IO.Put_Line (Report, "end");
+      Ada.Text_IO.Close (Report);
+      return;
+   end if;
 
    if Through_The_Engine then
       declare

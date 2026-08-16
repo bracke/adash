@@ -2094,10 +2094,11 @@ package body Adash_Tests.Interactive_Cases is
          --  interrupt, and run a submission that never ends. Everything the
          --  frontend does has been tried in this companion and the interrupt
          --  arrived each time, so what is left is the engine and the machine.
-         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("engine"));
-         Asked.Append
-           (Ada.Strings.Unbounded.To_Unbounded_String
-              ("loop null; end loop;"));
+         --  Busy, and nothing else: a tight loop asking whether an interrupt
+         --  arrived. The same question with a delay between asks is answered;
+         --  if this one is not, what matters is being busy rather than
+         --  anything the shell does with an engine or a terminal.
+         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("busy"));
 
          Assert (Hostkit.Pty.Open (Second), "could not open a second terminal");
          Assert (Hostkit.Pty.Set_Size (Second, (Rows => 24, Columns => 80)),
@@ -2182,12 +2183,12 @@ package body Adash_Tests.Interactive_Cases is
          end if;
 
          Assert (Ada.Strings.Fixed.Index
-                   (Ada.Strings.Unbounded.To_String (Waited), "came-back") > 0,
-                 "a submission that never ends was not stopped by a Ctrl-C "
-                 & "typed at the terminal it was running on, with the "
-                 & "recording armed and the terminal asked to report one -- "
-                 & "so what does not notice is the machine's look between "
-                 & "instructions: ["
+                   (Ada.Strings.Unbounded.To_String (Waited), "busy-told=TRUE")
+                 > 0,
+                 "a program spinning in a tight loop was never told about a "
+                 & "Ctrl-C that the same program, asking with a delay between "
+                 & "asks, is told about -- so what a busy shell cannot see is "
+                 & "the arrival itself: ["
                  & Ada.Strings.Unbounded.To_String (Waited) & "]");
       end;
    end A_Terminal_Says_What_Reaches_A_Program;
