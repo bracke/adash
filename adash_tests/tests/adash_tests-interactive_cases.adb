@@ -2074,6 +2074,105 @@ package body Adash_Tests.Interactive_Cases is
               "an accented character typed at the terminal reached the "
               & "program in no encoding at all: ["
               & Ada.Strings.Unbounded.To_String (Said) & "]");
+
+      --  And the question a shell actually has: a program that is *not*
+      --  reading, on a terminal asked to report an interrupt key. That is the
+      --  shape a shell is in while a submission runs, and the answer decides
+      --  whether stopping a runaway loop is the host's job or the shell's.
+      declare
+         Second : Hostkit.Pty.Pair;
+         Waiter : Hostkit.Spawn.Process_Handle;
+         Asked  : Hostkit.String_Vectors.Vector;
+
+         Elsewhere : constant String :=
+           Ada.Directories.Compose
+             (Ada.Directories.Containing_Directory
+                (Ada.Command_Line.Command_Name),
+              "terminal-waiting.txt");
+
+         Waited : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         if Ada.Directories.Exists (Elsewhere) then
+            Ada.Directories.Delete_File (Elsewhere);
+         end if;
+
+         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String (Elsewhere));
+         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("4"));
+         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("waiting"));
+
+         Assert (Hostkit.Pty.Open (Second), "could not open a second terminal");
+         Assert (Hostkit.Pty.Set_Size (Second, (Rows => 24, Columns => 80)),
+                 "could not size the second terminal");
+
+         declare
+            Theirs : Hostkit.Spawn.Options;
+         begin
+            Assert (Hostkit.Pty.Attach (Second, Theirs),
+                    "could not start the waiter on a terminal");
+            Assert (Hostkit.Spawn.Start
+                      (Ada.Directories.Compose
+                         (Ada.Directories.Containing_Directory
+                            (Ada.Command_Line.Command_Name),
+                          "adash_test_watch" & Hostkit.Fs.Executable_Suffix),
+                       Asked, Theirs, Waiter)
+                    = Hostkit.Spawn.Spawn_Ok,
+                    "the waiter would not start on a terminal");
+         end;
+
+         Hostkit.Pty.Close_Device (Second);
+
+         delay 0.5;
+
+         declare
+            Data : constant Ada.Streams.Stream_Element_Array (1 .. 1) :=
+              [1 => Ada.Streams.Stream_Element (3)];
+            Last : Ada.Streams.Stream_Element_Offset;
+
+            use type Hostkit.Descriptors.Transfer_Outcome;
+         begin
+            Assert (Hostkit.Descriptors.Write (Second.To_Child, Data, Last)
+                    = Hostkit.Descriptors.Transfer_Ok
+                    and then Last = Data'Last,
+                    "could not type at the second terminal");
+         end;
+
+         for Attempt in 1 .. 200 loop
+            exit when Hostkit.Spawn.Wait
+                        (Waiter, Hostkit.Spawn.Wait_Poll, Result)
+                      and then Result.State /= Hostkit.Spawn.Wait_Running;
+
+            declare
+               Ignored : constant Boolean := Drained_Into_Nothing (Second);
+               pragma Unreferenced (Ignored);
+            begin
+               null;
+            end;
+         end loop;
+
+         Hostkit.Pty.Close (Second);
+
+         if Ada.Directories.Exists (Elsewhere) then
+            declare
+               File : Ada.Text_IO.File_Type;
+            begin
+               Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Elsewhere);
+
+               while not Ada.Text_IO.End_Of_File (File) loop
+                  Ada.Strings.Unbounded.Append
+                    (Waited, Ada.Text_IO.Get_Line (File) & " ");
+               end loop;
+
+               Ada.Text_IO.Close (File);
+            end;
+         end if;
+
+         Assert (Ada.Strings.Fixed.Index
+                   (Ada.Strings.Unbounded.To_String (Waited), "interrupt") > 0,
+                 "a program that was not reading was never told that Ctrl-C "
+                 & "had been typed at its terminal, so stopping a runaway "
+                 & "loop there cannot be the host's job: ["
+                 & Ada.Strings.Unbounded.To_String (Waited) & "]");
+      end;
    end A_Terminal_Says_What_Reaches_A_Program;
 
    --  Ctrl-C at the prompt abandons the line and leaves the session standing,

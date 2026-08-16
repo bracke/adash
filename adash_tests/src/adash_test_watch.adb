@@ -39,6 +39,13 @@ procedure Adash_Test_Watch is
      (if Ada.Command_Line.Argument_Count >= 2
       then Duration'Value (Ada.Command_Line.Argument (2)) else 5.0);
 
+   --  "raw" reads what arrives; "waiting" reads nothing and only watches for
+   --  an interrupt, which is the shape a shell is in while a submission runs:
+   --  busy, with a terminal nobody is reading.
+   Waiting_Only : constant Boolean :=
+     Ada.Command_Line.Argument_Count >= 3
+       and then Ada.Command_Line.Argument (3) = "waiting";
+
    Report : Ada.Text_IO.File_Type;
 
 begin
@@ -58,20 +65,34 @@ begin
          "armed=" & Boolean'Image (not Adash.Errors.Is_Failure (Armed)));
    end;
 
-   Ada.Text_IO.Put_Line
-     (Report,
-      "raw="
-      & Boolean'Image
-          (Hostkit.Terminal_Control.Set_Raw
-             (Hostkit.Descriptors.Standard_Input)));
+   if Waiting_Only then
+      Ada.Text_IO.Put_Line
+        (Report,
+         "interruptible="
+         & Boolean'Image
+             (Hostkit.Terminal_Control.Set_Interruptible
+                (Hostkit.Descriptors.Standard_Input)));
+   else
+      Ada.Text_IO.Put_Line
+        (Report,
+         "raw="
+         & Boolean'Image
+             (Hostkit.Terminal_Control.Set_Raw
+                (Hostkit.Descriptors.Standard_Input)));
+   end if;
 
    Ada.Text_IO.Flush (Report);
 
    --  A fixed number of turns rather than a clock: this is a companion, and a
    --  companion that outlived its test would be a process nobody reaps.
    for Turn in 1 .. Integer (Seconds * 20) loop
-      if Hostkit.Descriptors.Wait_Readable
-           (Hostkit.Descriptors.Standard_Input, 50)
+      if Waiting_Only then
+         --  A shell running a submission: nothing reads, and what stops a
+         --  runaway loop is the host saying an interrupt arrived.
+         delay 0.05;
+
+      elsif Hostkit.Descriptors.Wait_Readable
+              (Hostkit.Descriptors.Standard_Input, 50)
       then
          declare
             Buffer : Ada.Streams.Stream_Element_Array (1 .. 64);
