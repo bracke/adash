@@ -7,6 +7,7 @@ with Hostkit;
 with Adash.Errors;
 with Adash.Execution.Commands;
 with Adash.Execution.Pipelines;
+with Adash.Execution.Signals;
 with Adash.Execution.Streams;
 with Adash.Filesystem;
 with Adash.Execution.Internal_Commands;
@@ -58,6 +59,14 @@ package body Adash.Engine is
       --  started the program acknowledges once it has ended.
       --  The token answers for the recorded interrupt too, so there is one
       --  place that knows Ctrl-C means stop rather than one per waiter.
+      --
+      --  The look comes first, and only on the host that needs it: where the
+      --  host will not tell a busy program that Ctrl-C was typed, the shell
+      --  reads the keystroke from the terminal itself. Watch_Terminal is what
+      --  decides that, and it is off unless a frontend turned it on, so this
+      --  costs one test of a descriptor on every other host.
+      Adash.Execution.Signals.Look_For_An_Interrupt;
+
       return Source.Token /= null and then Source.Token.Is_Requested;
    end Is_Cancelled;
 

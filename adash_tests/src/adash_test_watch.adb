@@ -81,10 +81,21 @@ procedure Adash_Test_Watch is
      Ada.Command_Line.Argument_Count >= 3
        and then Ada.Command_Line.Argument (3) = "busy-raw";
 
+   --  "busy-toggle" is what the shell actually does. The terminal is left as a
+   --  shell leaves it between lines -- so a program it runs is not handed a
+   --  console with no line editing -- and each look takes it raw for an
+   --  instant and puts it back. Whether a keystroke typed while it was not raw
+   --  is still there to be found afterwards is the question, and no reading of
+   --  the documentation settles it.
+   Busy_Toggling : constant Boolean :=
+     Ada.Command_Line.Argument_Count >= 3
+       and then Ada.Command_Line.Argument (3) = "busy-toggle";
+
    Busy_Loop : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
        and then (Ada.Command_Line.Argument (3) = "busy"
-                 or else Ada.Command_Line.Argument (3) = "busy-raw");
+                 or else Ada.Command_Line.Argument (3) = "busy-raw"
+                 or else Ada.Command_Line.Argument (3) = "busy-toggle");
 
    Through_The_Engine : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
@@ -158,7 +169,7 @@ begin
       end;
    end if;
 
-   if Waiting_Only then
+   if Waiting_Only or else Busy_Toggling then
       Ada.Text_IO.Put_Line
         (Report,
          "interruptible="
@@ -182,7 +193,56 @@ begin
          Saw_Three : Boolean := False;
          Started   : constant Ada.Calendar.Time := Ada.Calendar.Clock;
 
+         Raw_For_A_Look : Boolean := False;
+
          use type Ada.Calendar.Time;
+
+         procedure Read_What_Is_There;
+         procedure Put_The_Terminal_Back
+           (Saved : Hostkit.Terminal_Control.Mode);
+
+         procedure Read_What_Is_There is
+            Buffer : Ada.Streams.Stream_Element_Array (1 .. 64);
+            Last   : Ada.Streams.Stream_Element_Offset;
+
+            use type Ada.Streams.Stream_Element;
+            use type Hostkit.Descriptors.Transfer_Outcome;
+         begin
+            if not Raw_For_A_Look
+              or else not Hostkit.Descriptors.Wait_Readable
+                            (Hostkit.Descriptors.Standard_Input, 0)
+            then
+               return;
+            end if;
+
+            if Hostkit.Descriptors.Read
+                 (Hostkit.Descriptors.Standard_Input, Buffer, Last)
+               /= Hostkit.Descriptors.Transfer_Ok
+            then
+               return;
+            end if;
+
+            for Index in Buffer'First .. Last loop
+               Ada.Text_IO.Put_Line
+                 (Report,
+                  "while-busy=" & Natural'Image (Natural (Buffer (Index))));
+
+               Saw_Three := Saw_Three or else Buffer (Index) = 3;
+            end loop;
+
+            Ada.Text_IO.Flush (Report);
+         end Read_What_Is_There;
+
+         procedure Put_The_Terminal_Back
+           (Saved : Hostkit.Terminal_Control.Mode)
+         is
+            Ignored : constant Boolean :=
+              Hostkit.Terminal_Control.Restore_Mode
+                (Hostkit.Descriptors.Standard_Input, Saved);
+            pragma Unreferenced (Ignored);
+         begin
+            null;
+         end Put_The_Terminal_Back;
       begin
          --  Spun until told, or until the time runs out. Counted turns were
          --  the first try and they were the wrong bound: ten million asks take
@@ -196,6 +256,26 @@ begin
                Told := Adash.Execution.Signals.Interrupt_Pending;
                exit when Told;
             end loop;
+
+            --  The shell's own sequence: take the terminal raw for an
+            --  instant, look, put it back.
+            if Busy_Toggling then
+               declare
+                  Saved : Hostkit.Terminal_Control.Mode;
+               begin
+                  if Hostkit.Terminal_Control.Save_Mode
+                       (Hostkit.Descriptors.Standard_Input, Saved)
+                  then
+                     Raw_For_A_Look :=
+                       Hostkit.Terminal_Control.Set_Raw
+                         (Hostkit.Descriptors.Standard_Input);
+
+                     Read_What_Is_There;
+
+                     Put_The_Terminal_Back (Saved);
+                  end if;
+               end;
+            end if;
 
             --  The other way of finding out, for the host that will not say.
             --  A poll that waits no time at all, so this stays a busy loop

@@ -1,3 +1,5 @@
+with Hostkit.Descriptors;
+
 with Adash.Errors;
 
 --  What the shell itself does about signals.
@@ -97,5 +99,38 @@ package Adash.Execution.Signals is
    --  Called once whatever it meant has been dealt with. A caller that forgets
    --  leaves the next thing it runs looking already-interrupted.
    procedure Acknowledge_Interrupt;
+
+   --  Watch the terminal for the interrupt key, on a host that will not say.
+   --
+   --  For the one host where Hostkit.Terminal_Control says an interrupt does
+   --  not reach a busy program. There the shell is never told that Ctrl-C was
+   --  typed while a submission runs, so a runaway loop cannot be stopped by
+   --  anybody -- but the keystroke itself still arrives at a terminal left
+   --  raw, as the byte three, which a probe measured on all three hosts.
+   --
+   --  So the shell looks. Watch_Terminal says which descriptor to look at, and
+   --  Look_For_An_Interrupt is the looking: called between instructions, it
+   --  reads whatever is there without waiting, records an interrupt if the
+   --  interrupt key is among it, and puts the rest back where a reader will
+   --  find it. Bytes typed ahead during a long loop are still typed ahead.
+   --
+   --  Deliberately not automatic. Looking means reading the terminal, and a
+   --  shell that read the terminal while a foreground program had it would
+   --  take that program's input; the caller knows when nobody else is reading
+   --  and this package does not.
+   --
+   --  @param Terminal Where to look. Stop_Watching to stop.
+   procedure Watch_Terminal (Terminal : Hostkit.Descriptors.Descriptor);
+
+   --  Stop looking. Anything already recorded stays recorded.
+   procedure Stop_Watching;
+
+   --  Whether the terminal is being watched.
+   --
+   --  @return True between Watch_Terminal and Stop_Watching.
+   function Watching return Boolean;
+
+   --  Look once, if watching. Cheap enough to call between instructions.
+   procedure Look_For_An_Interrupt;
 
 end Adash.Execution.Signals;

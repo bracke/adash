@@ -1111,22 +1111,44 @@ package body Adash.Interactive.Session is
             end;
 
             if Outcome = Adash.Interactive.Editing.Line_Read then
-               --  A terminal that will report a Ctrl-C while this runs.
+               --  A terminal a runaway loop can be stopped at, in whichever of
+               --  the two ways this host allows.
                --
                --  The editor puts back the settings it saved when it took the
                --  line, and what it saved is whatever the terminal happened to
                --  have: a console handed over by a pseudo-console arrives
                --  without the flag that makes an interrupt key an interrupt,
-               --  so a runaway loop there could not be stopped by anybody. The
-               --  question is asked of the host rather than answered here, and
-               --  a host that refuses leaves the loop as it was.
+               --  so a runaway loop there could not be stopped by anybody.
+               --
+               --  Where the host reports an interrupt to a program that is not
+               --  reading, asking it to is the whole arrangement and the shell
+               --  does nothing further. Where it does not -- Windows, where a
+               --  spinning program is never told -- the keystroke still
+               --  arrives as a byte at a terminal left raw, so the shell keeps
+               --  it raw and looks between instructions instead. Which host
+               --  this is is hostkit's answer, not a guess from the platform.
                declare
-                  Ignored : constant Boolean :=
-                    Hostkit.Terminal_Control.Set_Interruptible
-                      (Hostkit.Descriptors.Standard_Input);
-                  pragma Unreferenced (Ignored);
+                  Ignored : Boolean;
                begin
-                  null;
+                  if Hostkit.Terminal_Control
+                       .Interrupt_Reaches_A_Busy_Program
+                  then
+                     Ignored :=
+                       Hostkit.Terminal_Control.Set_Interruptible
+                         (Hostkit.Descriptors.Standard_Input);
+                  else
+                     --  Left as the editor put it back, and watched. The
+                     --  watching takes the terminal for the instant of each
+                     --  look rather than holding it raw, because a program
+                     --  this submission runs would inherit a console with no
+                     --  line editing and no echo.
+                     Ignored :=
+                       Hostkit.Terminal_Control.Set_Interruptible
+                         (Hostkit.Descriptors.Standard_Input);
+
+                     Adash.Execution.Signals.Watch_Terminal
+                       (Hostkit.Descriptors.Standard_Input);
+                  end if;
                end;
 
                declare
@@ -1146,6 +1168,12 @@ package body Adash.Interactive.Session is
                      On_Output => Output_To'Unchecked_Access);
 
                   Render_Diagnostics;
+
+                  --  Stopped first, so that nothing between here and the next
+                  --  line read takes a byte off the terminal: the editor reads
+                  --  it, and a shell reading it behind the editor's back would
+                  --  be two readers of one keyboard.
+                  Adash.Execution.Signals.Stop_Watching;
 
                   --  Acknowledged once the submission has ended, whether it
                   --  ended because of the interrupt or in spite of it. An

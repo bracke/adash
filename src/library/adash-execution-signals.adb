@@ -1,5 +1,10 @@
-with Hostkit.Signals;
+with Ada.Calendar;
+with Ada.Streams;
 
+with Hostkit.Signals;
+with Hostkit.Terminal_Control;
+
+with Adash.Execution.Streams;
 with Adash.Messages;
 with Adash.Platform;
 
@@ -154,10 +159,150 @@ package body Adash.Execution.Signals is
    -- Interrupt_Pending --
    ---------------------------
 
+   --  Where the terminal is watched, and what the watching found.
+   --
+   --  A flag of this package's own rather than one of hostkit's: what arrived
+   --  is a keystroke this shell read, not a signal the host delivered, and
+   --  saying otherwise would make Hostkit.Signals.Arrived answer for something
+   --  no signal did.
+   Looking_At : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
+   Seen_Typed : Boolean := False;
+   pragma Atomic (Seen_Typed);
+
+   --  What a terminal sends for the interrupt key.
+   Interrupt_Key : constant Ada.Streams.Stream_Element := 3;
+
    function Interrupt_Pending return Boolean is
    begin
-      return Hostkit.Signals.Arrived (Hostkit.Signals.Signal_Interrupt);
+      return Seen_Typed
+        or else Hostkit.Signals.Arrived (Hostkit.Signals.Signal_Interrupt);
    end Interrupt_Pending;
+
+   ---------------------
+   -- Watch_Terminal --
+   ---------------------
+
+   procedure Watch_Terminal (Terminal : Hostkit.Descriptors.Descriptor) is
+   begin
+      Looking_At := Terminal;
+   end Watch_Terminal;
+
+   --------------------
+   -- Stop_Watching --
+   --------------------
+
+   procedure Stop_Watching is
+   begin
+      Looking_At := Hostkit.Descriptors.Invalid;
+   end Stop_Watching;
+
+   ----------------
+   -- Watching --
+   ----------------
+
+   function Watching return Boolean is
+   begin
+      return Hostkit.Descriptors.Is_Valid (Looking_At);
+   end Watching;
+
+   -------------------------------
+   -- Look_For_An_Interrupt --
+   -------------------------------
+
+   --  How often the terminal is worth a look.
+   --
+   --  Not every instruction. Looking means three calls into the host, and a
+   --  machine running millions of instructions a second would spend most of
+   --  its time asking a keyboard whether anything had happened. A twentieth of
+   --  a second is far below what a user can notice between pressing Ctrl-C and
+   --  a loop stopping, and far above what this costs.
+   Look_Interval : constant Duration := 0.05;
+
+   --  The clock is not asked every instruction either: reading it is cheap,
+   --  and cheap times ten million is not.
+   Between_Clocks : constant := 1_024;
+
+   Since_A_Look  : Natural := 0;
+   Last_Look     : Ada.Calendar.Time := Ada.Calendar.Clock;
+
+   procedure Look_For_An_Interrupt is
+      Buffer : Ada.Streams.Stream_Element_Array (1 .. 64);
+      Last   : Ada.Streams.Stream_Element_Offset;
+
+      Saved   : Hostkit.Terminal_Control.Mode;
+      Was_Raw : Boolean;
+
+      use type Ada.Calendar.Time;
+      use type Ada.Streams.Stream_Element;
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      if not Hostkit.Descriptors.Is_Valid (Looking_At) then
+         return;
+      end if;
+
+      Since_A_Look := Since_A_Look + 1;
+
+      if Since_A_Look < Between_Clocks then
+         return;
+      end if;
+
+      Since_A_Look := 0;
+
+      if Ada.Calendar.Clock - Last_Look < Look_Interval then
+         return;
+      end if;
+
+      Last_Look := Ada.Calendar.Clock;
+
+      --  The terminal, for as long as one look takes.
+      --
+      --  Raw is what makes the interrupt key arrive as a byte rather than as
+      --  something the host swallows, and this shell cannot leave it raw: a
+      --  program the submission runs would inherit a console with no line
+      --  editing and no echo. So it is taken and put back around each look,
+      --  and a keystroke typed while it was not raw is still in the terminal's
+      --  buffer to be found -- changing the mode does not empty it.
+      if not Hostkit.Terminal_Control.Save_Mode (Looking_At, Saved) then
+         return;
+      end if;
+
+      Was_Raw := Hostkit.Terminal_Control.Set_Raw (Looking_At);
+
+      if Was_Raw
+        and then Hostkit.Descriptors.Wait_Readable (Looking_At, 0)
+        and then Hostkit.Descriptors.Read (Looking_At, Buffer, Last)
+                 = Hostkit.Descriptors.Transfer_Ok
+      then
+         declare
+            Kept  : String (1 .. Natural (Last));
+            Count : Natural := 0;
+         begin
+            for Index in Buffer'First .. Last loop
+               if Buffer (Index) = Interrupt_Key then
+                  Seen_Typed := True;
+               else
+                  --  Everything else is what the user typed while waiting, and
+                  --  it belongs to whoever reads next rather than to this
+                  --  look.
+                  Count := Count + 1;
+                  Kept (Count) := Character'Val (Natural (Buffer (Index)));
+               end if;
+            end loop;
+
+            if Count > 0 then
+               Adash.Execution.Streams.Put_Back (Kept (1 .. Count));
+            end if;
+         end;
+      end if;
+
+      declare
+         Ignored : constant Boolean :=
+           Hostkit.Terminal_Control.Restore_Mode (Looking_At, Saved);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
+   end Look_For_An_Interrupt;
 
    -------------------------------
    -- Acknowledge_Interrupt --
@@ -165,6 +310,7 @@ package body Adash.Execution.Signals is
 
    procedure Acknowledge_Interrupt is
    begin
+      Seen_Typed := False;
       Hostkit.Signals.Clear (Hostkit.Signals.Signal_Interrupt);
    end Acknowledge_Interrupt;
 

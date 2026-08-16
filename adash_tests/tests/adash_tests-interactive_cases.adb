@@ -2198,9 +2198,11 @@ package body Adash_Tests.Interactive_Cases is
 
          Waited  : Ada.Strings.Unbounded.Unbounded_String;
          Watched : Ada.Strings.Unbounded.Unbounded_String;
+         Toggled : Ada.Strings.Unbounded.Unbounded_String;
       begin
          Ask_A_Watcher ("busy", "terminal-waiting.txt", Waited);
          Ask_A_Watcher ("busy-raw", "terminal-watching.txt", Watched);
+         Ask_A_Watcher ("busy-toggle", "terminal-toggling.txt", Toggled);
 
          --  A program that never stops computing is not told about a Ctrl-C
          --  on every host, and where it is not, the record says so rather than
@@ -2226,6 +2228,19 @@ package body Adash_Tests.Interactive_Cases is
            ("busy-probe: " & Ada.Strings.Unbounded.To_String (Waited));
          Ada.Text_IO.Put_Line
            ("polling-probe: " & Ada.Strings.Unbounded.To_String (Watched));
+
+         --  The one that matters: this is the shell's own arrangement, so a
+         --  host that finds the keystroke here is a host where a runaway loop
+         --  can be stopped without leaving a console raw for whatever the
+         --  submission runs.
+         Assert (Ada.Strings.Fixed.Index
+                   (Ada.Strings.Unbounded.To_String (Toggled), "saw-three")
+                 > 0,
+                 "the toggling probe did not run at all: ["
+                 & Ada.Strings.Unbounded.To_String (Toggled) & "]");
+
+         Ada.Text_IO.Put_Line
+           ("toggling-probe: " & Ada.Strings.Unbounded.To_String (Toggled));
       end;
    end A_Terminal_Says_What_Reaches_A_Program;
 
@@ -2292,24 +2307,20 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
-         --  Where this ends, on the host where it does not work.
-         --
-         --  Everything around it has been put into the probe above and the
-         --  interrupt arrived every time: the terminal, the editor's line
-         --  read, the tasking run-time, and the engine running a submission of
-         --  its own. What separates the case that is told from the case that
-         --  is not is one thing only -- being **busy**. A program waiting is
-         --  told that Ctrl-C was typed; the same program spinning is never
-         --  told at all, and a runaway loop is the one thing this was for.
-         --
-         --  Two ways of giving the host a moment were tried in the machine's
-         --  poll and neither helped: a yield to our own tasks, and a
-         --  millisecond of sleep every million instructions. So it is not a
-         --  scheduling window, and the next attempt starts there rather than
-         --  at the terminal.
-         return;
-      end if;
+      --  No longer guarded by whether the host has signals.
+      --
+      --  It was, and the note said why: on Windows a spinning program is never
+      --  told that Ctrl-C was typed -- not late, not unnoticed, never, as the
+      --  probe above measures by asking again half a second after it stops
+      --  spinning. Waiting for the host to say so was the wrong thing to wait
+      --  for.
+      --
+      --  What the same probe also measures is that the keystroke itself
+      --  arrives, as the byte three, at a terminal that is raw when the look
+      --  happens. So the shell looks: between instructions, at most twenty
+      --  times a second, it takes the terminal raw for an instant and reads
+      --  what is there. That is a shell's own arrangement rather than the
+      --  host's, and this case is the claim that it works.
 
       if not Start_On_A_Terminal (Session) then
          return;
