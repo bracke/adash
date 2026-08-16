@@ -2914,12 +2914,27 @@ still does not stop. What arrives is input to be read, and nothing is reading
 while a submission runs; there is no asynchronous event of the kind a signal
 gives you.
 
-A shell could poll its own input between instructions instead of waiting to be
-told. That is a decision and not a fix: while a child is running the input
-belongs to the child, and a shell reading it to look for a Ctrl-C would be
-taking keystrokes from the program it started. What Ctrl-C does there today is
-asserted where it does something -- at the prompt, abandoning the line being
-typed, which is the editor's half and needs no signal at all.
+A shell can poll its own input between instructions instead of waiting to be
+told, and that was written: an Interrupt_Watcher the frontend supplied, asked
+only from between two instructions of the machine -- which is what keeps it off
+a running child, since a child running has the shell inside one instruction --
+and only where the host installs no dispositions of its own. What it read that
+was not an interrupt went to the buffer every reader of standard input shares,
+so type-ahead survived the look.
+
+It did not work. On the host it was for, the loop went on running with the
+keystroke typed at it, and it is reverted: machinery that works nowhere is
+worse than none. Two things came out of the attempt and stayed. hostkit's
+Wait_Readable answered "ready" for a console -- a console refuses the question
+a pipe answers, and the refusal was read as "not a pipe, so a read returns at
+once" -- which made the watcher's read block and the shell freeze rather than
+stop; it asks a console PeekConsoleInput now, and only a key going down with a
+character on it counts. And the thing still not known is where the keystroke
+goes while a submission runs.
+
+What Ctrl-C does there today is asserted where it does something -- at the
+prompt, abandoning the line being typed, which is the editor's half and needs
+no signal at all.
 
 And the accented half of the backspace case. Three ways of typing that
 character at a console have been tried on that host: the UTF-8 as it stands;

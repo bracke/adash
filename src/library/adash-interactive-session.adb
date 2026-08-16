@@ -7,13 +7,8 @@ with Adash.Configuration.Files;
 with Adash.Diagnostics;
 with Adash.Engine;
 with Adash.Errors;
-with Ada.Streams;
-
-with Hostkit.Descriptors;
-
 with Adash.Execution;
 with Adash.Execution.Environment;
-with Adash.Execution.Streams;
 with Adash.Execution.Signals;
 with Adash.Interactive.Editing;
 with Adash.Interactive.History;
@@ -613,79 +608,6 @@ package body Adash.Interactive.Session is
 
       Reporting : aliased Typed_Lines;
 
-      --  What tells the machine that a Ctrl-C was typed, on a host that does
-      --  not deliver one by itself.
-      --
-      --  Between two instructions the shell owns the terminal: nothing else is
-      --  reading, and what is waiting there is either the interrupt or
-      --  something typed ahead. Both are taken -- the interrupt is the answer,
-      --  and the rest goes to the buffer every reader of standard input shares,
-      --  so a user who typed the next line while a loop ran finds it at the
-      --  next prompt rather than losing it to the look.
-      --
-      --  Nothing here runs where the host installs dispositions of its own.
-      --  See Adash.Execution.Signals.Interrupt_Watcher for why this is asked
-      --  only from between instructions, and never while a child is running.
-      type Terminal_Watch is limited new
-        Adash.Execution.Signals.Interrupt_Watcher with null record;
-
-      overriding function Interrupt_Typed
-        (Item : in out Terminal_Watch) return Boolean;
-
-      overriding function Interrupt_Typed
-        (Item : in out Terminal_Watch) return Boolean
-      is
-         pragma Unreferenced (Item);
-
-         Interrupt : constant Character := Character'Val (3);
-
-         Buffer : Ada.Streams.Stream_Element_Array (1 .. 256);
-         Last   : Ada.Streams.Stream_Element_Offset;
-
-         Found : Boolean := False;
-         Rest  : Ada.Strings.Unbounded.Unbounded_String;
-
-         use type Hostkit.Descriptors.Transfer_Outcome;
-      begin
-         --  Asked, not waited for: this is called between two instructions of
-         --  a running program, and waiting here would be the program stopping
-         --  to see whether it had been asked to stop.
-         if not Hostkit.Descriptors.Wait_Readable
-                  (Hostkit.Descriptors.Standard_Input, 0)
-         then
-            return False;
-         end if;
-
-         if Hostkit.Descriptors.Read
-              (Hostkit.Descriptors.Standard_Input, Buffer, Last)
-            /= Hostkit.Descriptors.Transfer_Ok
-         then
-            return False;
-         end if;
-
-         for Index in Buffer'First .. Last loop
-            declare
-               Byte : constant Character :=
-                 Character'Val (Natural (Buffer (Index)));
-            begin
-               if Byte = Interrupt then
-                  Found := True;
-               else
-                  Ada.Strings.Unbounded.Append (Rest, Byte);
-               end if;
-            end;
-         end loop;
-
-         if Ada.Strings.Unbounded.Length (Rest) > 0 then
-            Adash.Execution.Streams.Put_Back
-              (Ada.Strings.Unbounded.To_String (Rest));
-         end if;
-
-         return Found;
-      end Interrupt_Typed;
-
-      Watching : aliased Terminal_Watch;
-
       --  What `source` runs a script with: this session, this session's
       --  diagnostics, and the one loading chain that can see a cycle.
       Sourcing : aliased Adash.Scripting.Runner
@@ -899,11 +821,6 @@ package body Adash.Interactive.Session is
       end;
 
       Adash.Engine.Apply_Settings (Shell, Chosen);
-
-      --  Who the machine asks between instructions, on a host that cannot tell
-      --  it by itself. Set for as long as this session runs; taken back below,
-      --  so nothing holds a pointer into a frame that has gone.
-      Adash.Execution.Signals.Watch (Watching'Unchecked_Access);
 
       Recording := Adash.Configuration.Boolean_Value
         (Chosen, Adash.Configuration.History_Enabled_Setting);
@@ -1124,9 +1041,6 @@ package body Adash.Interactive.Session is
                   Msg.Msg_Interactive_Read_Failed,
                   Role => Adash.Terminal.Role_Error);
                Deliver_Notices;
-
-               --  As at the end: nothing may ask a frame that has gone.
-               Adash.Execution.Signals.Watch (null);
                return 2;
             end if;
 
@@ -1238,11 +1152,6 @@ package body Adash.Interactive.Session is
       end loop;
 
       Merge_Session_History;
-
-      --  Nobody asks the terminal after this: the watcher is a frame of this
-      --  call, and a pointer to it outliving the call would be a pointer to
-      --  nothing.
-      Adash.Execution.Signals.Watch (null);
 
       if Adash.Engine.Exit_Requested (Shell) then
          return Adash.Execution.Numeric (Adash.Engine.Exit_Status (Shell));

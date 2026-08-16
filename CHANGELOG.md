@@ -1626,10 +1626,19 @@ what changed.
   and nothing reads while a submission runs. There is no asynchronous event of
   the kind a signal gives you.
 
-  A shell could poll its own input between instructions instead. That is a
-  decision rather than a fix: while a child is running the input belongs to the
-  child, and a shell reading it to look for a Ctrl-C would be taking keystrokes
-  from the program it started.
+  Polling the shell's own input between instructions was written and reverted:
+  an `Interrupt_Watcher` the frontend supplied, asked only from between two
+  instructions -- which is what kept it off a running child -- and only where
+  the host installs no dispositions of its own, with everything read that was
+  not an interrupt handed to the buffer readers of standard input share. The
+  loop went on running with the keystroke typed at it, and machinery that works
+  nowhere is worse than none.
+
+  It did leave a real fix behind in hostkit: `Wait_Readable` answered "ready"
+  for a console, because a console refuses the question a pipe answers and the
+  refusal was read as "a read would return at once". A console is asked
+  `PeekConsoleInput` now, and only a key going down with a character on it
+  counts.
 
   The accented half of the backspace case stays off as well, after three ways
   of typing that character at a console: the UTF-8 as it stands, the key event

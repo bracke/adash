@@ -154,26 +154,6 @@ package body Adash.Execution.Signals is
    -- Interrupt_Pending --
    ---------------------------
 
-   Watcher : Watcher_Access := null;
-
-   -----------
-   -- Watch --
-   -----------
-
-   procedure Watch (Item : Watcher_Access) is
-   begin
-      Watcher := Item;
-   end Watch;
-
-   --------------
-   -- Watching --
-   --------------
-
-   function Watching return Watcher_Access is
-   begin
-      return Watcher;
-   end Watching;
-
    function Interrupt_Pending return Boolean is
    begin
       return Hostkit.Signals.Arrived (Hostkit.Signals.Signal_Interrupt);
