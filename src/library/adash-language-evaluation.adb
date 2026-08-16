@@ -219,11 +219,17 @@ package body Adash.Language.Evaluation is
 
    --  How many polls between one yield and the next.
    --
-   --  The machine asks every 1024 instructions; this makes every sixty-fourth
-   --  of those asks give the host a moment first. That is a keystroke noticed
-   --  within a few milliseconds, at a cost of one yield per sixty-five
-   --  thousand instructions.
-   Yield_Every : constant := 64;
+   --  The machine asks every 1024 instructions; this makes every thousandth
+   --  of those asks give the host a moment first -- a keystroke noticed within
+   --  something like a hundredth of a second, at the cost of one millisecond
+   --  of sleep per million instructions.
+   --
+   --  A sleep rather than a yield. `delay 0.0` is a yield to whatever else is
+   --  ready to run in this program, and it was tried: on the host that needs
+   --  this, a keystroke still went unnoticed, because what has to happen is
+   --  not another task of ours running but the *host* delivering a notice on a
+   --  thread of its own.
+   Yield_Every : constant := 1_024;
 
    Polls : Natural := 0;
 
@@ -248,7 +254,7 @@ package body Adash.Language.Evaluation is
 
          if Polls >= Yield_Every then
             Polls := 0;
-            delay 0.0;
+            delay 0.001;
          end if;
       end if;
 
