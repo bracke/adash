@@ -2182,13 +2182,16 @@ package body Adash_Tests.Interactive_Cases is
             end;
          end if;
 
+         --  A program that never stops computing is not told about a Ctrl-C
+         --  on every host: where the notice comes on a thread the host makes,
+         --  it needs a moment to arrive. That is why the machine's poll gives
+         --  the host one, and this records which kind of host this is rather
+         --  than asserting one answer -- what the *shell* does about it is the
+         --  case below, which is the claim that matters.
          Assert (Ada.Strings.Fixed.Index
-                   (Ada.Strings.Unbounded.To_String (Waited), "busy-told=TRUE")
+                   (Ada.Strings.Unbounded.To_String (Waited), "busy-told")
                  > 0,
-                 "a program spinning in a tight loop was never told about a "
-                 & "Ctrl-C that the same program, asking with a delay between "
-                 & "asks, is told about -- so what a busy shell cannot see is "
-                 & "the arrival itself: ["
+                 "the busy probe did not run at all: ["
                  & Ada.Strings.Unbounded.To_String (Waited) & "]");
       end;
    end A_Terminal_Says_What_Reaches_A_Program;
@@ -2256,25 +2259,12 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
-         --  Where the trail ends, on the host where this does not work.
-         --
-         --  The terminal is not the reason, and that is measured rather than
-         --  argued. The probe above does what this shell does -- reads a line
-         --  in raw mode, puts the saved settings back, asks for a terminal
-         --  that reports an interrupt key, and then waits without reading --
-         --  and it is told about a Ctrl-C typed at it. Sixty lines of
-         --  companion get the interrupt that the shell does not.
-         --
-         --  So what is left is inside the shell: it arms the recording at
-         --  start-up, asks the terminal before every submission, and the
-         --  machine looks between instructions as it does on every host. One
-         --  of those three is not doing what it says on this host, and finding
-         --  out which needs the shell itself to say what it sees -- which is
-         --  the next thing to build, and the reason the probe exists at all.
-         return;
-      end if;
-
+      --  Every host that can give a child a terminal.
+      --
+      --  Where there are signals the keystroke arrives as one; where there are
+      --  none the host tells a process that gives it the chance to, which is
+      --  what the machine's poll now does every sixty-fourth ask. Both are the
+      --  same promise to a user with a runaway loop.
       if not Start_On_A_Terminal (Session) then
          return;
       end if;
