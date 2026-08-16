@@ -193,23 +193,23 @@ package body Adash.Filesystem is
          --  one call, which is what a script naming a path three deep means.
          Ada.Directories.Create_Path (Path);
       exception
-         when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
-            --  A name this host will not form, something in the way that is
-            --  not a directory, or a place this process may not write.
+         when others =>
+            --  Every complaint the host makes here is a refusal.
             --
-            --  Use_Error counts as a refusal here and not where a file is
-            --  written, and the difference is real: a write can stop half way
-            --  and leave a file that is neither what was there nor what was
-            --  meant, so "did not finish" is what a caller needs to hear. A
-            --  directory is made or it is not. A name too long for the host --
-            --  which is what raises this in practice -- was never begun, and
-            --  telling a user that writing did not finish would send them
-            --  looking for what was half done.
+            --  Which is not how writing a file is answered, and the difference
+            --  is real rather than tidy: a write can stop half way and leave a
+            --  file that is neither what was there before nor what was meant,
+            --  so "did not finish" is what its caller needs to hear. A
+            --  directory is made or it is not.
+            --
+            --  Not sorted by which exception arrived, because the hosts do not
+            --  agree on that: the same name, too long for both, is a Use_Error
+            --  on one and a Device_Error on another, and a shell that told a
+            --  user "writing did not finish" on one host and "nothing can be
+            --  written" on the other would be reporting the compiler's
+            --  mapping rather than what happened. What happened is that the
+            --  host would not make it.
             Result := Write_Refused;
-            return;
-
-         when Ada.IO_Exceptions.Device_Error =>
-            Result := Write_Failed;
             return;
       end;
 

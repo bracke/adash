@@ -1771,7 +1771,10 @@ what changed.
 - **A directory name the host will not form is refused, not failed.** Every host
   has a limit on how long one part of a path may be, and `make_directory` called
   a name past it a write that did not finish -- sending a user looking for what
-  was half done. A directory is made or it is not.
+  was half done. A directory is made or it is not. Every complaint the host
+  makes is answered the same way, deliberately: the same over-long name is one
+  exception on one host and another elsewhere, and sorting by which arrived
+  would report the compiler's mapping rather than what happened.
 
 - **`Read_File` of a directory reads as nothing**, and now says so where it is
   documented and asserts it where it is tested. The same answer as a file that
