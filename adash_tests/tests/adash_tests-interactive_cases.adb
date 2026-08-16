@@ -2090,8 +2090,14 @@ package body Adash_Tests.Interactive_Cases is
          --  put back, and only then a terminal asked to report an interrupt.
          --  That is the one difference left between a companion that is told
          --  about a Ctrl-C and a shell that is not.
+         --  The shell without its frontend: arm, ask the terminal to report an
+         --  interrupt, and run a submission that never ends. Everything the
+         --  frontend does has been tried in this companion and the interrupt
+         --  arrived each time, so what is left is the engine and the machine.
+         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("engine"));
          Asked.Append
-           (Ada.Strings.Unbounded.To_Unbounded_String ("after-a-line"));
+           (Ada.Strings.Unbounded.To_Unbounded_String
+              ("loop null; end loop;"));
 
          Assert (Hostkit.Pty.Open (Second), "could not open a second terminal");
          Assert (Hostkit.Pty.Set_Size (Second, (Rows => 24, Columns => 80)),
@@ -2176,11 +2182,12 @@ package body Adash_Tests.Interactive_Cases is
          end if;
 
          Assert (Ada.Strings.Fixed.Index
-                   (Ada.Strings.Unbounded.To_String (Waited), "interrupt") > 0,
-                 "a program that had read a line and then asked for an "
-                 & "interruptible terminal was never told that Ctrl-C had "
-                 & "been typed at it -- which is the shell's own sequence, so "
-                 & "this is where the shell loses it: ["
+                   (Ada.Strings.Unbounded.To_String (Waited), "came-back") > 0,
+                 "a submission that never ends was not stopped by a Ctrl-C "
+                 & "typed at the terminal it was running on, with the "
+                 & "recording armed and the terminal asked to report one -- "
+                 & "so what does not notice is the machine's look between "
+                 & "instructions: ["
                  & Ada.Strings.Unbounded.To_String (Waited) & "]");
       end;
    end A_Terminal_Says_What_Reaches_A_Program;

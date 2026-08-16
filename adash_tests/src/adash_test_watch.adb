@@ -5,6 +5,8 @@ with Ada.Text_IO;
 with Hostkit.Descriptors;
 with Hostkit.Terminal_Control;
 
+with Adash.Diagnostics;
+with Adash.Engine;
 with Adash.Interactive.Editing;
 with Adash.Interactive.History;
 
@@ -48,7 +50,8 @@ procedure Adash_Test_Watch is
    Waiting_Only : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
        and then (Ada.Command_Line.Argument (3) = "waiting"
-                 or else Ada.Command_Line.Argument (3) = "after-a-line");
+                 or else Ada.Command_Line.Argument (3) = "after-a-line"
+                 or else Ada.Command_Line.Argument (3) = "engine");
 
    --  "after-a-line" is "waiting" with the shell's own history: read a line in
    --  raw mode first, put the settings back, and only then ask for an
@@ -57,6 +60,14 @@ procedure Adash_Test_Watch is
    After_A_Line : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
        and then Ada.Command_Line.Argument (3) = "after-a-line";
+
+   --  "engine" is the shell without its frontend: arm, ask the terminal to
+   --  report an interrupt, and then run a submission that never ends. What is
+   --  recorded is whether it came back, which is what the machine's look
+   --  between instructions is for.
+   Through_The_Engine : constant Boolean :=
+     Ada.Command_Line.Argument_Count >= 3
+       and then Ada.Command_Line.Argument (3) = "engine";
 
    Report : Ada.Text_IO.File_Type;
 
@@ -135,6 +146,38 @@ begin
    end if;
 
    Ada.Text_IO.Flush (Report);
+
+   if Through_The_Engine then
+      declare
+         Shell   : Adash.Engine.Session;
+         Answer  : Adash.Engine.Result;
+         Told    : Adash.Diagnostics.List;
+      begin
+         Ada.Text_IO.Put_Line (Report, "submitting");
+         Ada.Text_IO.Flush (Report);
+
+         --  What to submit comes from the caller. A companion that carried a
+         --  program of its own in a literal would be Ada source with a
+         --  sentence in it, which is what this repository does not have.
+         Adash.Engine.Submit
+           (Shell,
+            Text    =>
+              (if Ada.Command_Line.Argument_Count >= 4
+               then Ada.Command_Line.Argument (4) else ""),
+            Name    => "-",
+            Outcome => Answer,
+            Report  => Told);
+
+         --  Only reached if something stopped it, which is the question.
+         Ada.Text_IO.Put_Line
+           (Report, "came-back=" & Adash.Engine.Submission_Kind'Image (Answer.Kind));
+         Ada.Text_IO.Flush (Report);
+      end;
+
+      Ada.Text_IO.Put_Line (Report, "end");
+      Ada.Text_IO.Close (Report);
+      return;
+   end if;
 
    --  A fixed number of turns rather than a clock: this is a companion, and a
    --  companion that outlived its test would be a process nobody reaps.
