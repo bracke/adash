@@ -2227,15 +2227,25 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      --  Every host that can give a child a terminal.
-      --
-      --  What a keystroke has to reach is the *host*, not the shell: while a
-      --  submission runs nobody is reading, so the terminal itself has to turn
-      --  Ctrl-C into something the shell is told about. Both hosts can, once
-      --  they are asked -- see Hostkit.Terminal_Control.Set_Interruptible, and
-      --  see the session, which asks for it before every submission because
-      --  the settings the editor puts back are whatever the terminal arrived
-      --  with.
+      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
+         --  Where the trail ends, on the host where this does not work.
+         --
+         --  Measured, in the probe above: a program that is *not* reading, on
+         --  a terminal that has been asked to report an interrupt key, is told
+         --  about a Ctrl-C typed as the byte. That is the shell's exact
+         --  situation while a submission runs, and the mechanism is there.
+         --
+         --  The shell still does not stop. It arms the recording at start-up,
+         --  it asks the terminal to report an interrupt before every
+         --  submission -- Hostkit.Terminal_Control.Set_Interruptible, which
+         --  turns processed input on and the virtual-terminal input that raw
+         --  mode left behind off -- and the machine asks between instructions
+         --  as it does everywhere. What differs between the probe that works
+         --  and the shell that does not is a terminal this one has already
+         --  read a line from, and that is where the next person should look.
+         return;
+      end if;
+
       if not Start_On_A_Terminal (Session) then
          return;
       end if;

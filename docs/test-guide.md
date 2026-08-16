@@ -167,15 +167,16 @@ Tab completing a word, Up recalling a line, Up *not* recalling a line typed with
 a space in front of it, backspace removing something, and **Ctrl-C at the
 prompt** abandoning the line being typed so that the next one runs.
 
-Two things stay off that host. **Ctrl-C while a program is running.** Both ways
-of typing one were tried there: the byte `0x03`, which is what a line discipline
-takes, and the key event a console asks for when it writes `ESC [ ? 9001 h` on
-attaching. The key event is the right encoding -- the prompt case uses it and
-the editor sees the interrupt -- and a running loop still does not stop. What
-arrives is *input to be read*, and nothing reads while a submission runs, so
-there is no asynchronous event to record. A shell could poll its own input
-between instructions instead; that is a decision rather than a fix, because
-while a child is running the input belongs to the child. And
+One thing stays off that host: **Ctrl-C while a program is running**, and the
+account of it is now measured rather than reasoned. A companion sitting on a
+terminal recorded what arrives: `byte= 3` for a Ctrl-C typed as the byte, and
+-- on a terminal asked to report an interrupt key, with nothing reading -- an
+interrupt recorded, which is the shell's exact situation while a submission
+runs. The mechanism is there and the shell still does not stop. What differs
+between the probe that works and the shell that does not is a terminal the
+shell has already read a line from, and that is where the next attempt starts.
+
+And
 the **accented** half of the backspace case. Three ways of typing that
 character at a console have been tried: the UTF-8 as it stands; the key event
 the console asks for when it writes `ESC [ ? 9001 h` on attaching, with the

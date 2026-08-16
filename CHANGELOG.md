@@ -1617,28 +1617,19 @@ what changed.
   being typed, the next line runs, and the abandoned one never does. That is
   the editor's half of an interrupt and needs no signal.
 
-  Ctrl-C *while a program is running* stays off Windows, and the reason is now
-  precise. Both encodings were tried there: the byte `0x03`, which is what a
-  line discipline takes, and the key event a console asks for when it writes
-  `ESC [ ? 9001 h` on attaching. The key event is the right one -- the prompt
-  case runs on that host, sends it, and the editor sees the interrupt -- and a
-  running loop still does not stop, because what arrives is input to be read
-  and nothing reads while a submission runs. There is no asynchronous event of
-  the kind a signal gives you.
+  Ctrl-C *while a program is running* stays off Windows, and what is known is
+  now measured. A companion that sits on a terminal and writes down what
+  reaches it recorded three things there: a Ctrl-C typed as the byte arrives; an
+  accented character arrives in the console's code page, which is what raw mode
+  now asks to be UTF-8; and a program that is not reading, on a terminal asked
+  to report an interrupt key, *is* told about a Ctrl-C -- which is the shell's
+  own situation while a submission runs.
 
-  Polling the shell's own input between instructions was written and reverted:
-  an `Interrupt_Watcher` the frontend supplied, asked only from between two
-  instructions -- which is what kept it off a running child -- and only where
-  the host installs no dispositions of its own, with everything read that was
-  not an interrupt handed to the buffer readers of standard input share. The
-  loop went on running with the keystroke typed at it, and machinery that works
-  nowhere is worse than none.
-
-  It did leave a real fix behind in hostkit: `Wait_Readable` answered "ready"
-  for a console, because a console refuses the question a pipe answers and the
-  refusal was read as "a read would return at once". A console is asked
-  `PeekConsoleInput` now, and only a key going down with a character on it
-  counts.
+  The shell still does not stop, with the recording armed, the terminal asked
+  before every submission, and the machine looking between instructions. What
+  differs between the probe that works and the shell that does not is a
+  terminal the shell has already read a line from, and that is where the next
+  attempt starts.
 
   The accented half of the backspace case stays off as well, after three ways
   of typing that character at a console: the UTF-8 as it stands, the key event

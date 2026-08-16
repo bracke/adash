@@ -2905,54 +2905,32 @@ process-wide. Saying the *child's* three handles are nothing -- which is what
 STARTF_USESTDHANDLES is for -- stops the copy without touching the parent at
 all. A caveat removed rather than documented.
 
-Two things stay off that host. Ctrl-C **while a program is running**, and the
-reason is now precise rather than "no signals". Both encodings were tried: the
-byte 0x03, which is what a line discipline takes, and the key event a console
-in win32-input-mode asks for. The key event is right -- the prompt case runs on
-that host, sends it, and the editor sees the interrupt -- and a running loop
-still does not stop. What arrives is input to be read, and nothing is reading
-while a submission runs; there is no asynchronous event of the kind a signal
-gives you.
+One thing stays off that host: Ctrl-C **while a program is running**. The
+account is measured now rather than reasoned, and the measuring is what a
+companion did -- it sits on a terminal and writes down what reaches it.
 
-A shell can poll its own input between instructions instead of waiting to be
-told, and that was written: an Interrupt_Watcher the frontend supplied, asked
-only from between two instructions of the machine -- which is what keeps it off
-a running child, since a child running has the shell inside one instruction --
-and only where the host installs no dispositions of its own. What it read that
-was not an interrupt went to the buffer every reader of standard input shares,
-so type-ahead survived the look.
+What it found, on that host: a Ctrl-C typed as the byte arrives as `byte= 3`;
+an accented character arrives as one byte in the console's code page, which is
+why nothing seemed to arrive at all until raw mode began asking for UTF-8; and
+a program that is **not reading**, on a terminal asked to report an interrupt
+key, is told about a Ctrl-C. That last one is the shell's exact situation while
+a submission runs, so the mechanism is there.
 
-It did not work. On the host it was for, the loop went on running with the
-keystroke typed at it, and it is reverted: machinery that works nowhere is
-worse than none. Two things came out of the attempt and stayed. hostkit's
-Wait_Readable answered "ready" for a console -- a console refuses the question
-a pipe answers, and the refusal was read as "not a pipe, so a read returns at
-once" -- which made the watcher's read block and the shell freeze rather than
-stop; it asks a console PeekConsoleInput now, and only a key going down with a
-character on it counts. And the thing still not known is where the keystroke
-goes while a submission runs.
+The shell still does not stop. It arms the recording at start-up, asks the
+terminal to report an interrupt before every submission -- processed input on,
+and the virtual-terminal input raw mode left behind off -- and the machine asks
+between instructions as it does everywhere. What differs between the probe that
+works and the shell that does not is a terminal the shell has already read a
+line from. That is where the next attempt starts, and it starts with a probe
+that works rather than with a reading of the documentation, which has been
+wrong four times here: about batch files, about what a console does with a
+character, about whether a key event was needed, and about where the keystroke
+went.
 
-What Ctrl-C does there today is asserted where it does something -- at the
-prompt, abandoning the line being typed, which is the editor's half and needs
-no signal at all.
-
-And the accented half of the backspace case. Three ways of typing that
-character at a console have been tried on that host: the UTF-8 as it stands;
-the key event the console asks for when it writes `ESC [ ? 9001 h` on
-attaching, with virtual key and scan code left at nothing; and the same with
-VK_PACKET, which is what Windows itself uses for a key event carrying a
-character rather than a key somebody pressed. None of the three reached the
-shell -- the line was never submitted and nothing came back.
-
-What does arrive there is a key event for a key that exists: Ctrl-C is sent
-that way and the editor sees it. So the remaining guess is that this input path
-wants a virtual key it can map and drops what it cannot, which would mean a
-character with no key on the host's layout cannot be typed at a console at all.
-A guess, written down as one, so the next person starts after these three
-rather than at them. The shell was asked about the first -- after
-such a line it goes on answering -- so what is missing is the keystroke and not
-the editor, and that the editor steps by characters is asserted on every host
-by the buffer and decoder cases.
+An earlier attempt to have the shell poll its own input between instructions is
+described above and was reverted; the boundaries it drew -- only between
+instructions, never while a child owns the input -- are the ones any future
+attempt wants.
 
 **`forget` also takes a line by its text.** `forget ("git push --token=abc")`
 removes every copy of that line from the session and from the file. A count
