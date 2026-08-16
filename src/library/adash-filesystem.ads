@@ -69,22 +69,13 @@ package Adash.Filesystem is
       --  It is there and is larger than this shell will hold in a String.
       Read_Too_Large);
 
-   --  The most a Read will take from one file.
+   --  What a limit of nothing in particular means.
    --
-   --  A shell holds what it reads in memory, in one String, and a script that
-   --  names a file by mistake -- a disk image, a log nobody rotated -- would
-   --  otherwise have the shell grow until the host stopped it, taking the
-   --  session and everything in it. A limit is refusable; running out is not.
-   --
-   --  Sixteen mebibytes because the files a script reads are configuration,
-   --  output somebody saved, a list of names: a hundredth of this is a large
-   --  one. Reading something bigger is a job for a program that streams it,
-   --  which is what the shell runs programs for.
-   --
-   --  Counted while reading rather than asked of the host first: a file can
-   --  grow between the question and the read, and the answer that matters is
-   --  how much actually arrived.
-   Max_File_Size : constant := 16 * 1_024 * 1_024;
+   --  A caller with no setting to hand -- a test, a tool reading one file --
+   --  passes this and gets the shell's own default rather than no limit at
+   --  all: unbounded has to be asked for by name, because the failure it
+   --  causes is a session that dies rather than a read that is refused.
+   Default_Limit : constant := 16 * 1_024 * 1_024;
 
    type Written is
      (
@@ -123,13 +114,17 @@ package Adash.Filesystem is
    --  @param Path The file.
    --  @param Text What it held; empty unless this returns Read_Ok.
    --  @param Result What became of it. Read_Too_Large where the file is bigger
-   --         than Max_File_Size, which is refused rather than half-read: half
+   --         than Limit, which is refused rather than half-read: half
    --         a file is not a shorter file, and a script cannot tell which half
    --         it got.
+   --  @param Limit The most this will hold, in bytes. `read.limit` is where a
+   --         user says, in mebibytes; a caller with no settings to consult
+   --         passes Default_Limit.
    procedure Read
      (Path   : String;
       Text   : out Ada.Strings.Unbounded.Unbounded_String;
-      Result : out Reading);
+      Result : out Reading;
+      Limit  : Natural := Default_Limit);
 
    --  Make a directory, and any directory above it that is missing.
    --

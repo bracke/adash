@@ -4,6 +4,7 @@ with Ada.Strings.Unbounded;
 with Hostkit.Spawn;
 
 with Adash.Errors;
+with Adash.Filesystem;
 with Adash.Execution.Cancellation;
 with Adash.Execution.Commands;
 
@@ -220,12 +221,20 @@ package Adash.Execution.Pipelines is
    --  @param Final What became of the stages.
    --  @param Error Why it could not be started.
    --  @return True when it ran.
+   --  @param Limit The most this will collect, in bytes. A program that
+   --         writes more is stopped and the capture refused: the shell holds
+   --         what it captures in one String, so a program that never stops
+   --         writing -- or one asked for a disk image -- would otherwise grow
+   --         the session until the host ended it. Refused whole rather than
+   --         truncated, because a script handed the first however-many bytes
+   --         of an answer has no way to know that is what it got.
    function Capture
      (Item    : in out Plan;
       Cancel  : access Adash.Execution.Cancellation.Token;
       Written : out Ada.Strings.Unbounded.Unbounded_String;
       Final   : out Outcome;
-      Error   : out Adash.Errors.Error_Info) return Boolean;
+      Error   : out Adash.Errors.Error_Info;
+      Limit   : Natural := Adash.Filesystem.Default_Limit) return Boolean;
 
    function Run
      (Item   : in out Plan;

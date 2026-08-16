@@ -18,6 +18,7 @@ output = [
   "!line.setting{key=color,value=auto,summary=!setting.color!}!",
   "!line.setting{key=history.enabled,value=true,summary=!setting.history-enabled!}!",
   "!line.setting{key=history.limit,value=1000,summary=!setting.history-limit!}!",
+  "!line.setting{key=read.limit,value=16,summary=!setting.read-limit!}!",
   "!line.setting{key=prompt.directory,value=true,summary=!setting.prompt-directory!}!",
   "!line.setting{key=prompt.failure,value=true,summary=!setting.prompt-failure!}!",
   "!line.setting{key=editing.enabled,value=true,summary=!setting.editing!}!",

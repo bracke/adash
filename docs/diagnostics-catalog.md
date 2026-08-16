@@ -113,6 +113,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.cannot_write` | {name} cannot write a {found}: a record or an array is its parts, and each of those has a text form where the whole has none |
 | `error.result_not_simple` | {name} returns a {found}; a function here returns a simple value, and an out parameter is how a program hands back a record or an array |
 | `error.file_not_writable` | nothing can be written at {path} |
+| `error.output_too_large` | {program} wrote more than this shell will hold at once |
 | `error.file_too_large` | {path} holds more than this shell will read at once |
 | `error.file_write_failed` | writing to {path} did not finish |
 | `error.stream_write_failed` | could not write to {stream} |
@@ -358,6 +359,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 |---|---|
 | `setting.color` | When coloured output is produced: auto, always or never. |
 | `setting.history-enabled` | Whether commands are recorded in the history file. |
+| `setting.read-limit` | The most one read will hold, in mebibytes. |
 | `setting.history-limit` | How many history entries are kept. |
 | `setting.prompt-directory` | Whether the prompt shows the working directory. |
 | `setting.prompt-failure` | Whether the prompt marks that the last command failed. |

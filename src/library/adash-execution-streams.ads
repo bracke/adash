@@ -1,5 +1,7 @@
 with Hostkit.Descriptors;
 
+with Adash.Filesystem;
+
 --  Where a command's input comes from and its output goes.
 --
 --  The type here exists for one reason, and it is the reason pipelines break:
@@ -120,10 +122,23 @@ package Adash.Execution.Streams is
    --  are held here between calls. A caller that wants them back has asked the
    --  wrong question: they belong to the next line.
    --
+   --  **A line longer than Limit arrives in pieces.** Input that never sends a
+   --  terminator -- a program producing a stream, a file with no newline in it
+   --  at all -- would otherwise grow this buffer until the host ended the
+   --  session, which is the one outcome a shell must not have. Refusing was
+   --  the alternative and it is worse here than for a file: a file can be
+   --  asked about again, and input that has been read and dropped is gone. So
+   --  what has accumulated is handed over as a line and reading goes on,
+   --  which loses nothing and bounds what is held.
+   --
    --  @param Ended True when there is no more input, in which case the result
    --         is empty.
+   --  @param Limit The most to hold before handing over what there is.
+   --         `read.limit` is where a user says, in mebibytes.
    --  @return The line, without its terminator.
-   function Read_Line (Ended : out Boolean) return String;
+   function Read_Line
+     (Ended : out Boolean;
+      Limit : Positive := Adash.Filesystem.Default_Limit) return String;
 
    --  Take everything read and not yet handed out.
    --

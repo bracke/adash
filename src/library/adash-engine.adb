@@ -215,7 +215,13 @@ package body Adash.Engine is
                   Adash.Execution.Commands.Make (Text_At (1), Args));
 
                if not Adash.Execution.Pipelines.Capture
-                        (Line, Sink.Shell.Interrupt, Written, Final, Failure)
+                        (Line, Sink.Shell.Interrupt, Written, Final, Failure,
+                         Limit =>
+                           Natural
+                             (Adash.Configuration.Integer_Value
+                                (Sink.Shell.Chosen,
+                                 Adash.Configuration.Read_Limit_Setting)
+                              * 1_024 * 1_024))
                then
                   Sink.Notes.Emit
                     (D.From_Error
@@ -250,7 +256,14 @@ package body Adash.Engine is
             declare
                Ended : Boolean;
                Line  : constant String :=
-                 Adash.Execution.Streams.Read_Line (Ended);
+                 Adash.Execution.Streams.Read_Line
+                   (Ended,
+                    Limit =>
+                      Positive
+                        (Adash.Configuration.Integer_Value
+                           (Sink.Shell.Chosen,
+                            Adash.Configuration.Read_Limit_Setting)
+                         * 1_024 * 1_024));
             begin
                --  Remembered rather than answered here: a line and whether
                --  there was one are two questions, and an empty line is a line
@@ -281,7 +294,17 @@ package body Adash.Engine is
 
                use type Adash.Filesystem.Reading;
             begin
-               Adash.Filesystem.Read (Text_At (1), Held, Result);
+               --  The user's limit, in bytes: `read.limit` is said in
+               --  mebibytes because that is the unit somebody thinks in when
+               --  deciding how much of a file is too much.
+               Adash.Filesystem.Read
+                 (Text_At (1), Held, Result,
+                  Limit =>
+                    Natural
+                      (Adash.Configuration.Integer_Value
+                         (Sink.Shell.Chosen,
+                          Adash.Configuration.Read_Limit_Setting)
+                       * 1_024 * 1_024));
 
                --  A file too big to hold is the one refusal that is said out
                --  loud. The others are ordinary answers to an ordinary

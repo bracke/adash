@@ -139,7 +139,10 @@ package body Adash.Execution.Streams is
    Held    : Ada.Strings.Unbounded.Unbounded_String;
    Drained : Boolean := False;
 
-   function Read_Line (Ended : out Boolean) return String is
+   function Read_Line
+     (Ended : out Boolean;
+      Limit : Positive := Adash.Filesystem.Default_Limit) return String
+   is
       use Ada.Strings.Unbounded;
 
       --  The terminal, for as long as this read takes.
@@ -219,6 +222,15 @@ package body Adash.Execution.Streams is
                end;
             end if;
          end;
+
+         --  As much as will be held, handed over as a line of its own. See the
+         --  note in the specification: dropping it would lose input that
+         --  cannot be asked for again.
+         if Length (Held) >= Limit then
+            return Line : constant String := Slice (Held, 1, Limit) do
+               Delete (Held, 1, Limit);
+            end return;
+         end if;
 
          exit when Drained;
 

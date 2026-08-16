@@ -176,10 +176,13 @@ package body Adash_Tests.Filesystem_Cases is
       F.Write (Path, Block, Written);
       Assert (Written = F.Write_Ok, "the first block was not written");
 
-      --  One block past the limit, added a block at a time rather than built
-      --  in memory here: a test that needed sixteen mebibytes of its own to
-      --  measure a limit of sixteen mebibytes would be measuring itself too.
-      while Ada.Directories.Size (Path) <= F.Max_File_Size loop
+      --  One block past the default limit, added a block at a time rather
+      --  than built in memory here: a test that needed sixteen mebibytes of
+      --  its own to measure a limit of sixteen mebibytes would be measuring
+      --  itself too. The default is what Read uses when nobody says otherwise,
+      --  which is the promise this case is about; that a setting can move it
+      --  is the settings suite's business.
+      while Ada.Directories.Size (Path) <= F.Default_Limit loop
          F.Append (Path, Block, Written);
          exit when Written /= F.Write_Ok;
       end loop;

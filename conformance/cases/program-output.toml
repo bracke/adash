@@ -875,3 +875,35 @@ output = [
 diagnostics = [
   "!error.file_not_writable{path={store}/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz}!",
 ]
+
+[[case]]
+id = "files.a-program-that-writes-too-much-is-stopped"
+requirement = """
+`Output_Of` holds what a program writes in one String, so a program that never
+stops writing would grow the session until the host ended it -- and unlike a
+file, whose size can be asked about, the only way to find out is to read it.
+
+So the read is bounded by `read.limit`, said in mebibytes, and a program past it
+is stopped rather than waited for: the shell closes the pipe, and the next write
+into a pipe nobody holds open ends the program. No signal is involved, which is
+what makes it work on the host that has none.
+
+Refused whole rather than truncated. A script handed the first megabyte of an
+answer has no way to know that is what it got, and every comparison it makes
+afterwards is wrong in a way nothing reports.
+"""
+platforms = ["linux", "macos"]
+script = """
+settings ("read.limit", "1");
+put_line ("[" & Output_Of ("yes") & "]");
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "!line.setting{key=read.limit,value=1,summary=!setting.read-limit!}!",
+  "[]",
+  " 1",
+]
+diagnostics = [
+  "!error.output_too_large{program=yes}!",
+]

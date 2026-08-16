@@ -463,7 +463,8 @@ package body Adash.Execution.Pipelines is
       Cancel  : access Adash.Execution.Cancellation.Token;
       Written : out Ada.Strings.Unbounded.Unbounded_String;
       Final   : out Outcome;
-      Error   : out Adash.Errors.Error_Info) return Boolean
+      Error   : out Adash.Errors.Error_Info;
+      Limit   : Natural := Adash.Filesystem.Default_Limit) return Boolean
    is
       Count   : constant Natural := Natural (Item.Stages.Length);
       Ends    : D.Pipe_Ends;
@@ -472,6 +473,18 @@ package body Adash.Execution.Pipelines is
 
       --  Whoever owned the terminal before this program was given it.
       Held_By_Us : Integer := -1;
+
+      --  Whether the program wrote more than the caller will hold.
+      Too_Much : Boolean := False;
+
+      --  Taken before anything runs. A plan hands its stages over when it
+      --  starts, so asking afterwards asks an empty one -- which raised where
+      --  the refusal below was being reported, and only for the program that
+      --  wrote too much, which is the least likely thing anybody runs twice.
+      Named : constant String :=
+        (if Count > 0
+         then Adash.Execution.Commands.Program (Item.Stages.Element (1))
+         else "");
    begin
       Written := Ada.Strings.Unbounded.Null_Unbounded_String;
       Final := (Status => Adash.Execution.Success,
@@ -535,6 +548,16 @@ package body Adash.Execution.Pipelines is
 
             case Outcome is
                when D.Transfer_Ok =>
+                  --  Counted before it is kept. A shell that noticed
+                  --  afterwards would already be holding what it was trying
+                  --  not to hold.
+                  if Ada.Strings.Unbounded.Length (Written) + Natural (Last)
+                     > Limit
+                  then
+                     Too_Much := True;
+                     exit;
+                  end if;
+
                   for Index in Chunk'First .. Last loop
                      Ada.Strings.Unbounded.Append
                        (Written, Character'Val (Natural (Chunk (Index))));
@@ -561,12 +584,27 @@ package body Adash.Execution.Pipelines is
          end loop;
       end;
 
+      --  Closed here whether or not this read everything, and that is how a
+      --  program that will not stop writing is stopped: the next write into a
+      --  pipe nobody holds open fails, and the program ends with it. No signal
+      --  is involved, which matters on the host that has none.
       D.Close (Ends.Read_End);
 
       Ignored := Wait (Started, Cancel, Final);
 
       Take_The_Terminal_Back (Held_By_Us);
       Adash.Execution.Signals.Take_Terminal_Back;
+
+      if Too_Much then
+         --  Nothing rather than the first part of something: a script handed
+         --  the beginning of an answer has no way to tell that is what it got.
+         Written := Ada.Strings.Unbounded.Null_Unbounded_String;
+         Error := Adash.Errors.Failure
+           (Adash.Errors.Error_Output_Too_Large,
+            [1 => Adash.Messages.Named ("program", Named)]);
+         return False;
+      end if;
+
       return True;
    end Capture;
 

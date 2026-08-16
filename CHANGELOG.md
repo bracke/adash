@@ -1754,6 +1754,21 @@ what changed.
   it has and say the same thing either way, which is a lesson the examples were
   quietly avoiding.
 
+- **`Output_Of` will not collect more than the limit either, and the limit is a
+  setting.** A program that never stops writing had the same ending a huge file
+  did: the shell grew until the host ended the session. Past `read.limit` the
+  pipe is closed, which ends the program by its next write rather than by a
+  signal -- the mechanism that works on the host with no signals -- and the
+  capture is refused whole. The shell's own `Read_Line` is bounded too, but
+  differently: input that has been read cannot be asked for again, so a line
+  longer than the limit arrives in pieces rather than being dropped.
+
+- **`read.limit` is a setting**, in mebibytes, default 16, alongside
+  `history.limit`. How much of a file is too much is a judgement about the work
+  rather than a fact about shells, and somebody whose work is a
+  large-but-legitimate file should be able to say so instead of reaching for
+  another shell.
+
 - **`Read_File` will not read more than 16 MiB.** A shell holds what it reads in
   one String, so a script that named a disk image or an unrotated log by mistake
   had the session grow until the host stopped it, taking everything in it. The

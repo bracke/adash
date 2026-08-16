@@ -18,6 +18,7 @@ package body Adash.Configuration is
          when Color_Setting            => return "color";
          when History_Enabled_Setting  => return "history.enabled";
          when History_Limit_Setting    => return "history.limit";
+         when Read_Limit_Setting       => return "read.limit";
          when Prompt_Directory_Setting => return "prompt.directory";
          when Prompt_Failure_Setting   => return "prompt.failure";
          when Editing_Setting          => return "editing.enabled";
@@ -36,6 +37,7 @@ package body Adash.Configuration is
       case Item is
          when Color_Setting         => return Choice_Setting;
          when History_Limit_Setting => return Integer_Setting;
+         when Read_Limit_Setting    => return Integer_Setting;
          when others                => return Boolean_Setting;
       end case;
    end Kind;
@@ -53,6 +55,8 @@ package body Adash.Configuration is
             return Adash.Messages.Msg_Setting_History_Enabled;
          when History_Limit_Setting =>
             return Adash.Messages.Msg_Setting_History_Limit;
+         when Read_Limit_Setting =>
+            return Adash.Messages.Msg_Setting_Read_Limit;
          when Prompt_Directory_Setting =>
             return Adash.Messages.Msg_Setting_Prompt_Directory;
          when Prompt_Failure_Setting =>
@@ -133,6 +137,10 @@ package body Adash.Configuration is
          --  history.enabled is for; one is the smallest limit that means
          --  anything.
          when History_Limit_Setting => return 1;
+
+         --  One mebibyte is already more than a configuration file or a list
+         --  of names, and zero would mean a shell that cannot read at all.
+         when Read_Limit_Setting    => return 1;
          when others                => return Long_Long_Integer'First;
       end case;
    end Minimum;
@@ -149,6 +157,11 @@ package body Adash.Configuration is
          --  to exhaust it. High enough that nobody typing at a keyboard will
          --  reach it.
          when History_Limit_Setting => return 1_000_000;
+
+         --  Four gibibytes, which is past what a String on a 32-bit host can
+         --  hold: the limit above this one is the machine's, and this stops
+         --  the setting from being the thing that promises what it cannot.
+         when Read_Limit_Setting    => return 4_096;
          when others                => return Long_Long_Integer'Last;
       end case;
    end Maximum;
@@ -166,6 +179,10 @@ package body Adash.Configuration is
       Result.Values (Color_Setting).Text := To_Unbounded_String ("auto");
       Result.Values (History_Enabled_Setting).Flag := True;
       Result.Values (History_Limit_Setting).Whole := 1_000;
+
+      --  Sixteen mebibytes: a hundred times the largest file a script actually
+      --  reads, and small enough that a mistake is refused rather than fatal.
+      Result.Values (Read_Limit_Setting).Whole := 16;
       Result.Values (Prompt_Directory_Setting).Flag := True;
       Result.Values (Prompt_Failure_Setting).Flag := True;
       Result.Values (Editing_Setting).Flag := True;

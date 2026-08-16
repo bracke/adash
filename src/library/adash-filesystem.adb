@@ -76,7 +76,8 @@ package body Adash.Filesystem is
    procedure Read
      (Path   : String;
       Text   : out Ada.Strings.Unbounded.Unbounded_String;
-      Result : out Reading)
+      Result : out Reading;
+      Limit  : Natural := Default_Limit)
    is
       use Ada.Streams;
 
@@ -116,7 +117,7 @@ package body Adash.Filesystem is
             --  Counted before it is kept, and stopped at the limit rather than
             --  after it: a shell that noticed afterwards would already be
             --  holding whatever it was asked to hold.
-            if Taken + Natural (Last) > Max_File_Size then
+            if Taken + Natural (Last) > Limit then
                Ada.Streams.Stream_IO.Close (File);
                Text := Ada.Strings.Unbounded.Null_Unbounded_String;
                Result := Read_Too_Large;

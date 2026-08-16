@@ -40,6 +40,18 @@ package Adash.Configuration is
       --  How many entries are kept. Read by Adash.Interactive.History.
       History_Limit_Setting,
 
+      --  The most a single read will hold, in mebibytes. Read by
+      --  Adash.Filesystem and by whatever captures a program's output.
+      --
+      --  A limit rather than none, because a shell keeps what it reads in one
+      --  String: a script that names a disk image, or captures a program that
+      --  never stops writing, would otherwise grow the session until the host
+      --  ended it. A setting rather than a constant, because "too large to be
+      --  meant" is a judgement about the work, and somebody whose work is a
+      --  large-but-legitimate file should be able to say so instead of
+      --  reaching for another shell.
+      Read_Limit_Setting,
+
       --  Whether the prompt names the working directory.
       Prompt_Directory_Setting,
 

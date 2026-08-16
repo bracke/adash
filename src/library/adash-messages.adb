@@ -295,6 +295,7 @@ package body Adash.Messages is
             return "config.wants.choice";
          when Msg_File_Write_Failed          => return "error.file_write_failed";
          when Msg_File_Too_Large             => return "error.file_too_large";
+         when Msg_Output_Too_Large           => return "error.output_too_large";
          when Msg_Job_Unknown                => return "error.job_unknown";
          when Msg_Job_Is_Suspended           => return "error.job_is_suspended";
          when Msg_Execution_Cancelled        => return "error.execution_cancelled";
@@ -583,6 +584,7 @@ package body Adash.Messages is
          when Msg_Setting_Color              => return "setting.color";
          when Msg_Setting_History_Enabled    => return "setting.history-enabled";
          when Msg_Setting_History_Limit      => return "setting.history-limit";
+         when Msg_Setting_Read_Limit         => return "setting.read-limit";
          when Msg_Setting_Prompt_Directory   => return "setting.prompt-directory";
          when Msg_Setting_Prompt_Failure     => return "setting.prompt-failure";
          when Msg_Setting_Editing            => return "setting.editing";
@@ -937,7 +939,8 @@ package body Adash.Messages is
             | Msg_Interactive_Line_Editing_Unavailable
             | Msg_Interactive_Read_Failed
             | Msg_Setting_Color | Msg_Setting_History_Enabled
-            | Msg_Setting_History_Limit | Msg_Setting_Prompt_Directory
+            | Msg_Setting_History_Limit | Msg_Setting_Read_Limit
+            | Msg_Setting_Prompt_Directory
             | Msg_Setting_Prompt_Failure | Msg_Setting_Editing
             | Msg_Setting_Session_File
             | Msg_Setting_History_Per_Session
@@ -984,6 +987,11 @@ package body Adash.Messages is
          when Msg_File_Not_Writable
             | Msg_File_Write_Failed | Msg_File_Too_Large =>
             return [1 => N ("path")];
+
+         --  Named after what wrote it rather than where it was going: what a
+         --  user does about this is run that program differently.
+         when Msg_Output_Too_Large =>
+            return [1 => N ("program")];
 
          when Msg_Machine_Stack_Full | Msg_Machine_Stack_Empty
             | Msg_Machine_No_Place | Msg_Machine_No_Value

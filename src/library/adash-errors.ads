@@ -71,6 +71,13 @@ package Adash.Errors is
       --  program that streams instead.
       Error_File_Too_Large,
 
+      --  Capturing what a program wrote, and finding more than a shell will
+      --  hold. Its own code because the remedy is not the file one: what a
+      --  user does about this is run the program into a file, or through
+      --  something that reads a stream, rather than asking for its output as
+      --  a value.
+      Error_Output_Too_Large,
+
       --  Execution: jobs and cancellation.
       Error_Job_Unknown,
 
