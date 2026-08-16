@@ -1187,3 +1187,85 @@ output = [
 diagnostics = [
   "!error.redirection_open_failed{path={store}/log.txt}!",
 ]
+
+[[case]]
+id = "run.both-streams-can-go-to-one-file-in-order"
+requirement = """
+A build log is one file with what a program said and what it complained about
+in the order it wrote them. Until now a script could put each stream somewhere,
+and pointing both at one name gave two open files with two positions, each
+writing over the other -- which is not a log of anything.
+
+So the error stream follows the output stream into the same open file rather
+than opening a second one. Three forms again, the same three the other two
+families have.
+
+The program below says something, complains, and says something else; what the
+file holds is those three in that order, which is the whole claim.
+"""
+script = """
+run_all_into ("{store}/build.log", "{emit}", "said", "--error=complained", "after");
+put_line ("[" & Read_File ("{store}/build.log") & "]");
+run_all_append ("{store}/build.log", "{emit}", "again");
+put_line ("[" & Read_File ("{store}/build.log") & "]");
+run_all_new ("{store}/build.log", "{emit}", "refused");
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "[said",
+  "complained",
+  "after",
+  "]",
+  "[said",
+  "complained",
+  "after",
+  "again",
+  "]",
+  " 1",
+]
+diagnostics = [
+  "!error.redirection_open_failed{path={store}/build.log}!",
+]
+
+[[case]]
+id = "run.what-a-stopped-child-leaves-on-a-shared-stream"
+requirement = """
+The last unexplained thing, brought somewhere it can be looked at.
+
+A shell that refuses a capture stops the program it refused by closing the
+pipe. On POSIX that program dies of SIGPIPE without a word. On Windows there is
+no such signal: the program finds its write refused, and something -- nobody
+has yet identified what -- puts a blank line on the standard error it shares
+with the shell, ahead of the shell's own diagnostic. That is why the case above
+asserts the refusal rather than the diagnostic beside it.
+
+Here the whole arrangement runs one level down: this shell runs a second shell
+with its error stream in a file, and that second shell refuses a third. What
+the file then holds is exactly what a stopped child leaves on a shared stream,
+and unlike a stream two processes are writing to as a test watches, a file can
+be read afterwards.
+
+What is asserted is what holds on every host: the second shell does emit its
+diagnostic, whatever else ends up on the stream beside it. That alone settles
+half of what was open -- the earlier case could not tell a diagnostic that was
+never written from one that was written and then lost -- and it says so on the
+host where the answer was in doubt.
+
+Both streams go to the file, not only the error one: the inner shell's own
+output belongs in the record too, and it is what makes the order visible.
+
+The name of the failure is what is looked for rather than the sentence it
+renders as. A shell run by this suite says its diagnostics as markers and the
+inner shell inherits that, so the words a person would read are not in the file
+-- which is worth knowing when reading this case by hand, where they are.
+"""
+script = """
+run_all_into ("{store}/inner.log", "{shell}", "{root}/conformance/fixtures/refuses-a-child.adash", "{shell}", "{root}/conformance/fixtures/says-too-much.adash");
+put_line (Boolean'Image (Index (Read_File ("{store}/inner.log"), "output_too_large") > 0));
+quit (0);"""
+exit_status = 0
+output = [
+  "TRUE",
+]
+diagnostics = []

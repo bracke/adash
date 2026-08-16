@@ -34,7 +34,23 @@ package Adash.Execution.Redirection is
 
       --  Write to a file, refusing if it already exists. What a user asks for
       --  when they do not want to clobber anything.
-      Redirect_To_New_File);
+      Redirect_To_New_File,
+
+      --  Send this stream wherever the output stream is going, through the
+      --  same open file rather than a second one.
+      --
+      --  What `2>&1` means everywhere, and the only way to get a log in which
+      --  what a program said and what it complained about are in the order it
+      --  wrote them: two opens of one path would be two file positions, each
+      --  writing over the other's lines or -- appending -- interleaved by
+      --  block rather than by line.
+      --
+      --  Carries no path of its own: where output is going is decided by the
+      --  redirection that says so, and this one follows it. Which is why a
+      --  plan with this in it and no output redirection is refused: it would
+      --  mean joining a stream to the shell's own, and a caller that wanted
+      --  that already has it.
+      Redirect_Join_Output);
 
    --  One redirection, as asked for.
    type Redirection is record

@@ -380,7 +380,8 @@ package body Adash.Commands.Builtins is
          when Command_Run | Command_Run_Into | Command_Run_From
             | Command_Run_Append | Command_Run_New | Command_Run_Errors_Into
             | Command_Run_Errors_Append | Command_Run_Errors_New
-            | Command_Start =>
+            | Command_Run_All_Into | Command_Run_All_Append
+            | Command_Run_All_New | Command_Start =>
             declare
                Waits : constant Boolean := Id /= Command_Start;
 
@@ -390,7 +391,8 @@ package body Adash.Commands.Builtins is
                  Id in Command_Run_Into | Command_Run_From
                      | Command_Run_Append | Command_Run_New
                      | Command_Run_Errors_Into | Command_Run_Errors_Append
-                     | Command_Run_Errors_New;
+                     | Command_Run_Errors_New | Command_Run_All_Into
+                     | Command_Run_All_Append | Command_Run_All_New;
 
                First_Word : constant Positive := (if Redirects then 2 else 1);
 
@@ -431,9 +433,11 @@ package body Adash.Commands.Builtins is
                               when Command_Run_From =>
                                 Adash.Execution.Redirection.Redirect_From_File,
                               when Command_Run_Append
-                                 | Command_Run_Errors_Append =>
+                                 | Command_Run_Errors_Append
+                                 | Command_Run_All_Append =>
                                 Adash.Execution.Redirection.Redirect_Append_File,
-                              when Command_Run_New | Command_Run_Errors_New =>
+                              when Command_Run_New | Command_Run_Errors_New
+                                 | Command_Run_All_New =>
                                 Adash.Execution.Redirection.Redirect_To_New_File,
                               when others =>
                                 Adash.Execution.Redirection.Redirect_To_File),
@@ -441,8 +445,36 @@ package body Adash.Commands.Builtins is
                           Ada.Strings.Unbounded.To_Unbounded_String
                             (Argument (Arguments, 1)));
 
+                     --  Both streams, where the command is one of the three
+                     --  that says so: the output redirection above opens the
+                     --  file, and this one follows it into the same open file
+                     --  rather than a second one.
+                     Joined : constant Adash.Execution.Redirection.Redirection :=
+                       (Role => Adash.Execution.Streams.Role_Error,
+                        Kind =>
+                          Adash.Execution.Redirection.Redirect_Join_Output,
+                        Path => Ada.Strings.Unbounded.Null_Unbounded_String);
+
+                     Both : constant Boolean :=
+                       Id in Command_Run_All_Into | Command_Run_All_Append
+                           | Command_Run_All_New;
+
                      Refused : Adash.Errors.Error_Info;
                   begin
+                     if Both
+                       and then not Adash.Execution.Redirection.Add
+                                      (Attach, Joined, Refused)
+                     then
+                        Report.Emit
+                          (Adash.Diagnostics.From_Error
+                             (Refused, Adash.Diagnostics.Severity_Error,
+                              Adash.Diagnostics.Category_Execution,
+                              Adash.Diagnostics.Owner_Commands));
+
+                        return (Kind => Adash.Execution.Exit_Internal_Failure,
+                                others => <>);
+                     end if;
+
                      if not Adash.Execution.Redirection.Add
                               (Attach, Asked, Refused)
                      then

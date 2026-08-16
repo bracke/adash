@@ -98,6 +98,9 @@ reads as the empty string rather than failing.
 | `run_errors_into (File : String; Program : String; ...)` | 2 or more | runs it with what it complains about written to a file |
 | `run_errors_append (File : String; Program : String; ...)` | 2 or more | adds what it complains about to the end of a file |
 | `run_errors_new (File : String; Program : String; ...)` | 2 or more | as `run_errors_into`, refusing a file that is already there |
+| `run_all_into (File : String; Program : String; ...)` | 2 or more | runs it with everything it writes in one file, in order |
+| `run_all_append (File : String; Program : String; ...)` | 2 or more | adds everything it writes to the end of one file |
+| `run_all_new (File : String; Program : String; ...)` | 2 or more | as `run_all_into`, refusing a file that is already there |
 | `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
@@ -145,6 +148,12 @@ which is the order `run_into` does not use — those two are named after what ru
 and these after what is written. Appending to a file that is not there makes it,
 because the first turn of a loop that collects lines is not an error. A write
 that worked says nothing; `Status` says what became of it.
+
+The `run_all_*` three are what a build log wants: the error stream follows the
+output stream into the **same open file** rather than opening a second one, so
+what a program said and what it complained about stay in the order it wrote
+them. Two opens of one path would be two file positions writing over each
+other, which is not a log of anything.
 
 **Writing puts down exactly the bytes it is given.** The three readers drop the
 carriage return in front of a line feed, because a String in this language is

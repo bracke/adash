@@ -15,7 +15,11 @@ package body Adash.Execution.Redirection is
           when Redirect_From_File   => D.Open_Read,
           when Redirect_To_File     => D.Open_Write_Truncate,
           when Redirect_Append_File => D.Open_Write_Append,
-          when Redirect_To_New_File => D.Open_Write_Exclusive);
+          when Redirect_To_New_File => D.Open_Write_Exclusive,
+
+          --  Never asked: a joined stream opens nothing. The mode is here so
+          --  that the case is complete rather than because anybody uses it.
+          when Redirect_Join_Output => D.Open_Read);
 
    ---------
    -- Add --
@@ -99,6 +103,14 @@ package body Adash.Execution.Redirection is
             Path    : constant String := To_String (Current.Path);
             Handle  : D.Descriptor;
          begin
+            if Current.Kind = Redirect_Join_Output then
+               --  Nothing to open: this one follows whatever the output
+               --  redirection opened, and the loop below hands it a copy.
+               Ready := Ready + 1;
+               Opened (Ready) := S.Inherited (S.Role_Error);
+               goto Continue;
+            end if;
+
             if not D.Open_File (Path, Open_Mode_For (Current.Kind), Handle) then
                Error := Adash.Errors.Failure
                  (Adash.Errors.Error_Redirection_Open_Failed,
@@ -109,24 +121,45 @@ package body Adash.Execution.Redirection is
 
             Ready := Ready + 1;
             Opened (Ready) := S.Owned (Handle);
+
+            <<Continue>>
          end;
       end loop;
 
       --  Every file is open; now the invocation can be changed. Whatever was on
       --  a stream before is released first -- if a caller applied two plans, the
       --  first plan's descriptors would otherwise leak.
+      --  Everything that opens a file first, and the stream that follows one
+      --  afterwards. A plan holds its redirections in the order they were
+      --  added, and a join added before the output redirection it follows
+      --  would otherwise copy whatever the stream was before -- which is the
+      --  shell's own terminal, and looks exactly like the join not happening.
       for Index in 1 .. Item.Count loop
-         case Item.Entries (Index).Role is
-            when S.Role_Input =>
-               S.Release (Target.Input);
-               Target.Input := Opened (Index);
-            when S.Role_Output =>
-               S.Release (Target.Output);
-               Target.Output := Opened (Index);
-            when S.Role_Error =>
-               S.Release (Target.Error_Output);
-               Target.Error_Output := Opened (Index);
-         end case;
+         if Item.Entries (Index).Kind /= Redirect_Join_Output then
+            case Item.Entries (Index).Role is
+               when S.Role_Input =>
+                  S.Release (Target.Input);
+                  Target.Input := Opened (Index);
+               when S.Role_Output =>
+                  S.Release (Target.Output);
+                  Target.Output := Opened (Index);
+               when S.Role_Error =>
+                  S.Release (Target.Error_Output);
+                  Target.Error_Output := Opened (Index);
+            end case;
+         end if;
+      end loop;
+
+      for Index in 1 .. Item.Count loop
+         if Item.Entries (Index).Kind = Redirect_Join_Output then
+            S.Release (Target.Error_Output);
+
+            --  A copy of the descriptor output is going to, so that closing
+            --  one does not take the other with it. One file, one position,
+            --  and the two streams in the order the program wrote them.
+            Target.Error_Output :=
+              S.Owned (D.Duplicate (S.Handle (Target.Output)));
+         end if;
       end loop;
 
       return True;

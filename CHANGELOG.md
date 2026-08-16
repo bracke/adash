@@ -1832,6 +1832,14 @@ what changed.
   is not there, for the same reason; `Exists` and `Is_Directory` tell them
   apart.
 
+- **`run_all_into`, `run_all_append` and `run_all_new`.** Each stream could be
+  placed on its own and nothing joined them, so a build log -- one file with
+  what a program said and what it complained about in the order it wrote them --
+  was not something a script could ask for. Pointing both at one name gave two
+  open files with two positions writing over each other. The error stream
+  follows the output stream into the same open file now, which is the only
+  arrangement in which the order survives.
+
 - **`Error_Of`, `run_errors_into`, `run_errors_append` and `run_errors_new`.** A shell that could put a program's
   output anywhere and its complaints nowhere left a script two things it could
   not do: keep a program's noise out of its own error stream, and read what a

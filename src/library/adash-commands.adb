@@ -128,6 +128,29 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Run_Errors_New_Doc, M.Msg_Command_Hint, Available),
 
+      --  Both streams, one file, in the order the program wrote them.
+      --
+      --  What a build log is: a script that put output in a file and
+      --  complaints in another could not tell which line came before which,
+      --  and one that pointed both at the same name got two file positions
+      --  writing over each other. One open file, and the error stream a copy
+      --  of the descriptor rather than a second open, is the only arrangement
+      --  in which the order survives.
+      (Command_Run_All_Into, Named ("run_all_into"), 2, Any_Number,
+       [1 => Text ("File"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_All_Into_Doc, M.Msg_Command_Hint, Available),
+
+      (Command_Run_All_Append, Named ("run_all_append"), 2, Any_Number,
+       [1 => Text ("File"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_All_Append_Doc, M.Msg_Command_Hint, Available),
+
+      (Command_Run_All_New, Named ("run_all_new"), 2, Any_Number,
+       [1 => Text ("File"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_All_New_Doc, M.Msg_Command_Hint, Available),
+
       --  A pipeline, built a stage at a time and then run. Two commands rather
       --  than one because a pipeline is a list of command lines, and a single
       --  call would have to carry a boundary between them inside its arguments.

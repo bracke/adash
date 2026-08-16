@@ -1,0 +1,9 @@
+--  Read by a conformance case that wants to see what a stopped child leaves on
+--  a shell's standard error.
+--
+--  The shell to run and the script to give it arrive as arguments, because a
+--  fixture is a file rather than a case and none of the markers a case is
+--  written with reach it.
+settings ("read.limit", "1");
+put_line ("[" & Output_Of (Argument (1), Argument (2)) & "]");
+quit (0);
