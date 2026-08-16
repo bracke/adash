@@ -1152,6 +1152,20 @@ package body Adash_Tests.Interactive_Cases is
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
 
+   --  Type Ctrl-C, however this host's terminal takes one.
+   --
+   --  A pseudo-terminal takes the byte: the line discipline turns 0x03 into an
+   --  interrupt for the foreground group. A pseudo-console asks for keys
+   --  instead -- the `ESC [ ? 9001 h` it writes on attaching is it requesting
+   --  win32-input-mode -- and what makes an interrupt there is a *key event*
+   --  with the control modifier, not a byte that happens to be three. So the
+   --  key is sent as one: the virtual key for C, its scan code, the character
+   --  the combination produces, down and then up, with the left control key
+   --  held.
+   --
+   --  @param Item The session.
+   procedure Type_Interrupt (Item : in out Terminal_Session);
+
    --  Take whatever the terminal has to give right now, without waiting.
    --
    --  @param Item The session.
@@ -1241,6 +1255,21 @@ package body Adash_Tests.Interactive_Cases is
 
       return True;
    end Start_On_A_Terminal;
+
+   procedure Type_Interrupt (Item : in out Terminal_Session) is
+      Escape : constant String := [1 => Character'Val (27)];
+   begin
+      if not Hostkit.Spawn.Is_Attached (Item.Pair.Console) then
+         Type_Into (Item, String'(1 => Character'Val (3)));
+         return;
+      end if;
+
+      --  Vk 67 is C, scan code 46 is the key it sits on, 3 is what Ctrl-C
+      --  produces, and 8 is the left control key being down.
+      Type_Into
+        (Item,
+         Escape & "[67;46;3;1;8;1_" & Escape & "[67;46;3;0;8;1_");
+   end Type_Interrupt;
 
    procedure Type_Into (Item : in out Terminal_Session; Text : String) is
       use type Hostkit.Descriptors.Transfer_Outcome;
@@ -1851,7 +1880,6 @@ package body Adash_Tests.Interactive_Cases is
       Ended   : Boolean;
 
       Return_Key : constant String := [1 => Character'Val (13)];
-      Ctrl_C     : constant String := [1 => Character'Val (3)];
    begin
       if not Start_On_A_Terminal (Session) then
          return;
@@ -1859,7 +1887,7 @@ package body Adash_Tests.Interactive_Cases is
 
       --  A line that would say something if it ever ran.
       Type_Into (Session, "put_line (To_Upper (""abandoned""))");
-      Type_Into (Session, Ctrl_C);
+      Type_Interrupt (Session);
 
       --  And then a line that does run. If the first had survived the
       --  interrupt, the two would be one line and neither would run.
@@ -1897,17 +1925,17 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
-         --  A host where a keystroke does not become an interrupt while a
-         --  program is running.
+      if not Hostkit.Signals.Can_Record (Hostkit.Signals.Signal_Interrupt) then
+         --  A host that cannot tell a program the user asked to interrupt.
+         --  Asked as Can_Record rather than Is_Supported: Windows has no
+         --  signals -- nothing to number, send, or give a disposition to --
+         --  and its console can still say Ctrl-C was typed, which is the
+         --  narrower thing a shell needs.
          --
-         --  This was tried the other way round, asking Can_Record -- Windows
-         --  has no signals and its console can still report a Ctrl-C, which
-         --  sounded like enough. It is not: typed into the pseudo-console
-         --  while the shell was running a loop, the byte did not reach the
-         --  shell as an interrupt and the loop was still going thirty seconds
-         --  later. What that host does with Ctrl-C *at the prompt* is the case
-         --  below, which does run there.
+         --  Tried once with the byte 0x03, which is what a line discipline
+         --  takes, and the loop ran on: a console in win32-input-mode is
+         --  asking for *keys*, and three is a byte. Type_Interrupt sends the
+         --  key.
          return;
       end if;
 
@@ -1925,7 +1953,7 @@ package body Adash_Tests.Interactive_Cases is
               & Plainly (Session) & "]");
 
       --  Ctrl-C, as a user types it.
-      Type_Into (Session, String'(1 => Character'Val (3)));
+      Type_Interrupt (Session);
 
       --  The prompt comes back carrying its failure marker: a submission the
       --  interrupt ended is a submission that failed.
