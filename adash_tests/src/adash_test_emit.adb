@@ -1,6 +1,8 @@
 with Ada.Command_Line;
 with Ada.Text_IO;
 
+with Hostkit.Host;
+
 --  Writes each argument on its own line, then exits with the status it was
 --  told to.
 --
@@ -15,7 +17,8 @@ with Ada.Text_IO;
 --    --sleep=S   wait S seconds before finishing
 --    --file=P    write the contents of the file P
 --    --repeat=N  write the arguments that follow N times each
---    --crlf      end each line with a carriage return and a line feed
+--    --crlf      end each line with a carriage return and a line feed, on
+--                every host -- which on Windows means letting Text_IO do it
 --
 --  Between them a conformance case can have a program that says something, a
 --  program that fails, a program that complains where nobody should be
@@ -24,6 +27,8 @@ with Ada.Text_IO;
 --  capture -- on every host, without naming a utility one of them does not
 --  have.
 procedure Adash_Test_Emit is
+   use type Hostkit.Host.Kind;
+
    Status : Integer := 0;
    Waited : Duration := 0.0;
 
@@ -43,10 +48,18 @@ procedure Adash_Test_Emit is
 
    procedure Say (Text : String) is
    begin
-      if Windows_Endings then
+      if Windows_Endings
+        and then Hostkit.Host.Current /= Hostkit.Host.Windows
+      then
          --  The carriage return by hand and the line feed through New_Line:
          --  writing both by hand leaves Text_IO thinking the line is still
          --  open, and it adds a terminator of its own at the end.
+         --
+         --  Only where the host does not do it already. On Windows every line
+         --  Text_IO writes ends in a carriage return and a line feed, so
+         --  adding one by hand wrote two of them -- and a shell that dropped
+         --  the one in front of the line feed handed back the other, which is
+         --  how this was found.
          Ada.Text_IO.Put (Text & Character'Val (13));
          Ada.Text_IO.New_Line;
       else
