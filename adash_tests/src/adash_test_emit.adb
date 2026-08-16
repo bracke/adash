@@ -14,15 +14,21 @@ with Ada.Text_IO;
 --    --error=T   write T to standard error rather than to standard output
 --    --sleep=S   wait S seconds before finishing
 --    --file=P    write the contents of the file P
+--    --repeat=N  write the arguments that follow N times each
 --
 --  Between them a conformance case can have a program that says something, a
 --  program that fails, a program that complains where nobody should be
---  collecting it, a program that is still running, and a program that shows
---  what a file holds -- on every host, without naming a utility one of them
---  does not have.
+--  collecting it, a program that is still running, a program that shows what a
+--  file holds, and a program that writes more than a shell will hold in one
+--  capture -- on every host, without naming a utility one of them does not
+--  have.
 procedure Adash_Test_Emit is
    Status : Integer := 0;
    Waited : Duration := 0.0;
+
+   --  How many times each of the arguments after it is written. One by
+   --  default, which is what every case that does not ask wants.
+   Times : Positive := 1;
 
    --  Whether an argument is one of the three, and what it carries.
    function Introduced_By (Value : String; Flag : String) return Boolean
@@ -43,6 +49,9 @@ begin
             Ada.Text_IO.Put_Line
               (Ada.Text_IO.Standard_Error, After (Value, "--error="));
 
+         elsif Introduced_By (Value, "--repeat=") then
+            Times := Positive'Value (After (Value, "--repeat="));
+
          elsif Introduced_By (Value, "--sleep=") then
             Waited := Duration'Value (After (Value, "--sleep="));
 
@@ -59,7 +68,9 @@ begin
             end;
 
          else
-            Ada.Text_IO.Put_Line (Value);
+            for Turn in 1 .. Times loop
+               Ada.Text_IO.Put_Line (Value);
+            end loop;
          end if;
       end;
    end loop;
