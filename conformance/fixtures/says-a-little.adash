@@ -1,0 +1,9 @@
+--  Read by a conformance case that runs this shell from this shell.
+--
+--  A script that a user runs may well run another, and until something asserts
+--  it nobody knows whether it works on every host: a shell started by a shell
+--  is a child like any other, but it is the only child that reads a script,
+--  writes to a captured pipe, and exits with a status of its own.
+put_line ("from the child");
+put_line ("and again");
+quit (0);

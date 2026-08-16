@@ -912,3 +912,29 @@ output = [
 diagnostics = [
   "!error.output_too_large{program={emit}}!",
 ]
+
+[[case]]
+id = "run.a-shell-runs-a-shell"
+requirement = """
+A script may run another, and the shell is a program like any other to it. That
+is worth asserting for itself, and it is also the smallest version of something
+that failed on one host and not the others: a case that ran this shell over a
+fixture writing a mebibyte got nothing back on Windows, no output and no
+complaint, while the same case answered on Linux and macOS.
+
+So this is that with the size taken out of it. If it passes everywhere, what
+failed there was about how much the child wrote; if it fails on the same host,
+what failed was running a shell from a shell at all -- and either answer is
+worth more than the guess it replaces.
+"""
+script = """
+put_line (Output_Of ("{shell}", "{root}/conformance/fixtures/says-a-little.adash"));
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "from the child",
+  "and again",
+  " 0",
+]
+diagnostics = []
