@@ -4,6 +4,7 @@ with Hostkit.Descriptors;
 with Hostkit.Signals;
 
 with Adash.Execution.External;
+with Adash.Execution.Signals;
 use type Adash.Execution.External.Observation;
 with Adash.Execution.Streams;
 with Adash.Platform;
@@ -535,7 +536,15 @@ package body Adash.Execution.Pipelines is
          return False;
       end if;
 
+      --  The terminal, for as long as this program has it. On a host where
+      --  the shell watches its terminal for Ctrl-C, watching means holding it
+      --  raw -- and a program handed a raw console is one nobody can type a
+      --  line into. What stops a foreground program is its own interrupt.
+      Adash.Execution.Signals.Hand_Over_Terminal;
+
       Ignored := Wait (Started, Cancel, Final);
+
+      Adash.Execution.Signals.Take_Terminal_Back;
       return True;
    end Run;
 

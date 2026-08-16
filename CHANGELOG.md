@@ -1745,6 +1745,18 @@ what changed.
 
 ### Fixed
 
+- **A runaway loop can be stopped on Windows.** The shell waited for the host
+  to say Ctrl-C had been typed, and there it never does: a probe spinning on a
+  console is not told, and is still not told half a second after it stops
+  spinning. The keystroke itself does arrive, as the byte three, at a terminal
+  that is raw when the key is pressed -- so where hostkit says an interrupt
+  does not reach a busy program, the shell holds its terminal raw for the
+  duration of a submission and reads it between instructions, at most twenty
+  times a second. A three is an interrupt; everything else goes back to the
+  shared input buffer, so type-ahead survives. Anything the submission runs
+  gets the terminal back for its own duration, because a program handed a raw
+  console is one nobody can type a line into.
+
 - **The history file stopped being written once the log was full.** The session
   decided whether a line had been recorded by asking whether the in-memory
   log's *count* had grown -- and a log at its limit drops its oldest entry as

@@ -81,12 +81,18 @@ procedure Adash_Test_Watch is
      Ada.Command_Line.Argument_Count >= 3
        and then Ada.Command_Line.Argument (3) = "busy-raw";
 
-   --  "busy-toggle" is what the shell actually does. The terminal is left as a
-   --  shell leaves it between lines -- so a program it runs is not handed a
-   --  console with no line editing -- and each look takes it raw for an
-   --  instant and puts it back. Whether a keystroke typed while it was not raw
-   --  is still there to be found afterwards is the question, and no reading of
-   --  the documentation settles it.
+   --  "busy-toggle" is the arrangement that would have been tidier and does
+   --  not work. The terminal is left as a shell leaves it between lines, and
+   --  each look takes it raw for an instant and puts it back -- so no program
+   --  the shell runs is ever handed a console with no line editing.
+   --
+   --  What it measures is that a console asked to turn Ctrl-C into an
+   --  interrupt does not keep the keystroke anywhere: this mode sees the bytes
+   --  typed on either side of the Ctrl-C and never the Ctrl-C. Which is why
+   --  the shell holds its terminal raw for the whole submission and hands it
+   --  back around anything it runs, and why this mode stays here rather than
+   --  being deleted -- it is the reason for an arrangement that otherwise
+   --  looks like more work than necessary.
    Busy_Toggling : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
        and then Ada.Command_Line.Argument (3) = "busy-toggle";

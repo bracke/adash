@@ -119,11 +119,38 @@ package Adash.Execution.Signals is
    --  take that program's input; the caller knows when nobody else is reading
    --  and this package does not.
    --
+   --  The terminal is left raw while this is on, and that is not a detail: a
+   --  console asked to turn Ctrl-C into an interrupt does not put the
+   --  keystroke in its buffer at all, so a shell that took the terminal raw
+   --  only at the moment of a look would find the key already gone. Measured,
+   --  not deduced -- the probe that runs that exact sequence sees the bytes
+   --  around the Ctrl-C arrive and never the Ctrl-C.
+   --
+   --  Which is why Hand_Over_Terminal exists: raw for the shell's own loops,
+   --  and put back for anything the submission runs.
+   --
    --  @param Terminal Where to look. Stop_Watching to stop.
    procedure Watch_Terminal (Terminal : Hostkit.Descriptors.Descriptor);
 
-   --  Stop looking. Anything already recorded stays recorded.
+   --  Stop looking, and put the terminal back as it was.
+   --
+   --  Anything already recorded stays recorded.
    procedure Stop_Watching;
+
+   --  Give the terminal back for as long as a program is running.
+   --
+   --  A program the shell starts inherits the console, and a console left raw
+   --  is one with no line editing and no echo -- so a program that asks a
+   --  question would get an answer nobody could see themselves typing. While
+   --  it runs there is nothing for the shell to look for either: what stops a
+   --  foreground program is the program's own interrupt, not the shell's.
+   --
+   --  Paired with Take_Terminal_Back. Does nothing where nothing is watched,
+   --  so a caller need not ask first.
+   procedure Hand_Over_Terminal;
+
+   --  Take it back once the program has ended.
+   procedure Take_Terminal_Back;
 
    --  Whether the terminal is being watched.
    --

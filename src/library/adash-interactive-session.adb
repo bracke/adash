@@ -1137,14 +1137,15 @@ package body Adash.Interactive.Session is
                        Hostkit.Terminal_Control.Set_Interruptible
                          (Hostkit.Descriptors.Standard_Input);
                   else
-                     --  Left as the editor put it back, and watched. The
-                     --  watching takes the terminal for the instant of each
-                     --  look rather than holding it raw, because a program
-                     --  this submission runs would inherit a console with no
-                     --  line editing and no echo.
-                     Ignored :=
-                       Hostkit.Terminal_Control.Set_Interruptible
-                         (Hostkit.Descriptors.Standard_Input);
+                     --  Watched instead, which leaves the terminal raw for as
+                     --  long as the submission runs: a console asked to turn
+                     --  Ctrl-C into an interrupt does not put the keystroke
+                     --  where anybody can find it, so the shell has to be
+                     --  holding the terminal open when the key is pressed
+                     --  rather than looking afterwards. Anything the
+                     --  submission runs gets the terminal back for its own
+                     --  duration.
+                     Ignored := True;
 
                      Adash.Execution.Signals.Watch_Terminal
                        (Hostkit.Descriptors.Standard_Input);

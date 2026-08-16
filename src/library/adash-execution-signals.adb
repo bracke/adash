@@ -166,6 +166,10 @@ package body Adash.Execution.Signals is
    --  saying otherwise would make Hostkit.Signals.Arrived answer for something
    --  no signal did.
    Looking_At : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
+
+   --  The terminal as the shell found it, and whether a program has it now.
+   As_It_Was   : Hostkit.Terminal_Control.Mode;
+   Handed_Over : Boolean := False;
    Seen_Typed : Boolean := False;
    pragma Atomic (Seen_Typed);
 
@@ -184,6 +188,17 @@ package body Adash.Execution.Signals is
 
    procedure Watch_Terminal (Terminal : Hostkit.Descriptors.Descriptor) is
    begin
+      Looking_At := Hostkit.Descriptors.Invalid;
+      Handed_Over := False;
+
+      if not Hostkit.Terminal_Control.Save_Mode (Terminal, As_It_Was) then
+         return;
+      end if;
+
+      if not Hostkit.Terminal_Control.Set_Raw (Terminal) then
+         return;
+      end if;
+
       Looking_At := Terminal;
    end Watch_Terminal;
 
@@ -193,8 +208,65 @@ package body Adash.Execution.Signals is
 
    procedure Stop_Watching is
    begin
+      if not Hostkit.Descriptors.Is_Valid (Looking_At) then
+         return;
+      end if;
+
+      declare
+         Ignored : constant Boolean :=
+           Hostkit.Terminal_Control.Restore_Mode (Looking_At, As_It_Was);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
+
       Looking_At := Hostkit.Descriptors.Invalid;
+      Handed_Over := False;
    end Stop_Watching;
+
+   ---------------------------
+   -- Hand_Over_Terminal --
+   ---------------------------
+
+   procedure Hand_Over_Terminal is
+   begin
+      if not Hostkit.Descriptors.Is_Valid (Looking_At) or else Handed_Over then
+         return;
+      end if;
+
+      Handed_Over := True;
+
+      declare
+         Ignored : constant Boolean :=
+           Hostkit.Terminal_Control.Restore_Mode (Looking_At, As_It_Was);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
+   end Hand_Over_Terminal;
+
+   ----------------------------
+   -- Take_Terminal_Back --
+   ----------------------------
+
+   procedure Take_Terminal_Back is
+   begin
+      if not Hostkit.Descriptors.Is_Valid (Looking_At)
+        or else not Handed_Over
+      then
+         return;
+      end if;
+
+      Handed_Over := False;
+
+      declare
+         Ignored : constant Boolean :=
+           Hostkit.Terminal_Control.Set_Raw (Looking_At);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
+   end Take_Terminal_Back;
 
    ----------------
    -- Watching --
@@ -202,7 +274,7 @@ package body Adash.Execution.Signals is
 
    function Watching return Boolean is
    begin
-      return Hostkit.Descriptors.Is_Valid (Looking_At);
+      return Hostkit.Descriptors.Is_Valid (Looking_At) and then not Handed_Over;
    end Watching;
 
    -------------------------------
@@ -229,14 +301,11 @@ package body Adash.Execution.Signals is
       Buffer : Ada.Streams.Stream_Element_Array (1 .. 64);
       Last   : Ada.Streams.Stream_Element_Offset;
 
-      Saved   : Hostkit.Terminal_Control.Mode;
-      Was_Raw : Boolean;
-
       use type Ada.Calendar.Time;
       use type Ada.Streams.Stream_Element;
       use type Hostkit.Descriptors.Transfer_Outcome;
    begin
-      if not Hostkit.Descriptors.Is_Valid (Looking_At) then
+      if not Watching then
          return;
       end if;
 
@@ -254,53 +323,31 @@ package body Adash.Execution.Signals is
 
       Last_Look := Ada.Calendar.Clock;
 
-      --  The terminal, for as long as one look takes.
-      --
-      --  Raw is what makes the interrupt key arrive as a byte rather than as
-      --  something the host swallows, and this shell cannot leave it raw: a
-      --  program the submission runs would inherit a console with no line
-      --  editing and no echo. So it is taken and put back around each look,
-      --  and a keystroke typed while it was not raw is still in the terminal's
-      --  buffer to be found -- changing the mode does not empty it.
-      if not Hostkit.Terminal_Control.Save_Mode (Looking_At, Saved) then
+      if not Hostkit.Descriptors.Wait_Readable (Looking_At, 0)
+        or else Hostkit.Descriptors.Read (Looking_At, Buffer, Last)
+                /= Hostkit.Descriptors.Transfer_Ok
+      then
          return;
       end if;
 
-      Was_Raw := Hostkit.Terminal_Control.Set_Raw (Looking_At);
-
-      if Was_Raw
-        and then Hostkit.Descriptors.Wait_Readable (Looking_At, 0)
-        and then Hostkit.Descriptors.Read (Looking_At, Buffer, Last)
-                 = Hostkit.Descriptors.Transfer_Ok
-      then
-         declare
-            Kept  : String (1 .. Natural (Last));
-            Count : Natural := 0;
-         begin
-            for Index in Buffer'First .. Last loop
-               if Buffer (Index) = Interrupt_Key then
-                  Seen_Typed := True;
-               else
-                  --  Everything else is what the user typed while waiting, and
-                  --  it belongs to whoever reads next rather than to this
-                  --  look.
-                  Count := Count + 1;
-                  Kept (Count) := Character'Val (Natural (Buffer (Index)));
-               end if;
-            end loop;
-
-            if Count > 0 then
-               Adash.Execution.Streams.Put_Back (Kept (1 .. Count));
-            end if;
-         end;
-      end if;
-
       declare
-         Ignored : constant Boolean :=
-           Hostkit.Terminal_Control.Restore_Mode (Looking_At, Saved);
-         pragma Unreferenced (Ignored);
+         Kept  : String (1 .. Natural (Last));
+         Count : Natural := 0;
       begin
-         null;
+         for Index in Buffer'First .. Last loop
+            if Buffer (Index) = Interrupt_Key then
+               Seen_Typed := True;
+            else
+               --  Everything else is what the user typed while waiting, and it
+               --  belongs to whoever reads next rather than to this look.
+               Count := Count + 1;
+               Kept (Count) := Character'Val (Natural (Buffer (Index)));
+            end if;
+         end loop;
+
+         if Count > 0 then
+            Adash.Execution.Streams.Put_Back (Kept (1 .. Count));
+         end if;
       end;
    end Look_For_An_Interrupt;
 
