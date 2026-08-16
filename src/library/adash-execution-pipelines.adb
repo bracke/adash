@@ -5,6 +5,8 @@ with Hostkit.Signals;
 
 with Adash.Execution.External;
 with Adash.Execution.Signals;
+
+with Hostkit.Terminal_Control;
 use type Adash.Execution.External.Observation;
 with Adash.Execution.Streams;
 with Adash.Platform;
@@ -417,6 +419,69 @@ package body Adash.Execution.Pipelines is
    -- Capture --
    -------------
 
+   --  The terminal, handed to a job for as long as it runs.
+   --
+   --  A child is started in a process group of its own -- that is what makes a
+   --  job a job, and what lets a signal reach the job rather than the shell.
+   --  The cost of it is that the group is not the terminal's foreground one,
+   --  and a POSIX terminal stops any program in another group that reads it.
+   --  So a program that asks a question was stopped where it asked, and a
+   --  shell running `cat` looked like a shell that had hung.
+   --
+   --  Giving the terminal to the job is what every shell does about that, and
+   --  taking it back afterwards is the other half: a shell that forgot would
+   --  leave the terminal owned by a group with nothing in it, and its own next
+   --  read would stop it.
+   --
+   --  Safe to call from a shell that has ignored Signal_Background_Write. The
+   --  handover itself raises that signal at a process that does not own the
+   --  terminal, and a shell that had not refused it would stop itself in the
+   --  act of reclaiming its own terminal -- which is the failure hostkit warns
+   --  about where it declares this.
+   procedure Hand_The_Terminal_To (Group : Integer; Taken : out Integer);
+
+   --  Give it back to whoever had it.
+   procedure Take_The_Terminal_Back (Group : Integer);
+
+   procedure Hand_The_Terminal_To (Group : Integer; Taken : out Integer) is
+      Ours : Integer;
+   begin
+      Taken := -1;
+
+      if Group < 0
+        or else not Hostkit.Terminal_Control.Supports_Foreground_Group
+        or else not D.Is_Terminal (D.Standard_Input)
+      then
+         return;
+      end if;
+
+      --  Whoever has it now, which is this shell in an ordinary session and
+      --  something else in a shell that was itself started by one.
+      if not Hostkit.Terminal_Control.Foreground_Group
+               (D.Standard_Input, Ours)
+      then
+         return;
+      end if;
+
+      if Hostkit.Terminal_Control.Set_Foreground_Group
+           (D.Standard_Input, Group)
+      then
+         Taken := Ours;
+      end if;
+   end Hand_The_Terminal_To;
+
+   procedure Take_The_Terminal_Back (Group : Integer) is
+      Ignored : Boolean;
+   begin
+      if Group < 0 then
+         return;
+      end if;
+
+      Ignored :=
+        Hostkit.Terminal_Control.Set_Foreground_Group
+          (D.Standard_Input, Group);
+   end Take_The_Terminal_Back;
+
    function Capture
      (Item    : in out Plan;
       Cancel  : access Adash.Execution.Cancellation.Token;
@@ -428,6 +493,9 @@ package body Adash.Execution.Pipelines is
       Ends    : D.Pipe_Ends;
       Started : Running;
       Ignored : Boolean;
+
+      --  Whoever owned the terminal before this program was given it.
+      Held_By_Us : Integer := -1;
    begin
       Written := Ada.Strings.Unbounded.Null_Unbounded_String;
       Final := (Status => Adash.Execution.Success,
@@ -467,6 +535,7 @@ package body Adash.Execution.Pipelines is
       --  is holding raw for its own reasons is a program whose user cannot see
       --  what they type.
       Adash.Execution.Signals.Hand_Over_Terminal;
+      Hand_The_Terminal_To (Group (Started), Held_By_Us);
 
       --  Read to end of file before waiting. A program that writes more than a
       --  pipe holds blocks until somebody drains it, and a shell that waited
@@ -520,6 +589,7 @@ package body Adash.Execution.Pipelines is
 
       Ignored := Wait (Started, Cancel, Final);
 
+      Take_The_Terminal_Back (Held_By_Us);
       Adash.Execution.Signals.Take_Terminal_Back;
       return True;
    end Capture;
@@ -545,13 +615,25 @@ package body Adash.Execution.Pipelines is
          return False;
       end if;
 
-      --  The terminal, for as long as this program has it. On a host where
-      --  the shell watches its terminal for Ctrl-C, watching means holding it
-      --  raw -- and a program handed a raw console is one nobody can type a
-      --  line into. What stops a foreground program is its own interrupt.
+      --  The terminal, for as long as this program has it, in both senses.
+      --
+      --  On a host where the shell watches its terminal for Ctrl-C, watching
+      --  means holding it raw, and a program handed a raw console is one
+      --  nobody can type a line into. On a host with process groups, the job
+      --  is in a group of its own and a terminal stops any other group that
+      --  reads it. Neither is the other, and a program that asks a question
+      --  needs both.
       Adash.Execution.Signals.Hand_Over_Terminal;
 
-      Ignored := Wait (Started, Cancel, Final);
+      declare
+         Ours : Integer;
+      begin
+         Hand_The_Terminal_To (Group (Started), Ours);
+
+         Ignored := Wait (Started, Cancel, Final);
+
+         Take_The_Terminal_Back (Ours);
+      end;
 
       Adash.Execution.Signals.Take_Terminal_Back;
       return True;

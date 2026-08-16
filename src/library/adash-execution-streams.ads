@@ -45,6 +45,31 @@ package Adash.Execution.Streams is
    --  @return An owned endpoint.
    function Owned (Handle : Hostkit.Descriptors.Descriptor) return Endpoint;
 
+   --  What a background job's input should be, given what it was told.
+   --
+   --  A job started into the background cannot be handed the terminal the way
+   --  a foreground one is: there is no "while it runs" for the shell to wait
+   --  through, since the shell carries on. On POSIX the host settles what
+   --  follows by stopping a background program that reads the terminal, and
+   --  nothing here takes that decision away from it.
+   --
+   --  Where the shell is watching its own terminal for Ctrl-C, though, it is
+   --  holding that terminal raw and reading it between instructions -- and a
+   --  background program given the same terminal would race the shell for
+   --  keystrokes and read them in a mode nobody chose for it. So it is given
+   --  the device that reads as nothing instead, and sees end of input rather
+   --  than a stream that will never answer.
+   --
+   --  A job whose input was redirected keeps what it was given: the user said
+   --  where its input comes from, and that is not this function's business.
+   --
+   --  @param Given What the invocation carries now.
+   --  @return What to run it with. Given itself, wherever the rule above does
+   --          not apply -- including a host with no such device, where the
+   --          terminal is still a worse answer than nothing at all but the
+   --          only one there is.
+   function Background_Input (Given : Endpoint) return Endpoint;
+
    --  A descriptor somebody else owns, to be handed over but not closed.
    --
    --  For the stage of a pipeline that passes a pipe end on to the next stage:

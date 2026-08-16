@@ -1745,6 +1745,17 @@ what changed.
 
 ### Fixed
 
+- **A program the shell runs can read the terminal.** A job is started in a
+  process group of its own -- that is what makes it a job, and what lets a
+  signal reach the job rather than the shell -- and a POSIX terminal stops any
+  program in another group that reads it. So a program that asked a question
+  was stopped where it asked, and a shell running `cat` looked like a shell
+  that had hung. The shell hands the terminal to a foreground job for as long
+  as it runs and takes it back afterwards, for a captured program as well as a
+  waited-for one. Taking it back is the other half: a shell that forgot would
+  leave the terminal owned by a group with nothing in it, and its own next read
+  would stop it.
+
 - **A background job does not share the keyboard.** Only where the shell
   watches its own terminal, which is the host with no job control: there the
   shell holds the terminal raw and reads it between instructions, so a

@@ -23,7 +23,8 @@ project Adash_Tests is
    for Main use
      ("adash_tests_main.adb", "adash_check_main.adb",
       "adash_conformance_main.adb", "adash_bench_main.adb",
-      "adash_test_emit.adb", "adash_test_upcase.adb", "adash_test_watch.adb");
+      "adash_test_emit.adb", "adash_test_upcase.adb", "adash_test_watch.adb",
+      "adash_test_reader.adb");
    for Languages use ("Ada");
 
    --  The root package of this crate is named Adash_Tests, so the main

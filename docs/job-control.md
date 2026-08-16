@@ -80,6 +80,14 @@ Anything that needs the terminal for itself is given it back for that
 duration — a program in the foreground, a program whose output is being
 captured, and the shell's own `Read_Line`.
 
+Handing the terminal over means two different things and a program that asks a
+question needs both. One is the console mode above. The other is ownership: a
+job runs in a process group of its own, and a POSIX terminal stops any program
+in another group that reads it, so the shell gives the terminal to the job for
+as long as it runs and takes it back when it ends. A shell that forgot to take
+it back would leave the terminal owned by a group with nothing in it, and would
+stop itself at its own next read.
+
 A job started into the background is a different case: there is no "for that
 duration" to give it back for, since the shell carries on while it runs. Where
 the shell is watching, a background job is given the null device as its input

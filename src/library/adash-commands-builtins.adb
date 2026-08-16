@@ -9,7 +9,6 @@ with Adash.Language.Values;
 with Adash.Version;
 
 with Hostkit;
-with Hostkit.Descriptors;
 with Hostkit.Fs;
 with Adash.Configuration;
 with Adash.Configuration.Files;
@@ -20,7 +19,6 @@ with Adash.Execution.Commands;
 with Adash.Execution.Jobs;
 with Adash.Execution.Pipelines;
 with Adash.Execution.Redirection;
-with Adash.Execution.Signals;
 with Adash.Execution.Streams;
 
 package body Adash.Commands.Builtins is
@@ -480,39 +478,13 @@ package body Adash.Commands.Builtins is
                              others => <>);
                   end if;
 
-                  --  A background job does not share the keyboard.
-                  --
-                  --  Only where the shell is watching its own terminal for
-                  --  Ctrl-C, which is the host with no job control: there the
-                  --  shell is holding the terminal raw and reading it between
-                  --  instructions, so a background program given that same
-                  --  terminal would be racing it for keystrokes -- and would
-                  --  read them in a mode nobody chose for it. On POSIX the
-                  --  host settles this itself, by stopping a background
-                  --  program that reads the terminal, and nothing here should
-                  --  take that decision away from it.
-                  --
-                  --  What it gets instead is the device that reads as nothing,
-                  --  so it sees end of input rather than a stream that will
-                  --  never answer. A job whose input was redirected keeps what
-                  --  it was given: the user said where its input comes from.
-                  if not Waits
-                    and then Adash.Execution.Signals.Watching
-                    and then not Adash.Execution.Streams.Is_Owned
-                                  (Stage.Input)
-                    and then Hostkit.Fs.Null_Device /= ""
-                  then
-                     declare
-                        Nothing : Hostkit.Descriptors.Descriptor;
-                     begin
-                        if Hostkit.Descriptors.Open_File
-                             (Hostkit.Fs.Null_Device,
-                              Hostkit.Descriptors.Open_Read, Nothing)
-                        then
-                           Stage.Input :=
-                             Adash.Execution.Streams.Owned (Nothing);
-                        end if;
-                     end;
+                  --  A background job does not share the keyboard. What it
+                  --  gets instead, and why, is Streams.Background_Input --
+                  --  which is where the rule lives so that a test can ask it
+                  --  rather than having to arrange a whole job to watch.
+                  if not Waits then
+                     Stage.Input :=
+                       Adash.Execution.Streams.Background_Input (Stage.Input);
                   end if;
 
                   Adash.Execution.Pipelines.Add_Stage (Line, Stage);

@@ -5,6 +5,8 @@ with Ada.Strings.Unbounded;
 
 with Adash.Execution.Signals;
 
+with Hostkit.Fs;
+
 package body Adash.Execution.Streams is
 
    package D renames Hostkit.Descriptors;
@@ -100,6 +102,32 @@ package body Adash.Execution.Streams is
       --  is already invalid after Close.
       Item := (Handle => D.Invalid, Owned => False);
    end Release;
+
+   -----------------------
+   -- Background_Input --
+   -----------------------
+
+   function Background_Input (Given : Endpoint) return Endpoint is
+      Nothing : Hostkit.Descriptors.Descriptor;
+   begin
+      if Is_Owned (Given)
+        or else not Adash.Execution.Signals.Watching
+        or else Hostkit.Fs.Null_Device = ""
+      then
+         return Given;
+      end if;
+
+      if not Hostkit.Descriptors.Open_File
+               (Hostkit.Fs.Null_Device,
+                Hostkit.Descriptors.Open_Read, Nothing)
+      then
+         --  The device is named and would not open, which is a host in a state
+         --  this cannot improve on. The job runs with what it had.
+         return Given;
+      end if;
+
+      return Owned (Nothing);
+   end Background_Input;
 
    ----------------
    -- Read_Line --

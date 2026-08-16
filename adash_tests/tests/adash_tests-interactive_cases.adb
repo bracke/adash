@@ -14,6 +14,8 @@ with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 
 with Adash.Diagnostics;
+with Adash.Execution.Signals;
+with Adash.Execution.Streams;
 with Adash.Interactive.Completion;
 with Adash.Display_Width;
 with Adash.Interactive.Editing;
@@ -36,6 +38,7 @@ package body Adash_Tests.Interactive_Cases is
    package Note renames Adash.Interactive.Notifications;
    package Comp renames Adash.Interactive.Completion;
    package High renames Adash.Interactive.Highlighting;
+   package Str renames Adash.Execution.Streams;
 
    use type Edit.Key_Kind;
    use type Comp.Source_Kind;
@@ -2463,6 +2466,160 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after reading a line");
    end A_Submission_Can_Read_A_Line_From_The_Terminal;
 
+   --  A program the shell runs can read a line typed at the terminal.
+   --
+   --  Two arrangements meet here and a program that asks a question needs
+   --  both. A job is started in a process group of its own -- that is what
+   --  makes it a job -- and a POSIX terminal stops any program in another
+   --  group that reads it, so the shell hands the terminal to the job while it
+   --  runs and takes it back afterwards. Where the shell watches its terminal
+   --  for Ctrl-C instead, watching means holding it raw, and it gives that up
+   --  for the same duration.
+   --
+   --  This could not be written until today: the program was stopped where it
+   --  asked, and a shell running `cat` looked like a shell that had hung.
+   --
+   --  Whichever half were missing this would hang rather than answer, and the
+   --  wait is bounded.
+   procedure A_Program_In_A_Submission_Can_Read_A_Line
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Program_In_A_Submission_Can_Read_A_Line
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+
+      Reader : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Command_Line.Command_Name),
+           "adash_test_reader" & Hostkit.Fs.Executable_Suffix);
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      --  Captured, so what the program read comes back through the shell and
+      --  is told apart from what the terminal echoed by its case.
+      Type_Into
+        (Session,
+         "put_line (To_Upper (Output_Of (""" & Reader & """)));" & Return_Key);
+
+      --  A moment for the program to start and reach its read, drained the
+      --  whole time rather than waited out: a terminal nobody reads fills up,
+      --  and a shell blocked part-way through echoing a line this long is not
+      --  reading the rest of what was typed either.
+      for Attempt in 1 .. 40 loop
+         exit when not Drained (Session);
+         delay 0.05;
+      end loop;
+
+      Type_Into (Session, "typed" & Return_Key);
+
+      Assert (Waited_For (Session, "TYPED", Tries => 600),
+              "a program in a submission could not read a line from the "
+              & "terminal: [" & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after a program read a line");
+   end A_Program_In_A_Submission_Can_Read_A_Line;
+
+   --  A background job is given nothing to read, where the shell is watching.
+   --
+   --  The rule is asked directly rather than through a job, because the only
+   --  host where it fires is the one where the shell watches its terminal --
+   --  and a case that could only run there would be a case nobody reads the
+   --  result of. Arming the watching on a pseudo-terminal puts this host in
+   --  the same state for as long as the question takes.
+   --
+   --  Three claims: a job whose input was redirected keeps it, a shell that is
+   --  not watching changes nothing, and a shell that is watching hands over a
+   --  stream of its own that reads as end of input. The last is the one that
+   --  matters -- a background program racing the shell for keystrokes is the
+   --  thing this prevents -- and the first is what keeps the prevention from
+   --  overriding what a user asked for.
+   procedure A_Background_Job_Is_Given_Nothing_To_Read
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Background_Job_Is_Given_Nothing_To_Read
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Terminal : Hostkit.Pty.Pair;
+
+      Inherited : constant Str.Endpoint := Str.Inherited (Str.Role_Input);
+   begin
+      --  Not watching: everything is left as it was.
+      Assert (not Adash.Execution.Signals.Watching,
+              "something left the terminal watched");
+      Assert (not Str.Is_Owned (Str.Background_Input (Inherited)),
+              "a shell that is not watching gave a background job a stream "
+              & "of its own");
+
+      if not Hostkit.Pty.Is_Supported or else not Hostkit.Pty.Open (Terminal)
+      then
+         return;
+      end if;
+
+      if not Hostkit.Descriptors.Is_Valid (Terminal.Device) then
+         --  A pseudo-console has no device side to hold raw, so this host
+         --  cannot be put into the state the rule is about from here. What it
+         --  does in that state is asserted by the host itself, through the
+         --  session cases above.
+         Hostkit.Pty.Close (Terminal);
+         return;
+      end if;
+
+      Adash.Execution.Signals.Watch_Terminal (Terminal.Device);
+
+      if not Adash.Execution.Signals.Watching then
+         Hostkit.Pty.Close (Terminal);
+         return;
+      end if;
+
+      declare
+         Nothing : constant Str.Endpoint := Str.Background_Input (Inherited);
+
+         Buffer : Ada.Streams.Stream_Element_Array (1 .. 8);
+         Last   : Ada.Streams.Stream_Element_Offset;
+
+         use type Hostkit.Descriptors.Transfer_Outcome;
+      begin
+         Assert (Str.Is_Owned (Nothing),
+                 "a watching shell left a background job on the terminal");
+
+         Assert (Hostkit.Descriptors.Read (Str.Handle (Nothing), Buffer, Last)
+                 = Hostkit.Descriptors.Transfer_End_Of_File,
+                 "what a background job was given did not read as nothing");
+
+         --  And what the user asked for is untouched.
+         declare
+            Asked : constant Str.Endpoint := Str.Owned (Str.Handle (Nothing));
+
+            use type Hostkit.Descriptors.Descriptor;
+         begin
+            Assert (Str.Handle (Str.Background_Input (Asked))
+                    = Str.Handle (Asked),
+                    "a redirected background job had its input taken away");
+         end;
+
+         declare
+            Giving_Up : Hostkit.Descriptors.Descriptor := Str.Handle (Nothing);
+         begin
+            Hostkit.Descriptors.Close (Giving_Up);
+         end;
+      end;
+
+      Adash.Execution.Signals.Stop_Watching;
+      Hostkit.Pty.Close (Terminal);
+   end A_Background_Job_Is_Given_Nothing_To_Read;
+
    --------------------
 
    overriding procedure Register_Tests (T : in out Case_Type) is
@@ -2535,6 +2692,12 @@ package body Adash_Tests.Interactive_Cases is
                         "a line typed while a loop ran still runs after it");
       Register_Routine (T, A_Submission_Can_Read_A_Line_From_The_Terminal'Access,
                         "a submission can read a line typed at the terminal");
+      Register_Routine (T, A_Program_In_A_Submission_Can_Read_A_Line'Access,
+                        "a program in a submission can read a line typed at "
+                        & "the terminal");
+      Register_Routine (T, A_Background_Job_Is_Given_Nothing_To_Read'Access,
+                        "a background job is given nothing to read where the "
+                        & "shell watches");
       Register_Routine (T, A_Session_Answers_Through_A_Terminal'Access,
                         "a session answers through a pseudo-terminal");
    end Register_Tests;
