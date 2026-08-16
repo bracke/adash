@@ -2086,7 +2086,12 @@ package body Adash_Tests.Interactive_Cases is
 
          Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String (Elsewhere));
          Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("4"));
-         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("waiting"));
+         --  The shell's own sequence: a line read in raw mode, the settings
+         --  put back, and only then a terminal asked to report an interrupt.
+         --  That is the one difference left between a companion that is told
+         --  about a Ctrl-C and a shell that is not.
+         Asked.Append
+           (Ada.Strings.Unbounded.To_Unbounded_String ("after-a-line"));
 
          Assert (Hostkit.Pty.Open (Second), "could not open a second terminal");
          Assert (Hostkit.Pty.Set_Size (Second, (Rows => 24, Columns => 80)),
@@ -2108,6 +2113,21 @@ package body Adash_Tests.Interactive_Cases is
          end;
 
          Hostkit.Pty.Close_Device (Second);
+
+         delay 0.5;
+
+         --  A line for it to read, so it goes through what the editor does.
+         declare
+            Line : constant Ada.Streams.Stream_Element_Array (1 .. 2) :=
+              [Character'Pos ('x'), 13];
+            Last : Ada.Streams.Stream_Element_Offset;
+
+            use type Hostkit.Descriptors.Transfer_Outcome;
+         begin
+            Assert (Hostkit.Descriptors.Write (Second.To_Child, Line, Last)
+                    = Hostkit.Descriptors.Transfer_Ok,
+                    "could not type a line at the second terminal");
+         end;
 
          delay 0.5;
 
@@ -2157,9 +2177,10 @@ package body Adash_Tests.Interactive_Cases is
 
          Assert (Ada.Strings.Fixed.Index
                    (Ada.Strings.Unbounded.To_String (Waited), "interrupt") > 0,
-                 "a program that was not reading was never told that Ctrl-C "
-                 & "had been typed at its terminal, so stopping a runaway "
-                 & "loop there cannot be the host's job: ["
+                 "a program that had read a line and then asked for an "
+                 & "interruptible terminal was never told that Ctrl-C had "
+                 & "been typed at it -- which is the shell's own sequence, so "
+                 & "this is where the shell loses it: ["
                  & Ada.Strings.Unbounded.To_String (Waited) & "]");
       end;
    end A_Terminal_Says_What_Reaches_A_Program;

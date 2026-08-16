@@ -44,7 +44,16 @@ procedure Adash_Test_Watch is
    --  busy, with a terminal nobody is reading.
    Waiting_Only : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
-       and then Ada.Command_Line.Argument (3) = "waiting";
+       and then (Ada.Command_Line.Argument (3) = "waiting"
+                 or else Ada.Command_Line.Argument (3) = "after-a-line");
+
+   --  "after-a-line" is "waiting" with the shell's own history: read a line in
+   --  raw mode first, put the settings back, and only then ask for an
+   --  interruptible terminal. That is the one difference left between this
+   --  companion, which is told about a Ctrl-C, and the shell, which is not.
+   After_A_Line : constant Boolean :=
+     Ada.Command_Line.Argument_Count >= 3
+       and then Ada.Command_Line.Argument (3) = "after-a-line";
 
    Report : Ada.Text_IO.File_Type;
 
@@ -64,6 +73,49 @@ begin
         (Report,
          "armed=" & Boolean'Image (not Adash.Errors.Is_Failure (Armed)));
    end;
+
+   if After_A_Line then
+      --  A line, read exactly as the editor reads one: raw, then the saved
+      --  settings put back.
+      declare
+         Saved : Hostkit.Terminal_Control.Mode;
+
+         Have : constant Boolean :=
+           Hostkit.Terminal_Control.Save_Mode
+             (Hostkit.Descriptors.Standard_Input, Saved);
+
+         Ignored_Raw : constant Boolean :=
+           Hostkit.Terminal_Control.Set_Raw
+             (Hostkit.Descriptors.Standard_Input);
+         pragma Unreferenced (Ignored_Raw);
+
+         Buffer : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Last   : Ada.Streams.Stream_Element_Offset;
+
+         use type Hostkit.Descriptors.Transfer_Outcome;
+      begin
+         for Turn in 1 .. 40 loop
+            exit when Hostkit.Descriptors.Wait_Readable
+                        (Hostkit.Descriptors.Standard_Input, 50)
+              and then Hostkit.Descriptors.Read
+                         (Hostkit.Descriptors.Standard_Input, Buffer, Last)
+                       = Hostkit.Descriptors.Transfer_Ok;
+         end loop;
+
+         Ada.Text_IO.Put_Line (Report, "read-a-line=" & Boolean'Image (Have));
+
+         if Have then
+            declare
+               Back : constant Boolean :=
+                 Hostkit.Terminal_Control.Restore_Mode
+                   (Hostkit.Descriptors.Standard_Input, Saved);
+            begin
+               Ada.Text_IO.Put_Line
+                 (Report, "restored=" & Boolean'Image (Back));
+            end;
+         end if;
+      end;
+   end if;
 
    if Waiting_Only then
       Ada.Text_IO.Put_Line
