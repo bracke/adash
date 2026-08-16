@@ -1,3 +1,4 @@
+with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
@@ -1870,6 +1871,178 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after an edited line");
    end Backspace_Removes_A_Character_Through_A_Terminal;
 
+   --  What actually reaches a program on this host's terminal.
+   --
+   --  Two questions have been asked of the documentation and answered wrongly
+   --  twice: whether a Ctrl-C typed at a console reaches a program that is
+   --  busy, and whether a character with no key on the host's layout can be
+   --  typed at one at all. This asks the machine instead. A companion sits on
+   --  the terminal, writes down every byte it reads and every interrupt it is
+   --  told about, and this compares that against what was typed.
+   --
+   --  It asserts the one thing that must hold everywhere -- an ordinary
+   --  character typed arrives -- and carries the whole record in the failure
+   --  message of the two that are the open questions. A test that cannot fail
+   --  usefully is a test that answers nothing, and what is wanted here is the
+   --  answer.
+   procedure A_Terminal_Says_What_Reaches_A_Program
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Terminal : Hostkit.Pty.Pair;
+      Options  : Hostkit.Spawn.Options;
+      Child    : Hostkit.Spawn.Process_Handle;
+      Result   : Hostkit.Spawn.Status;
+
+      Told : Hostkit.String_Vectors.Vector;
+
+      Room : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Command_Line.Command_Name),
+           "terminal-watch.txt");
+
+      Said : Ada.Strings.Unbounded.Unbounded_String;
+
+      function Wrote (Text : String) return Boolean
+      is (Ada.Strings.Fixed.Index
+            (Ada.Strings.Unbounded.To_String (Said), Text) > 0);
+
+      procedure Send (Text : String);
+
+      procedure Send (Text : String) is
+         Data : Ada.Streams.Stream_Element_Array (1 .. Text'Length);
+         Last : Ada.Streams.Stream_Element_Offset;
+
+         use type Hostkit.Descriptors.Transfer_Outcome;
+      begin
+         for Index in Text'Range loop
+            Data (Ada.Streams.Stream_Element_Offset (Index - Text'First + 1)) :=
+              Ada.Streams.Stream_Element (Character'Pos (Text (Index)));
+         end loop;
+
+         Assert (Hostkit.Descriptors.Write (Terminal.To_Child, Data, Last)
+                 = Hostkit.Descriptors.Transfer_Ok,
+                 "could not type into the terminal");
+      end Send;
+
+      Escape : constant String := [1 => Character'Val (27)];
+
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Spawn.Wait_State;
+   begin
+      if not Hostkit.Pty.Is_Supported then
+         return;
+      end if;
+
+      if Ada.Directories.Exists (Room) then
+         Ada.Directories.Delete_File (Room);
+      end if;
+
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Room));
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String ("4"));
+
+      Assert (Hostkit.Pty.Open (Terminal), "could not open a terminal");
+      Assert (Hostkit.Pty.Set_Size (Terminal, (Rows => 24, Columns => 80)),
+              "could not size the terminal");
+      Assert (Hostkit.Pty.Attach (Terminal, Options),
+              "could not arrange to start the watcher on the terminal");
+
+      Assert (Hostkit.Spawn.Start
+                (Ada.Directories.Compose
+                   (Ada.Directories.Containing_Directory
+                      (Ada.Command_Line.Command_Name),
+                    (if Hostkit.Fs.Executable_Suffix = ""
+                     then "adash_test_watch"
+                     else "adash_test_watch" & Hostkit.Fs.Executable_Suffix)),
+                 Told, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the watcher would not start on a terminal");
+
+      Hostkit.Pty.Close_Device (Terminal);
+
+      --  A moment for it to take the terminal, then one of each thing.
+      delay 0.5;
+
+      Send ("A");
+      delay 0.2;
+
+      --  Ctrl-C: the byte a line discipline takes, and the key event a console
+      --  asks for. Both, because which of them arrives is the question.
+      Send ([1 => Character'Val (3)]);
+      delay 0.2;
+      Send (Escape & "[67;46;3;1;8;1_" & Escape & "[67;46;3;0;8;1_");
+      delay 0.2;
+
+      --  The accented character: its UTF-8, then as a key event carrying a
+      --  character.
+      Send (Accented);
+      delay 0.2;
+      Send (Escape & "[231;0;233;1;0;1_" & Escape & "[231;0;233;0;0;1_");
+
+      for Attempt in 1 .. 200 loop
+         exit when Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Poll, Result)
+                   and then Result.State /= Hostkit.Spawn.Wait_Running;
+
+         --  Drained while it runs: a terminal nobody reads fills up, and a
+         --  program writing into a full one waits instead of finishing.
+         if Hostkit.Descriptors.Wait_Readable (Terminal.From_Child, 50) then
+            declare
+               Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
+               Last   : Ada.Streams.Stream_Element_Offset := 0;
+
+               Ignored : constant Hostkit.Descriptors.Transfer_Outcome :=
+                 Hostkit.Descriptors.Read (Terminal.From_Child, Buffer, Last);
+               pragma Unreferenced (Ignored);
+            begin
+               --  Read to keep the terminal from filling; what it said is the
+               --  watcher's business and not this test's.
+               if Last >= Buffer'First then
+                  null;
+               end if;
+            end;
+         end if;
+      end loop;
+
+      Hostkit.Pty.Close (Terminal);
+
+      if Ada.Directories.Exists (Room) then
+         declare
+            File : Ada.Text_IO.File_Type;
+         begin
+            Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Room);
+
+            while not Ada.Text_IO.End_Of_File (File) loop
+               Ada.Strings.Unbounded.Append
+                 (Said, Ada.Text_IO.Get_Line (File) & " ");
+            end loop;
+
+            Ada.Text_IO.Close (File);
+         end;
+      end if;
+
+      --  The claim that must hold on every host: what was typed arrives. 65 is
+      --  the A.
+      Assert (Wrote ("byte= 65"),
+              "an ordinary character typed at a terminal did not reach the "
+              & "program on it, so nothing else this records means anything: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+
+      --  The two open questions. Both are asserted rather than reported,
+      --  because the record travels in the message either way and a test that
+      --  cannot fail answers nothing.
+      Assert (Wrote ("byte= 3") or else Wrote ("interrupt"),
+              "a Ctrl-C typed at the terminal reached the program as neither "
+              & "a byte nor a recorded interrupt: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+
+      Assert (Wrote ("byte= 195") or else Wrote ("byte= 233"),
+              "an accented character typed at the terminal reached the "
+              & "program in neither of its encodings: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+   end A_Terminal_Says_What_Reaches_A_Program;
+
    --  Ctrl-C at the prompt abandons the line and leaves the session standing,
    --  through the terminal.
    --
@@ -2057,6 +2230,8 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine
         (T, Backspace_Removes_A_Character_Through_A_Terminal'Access,
          "backspace removes a character through a terminal");
+      Register_Routine (T, A_Terminal_Says_What_Reaches_A_Program'Access,
+                        "a terminal says what reaches a program on it");
       Register_Routine (T, An_Interrupt_At_The_Prompt_Abandons_The_Line'Access,
                         "Ctrl-C at the prompt abandons the line");
       Register_Routine (T, An_Interrupt_Stops_A_Loop_Through_A_Terminal'Access,
