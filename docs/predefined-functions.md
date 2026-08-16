@@ -111,6 +111,7 @@ either way.
 | `Exists (Path)` | `Boolean` | whether anything is there |
 | `Is_Directory (Path)` | `Boolean` | whether it is a directory |
 | `Is_Executable (Path)` | `Boolean` | whether it could be run |
+| `Read_File (Path : String) return String` | what the file holds, or nothing when there is no such file |
 
 A path nobody can reach — no such directory, nothing named at all — is not a
 file, so the answer is `False` rather than a failure.

@@ -421,6 +421,10 @@ package body Adash.Messages is
             return "predefined.exists.doc";
          when Msg_Predefined_Is_Directory_Doc =>
             return "predefined.is_directory.doc";
+         when Msg_Predefined_Read_File_Doc =>
+            return "predefined.read_file.doc";
+         when Msg_Predefined_Read_File_Hint =>
+            return "predefined.read_file.hint";
          when Msg_Predefined_Is_Executable_Doc =>
             return "predefined.is_executable.doc";
          when Msg_Predefined_Index_Doc =>
@@ -793,7 +797,9 @@ package body Adash.Messages is
             | Msg_Predefined_Input_Ended_Hint
             | Msg_Predefined_Exists_Doc | Msg_Predefined_Exists_Hint
             | Msg_Predefined_Is_Directory_Doc | Msg_Predefined_Is_Directory_Hint
-            | Msg_Predefined_Is_Executable_Doc | Msg_Predefined_Is_Executable_Hint
+            | Msg_Predefined_Is_Executable_Doc
+            | Msg_Predefined_Read_File_Doc | Msg_Predefined_Read_File_Hint
+            | Msg_Predefined_Is_Executable_Hint
             | Msg_Predefined_Index_Doc | Msg_Predefined_Index_Hint
             | Msg_Predefined_Trim_Doc | Msg_Predefined_Trim_Hint
             | Msg_Predefined_To_Upper_Doc | Msg_Predefined_To_Upper_Hint

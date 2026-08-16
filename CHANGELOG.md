@@ -1724,6 +1724,16 @@ what changed.
   instead -- slower and unable to be wrong, where guessing at an escape would
   be fast and differ between the hosts.
 
+- **`Read_File` is `write_file`'s other half.** A shell that can put text in a
+  file and cannot get it back is one whose scripts run `cat` to read what they
+  just wrote -- a program start for something the shell can do itself, and a
+  program only two of the three hosts have. It is a question, so it is a
+  function with no consequences: a file that is not there reads as nothing,
+  which is what a script appending to a log wants on its first turn, and
+  `Exists` is how "nothing there" is told from "nothing in it". A file that is
+  not UTF-8 reads as nothing too, because a String in this language is text.
+  `examples/writing.adash` uses it instead of `cat`.
+
 ### Fixed
 
 - **The history file stopped being written once the log was full.** The session

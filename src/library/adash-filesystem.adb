@@ -4,6 +4,9 @@ with Ada.IO_Exceptions;
 
 with Hostkit.Fs;
 
+with Adash.Errors;
+with Adash.Source;
+
 package body Adash.Filesystem is
 
    use type Ada.Directories.File_Kind;
@@ -61,6 +64,92 @@ package body Adash.Filesystem is
       --  permission bit at all.
       return Hostkit.Fs.Is_Executable (Path);
    end Is_Executable;
+
+   -----------
+   -- Write --
+   -----------
+
+   ----------
+   -- Read --
+   ----------
+
+   procedure Read
+     (Path   : String;
+      Text   : out Ada.Strings.Unbounded.Unbounded_String;
+      Result : out Reading)
+   is
+      use Ada.Streams;
+
+      File : Ada.Streams.Stream_IO.File_Type;
+   begin
+      Text := Ada.Strings.Unbounded.Null_Unbounded_String;
+
+      if Path = "" or else Is_Directory (Path) then
+         --  A directory is not a file that could not be read; it is not the
+         --  sort of thing this asks about.
+         Result := Read_Refused;
+         return;
+      end if;
+
+      begin
+         Ada.Streams.Stream_IO.Open
+           (File, Ada.Streams.Stream_IO.In_File, Path);
+      exception
+         when Ada.IO_Exceptions.Name_Error =>
+            Result := Read_Missing;
+            return;
+
+         when Ada.IO_Exceptions.Use_Error | Ada.IO_Exceptions.Device_Error =>
+            Result := Read_Refused;
+            return;
+      end;
+
+      declare
+         Chunk : Stream_Element_Array (1 .. 4_096);
+         Last  : Stream_Element_Offset;
+      begin
+         while not Ada.Streams.Stream_IO.End_Of_File (File) loop
+            Ada.Streams.Stream_IO.Read (File, Chunk, Last);
+
+            for Index in Chunk'First .. Last loop
+               Ada.Strings.Unbounded.Append
+                 (Text, Character'Val (Natural (Chunk (Index))));
+            end loop;
+         end loop;
+      end;
+
+      Ada.Streams.Stream_IO.Close (File);
+
+      --  Text, or nothing. A String in this language is UTF-8 and a file that
+      --  is not is not a String -- handing the bytes over would put something
+      --  in a variable that no operation on a String is defined for.
+      declare
+         Held    : constant String := Ada.Strings.Unbounded.To_String (Text);
+         Checked : Adash.Source.Buffer;
+         Problem : Adash.Errors.Error_Info;
+      begin
+         if not Adash.Source.Load
+                  (Checked,
+                   Adash.Source.Make_Origin (Adash.Source.Origin_File, Path),
+                   Held, Problem)
+         then
+            Text := Ada.Strings.Unbounded.Null_Unbounded_String;
+            Result := Read_Not_Text;
+            return;
+         end if;
+      end;
+
+      Result := Read_Ok;
+
+   exception
+      when Ada.IO_Exceptions.Use_Error | Ada.IO_Exceptions.Device_Error =>
+         if Ada.Streams.Stream_IO.Is_Open (File) then
+            Ada.Streams.Stream_IO.Close (File);
+         end if;
+
+         Text := Ada.Strings.Unbounded.Null_Unbounded_String;
+         Result := Read_Refused;
+   end Read;
 
    -----------
    -- Write --

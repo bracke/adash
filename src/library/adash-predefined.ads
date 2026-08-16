@@ -71,6 +71,10 @@ package Adash.Predefined is
       Entity_Is_Directory,
       Entity_Is_Executable,
 
+      --  Reading a file, which is what write_file's other half looks like from
+      --  a script: text in, text out, and no program started to do it.
+      Entity_Read_File,
+
       --  Searching and shaping text.
       Entity_Index,
       Entity_Trim,

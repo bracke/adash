@@ -731,3 +731,31 @@ quit (0);"""
 exit_status = 0
 output = ["refused, and still here"]
 platforms = ["windows"]
+
+[[case]]
+id = "files.read_file-is-write_file-other-half"
+requirement = """
+A shell that can put text in a file and cannot get it back is one whose scripts
+run `cat` to read what they just wrote -- a program start for something the
+shell can do itself, and a program two of the three hosts have.
+
+`Read_File` is a question, so it is a function and has no consequences: a file
+that is not there reads as nothing, which is what a script appending to a log
+wants on its first turn and what `cat` would have said with a complaint. Telling
+"nothing there" from "nothing in it" is what `Exists` is for, and the case below
+says so.
+"""
+script = """
+write_file ("first" & Character'Val (10) & "second", "{store}/held.txt");
+put_line ("[" & Read_File ("{store}/held.txt") & "]");
+put_line ("[" & Read_File ("{store}/never-written.txt") & "]");
+put_line (Boolean'Image (Exists ("{store}/never-written.txt")));
+quit (0);"""
+exit_status = 0
+output = [
+  "[first",
+  "second]",
+  "[]",
+  "FALSE",
+]
+diagnostics = []

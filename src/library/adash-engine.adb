@@ -264,6 +264,25 @@ package body Adash.Engine is
             Answer := Adash.Language.Values.To_Value
               (Adash.Filesystem.Is_Executable (Text_At (1)));
 
+         when Adash.Predefined.Entity_Read_File =>
+            declare
+               Held   : Ada.Strings.Unbounded.Unbounded_String;
+               Result : Adash.Filesystem.Reading;
+
+               use type Adash.Filesystem.Reading;
+            begin
+               Adash.Filesystem.Read (Text_At (1), Held, Result);
+
+               --  A file that is not there reads as nothing, and so does one
+               --  that could not be read: a question has no consequences, and
+               --  a function that raised where a file was missing would make
+               --  `if Read_File (P) /= "" then` the wrong way to ask.
+               --  `Exists` is how a script tells the two apart.
+               Answer := Adash.Language.Values.To_Value
+                 (if Result = Adash.Filesystem.Read_Ok
+                  then Ada.Strings.Unbounded.To_String (Held) else "");
+            end;
+
          when others =>
             null;
       end case;

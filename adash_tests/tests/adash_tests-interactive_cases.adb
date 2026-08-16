@@ -2130,9 +2130,13 @@ package body Adash_Tests.Interactive_Cases is
             Last : Ada.Streams.Stream_Element_Offset;
 
             use type Hostkit.Descriptors.Transfer_Outcome;
+            Sent : constant Boolean :=
+              Hostkit.Descriptors.Write (Second.To_Child, Line, Last)
+              = Hostkit.Descriptors.Transfer_Ok;
+
+            use type Ada.Streams.Stream_Element_Offset;
          begin
-            Assert (Hostkit.Descriptors.Write (Second.To_Child, Line, Last)
-                    = Hostkit.Descriptors.Transfer_Ok,
+            Assert (Sent and then Last = Line'Last,
                     "could not type a line at the second terminal");
          end;
 
@@ -2145,10 +2149,11 @@ package body Adash_Tests.Interactive_Cases is
 
             use type Ada.Streams.Stream_Element_Offset;
             use type Hostkit.Descriptors.Transfer_Outcome;
+            Sent : constant Boolean :=
+              Hostkit.Descriptors.Write (Second.To_Child, Data, Last)
+              = Hostkit.Descriptors.Transfer_Ok;
          begin
-            Assert (Hostkit.Descriptors.Write (Second.To_Child, Data, Last)
-                    = Hostkit.Descriptors.Transfer_Ok
-                    and then Last = Data'Last,
+            Assert (Sent and then Last = Data'Last,
                     "could not type at the second terminal");
          end;
 
@@ -2193,6 +2198,13 @@ package body Adash_Tests.Interactive_Cases is
                  > 0,
                  "the busy probe did not run at all: ["
                  & Ada.Strings.Unbounded.To_String (Waited) & "]");
+
+         --  Printed, not only asserted. What this case is for is finding out,
+         --  and an assertion that holds says nothing on the host whose answer
+         --  is the reason the case exists -- the record has to reach a reader
+         --  when it passes as well as when it fails.
+         Ada.Text_IO.Put_Line
+           ("busy-probe: " & Ada.Strings.Unbounded.To_String (Waited));
       end;
    end A_Terminal_Says_What_Reaches_A_Program;
 

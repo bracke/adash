@@ -3043,6 +3043,18 @@ spelling, which is the name that runs -- so folding here costs nothing and
 being the only case-sensitive corner of the list would have been a rule with
 one exception and no reason.
 
+**`Read_File` is what `write_file` was missing.** A shell that can put text in a
+file and cannot get it back is one whose scripts end up running `cat` to read
+what they just wrote: a program start for something the shell does itself, and
+a program two hosts of three have.
+
+A question rather than a statement, so it is a function: a file that is not
+there reads as nothing, which is what a script appending to a log wants on its
+first turn, and `Exists` is how a script tells "nothing there" from "nothing in
+it". A file that is not UTF-8 reads as nothing as well -- a String here is
+text, and handing over bytes that are not would put something in a variable no
+operation on a String is defined for.
+
 **Configuration is still per-user.** Only history gained a per-session notion.
 
 **A subprogram declared on one line is callable on the next.** The session keeps

@@ -228,6 +228,21 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Is_Executable_Hint,
        Status => Available),
 
+      (Id => Entity_Read_File, Name => Named ("Read_File"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 1,
+       Parameters => [1 => (Named ("Path"), Types.Type_String),
+                      others => (Named (""), Types.Type_None)],
+       Optional_Parameters => 0,
+
+       --  Reading changes nothing. A file that is not there reads as nothing,
+       --  which is what a script appending to a log wants on its first turn --
+       --  and what it would have got from `cat` on a host that has one.
+       Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Read_File_Doc,
+       Description => Adash.Messages.Msg_Predefined_Read_File_Hint,
+       Status => Available),
+
       (Id => Entity_Index, Name => Named ("Index"),
        Sort => Sort_Function,
        Of_Type => Types.Type_Integer, Parameter_Count => 2,

@@ -1,3 +1,5 @@
+with Ada.Strings.Unbounded;
+
 --  What the shell can ask about a path.
 --
 --  A shell script asks whether a file is there before it acts on it: that is
@@ -45,6 +47,25 @@ package Adash.Filesystem is
    function Is_Executable (Path : String) return Boolean;
 
    --  What became of a write.
+   --  What became of a read.
+   type Reading is
+     (
+      --  It was read; see the text.
+      Read_Ok,
+
+      --  There is no such file. Distinct from every failure, because a script
+      --  reading what it may not yet have written is not a script with a fault
+      --  in it.
+      Read_Missing,
+
+      --  It is there and could not be read: a directory, a permission, a
+      --  device that answered no.
+      Read_Refused,
+
+      --  It is there and is not text this shell can carry: a file that is not
+      --  UTF-8 has no String to become.
+      Read_Not_Text);
+
    type Written is
      (
       --  It is there and holds what was given.
@@ -71,6 +92,21 @@ package Adash.Filesystem is
      (Path   : String;
       Text   : String;
       Result : out Written);
+
+   --  Read a whole file.
+   --
+   --  The other half of Write, and the reason it exists: a shell that can put
+   --  text in a file and cannot get it back is one whose scripts run `cat` to
+   --  read what they just wrote -- a program start for something the shell can
+   --  do itself, and one of the things that will not start on every host.
+   --
+   --  @param Path The file.
+   --  @param Text What it held; empty unless this returns Read_Ok.
+   --  @param Result What became of it.
+   procedure Read
+     (Path   : String;
+      Text   : out Ada.Strings.Unbounded.Unbounded_String;
+      Result : out Reading);
 
    --  Add text to the end of a file, making it when it is not there.
    --
