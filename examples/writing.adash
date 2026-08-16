@@ -12,10 +12,10 @@
 --  statement, where a reader sees it happen: nobody should be able to write
 --  `if Exists (P) and then Write (P, "") then` by accident.
 
---  Somewhere to work. A script that wrote into whatever directory it happened
---  to be started from would leave files behind wherever you ran it, and this
---  file is checked against a fixed output.
-cd (Output_Of ("mktemp", "-d"));
+--  Everything below writes into the working directory, so run this somewhere
+--  it may leave four files behind -- `cd` first if that is not where you are.
+--  Asking a program for a scratch directory is what this used to do, and it
+--  meant the example only ran on hosts that ship `mktemp`.
 
 --  Replaces whatever was there.
 write_file ("first", "report.txt");

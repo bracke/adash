@@ -1734,6 +1734,15 @@ what changed.
   not UTF-8 reads as nothing too, because a String in this language is text.
   `examples/writing.adash` uses it instead of `cat`.
 
+- **`Current_Directory`, and two examples that no longer need a program.**
+  Where the session is is something the shell knows, since `cd` moved it; a
+  script that asked `pwd` for it paid a process start for an answer already in
+  hand and only ran on hosts that ship the program. With it and `Read_File`,
+  `examples/paths.adash` and `examples/writing.adash` run on every host rather
+  than being skipped on Windows -- and the conformance runner now gives each
+  example a directory of its own to run in, which is where a writing example
+  puts its files instead of asking `mktemp` for somewhere.
+
 ### Fixed
 
 - **The history file stopped being written once the log was full.** The session

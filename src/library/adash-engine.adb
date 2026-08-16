@@ -1,5 +1,6 @@
 
 with Ada.Characters.Latin_1;
+with Ada.Directories;
 
 with Hostkit;
 
@@ -282,6 +283,12 @@ package body Adash.Engine is
                  (if Result = Adash.Filesystem.Read_Ok
                   then Ada.Strings.Unbounded.To_String (Held) else "");
             end;
+
+         when Adash.Predefined.Entity_Current_Directory =>
+            --  Where the session is, which `cd` moves and which a script
+            --  otherwise had to ask a program for.
+            Answer := Adash.Language.Values.To_Value
+              (Ada.Directories.Current_Directory);
 
          when others =>
             null;

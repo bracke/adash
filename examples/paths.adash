@@ -17,7 +17,11 @@
 --  The working directory, which is somewhere by definition. A home directory
 --  would have done as well on a machine that has one, and this file is checked
 --  against a fixed output on machines that may not.
-Here : String := Output_Of ("pwd");
+--
+--  `Current_Directory` rather than `Output_Of ("pwd")`: where the session is
+--  is something the shell knows, and asking a program for it means the example
+--  only runs on hosts that ship that program.
+Here : String := Current_Directory;
 
 if Exists (Here) then
    put_line ("the working directory is there");

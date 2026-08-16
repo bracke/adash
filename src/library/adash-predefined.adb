@@ -243,6 +243,19 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Read_File_Hint,
        Status => Available),
 
+      (Id => Entity_Current_Directory, Name => Named ("Current_Directory"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 0,
+       Parameters => No_Parameters,
+
+       --  A question, and one whose answer `cd` moves. Like Status, that it
+       --  changes as the session runs is a different property from having
+       --  consequences, and this field is about consequences.
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Current_Directory_Doc,
+       Description => Adash.Messages.Msg_Predefined_Current_Directory_Hint,
+       Status => Available),
+
       (Id => Entity_Index, Name => Named ("Index"),
        Sort => Sort_Function,
        Of_Type => Types.Type_Integer, Parameter_Count => 2,

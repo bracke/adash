@@ -759,3 +759,26 @@ output = [
   "FALSE",
 ]
 diagnostics = []
+
+[[case]]
+id = "files.current_directory-is-what-the-session-knows"
+requirement = """
+Where the session is is something the shell knows: `cd` moved it. A script that
+had to ask a program for it would only run on hosts that ship that program, and
+would pay a process start for an answer already in hand.
+
+A question, so a function -- and one whose answer moves, which is a different
+property from having consequences. It answers with the directory `cd` last
+went to.
+"""
+script = """
+cd ("{store}");
+put_line (Boolean'Image (Is_Directory (Current_Directory)));
+put_line (Boolean'Image (Current_Directory = ""));
+quit (0);"""
+exit_status = 0
+output = [
+  "TRUE",
+  "FALSE",
+]
+diagnostics = []

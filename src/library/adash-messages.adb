@@ -425,6 +425,10 @@ package body Adash.Messages is
             return "predefined.read_file.doc";
          when Msg_Predefined_Read_File_Hint =>
             return "predefined.read_file.hint";
+         when Msg_Predefined_Current_Directory_Doc =>
+            return "predefined.current_directory.doc";
+         when Msg_Predefined_Current_Directory_Hint =>
+            return "predefined.current_directory.hint";
          when Msg_Predefined_Is_Executable_Doc =>
             return "predefined.is_executable.doc";
          when Msg_Predefined_Index_Doc =>
@@ -799,6 +803,8 @@ package body Adash.Messages is
             | Msg_Predefined_Is_Directory_Doc | Msg_Predefined_Is_Directory_Hint
             | Msg_Predefined_Is_Executable_Doc
             | Msg_Predefined_Read_File_Doc | Msg_Predefined_Read_File_Hint
+            | Msg_Predefined_Current_Directory_Doc
+            | Msg_Predefined_Current_Directory_Hint
             | Msg_Predefined_Is_Executable_Hint
             | Msg_Predefined_Index_Doc | Msg_Predefined_Index_Hint
             | Msg_Predefined_Trim_Doc | Msg_Predefined_Trim_Hint

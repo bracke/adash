@@ -216,7 +216,8 @@ package body Adash_Tests.Conformance is
      (Binary    : String;
       Arguments : Hostkit.String_Vectors.Vector;
       Input     : String;
-      Store     : String) return Execution;
+      Store     : String;
+      In_Directory : String := "") return Execution;
 
    -------------
    -- Execute --
@@ -226,7 +227,8 @@ package body Adash_Tests.Conformance is
      (Binary    : String;
       Arguments : Hostkit.String_Vectors.Vector;
       Input     : String;
-      Store     : String) return Execution
+      Store     : String;
+      In_Directory : String := "") return Execution
    is
       Result : Execution;
 
@@ -294,6 +296,12 @@ package body Adash_Tests.Conformance is
                       (From_Error.Write_End, True)
       then
          return Result;
+      end if;
+
+      --  Where the child runs, when the caller said. An example that writes a
+      --  file writes it here, and here is a directory made for this run.
+      if In_Directory /= "" then
+         Options.Working_Directory := To_Unbounded_String (In_Directory);
       end if;
 
       Options.Input := To_Child.Read_End;
@@ -1137,8 +1145,7 @@ package body Adash_Tests.Conformance is
             --  are checked where the utilities are, and what they demonstrate
             --  is checked everywhere by the cases that use companions.
             Needs_Posix_Utilities : constant Boolean :=
-              Ada.Directories.Base_Name (Script) in
-                "capture" | "status" | "paths" | "writing";
+              Ada.Directories.Base_Name (Script) in "capture" | "status";
 
             Arguments : Hostkit.String_Vectors.Vector;
          begin
@@ -1165,11 +1172,28 @@ package body Adash_Tests.Conformance is
                        (Into, Identity, Malformed,
                         Because ("tooling.conformance.unreadable_expected"));
                   else
-                     Arguments.Append (To_Unbounded_String (Script));
+                     --  Named in full, because the example runs somewhere
+                     --  else. A path relative to this suite's own working
+                     --  directory means nothing to a child started in a
+                     --  directory of its own, and the first attempt at this
+                     --  said "the binary could not be started" for every
+                     --  example at once.
+                     Arguments.Append
+                       (To_Unbounded_String (Ada.Directories.Full_Name (Script)));
 
                      declare
+                        --  A directory of its own, and the example runs *in*
+                        --  it. An example that writes a file has to put it
+                        --  somewhere, and until now that somewhere came from
+                        --  `mktemp` -- a program two of the three hosts have.
+                        --  The store is already made fresh for each of these,
+                        --  so it is the somewhere.
+                        Room : constant String := Next_Store;
+
                         Ran : constant Execution :=
-                          Execute (Binary, Arguments, "", Next_Store);
+                          Execute
+                            (Ada.Directories.Full_Name (Binary), Arguments,
+                             "", Room, In_Directory => Room);
 
                         Actual_Output : Hostkit.String_Vectors.Vector;
                         Wanted_Output : Hostkit.String_Vectors.Vector;

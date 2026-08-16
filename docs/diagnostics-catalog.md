@@ -299,6 +299,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.is_directory.hint` | whether a path is a directory |
 | `predefined.read_file.doc` | Read_File (PATH) is what a file holds, or nothing when there is no such file. |
 | `predefined.read_file.hint` | what a file holds |
+| `predefined.current_directory.doc` | Current_Directory is where the session is, which cd moves. |
+| `predefined.current_directory.hint` | where the session is |
 | `predefined.is_executable.doc` | Whether a program at this path could be run, as this host judges it. |
 | `predefined.is_executable.hint` | whether a path is something to run |
 | `predefined.index.doc` | Where one text starts inside another, counting from one, or zero when it is not there at all. |
