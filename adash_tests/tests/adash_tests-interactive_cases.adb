@@ -2128,6 +2128,7 @@ package body Adash_Tests.Interactive_Cases is
               [1 => Ada.Streams.Stream_Element (3)];
             Last : Ada.Streams.Stream_Element_Offset;
 
+            use type Ada.Streams.Stream_Element_Offset;
             use type Hostkit.Descriptors.Transfer_Outcome;
          begin
             Assert (Hostkit.Descriptors.Write (Second.To_Child, Data, Last)
