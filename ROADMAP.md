@@ -2905,14 +2905,21 @@ process-wide. Saying the *child's* three handles are nothing -- which is what
 STARTF_USESTDHANDLES is for -- stops the copy without touching the parent at
 all. A caveat removed rather than documented.
 
-Two things stay off that host. Ctrl-C **while a program is running**: hostkit
-separates "has signals" from "can report an arrival", and Windows is the second
-without the first, so this was tried there on the reading that a console
-reporting a Ctrl-C is all a shell needs. It is not. Typed into the pseudo-console
-while the shell ran a loop, the byte never reached it as an interrupt and the
-loop was still going thirty seconds later. What Ctrl-C does there is asserted
-where it does something: at the prompt, abandoning the line being typed, which
-is the editor's half and needs no signal at all.
+Two things stay off that host. Ctrl-C **while a program is running**, and the
+reason is now precise rather than "no signals". Both encodings were tried: the
+byte 0x03, which is what a line discipline takes, and the key event a console
+in win32-input-mode asks for. The key event is right -- the prompt case runs on
+that host, sends it, and the editor sees the interrupt -- and a running loop
+still does not stop. What arrives is input to be read, and nothing is reading
+while a submission runs; there is no asynchronous event of the kind a signal
+gives you.
+
+A shell could poll its own input between instructions instead of waiting to be
+told. That is a decision and not a fix: while a child is running the input
+belongs to the child, and a shell reading it to look for a Ctrl-C would be
+taking keystrokes from the program it started. What Ctrl-C does there today is
+asserted where it does something -- at the prompt, abandoning the line being
+typed, which is the editor's half and needs no signal at all.
 
 And the accented half of the backspace case. A console host turns what arrives
 into key events and re-encodes them for the client, so writing two UTF-8 bytes

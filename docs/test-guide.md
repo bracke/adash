@@ -167,11 +167,15 @@ Tab completing a word, Up recalling a line, Up *not* recalling a line typed with
 a space in front of it, backspace removing something, and **Ctrl-C at the
 prompt** abandoning the line being typed so that the next one runs.
 
-Two things stay off that host. **Ctrl-C while a program is running**: typed into
-the pseudo-console it does not reach the client as an interrupt, and the loop
-under test was still going thirty seconds later. That was found by letting the
-host try, on the reading that a console can report a Ctrl-C even where there
-are no signals -- it can, and not to a client in the middle of something. And
+Two things stay off that host. **Ctrl-C while a program is running.** Both ways
+of typing one were tried there: the byte `0x03`, which is what a line discipline
+takes, and the key event a console asks for when it writes `ESC [ ? 9001 h` on
+attaching. The key event is the right encoding -- the prompt case uses it and
+the editor sees the interrupt -- and a running loop still does not stop. What
+arrives is *input to be read*, and nothing reads while a submission runs, so
+there is no asynchronous event to record. A shell could poll its own input
+between instructions instead; that is a decision rather than a fix, because
+while a child is running the input belongs to the child. And
 the **accented** half of the backspace case. A console host turns what arrives
 into key events and re-encodes them, so writing two UTF-8 bytes at it is not
 typing that character -- and neither, it turns out, is sending the key event

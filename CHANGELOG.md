@@ -1617,13 +1617,19 @@ what changed.
   being typed, the next line runs, and the abandoned one never does. That is
   the editor's half of an interrupt and needs no signal.
 
-  Ctrl-C *while a program is running* stays off Windows, for a reason measured
-  rather than assumed. hostkit separates "has signals" from "can report an
-  arrival" and that host is the second without the first, so the case was let
-  loose there: typed into the pseudo-console while the shell ran a loop, the
-  byte did not reach it as an interrupt and the loop was still going thirty
-  seconds later. A console can report a Ctrl-C, and not to a client in the
-  middle of something.
+  Ctrl-C *while a program is running* stays off Windows, and the reason is now
+  precise. Both encodings were tried there: the byte `0x03`, which is what a
+  line discipline takes, and the key event a console asks for when it writes
+  `ESC [ ? 9001 h` on attaching. The key event is the right one -- the prompt
+  case runs on that host, sends it, and the editor sees the interrupt -- and a
+  running loop still does not stop, because what arrives is input to be read
+  and nothing reads while a submission runs. There is no asynchronous event of
+  the kind a signal gives you.
+
+  A shell could poll its own input between instructions instead. That is a
+  decision rather than a fix: while a child is running the input belongs to the
+  child, and a shell reading it to look for a Ctrl-C would be taking keystrokes
+  from the program it started.
 
   The accented half of the backspace case stays off as well: a console host
   turns what arrives into key events and re-encodes them, so writing two UTF-8

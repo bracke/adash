@@ -1925,17 +1925,22 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      if not Hostkit.Signals.Can_Record (Hostkit.Signals.Signal_Interrupt) then
-         --  A host that cannot tell a program the user asked to interrupt.
-         --  Asked as Can_Record rather than Is_Supported: Windows has no
-         --  signals -- nothing to number, send, or give a disposition to --
-         --  and its console can still say Ctrl-C was typed, which is the
-         --  narrower thing a shell needs.
+      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
+         --  A host where a keystroke interrupts a program that is running.
          --
-         --  Tried once with the byte 0x03, which is what a line discipline
-         --  takes, and the loop ran on: a console in win32-input-mode is
-         --  asking for *keys*, and three is a byte. Type_Interrupt sends the
-         --  key.
+         --  Both ways of typing one have been tried on the host where it does
+         --  not: the byte 0x03, which is what a line discipline takes, and the
+         --  key event a console in win32-input-mode asks for. The key event is
+         --  the right encoding -- the case below, which runs there, uses it
+         --  and the editor sees the interrupt at the prompt -- and it still
+         --  does not stop a running loop. What arrives is *input to be read*,
+         --  and nothing is reading while a submission runs; there is no
+         --  asynchronous event for the shell to have recorded.
+         --
+         --  A shell could poll its own input between instructions instead.
+         --  That is a decision rather than a fix: while a child is running,
+         --  the input belongs to the child, and a shell reading it to look for
+         --  a Ctrl-C would be taking keystrokes from the program it started.
          return;
       end if;
 
