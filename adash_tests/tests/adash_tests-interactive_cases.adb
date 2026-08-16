@@ -1152,25 +1152,6 @@ package body Adash_Tests.Interactive_Cases is
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
 
-   --  Type one character, however this host's terminal takes one.
-   --
-   --  A pseudo-terminal carries bytes: the character's UTF-8 goes in as it
-   --  stands. A pseudo-console asks for keys, and a key event needs a key --
-   --  which a character like an accented e does not have on the keyboard the
-   --  host assumes. VK_PACKET is what Windows itself uses for exactly that: a
-   --  key event that carries a Unicode character rather than a key somebody
-   --  pressed. An earlier attempt left the virtual key at zero and nothing
-   --  arrived; Ctrl-C only worked once it was sent as the key it really is,
-   --  which is the reason to think the field matters.
-   --
-   --  @param Item The session.
-   --  @param Text The character, as its UTF-8 bytes.
-   --  @param Code_Point What it is, for the host that wants the number.
-   procedure Type_Character
-     (Item       : in out Terminal_Session;
-      Text       : String;
-      Code_Point : Natural);
-
    --  Type Ctrl-C, however this host's terminal takes one.
    --
    --  A pseudo-terminal takes the byte: the line discipline turns 0x03 into an
@@ -1274,32 +1255,6 @@ package body Adash_Tests.Interactive_Cases is
 
       return True;
    end Start_On_A_Terminal;
-
-   procedure Type_Character
-     (Item       : in out Terminal_Session;
-      Text       : String;
-      Code_Point : Natural)
-   is
-      function Number (Value : Natural) return String
-      is (Ada.Strings.Fixed.Trim (Natural'Image (Value), Ada.Strings.Both));
-
-      Escape : constant String := [1 => Character'Val (27)];
-
-      --  VK_PACKET: this event carries a character rather than a key.
-      Packet : constant := 231;
-   begin
-      if not Hostkit.Spawn.Is_Attached (Item.Pair.Console) then
-         Type_Into (Item, Text);
-         return;
-      end if;
-
-      Type_Into
-        (Item,
-         Escape & "[" & Number (Packet) & ";0;" & Number (Code_Point)
-         & ";1;0;1_"
-         & Escape & "[" & Number (Packet) & ";0;" & Number (Code_Point)
-         & ";0;0;1_");
-   end Type_Character;
 
    procedure Type_Interrupt (Item : in out Terminal_Session) is
       Escape : constant String := [1 => Character'Val (27)];
@@ -1881,26 +1836,35 @@ package body Adash_Tests.Interactive_Cases is
       --  deletion can produce asserts the absence of.
       --
       --  A terminal that is a device carries the bytes. A console host does
-      --  not, and two ways of typing the character at one have been tried and
-      --  failed: the UTF-8 as it stands, and the key event the console asks
-      --  for when it writes `ESC [ ? 9001 h` on attaching -- virtual key and
-      --  scan code nothing, the code point itself, down and then up. Neither
-      --  reached the shell; the line was never submitted and nothing came back
-      --  for ten seconds.
+      --  not, and three ways of typing the character at one have been tried:
+      --  the UTF-8 as it stands; the key event the console asks for when it
+      --  writes `ESC [ ? 9001 h` on attaching, with the virtual key and scan
+      --  code left at nothing; and the same with VK_PACKET, which is what
+      --  Windows itself uses for a key event carrying a character rather than
+      --  a key somebody pressed. None of the three reached the shell: the line
+      --  was never submitted and nothing came back for ten seconds.
+      --
+      --  What does arrive there is a key event for a key that exists -- Ctrl-C
+      --  is sent that way and the editor sees it. So the remaining guess is
+      --  that this input path wants a virtual key it can map and drops what it
+      --  cannot, which would mean a character with no key on the host's layout
+      --  cannot be typed at a console at all. A guess, and written down as one
+      --  so the next person starts after these three rather than at them.
       --
       --  So it is asserted where it can hold. The shell was asked about the
       --  other host: after such a line it goes on answering, so what is
       --  missing is the keystroke and not the editor -- and the editor's own
       --  answer, that a character is not a byte, is asserted on every host by
       --  the buffer and decoder cases above.
-      Type_Into (Session, "put_line (To_Upper (""fine");
-      Type_Character (Session, Accented, 16#E9#);
-      Type_Into (Session, String'(1 => Character'Val (16#08#)));
-      Type_Into (Session, """));" & String'(1 => Character'Val (13)));
+      if not Hostkit.Spawn.Is_Attached (Session.Pair.Console) then
+         Type_Into (Session, "put_line (To_Upper (""fine" & Accented);
+         Type_Into (Session, String'(1 => Character'Val (16#08#)));
+         Type_Into (Session, """));" & String'(1 => Character'Val (13)));
 
-      Assert (Waited_For (Session, "FINE"),
-              "backspace did not remove the whole character: ["
-              & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+         Assert (Waited_For (Session, "FINE"),
+                 "backspace did not remove the whole character: ["
+                 & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
+      end if;
 
       Finish (Session, Ended);
       Assert (Ended, "the shell did not end after an edited line");

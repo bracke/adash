@@ -1631,11 +1631,14 @@ what changed.
   child, and a shell reading it to look for a Ctrl-C would be taking keystrokes
   from the program it started.
 
-  The accented half of the backspace case stays off as well: a console host
-  turns what arrives into key events and re-encodes them, so writing two UTF-8
-  bytes at it is not typing that character. The shell was asked, and goes on
-  answering afterwards, so what is missing is the keystroke rather than the
-  editor.
+  The accented half of the backspace case stays off as well, after three ways
+  of typing that character at a console: the UTF-8 as it stands, the key event
+  the console asks for with virtual key and scan code left at nothing, and the
+  same with `VK_PACKET`. None reached the shell. A key event for a key that
+  *exists* does -- Ctrl-C is sent that way and the editor sees it -- so the
+  remaining guess is that the path wants a virtual key it can map. The shell
+  was asked, and goes on answering afterwards, so what is missing is the
+  keystroke rather than the editor.
 
 - **An argument that is an expression settles the call it is in.** `Show (F, F
   & "z")` reads the concatenation as the String it can only be, and the call

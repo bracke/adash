@@ -176,12 +176,15 @@ arrives is *input to be read*, and nothing reads while a submission runs, so
 there is no asynchronous event to record. A shell could poll its own input
 between instructions instead; that is a decision rather than a fix, because
 while a child is running the input belongs to the child. And
-the **accented** half of the backspace case. A console host turns what arrives
-into key events and re-encodes them, so writing two UTF-8 bytes at it is not
-typing that character -- and neither, it turns out, is sending the key event
-the console asks for when it writes `ESC [ ? 9001 h` on attaching: virtual key
-and scan code nothing, the code point itself, down and then up. Both were tried
-there and neither reached the shell; the line was never submitted. The shell
+the **accented** half of the backspace case. Three ways of typing that
+character at a console have been tried: the UTF-8 as it stands; the key event
+the console asks for when it writes `ESC [ ? 9001 h` on attaching, with the
+virtual key and scan code left at nothing; and the same with `VK_PACKET`, which
+is what Windows uses for a key event carrying a character rather than a key
+somebody pressed. None reached the shell -- the line was never submitted. What
+*does* arrive is a key event for a key that exists, which is how Ctrl-C is sent
+there, so the remaining guess is that this path wants a virtual key it can map
+and drops what it cannot. The shell
 was asked about the first: after such a line it goes on answering, so what is
 missing is the keystroke rather than the editor. That the editor steps by
 characters and not by bytes is asserted on every host by the buffer and decoder
