@@ -165,6 +165,23 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Output_Of_Hint,
        Status => Available),
 
+      --  The same shape as Output_Of, and deliberately a separate function
+      --  rather than a flag on that one: what a program says and what it
+      --  complains about are two streams because they are two things, and a
+      --  script that wanted both would want them apart.
+      (Id => Entity_Error_Of, Name => Named ("Error_Of"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 4,
+       Parameters => [1 => (Named ("Program"), Types.Type_String),
+                      2 => (Named ("Argument_1"), Types.Type_String),
+                      3 => (Named ("Argument_2"), Types.Type_String),
+                      4 => (Named ("Argument_3"), Types.Type_String)],
+       Optional_Parameters => 3,
+       Has_Side_Effects => True,
+       Documentation => Adash.Messages.Msg_Predefined_Error_Of_Doc,
+       Description => Adash.Messages.Msg_Predefined_Error_Of_Hint,
+       Status => Available),
+
       (Id => Entity_Read_Line, Name => Named ("Read_Line"),
        Sort => Sort_Function,
        Of_Type => Types.Type_String, Parameter_Count => 0,

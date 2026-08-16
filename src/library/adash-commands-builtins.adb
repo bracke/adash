@@ -378,7 +378,8 @@ package body Adash.Commands.Builtins is
             end;
 
          when Command_Run | Command_Run_Into | Command_Run_From
-            | Command_Run_Append | Command_Run_New | Command_Start =>
+            | Command_Run_Append | Command_Run_New | Command_Run_Errors_Into
+            | Command_Start =>
             declare
                Waits : constant Boolean := Id /= Command_Start;
 
@@ -386,7 +387,8 @@ package body Adash.Commands.Builtins is
                --  streams is going to it, so the program starts one later.
                Redirects : constant Boolean :=
                  Id in Command_Run_Into | Command_Run_From
-                     | Command_Run_Append | Command_Run_New;
+                     | Command_Run_Append | Command_Run_New
+                     | Command_Run_Errors_Into;
 
                First_Word : constant Positive := (if Redirects then 2 else 1);
 
@@ -413,9 +415,13 @@ package body Adash.Commands.Builtins is
                   declare
                      Asked : constant Adash.Execution.Redirection.Redirection :=
                        (Role =>
-                          (if Id = Command_Run_From
-                           then Adash.Execution.Streams.Role_Input
-                           else Adash.Execution.Streams.Role_Output),
+                          (case Id is
+                              when Command_Run_From =>
+                                Adash.Execution.Streams.Role_Input,
+                              when Command_Run_Errors_Into =>
+                                Adash.Execution.Streams.Role_Error,
+                              when others =>
+                                Adash.Execution.Streams.Role_Output),
                         Kind =>
                           (case Id is
                               when Command_Run_From =>

@@ -8,7 +8,6 @@ with Adash.Execution.Signals;
 
 with Hostkit.Terminal_Control;
 use type Adash.Execution.External.Observation;
-with Adash.Execution.Streams;
 with Adash.Platform;
 
 package body Adash.Execution.Pipelines is
@@ -464,7 +463,9 @@ package body Adash.Execution.Pipelines is
       Written : out Ada.Strings.Unbounded.Unbounded_String;
       Final   : out Outcome;
       Error   : out Adash.Errors.Error_Info;
-      Limit   : Natural := Adash.Filesystem.Default_Limit) return Boolean
+      Limit   : Natural := Adash.Filesystem.Default_Limit;
+      From    : Adash.Execution.Streams.Stream_Role :=
+        Adash.Execution.Streams.Role_Output) return Boolean
    is
       Count   : constant Natural := Natural (Item.Stages.Length);
       Ends    : D.Pipe_Ends;
@@ -508,8 +509,15 @@ package body Adash.Execution.Pipelines is
       --  pipeline goes through.
       declare
          Last : C.Invocation := Item.Stages.Element (Count);
+
+         use type Adash.Execution.Streams.Stream_Role;
       begin
-         Last.Output := S.Owned (Ends.Write_End);
+         if From = Adash.Execution.Streams.Role_Error then
+            Last.Error_Output := S.Owned (Ends.Write_End);
+         else
+            Last.Output := S.Owned (Ends.Write_End);
+         end if;
+
          Item.Stages.Replace_Element (Count, Last);
       end;
 

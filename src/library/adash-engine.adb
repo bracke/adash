@@ -123,6 +123,8 @@ package body Adash.Engine is
    is
       Which : Adash.Predefined.Entity_Id;
 
+      use type Adash.Predefined.Entity_Id;
+
       --  One argument, as text, or "" where none was given.
       function Text_At (Position : Positive) return String is
         (if Position <= Count
@@ -182,7 +184,8 @@ package body Adash.Engine is
                end if;
             end;
 
-         when Adash.Predefined.Entity_Output_Of =>
+         when Adash.Predefined.Entity_Output_Of
+            | Adash.Predefined.Entity_Error_Of =>
             --  The one predefined entity that runs something. What it wrote to
             --  standard output comes back as the value; what it wrote to
             --  standard error is not collected and reaches the user, because a
@@ -216,6 +219,10 @@ package body Adash.Engine is
 
                if not Adash.Execution.Pipelines.Capture
                         (Line, Sink.Shell.Interrupt, Written, Final, Failure,
+                         From =>
+                           (if Which = Adash.Predefined.Entity_Error_Of
+                            then Adash.Execution.Streams.Role_Error
+                            else Adash.Execution.Streams.Role_Output),
                          Limit =>
                            Natural
                              (Adash.Configuration.Integer_Value

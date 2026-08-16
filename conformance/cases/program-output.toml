@@ -1045,24 +1045,18 @@ endings that made the first version of this fail are fixed.
 A refusal that says nothing is a defect whatever causes it, so this asserts the
 saying rather than only the refusing.
 
-**Two hosts of three**, and the third is the point rather than an omission. On
-Windows this case comes back with the refusal -- an empty capture and a failing
-status, both asserted below -- and no diagnostic, while the same refusal with
-the test crate's own program says so there perfectly well. What differs is what
-the child does when the pipe closes under it: on POSIX a shell dies of SIGPIPE
-without a word, and Windows has no such signal, so the child shell finds its
-write refused and complains about it -- on the standard error it shares with
-the shell under test, which is where this suite reads diagnostics from. A
-complaint that does not end in a newline takes the next line with it, and the
-next line is the one this case is looking for.
+It ran on two hosts for a while, because on Windows it came back with the
+refusal and no diagnostic. The cause turned out to have nothing to do with
+Windows: a program stopped part-way through writing leaves a line with no end
+on it, on the standard error it shares with the shell, and the shell's next
+diagnostic continued that line instead of starting its own -- so what tooling
+reads as a marker was glued to the tail of somebody else's sentence. On POSIX
+the child dies of SIGPIPE without a word and there was nothing to glue; the
+host with no such signal simply showed it first.
 
-That is an inference from what is ruled out rather than something anybody has
-watched happen, and the thing that would settle it -- giving the child a
-standard error of its own -- is something the language cannot yet say. Until it
-can, the case runs where its answer means something, and says here what it
-would take to finish the story.
+The shell starts a line of its own now where a program may have left one open,
+and the case runs everywhere.
 """
-platforms = ["linux", "macos"]
 script = """
 settings ("read.limit", "1");
 put_line ("[" & Output_Of ("{shell}", "{root}/conformance/fixtures/says-too-much.adash") & "]");
@@ -1096,4 +1090,36 @@ arguments = ["{root}/conformance/fixtures/echoes.adash"]
 input = "one\r\ntwo\r\nthr\ree\n"
 exit_status = 0
 output = ["[one]", "[two]", "[thr\ree]", "read to the end"]
+diagnostics = []
+
+[[case]]
+id = "run.what-a-program-complains-about-can-be-collected-and-placed"
+requirement = """
+A shell that could put a program's output anywhere and its complaints nowhere
+left a script two things it could not do: keep a program's noise out of its own
+error stream, and read what a program said about a failure in order to act on
+it.
+
+`Error_Of` is `Output_Of` for the other stream, and `run_errors_into` is
+`run_into` for it. Two names rather than a flag on each of the existing pair:
+what a program says and what it complains about are two streams because they
+are two things, and a script that wanted both would want them apart.
+
+Each leaves the other stream alone, which is the half that is easy to get wrong
+-- so the case asserts that the output of a program whose errors are being
+collected still arrives, and the reverse.
+"""
+script = """
+put_line ("[" & Error_Of ("{emit}", "--error=complained", "said") & "]");
+run_errors_into ("{store}/errs.txt", "{emit}", "--error=complained", "said");
+put_line ("[" & Read_File ("{store}/errs.txt") & "]");
+quit (0);"""
+exit_status = 0
+output = [
+  "said",
+  "[complained]",
+  "said",
+  "[complained",
+  "]",
+]
 diagnostics = []

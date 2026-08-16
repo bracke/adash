@@ -59,6 +59,7 @@ package Adash.Predefined is
 
       --  Running a program and reading what it wrote, as a value.
       Entity_Output_Of,
+      Entity_Error_Of,
       Entity_Argument_Count,
       Entity_Argument,
 

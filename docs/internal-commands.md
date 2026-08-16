@@ -95,6 +95,7 @@ reads as the empty string rather than failing.
 | `run_into (File : String; Program : String…)` | 2 .. any | runs it with its output written to a file, replacing what was there |
 | `run_append (File : String; Program : String…)` | 2 .. any | the same, added to the end |
 | `run_new (File : String; Program : String…)` | 2 .. any | the same, to a file that must not already exist |
+| `run_errors_into (File : String; Program : String; ...)` | 2 or more | runs it with what it complains about written to a file |
 | `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |

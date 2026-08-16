@@ -416,6 +416,8 @@ package body Adash.Messages is
          when Msg_Predefined_Status_Doc      => return "predefined.status.doc";
          when Msg_Predefined_Output_Of_Doc   =>
             return "predefined.output_of.doc";
+         when Msg_Predefined_Error_Of_Doc    =>
+            return "predefined.error_of.doc";
          when Msg_Predefined_Read_Line_Doc  =>
             return "predefined.read_line.doc";
          when Msg_Predefined_Input_Ended_Doc =>
@@ -458,6 +460,8 @@ package body Adash.Messages is
          when Msg_Predefined_Status_Hint     => return "predefined.status.hint";
          when Msg_Predefined_Output_Of_Hint  =>
             return "predefined.output_of.hint";
+         when Msg_Predefined_Error_Of_Hint   =>
+            return "predefined.error_of.hint";
          when Msg_Predefined_Read_Line_Hint =>
             return "predefined.read_line.hint";
          when Msg_Predefined_Input_Ended_Hint =>
@@ -510,6 +514,8 @@ package body Adash.Messages is
          when Msg_Command_Run_From_Doc       => return "command.run_from.doc";
          when Msg_Command_Run_Append_Doc     => return "command.run_append.doc";
          when Msg_Command_Run_New_Doc        => return "command.run_new.doc";
+         when Msg_Command_Run_Errors_Into_Doc =>
+            return "command.run_errors_into.doc";
          when Msg_Command_Pipe_Doc           => return "command.pipe.doc";
          when Msg_Command_Pipe_Run_Doc       => return "command.pipe_run.doc";
          when Msg_Command_Start_Doc          => return "command.start.doc";
@@ -803,6 +809,7 @@ package body Adash.Messages is
             | Msg_Predefined_Env_Value_Hint
             | Msg_Predefined_Status_Doc | Msg_Predefined_Status_Hint
             | Msg_Predefined_Output_Of_Doc | Msg_Predefined_Output_Of_Hint
+            | Msg_Predefined_Error_Of_Doc | Msg_Predefined_Error_Of_Hint
             | Msg_Predefined_Read_Line_Doc | Msg_Predefined_Read_Line_Hint
             | Msg_Predefined_Input_Ended_Doc
             | Msg_Predefined_Input_Ended_Hint
@@ -855,7 +862,8 @@ package body Adash.Messages is
             | Msg_Command_Source_Doc
             | Msg_Command_Run_Doc | Msg_Command_Run_Into_Doc
             | Msg_Command_Run_From_Doc | Msg_Command_Run_Append_Doc
-            | Msg_Command_Run_New_Doc | Msg_Command_Pipe_Doc
+            | Msg_Command_Run_New_Doc | Msg_Command_Run_Errors_Into_Doc
+            | Msg_Command_Pipe_Doc
             | Msg_Command_Pipe_Run_Doc
             | Msg_Command_Start_Doc | Msg_Command_Wait_Doc
             | Msg_Command_Stop_Doc

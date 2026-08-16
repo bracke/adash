@@ -1832,6 +1832,15 @@ what changed.
   is not there, for the same reason; `Exists` and `Is_Directory` tell them
   apart.
 
+- **`Error_Of` and `run_errors_into`.** A shell that could put a program's
+  output anywhere and its complaints nowhere left a script two things it could
+  not do: keep a program's noise out of its own error stream, and read what a
+  program said about a failure in order to act on it. `Error_Of` is `Output_Of`
+  for the other stream and `run_errors_into` is `run_into` for it -- two names
+  rather than a flag on each of the existing pair, because what a program says
+  and what it complains about are two streams for the reason that they are two
+  things. Each leaves the other stream alone.
+
 ### Fixed
 
 - **A program the shell runs can read the terminal.** A job is started in a

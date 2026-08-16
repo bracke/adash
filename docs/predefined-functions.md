@@ -73,6 +73,7 @@ two apart. The shape every filter has is therefore
 | Call | Answers | Notes |
 |---|---|---|
 | `Output_Of (Program, Argument_1, Argument_2, Argument_3)` | `String` | runs a program and answers with what it wrote to standard output |
+| `Error_Of (Program : String; ...) return String` | what a program complained about |
 | `Status` | `Integer` | what the last program or command reported |
 
 `Output_Of` takes a program and **up to three arguments** — five in total is

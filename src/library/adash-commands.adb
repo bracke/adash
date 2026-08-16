@@ -103,6 +103,15 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Run_New_Doc, M.Msg_Command_Hint, Available),
 
+      --  The other stream. Until this existed a script could put a program's
+      --  output anywhere and its complaints nowhere: they went to the shell's
+      --  own error stream and mixed with the shell's, which is a nuisance for
+      --  a reader and worse for anything parsing what the shell says.
+      (Command_Run_Errors_Into, Named ("run_errors_into"), 2, Any_Number,
+       [1 => Text ("File"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_Errors_Into_Doc, M.Msg_Command_Hint, Available),
+
       --  A pipeline, built a stage at a time and then run. Two commands rather
       --  than one because a pipeline is a list of command lines, and a single
       --  call would have to carry a boundary between them inside its arguments.

@@ -14,6 +14,8 @@ with Hostkit.Host;
 --
 --    --exit=N    exit with status N
 --    --error=T   write T to standard error rather than to standard output
+--    --part=T    write T to standard error without ending the line, which is
+--                what a program killed mid-write leaves behind
 --    --sleep=S   wait S seconds before finishing
 --    --file=P    write the contents of the file P
 --    --repeat=N  write the arguments that follow N times each
@@ -85,6 +87,14 @@ begin
          elsif Introduced_By (Value, "--error=") then
             Ada.Text_IO.Put_Line
               (Ada.Text_IO.Standard_Error, After (Value, "--error="));
+
+         elsif Introduced_By (Value, "--part=") then
+            --  No terminator. A program that dies part-way through saying
+            --  something leaves exactly this, and what happens to the next
+            --  thing written to that stream is the question it raises.
+            Ada.Text_IO.Put
+              (Ada.Text_IO.Standard_Error, After (Value, "--part="));
+            Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
 
          elsif Value = "--crlf" then
             Windows_Endings := True;

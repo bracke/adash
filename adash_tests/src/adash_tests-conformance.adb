@@ -887,6 +887,59 @@ package body Adash_Tests.Conformance is
             Split (To_String (Ran.Output), Actual_Output);
             Split (To_String (Ran.Errors), Actual_Errors);
 
+            --  What a program left in front of a diagnostic is not part of
+            --  it.
+            --
+            --  The shell and every program it runs share one standard error.
+            --  A program stopped part-way through writing -- which is what a
+            --  refused capture does to the program it refused, on a host with
+            --  no signal to kill it silently -- leaves a line with no end on
+            --  it, and the shell's next diagnostic continues that line. The
+            --  shell cannot know it is mid-line: nothing tells a writer what
+            --  column somebody else left the stream in, and a blank line
+            --  before every diagnostic would be worse than the thing it
+            --  avoids.
+            --
+            --  So this reads what the shell wrote rather than what shares the
+            --  line with it: a diagnostic is written as a whole line, so
+            --  anything in front of the first marker on a line came from
+            --  somewhere else. Lines with no marker at all are left alone --
+            --  a case asserting the shape of usage text asserts blank lines
+            --  and unmarked ones, and those are the shell's own.
+            declare
+               Kept : Hostkit.String_Vectors.Vector;
+            begin
+               for Index in 1 .. Natural (Actual_Errors.Length) loop
+                  declare
+                     Line  : constant String :=
+                       To_String (Actual_Errors.Element (Index));
+                     Marker : constant Natural :=
+                       Ada.Strings.Fixed.Index (Line, "!");
+
+                     --  Only where what precedes it is something rather than
+                     --  the indentation the shell wrote itself: usage text is
+                     --  laid out with spaces in front of its markers, and
+                     --  taking those off would change what a case about the
+                     --  shape of that text is asserting.
+                     Foreign : constant Boolean :=
+                       Marker > Line'First
+                         and then Ada.Strings.Fixed.Trim
+                                    (Line (Line'First .. Marker - 1),
+                                     Ada.Strings.Both) /= "";
+                  begin
+                     if Foreign then
+                        Kept.Append
+                          (To_Unbounded_String
+                             (Line (Marker .. Line'Last)));
+                     else
+                        Kept.Append (Actual_Errors.Element (Index));
+                     end if;
+                  end;
+               end loop;
+
+               Actual_Errors := Kept;
+            end;
+
             if Asserts (From, Item, "output") then
                declare
                   Problem : constant String :=
