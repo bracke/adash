@@ -111,6 +111,12 @@ package Adash.Filesystem is
    --  read what they just wrote -- a program start for something the shell can
    --  do itself, and one of the things that will not start on every host.
    --
+   --  What comes back is **text**: a carriage return in front of a line feed
+   --  is part of the line ending a Windows file has, and goes with it. The
+   --  shell's other two readers already answer that way, and three readers of
+   --  one language disagreeing about what a line ends with is worse than any
+   --  of the three answers. A lone carriage return is left alone.
+   --
    --  @param Path The file.
    --  @param Text What it held; empty unless this returns Read_Ok.
    --  @param Result What became of it. Read_Too_Large where the file is bigger

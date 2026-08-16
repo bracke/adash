@@ -940,3 +940,67 @@ output = [
   " 0",
 ]
 diagnostics = []
+
+[[case]]
+id = "run.a-shell-runs-a-shell-that-says-a-great-deal"
+requirement = """
+The other half of the case above, and the half that is still unexplained: when
+a child shell wrote more than a mebibyte, one host came back with an empty
+capture, a failing status, and no complaint of any kind -- and a refusal that
+says nothing is a defect whatever caused it.
+
+Two hundred kilobytes rather than a mebibyte, so this is inside what a capture
+will hold and past what a pipe buffer holds. If it passes everywhere, a child
+shell can fill a pipe and be drained, and what remains unexplained is only the
+refusal path. If it fails, filling a pipe from a child of this shell is the
+thing that does not work, which is worth far more than the guess it replaces.
+
+The last line is what is asserted: anything short of it means the child stopped
+early, and asserting the whole two hundred kilobytes would say the same thing
+in a way nobody could read.
+"""
+script = """
+put_line (Boolean'Image (Index (Output_Of ("{shell}", "{root}/conformance/fixtures/says-a-lot.adash"), "that was all of it") > 0));
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "TRUE",
+  " 0",
+]
+diagnostics = []
+
+[[case]]
+id = "files.a-capture-and-a-file-both-answer-in-text"
+requirement = """
+A program on Windows ends a line with a carriage return and a line feed, and a
+file written there holds the same. A script that compared what it read against
+text it wrote itself failed on that host and nowhere else, for a byte nobody
+can see -- which is exactly the kind of thing that survives for years, because
+it is invisible in the two places most people look.
+
+So all three readers answer the same way: `Read_Line` drops the carriage return
+with the terminator, and `Output_Of` and `Read_File` drop it too. A lone
+carriage return is left where it is, since it is not a line ending on any host
+this runs on -- which the last line asserts, because a rule that removed every
+carriage return would be a different rule and a worse one.
+
+Asserted on every host rather than only where the host writes those endings: a
+rule one host of three exercises is a rule that breaks on the other two without
+anybody hearing about it. The program is the test crate's own, told to end its
+lines the way a Windows program does.
+"""
+script = """
+put_line (Boolean'Image (Output_Of ("{emit}", "--crlf", "one", "two") = "one" & Character'Val (10) & "two"));
+write_file ("a" & Character'Val (13) & Character'Val (10) & "b", "{store}/crlf.txt");
+put_line (Boolean'Image (Read_File ("{store}/crlf.txt") = "a" & Character'Val (10) & "b"));
+write_file ("held" & Character'Val (13) & "on", "{store}/lone.txt");
+put_line (Boolean'Image (Read_File ("{store}/lone.txt") = "held" & Character'Val (13) & "on"));
+quit (0);"""
+exit_status = 0
+output = [
+  "TRUE",
+  "TRUE",
+  "TRUE",
+]
+diagnostics = []

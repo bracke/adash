@@ -1763,6 +1763,13 @@ what changed.
   differently: input that has been read cannot be asked for again, so a line
   longer than the limit arrives in pieces rather than being dropped.
 
+- **`Read_File` hands back text as well.** It kept the carriage returns a
+  Windows file has while the shell's other two readers dropped them, so a script
+  comparing what it read against text it wrote itself failed on that host and
+  nowhere else -- the same defect the capture had, one reader along. Three
+  readers of one language disagreeing about what a line ends with is worse than
+  any of the three answers. A lone carriage return is still left where it is.
+
 - **`Output_Of` hands back text, not the host's line endings.** A program on
   Windows ends a line with a carriage return and a line feed, so a capture with
   two lines in it carried a stray carriage return inside -- invisible, and

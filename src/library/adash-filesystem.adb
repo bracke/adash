@@ -1,3 +1,4 @@
+with Ada.Characters.Latin_1;
 with Ada.Directories;
 with Ada.Streams.Stream_IO;
 with Ada.IO_Exceptions;
@@ -134,6 +135,39 @@ package body Adash.Filesystem is
       end;
 
       Ada.Streams.Stream_IO.Close (File);
+
+      --  Line endings as text has them, before anything else looks at it.
+      --
+      --  A file written on Windows ends each line with a carriage return and a
+      --  line feed, and a script comparing what it read against text it wrote
+      --  itself would fail there and nowhere else, for a byte nobody can see.
+      --  The other two readers already answer this way -- Read_Line drops the
+      --  carriage return with the terminator, and a capture does too -- and
+      --  three readers of one language disagreeing about what a line ends with
+      --  is worse than any of the three answers.
+      --
+      --  A lone carriage return is left where it is: it is not a line ending
+      --  on any host this runs on, and something carrying one meant it.
+      declare
+         Whole : constant String := Ada.Strings.Unbounded.To_String (Text);
+
+         Kept  : String (1 .. Whole'Length);
+         Count : Natural := 0;
+      begin
+         for Index in Whole'Range loop
+            if Whole (Index) = Ada.Characters.Latin_1.CR
+              and then Index < Whole'Last
+              and then Whole (Index + 1) = Ada.Characters.Latin_1.LF
+            then
+               null;
+            else
+               Count := Count + 1;
+               Kept (Count) := Whole (Index);
+            end if;
+         end loop;
+
+         Text := Ada.Strings.Unbounded.To_Unbounded_String (Kept (1 .. Count));
+      end;
 
       --  Text, or nothing. A String in this language is UTF-8 and a file that
       --  is not is not a String -- handing the bytes over would put something

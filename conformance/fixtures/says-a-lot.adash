@@ -1,0 +1,12 @@
+--  Read by a conformance case that runs this shell from this shell, to find
+--  out whether a child shell can write a great deal into a pipe. Two thousand
+--  lines is a couple of hundred kilobytes: well inside what a capture will
+--  hold, and far past what one pipe buffer holds -- which is the part that has
+--  to work, because a program that fills the buffer waits for the parent to
+--  drain it.
+for Line in 1 .. 2_000 loop
+   put_line ("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
+end loop;
+
+put_line ("that was all of it");
+quit (0);

@@ -117,6 +117,10 @@ either way.
 A path nobody can reach — no such directory, nothing named at all — is not a
 file, so the answer is `False` rather than a failure.
 
+`Read_File` answers in text, like `Output_Of` and `Read_Line`: a carriage return
+in front of a line feed is part of the line ending a Windows file has and goes
+with it, and a lone carriage return is left where it is.
+
 `Read_File` answers with nothing for a file that is not there, a file this shell
 cannot read, a file that is not UTF-8, and a **directory** — all the same
 answer, because a question has no consequences and a function that raised here

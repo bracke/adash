@@ -15,6 +15,7 @@ with Ada.Text_IO;
 --    --sleep=S   wait S seconds before finishing
 --    --file=P    write the contents of the file P
 --    --repeat=N  write the arguments that follow N times each
+--    --crlf      end each line with a carriage return and a line feed
 --
 --  Between them a conformance case can have a program that says something, a
 --  program that fails, a program that complains where nobody should be
@@ -29,6 +30,29 @@ procedure Adash_Test_Emit is
    --  How many times each of the arguments after it is written. One by
    --  default, which is what every case that does not ask wants.
    Times : Positive := 1;
+
+   --  Whether lines end the way a Windows program ends them, on every host.
+   --
+   --  So that what a shell does about the host's line endings can be asserted
+   --  everywhere rather than only where the host happens to write them: a rule
+   --  that only one of three hosts exercises is a rule that breaks on the
+   --  other two without anybody hearing about it.
+   Windows_Endings : Boolean := False;
+
+   procedure Say (Text : String);
+
+   procedure Say (Text : String) is
+   begin
+      if Windows_Endings then
+         --  The carriage return by hand and the line feed through New_Line:
+         --  writing both by hand leaves Text_IO thinking the line is still
+         --  open, and it adds a terminator of its own at the end.
+         Ada.Text_IO.Put (Text & Character'Val (13));
+         Ada.Text_IO.New_Line;
+      else
+         Ada.Text_IO.Put_Line (Text);
+      end if;
+   end Say;
 
    --  Whether an argument is one of the three, and what it carries.
    function Introduced_By (Value : String; Flag : String) return Boolean
@@ -49,6 +73,9 @@ begin
             Ada.Text_IO.Put_Line
               (Ada.Text_IO.Standard_Error, After (Value, "--error="));
 
+         elsif Value = "--crlf" then
+            Windows_Endings := True;
+
          elsif Introduced_By (Value, "--repeat=") then
             Times := Positive'Value (After (Value, "--repeat="));
 
@@ -62,14 +89,14 @@ begin
                Ada.Text_IO.Open
                  (Source, Ada.Text_IO.In_File, After (Value, "--file="));
                while not Ada.Text_IO.End_Of_File (Source) loop
-                  Ada.Text_IO.Put_Line (Ada.Text_IO.Get_Line (Source));
+                  Say (Ada.Text_IO.Get_Line (Source));
                end loop;
                Ada.Text_IO.Close (Source);
             end;
 
          else
             for Turn in 1 .. Times loop
-               Ada.Text_IO.Put_Line (Value);
+               Say (Value);
             end loop;
          end if;
       end;
