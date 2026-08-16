@@ -2865,6 +2865,20 @@ installing succeeds -- there is nothing to install and nothing went wrong -- but
 "Arranged" and "not needed here" must not read alike, or a caller waits for a
 Ctrl-C that cannot arrive.
 
+**A runaway loop can be stopped there now, and not by a signal.** The shell
+waited to be told that Ctrl-C had been typed, which on Windows never happens to
+a program that is busy: the probe that measures it is not told while spinning
+and not told half a second after it stops. What the same probe measures is that
+the keystroke arrives as a byte at a terminal that is raw *when the key is
+pressed* — a console asked to turn Ctrl-C into an interrupt keeps it nowhere at
+all, so taking the terminal raw only for the instant of a look finds the bytes
+on either side of the Ctrl-C and never the Ctrl-C.
+
+So the shell holds its terminal raw for as long as a submission runs, reads it
+between instructions at most twenty times a second, and hands it back around
+anything the submission starts. The case that drives a shell through a terminal
+and interrupts a loop is no longer guarded to hosts with signals.
+
 **The interactive frontend is asserted on that host too.** hostkit grew the
 pseudo-console body it had said no to, so the six cases that drive the shell
 through a terminal run on all three hosts: a whole session, Tab completing a

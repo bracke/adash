@@ -60,5 +60,18 @@ instructions. The machine asks for the interrupt between instructions rather
 than inside one, so a runaway loop is interruptible without any statement being
 half-done.
 
+How the shell learns that Ctrl-C was typed depends on the host, and only one of
+the two is a signal. Where a signal reaches a program that is not waiting for
+one, that is the whole arrangement. Where it does not — Windows, where a
+spinning program is never told, not even half a second after it stops spinning —
+the shell holds its terminal raw for as long as a submission runs and reads the
+keystroke itself between instructions, at most twenty times a second. Anything
+the submission runs gets the terminal back for its own duration, since a program
+handed a raw console is one nobody can type a line into, and what stops a
+foreground program there is the program's own interrupt.
+
+Bytes that are not the interrupt key go back to the shell's input buffer, so
+typing ahead during a long loop works the same way on every host.
+
 A job killed by a signal reports 128 + n, which is the convention every shell
 follows and what `Adash.Execution` documents as the one status model.
