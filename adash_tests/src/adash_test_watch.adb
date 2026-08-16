@@ -60,6 +60,21 @@ procedure Adash_Test_Watch is
 
    Report : Ada.Text_IO.File_Type;
 
+   --  A task, so that this program links the tasking run-time the shell links.
+   --
+   --  The one difference left between this companion, which is told about a
+   --  Ctrl-C, and the shell, which is not: the shell's language has tasks, so
+   --  its binary carries a run-time that installs handlers of its own. A
+   --  console control handler is called in the order the handlers were
+   --  registered, and one that answers first can leave the next one never
+   --  called. It does nothing but exist.
+   task Present;
+
+   task body Present is
+   begin
+      delay 0.01;
+   end Present;
+
 begin
    if Where = "" then
       Ada.Command_Line.Set_Exit_Status (2);
