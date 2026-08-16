@@ -125,6 +125,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.directory_not_found` | no such directory: {path} |
 | `error.directory_denied` | permission denied for directory: {path} |
 | `error.module_not_found` | no script called {name}: {where} |
+| `error.source_too_large` | {source} holds more source than this shell will read at once |
 | `error.source_unreadable` | could not read source: {source} |
 | `error.source_invalid_encoding` | {source} is not valid UTF-8; the first bad byte is at offset {offset} |
 | `error.type_mismatch` | expected {expected}, found {found} |

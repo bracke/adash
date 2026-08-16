@@ -891,11 +891,16 @@ what makes it work on the host that has none.
 Refused whole rather than truncated. A script handed the first megabyte of an
 answer has no way to know that is what it got, and every comparison it makes
 afterwards is wrong in a way nothing reports.
+
+The program is this shell, running a script that writes more than a mebibyte.
+`yes` was the obvious choice and it is a POSIX one -- which would have gated
+this case to two hosts of three, and the host it would have left out is the one
+where the stopping works differently, since it has no signal to stop a program
+with.
 """
-platforms = ["linux", "macos"]
 script = """
 settings ("read.limit", "1");
-put_line ("[" & Output_Of ("yes") & "]");
+put_line ("[" & Output_Of ("{shell}", "{root}/conformance/fixtures/says-too-much.adash") & "]");
 put_line (Integer'Image (Status));
 quit (0);"""
 exit_status = 0
@@ -905,5 +910,5 @@ output = [
   " 1",
 ]
 diagnostics = [
-  "!error.output_too_large{program=yes}!",
+  "!error.output_too_large{program={shell}}!",
 ]

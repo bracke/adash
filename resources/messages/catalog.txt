@@ -185,6 +185,7 @@ en.module.looked.as_written = it names a path, and there is nothing there
 en.module.looked.beside = nothing of that name beside the script that asked for it
 en.module.looked.in_modules = nothing of that name beside the script that asked for it, nor in your module directory
 en.error.source_unreadable = could not read source: {source}
+en.error.source_too_large = {source} holds more source than this shell will read at once
 en.error.source_invalid_encoding = {source} is not valid UTF-8; the first bad byte is at offset {offset}
 en.error.type_mismatch = expected {expected}, found {found}
 en.error.name_undeclared = {name} is not declared here

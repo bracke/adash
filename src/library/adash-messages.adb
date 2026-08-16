@@ -303,6 +303,7 @@ package body Adash.Messages is
          when Msg_Directory_Not_Found        => return "error.directory_not_found";
          when Msg_Directory_Denied           => return "error.directory_denied";
          when Msg_Source_Unreadable          => return "error.source_unreadable";
+         when Msg_Source_Too_Large           => return "error.source_too_large";
          when Msg_Module_Not_Found          => return "error.module_not_found";
          when Msg_Module_Looked_As_Written  =>
             return "module.looked.as_written";
@@ -703,7 +704,7 @@ package body Adash.Messages is
          when Msg_Module_Not_Found =>
             return [N ("name"), N ("where")];
 
-         when Msg_Source_Unreadable =>
+         when Msg_Source_Unreadable | Msg_Source_Too_Large =>
             return [1 => N ("source")];
 
          when Msg_Source_Invalid_Encoding =>

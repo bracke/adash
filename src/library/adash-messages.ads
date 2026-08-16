@@ -226,6 +226,7 @@ package Adash.Messages is
       Msg_Directory_Not_Found,
       Msg_Directory_Denied,
       Msg_Source_Unreadable,
+   Msg_Source_Too_Large,
       Msg_Module_Not_Found,
       Msg_Module_Looked_As_Written,
       Msg_Module_Looked_Beside,

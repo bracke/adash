@@ -152,7 +152,7 @@ it has consequences, and a reader should see it happen.
 
 `settings` takes nothing or two arguments — a query form taking one is not
 written. The setting names are `color`, `history.enabled`, `history.limit`,
-`prompt.directory`, `prompt.failure` and `editing.enabled`.
+`read.limit`, `prompt.directory`, `prompt.failure` and `editing.enabled`.
 
 Every command checks its own count and says what it wanted: `write_file` with
 three arguments is told it takes 2, `run_into` with one is told it takes *2 or

@@ -6,6 +6,8 @@ with Ada.Text_IO;
 
 with AUnit.Assertions;
 
+with Adash.Filesystem;
+
 with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Signals;
@@ -874,6 +876,95 @@ package body Adash_Tests.Execution_Cases is
    -- Register_Tests --
    --------------------
 
+   --  Input that never ends a line arrives in pieces rather than unbounded.
+   --
+   --  A shell holds what it reads until it finds a terminator, so a stream
+   --  with none -- a program producing bytes, a file written without a final
+   --  newline and rather too much before it -- would grow that buffer until
+   --  the host ended the session.
+   --
+   --  Pieces rather than a refusal, and the difference from a file is the
+   --  point: a file can be asked about again, and input that has been read and
+   --  dropped is gone. So what has accumulated is handed over and reading goes
+   --  on, which bounds what is held and loses nothing.
+   --
+   --  Standard input is pointed at a file for the length of this case and put
+   --  back afterwards, because that is the only stream Read_Line reads and the
+   --  suite is still using it.
+   procedure A_Line_Longer_Than_The_Limit_Arrives_In_Pieces
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Line_Longer_Than_The_Limit_Arrives_In_Pieces
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Limit : constant := 64 * 1_024;
+
+      Path : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-no-newline");
+
+      Block : constant String (1 .. Limit) := [others => 'a'];
+      Tail  : constant String (1 .. 1_000) := [others => 'b'];
+
+      Written : Adash.Filesystem.Written;
+
+      Ours    : constant Hostkit.Descriptors.Descriptor :=
+        Hostkit.Descriptors.Duplicate (Hostkit.Descriptors.Standard_Input);
+      Feeding : Hostkit.Descriptors.Descriptor;
+
+      --  Two of them, because a piece that is not the end of the input and a
+      --  piece that is are different answers and both are asserted.
+      After_First  : Boolean;
+      After_Second : Boolean;
+
+      use type Adash.Filesystem.Written;
+   begin
+      --  One piece and a little more, with no line feed anywhere in it.
+      Adash.Filesystem.Write (Path, Block & Tail, Written);
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the input file was not written");
+
+      Assert (Hostkit.Descriptors.Open_File
+                (Path, Hostkit.Descriptors.Open_Read, Feeding),
+              "the input file would not open");
+
+      Assert (Hostkit.Descriptors.Assign
+                (Feeding, Hostkit.Descriptors.Stream_Input),
+              "standard input could not be pointed at the file");
+
+      declare
+         First  : constant String :=
+           Adash.Execution.Streams.Read_Line (After_First, Limit => Limit);
+         Second : constant String :=
+           Adash.Execution.Streams.Read_Line (After_Second, Limit => Limit);
+      begin
+         --  Put back before anything is asserted: a failure here would
+         --  otherwise leave the rest of the suite reading a file.
+         declare
+            Restored : constant Boolean :=
+              Hostkit.Descriptors.Assign
+                (Ours, Hostkit.Descriptors.Stream_Input);
+         begin
+            Assert (Restored, "standard input could not be put back");
+         end;
+
+         Assert (First'Length = Limit,
+                 "the first piece was not the limit:"
+                 & Natural'Image (First'Length));
+         Assert (Second'Length = Tail'Length,
+                 "the rest did not follow the first piece:"
+                 & Natural'Image (Second'Length));
+
+         Assert (not After_First and then not After_Second,
+                 "a piece was reported as the end of the input");
+      end;
+
+      Hostkit.Descriptors.Close (Feeding);
+      Ada.Directories.Delete_File (Path);
+   end A_Line_Longer_Than_The_Limit_Arrives_In_Pieces;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -931,6 +1022,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, An_Interrupt_Is_Declined_Where_The_Host_Has_None'Access,
          "execution : a host without signals is not believed to have them");
+      Register_Routine
+        (T, A_Line_Longer_Than_The_Limit_Arrives_In_Pieces'Access,
+         "execution : a line longer than the limit arrives in pieces");
    end Register_Tests;
 
 end Adash_Tests.Execution_Cases;

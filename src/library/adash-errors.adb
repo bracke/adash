@@ -42,6 +42,7 @@ package body Adash.Errors is
             return Domain_Execution;
 
          when Error_Source_Unreadable
+            | Error_Source_Too_Large
             | Error_Source_Invalid_Encoding
             | Error_Type_Mismatch
             | Error_Name_Undeclared
@@ -192,6 +193,7 @@ package body Adash.Errors is
          when Error_Directory_Not_Found    => return Adash.Messages.Msg_Directory_Not_Found;
          when Error_Directory_Denied       => return Adash.Messages.Msg_Directory_Denied;
          when Error_Source_Unreadable      => return Adash.Messages.Msg_Source_Unreadable;
+         when Error_Source_Too_Large       => return Adash.Messages.Msg_Source_Too_Large;
          when Error_Module_Not_Found       =>
             return Adash.Messages.Msg_Module_Not_Found;
          when Error_Source_Invalid_Encoding => return Adash.Messages.Msg_Source_Invalid_Encoding;

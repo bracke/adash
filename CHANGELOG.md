@@ -1763,6 +1763,14 @@ what changed.
   differently: input that has been read cannot be asked for again, so a line
   longer than the limit arrives in pieces rather than being dropped.
 
+- **The shell's own reads are bounded too.** The setting covers what a script
+  reads; a script file itself, a module read into one, and the configuration and
+  history files were still read whole, so `adash some-disk-image` was a session
+  that grew until the host ended it rather than a refusal. They are bounded by
+  the same default -- not by the setting, since three of the four are read
+  before there is a setting to consult -- and a script too large is refused by
+  name with `error.source_too_large`.
+
 - **`read.limit` is a setting**, in mebibytes, default 16, alongside
   `history.limit`. How much of a file is too much is a judgement about the work
   rather than a fact about shells, and somebody whose work is a

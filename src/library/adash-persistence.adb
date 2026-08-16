@@ -135,7 +135,8 @@ package body Adash.Persistence is
    procedure Read
      (Path   : String;
       Into   : out Contents;
-      Result : out Outcome)
+      Result : out Outcome;
+      Limit  : Natural := Adash.Filesystem.Default_Limit)
    is
       use Ada.Streams;
       use Ada.Streams.Stream_IO;
@@ -166,6 +167,14 @@ package body Adash.Persistence is
       begin
          while not End_Of_File (File) loop
             Read (File, Buffer, Last);
+
+            --  Counted before it is kept, as everywhere else this shell reads.
+            if Length (Text) + Natural (Last) > Limit then
+               Close (File);
+               Into := Null_Unbounded_String;
+               Result := Store_Not_Text;
+               return;
+            end if;
 
             for Index in Buffer'First .. Last loop
                Append (Text, Character'Val (Buffer (Index)));

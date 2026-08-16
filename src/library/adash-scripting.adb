@@ -3,6 +3,7 @@ with Ada.IO_Exceptions;
 with Ada.Streams.Stream_IO;
 
 with Adash.Errors;
+with Adash.Filesystem;
 with Adash.Execution.Signals;
 with Adash.Language.Lexer;
 with Adash.Language.Parser;
@@ -252,6 +253,18 @@ package body Adash.Scripting is
          begin
             while not Ada.Streams.Stream_IO.End_Of_File (File) loop
                Ada.Streams.Stream_IO.Read (File, Chunk, Last);
+
+               --  The same bound as the script itself. A module is read into
+               --  the text of the script that asked for it, so a module nobody
+               --  can hold is a script nobody can hold; "" is what this
+               --  answers for anything it cannot read, and the command that
+               --  asked says so when it runs.
+               if Length (Result) + Natural (Last)
+                  > Adash.Filesystem.Default_Limit
+               then
+                  Ada.Streams.Stream_IO.Close (File);
+                  return "";
+               end if;
 
                for Index in Chunk'First .. Last loop
                   Append (Result, Character'Val (Natural (Chunk (Index))));
@@ -651,6 +664,20 @@ package body Adash.Scripting is
          begin
             while not Ada.Streams.Stream_IO.End_Of_File (File) loop
                Ada.Streams.Stream_IO.Read (File, Chunk, Last);
+
+               --  A script is a file a user named, and a file a user named can
+               --  be the wrong one. Without this, `adash some-disk-image` is a
+               --  session that grows until the host ends it rather than a
+               --  refusal -- and a shell asked to run something it cannot hold
+               --  should say so, which is what Script_Unreadable says.
+               if Length (Content) + Natural (Last)
+                  > Adash.Filesystem.Default_Limit
+               then
+                  Ada.Streams.Stream_IO.Close (File);
+                  Result := Script_Unreadable;
+                  Complain (Report, Adash.Errors.Error_Source_Too_Large, Path);
+                  return;
+               end if;
 
                for Index in Chunk'First .. Last loop
                   Append (Content, Character'Val (Natural (Chunk (Index))));

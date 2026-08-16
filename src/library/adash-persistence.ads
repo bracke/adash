@@ -32,6 +32,8 @@
 --  has to be able to declare one.
 with Ada.Strings.Unbounded;
 
+with Adash.Filesystem;
+
 package Adash.Persistence is
 
    --  The bytes of a file. Unbounded because a history file has no useful
@@ -113,10 +115,19 @@ package Adash.Persistence is
    --  @param Path The file.
    --  @param Into The contents, as UTF-8. Empty unless this returns Store_Ok.
    --  @param Result What became of it.
+   --  @param Limit The most this will hold, in bytes. A store file is a
+   --         configuration file or a history log, and a shell that read
+   --         whatever it found under those names would be one that a file
+   --         swapped for something enormous could kill -- so the same bound a
+   --         script's reads have applies to the shell's own. Store_Not_Text
+   --         is the refusal: past the limit the file is not something this
+   --         shell can carry, which is what that outcome already means for a
+   --         file that is not UTF-8.
    procedure Read
      (Path   : String;
       Into   : out Contents;
-      Result : out Outcome);
+      Result : out Outcome;
+      Limit  : Natural := Adash.Filesystem.Default_Limit);
 
    --  Write a whole file, replacing whatever was there.
    --

@@ -18,12 +18,26 @@ the setting keeps what it had.
 | `color` | `auto`, `always` or `never` | `auto` | `Adash.Terminal` |
 | `history.enabled` | true or false | `true` | `Adash.Interactive.History` |
 | `history.limit` | 1 .. 1 000 000 | `1000` | `Adash.Interactive.History` |
+| `read.limit` | 1 .. 4 096 (MiB) | `16` | `Adash.Filesystem`, `Adash.Execution.Pipelines`, `Adash.Execution.Streams` |
 | `history.per-session` | true or false | `false` | `Adash.Persistence.History` |
 | `history.ignore-space` | true or false | `true` | `Adash.Interactive.Session` |
 | `prompt.directory` | true or false | `true` | `Adash.Interactive.Prompt` |
 | `prompt.failure` | true or false | `true` | `Adash.Interactive.Prompt` |
 | `editing.enabled` | true or false | `true` | `Adash.Interactive.Editing` |
 | `startup.session` | true or false | `true` | `Adash.Scripting.Startup` |
+
+`read.limit` is in **mebibytes**, and is the most any one read will hold: a file
+for `Read_File`, a program's output for `Output_Of`, a line for `Read_Line`. The
+shell's own reads — a script file, a module read into one, a configuration file,
+a history log — are bounded by the same default but not by the setting, because
+three of the four are read before there is a setting to consult. A
+shell keeps what it reads in one String, so without a limit a script that names
+a disk image, or captures a program that never stops writing, grows the session
+until the host ends it — and a session that dies takes everything in it, while a
+read that is refused takes nothing. It stops at 4 096 because past that the
+limit would be promising more than a String can hold on a 32-bit host, and the
+first two refuse whole rather than truncating; `Read_Line` hands a long line over
+in pieces instead, because input that has been read cannot be asked for again.
 
 `history.limit` starts at **1** rather than 0: zero would mean a history that
 remembers nothing, which is what `history.enabled` is for. It stops at a million

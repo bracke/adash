@@ -95,6 +95,14 @@ package Adash.Errors is
       --  Source acquisition.
       Error_Source_Unreadable,
 
+      --  Source this shell will not hold: a file named as a script, or read
+      --  into one, larger than a session can carry. Its own code rather than
+      --  Error_Source_Unreadable because the file is perfectly readable and
+      --  the remedy is different -- and rather than Error_File_Too_Large
+      --  because what is named here is source, which is what the reader is
+      --  looking for in the message.
+      Error_Source_Too_Large,
+
       --  A script named by something that resolves to no file.
       Error_Module_Not_Found,
       Error_Source_Invalid_Encoding,
