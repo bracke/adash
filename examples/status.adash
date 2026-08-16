@@ -19,12 +19,16 @@
 --  Which is a real lesson about a shell that runs programs -- what a program is
 --  called, and how its arguments are shaped, is the host's business and not the
 --  language's -- and the reason the shell answers `Is_Executable` at all.
-Posix : Boolean := Is_Executable ("/bin/true");
+--
+--  Asked of the interpreter every POSIX host keeps in the same place, because
+--  the programs themselves are not kept in one: `/bin/true` on one host is
+--  `/usr/bin/true` on another, and the names below find whichever it is.
+Posix : Boolean := Is_Executable ("/bin/sh");
 
 procedure Run_Something (Working : Boolean) is
 begin
    if Posix then
-      run (if Working then "/bin/true" else "/bin/false");
+      run (if Working then "true" else "false");
    else
       run ("cmd", "/c", if Working then "exit 0" else "exit 1");
    end if;

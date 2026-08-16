@@ -19,12 +19,17 @@
 --  missing the interpreter is asked to say the words instead. What a program is
 --  called, and how its arguments are shaped, is the host's business and not
 --  this language's -- which is why the shell answers `Is_Executable` at all.
-Posix : Boolean := Is_Executable ("/bin/echo");
+--
+--  Asked of the interpreter every POSIX host keeps in the same place, rather
+--  than of the programs themselves: `/bin/echo` is there on both, `/bin/true`
+--  is not -- macOS keeps that one in `/usr/bin` -- and a question about where a
+--  program lives is a question this example does not want to be asking.
+Posix : Boolean := Is_Executable ("/bin/sh");
 
 function Said (What : String) return String is
 begin
    if Posix then
-      return Output_Of ("/bin/echo", What);
+      return Output_Of ("echo", What);
    end if;
 
    return Output_Of ("cmd", "/c", "echo " & What);
@@ -38,7 +43,7 @@ put_line ("[" & Said ("hello world") & "]");
 function Said_Twice (One : String; Two : String) return String is
 begin
    if Posix then
-      return Output_Of ("/bin/echo", One, Two);
+      return Output_Of ("echo", One, Two);
    end if;
 
    return Output_Of ("cmd", "/c", "echo " & One & " " & Two);
@@ -51,7 +56,7 @@ put_line ("[" & Said_Twice ("one two", "three") & "]");
 function Quiet (Working : Boolean) return String is
 begin
    if Posix then
-      return Output_Of (if Working then "/bin/true" else "/bin/false");
+      return Output_Of (if Working then "true" else "false");
    end if;
 
    return Output_Of ("cmd", "/c", if Working then "exit 0" else "exit 1");
