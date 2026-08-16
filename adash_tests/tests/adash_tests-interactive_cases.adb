@@ -1153,16 +1153,14 @@ package body Adash_Tests.Interactive_Cases is
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
 
-   --  Type Ctrl-C, however this host's terminal takes one.
+   --  Type Ctrl-C.
    --
-   --  A pseudo-terminal takes the byte: the line discipline turns 0x03 into an
-   --  interrupt for the foreground group. A pseudo-console asks for keys
-   --  instead -- the `ESC [ ? 9001 h` it writes on attaching is it requesting
-   --  win32-input-mode -- and what makes an interrupt there is a *key event*
-   --  with the control modifier, not a byte that happens to be three. So the
-   --  key is sent as one: the virtual key for C, its scan code, the character
-   --  the combination produces, down and then up, with the left control key
-   --  held.
+   --  The byte, on every host. A console asks for keys when it writes
+   --  `ESC [ ? 9001 h`, and Ctrl-C was sent that way for a while on the
+   --  reading that a byte could not be a key -- but the probe below settled
+   --  it: typed as the byte, a Ctrl-C reaches a program on a console both as
+   --  input to read and, where the terminal has been asked to report it, as an
+   --  interrupt to a program that is reading nothing at all.
    --
    --  @param Item The session.
    procedure Type_Interrupt (Item : in out Terminal_Session);
@@ -1258,18 +1256,8 @@ package body Adash_Tests.Interactive_Cases is
    end Start_On_A_Terminal;
 
    procedure Type_Interrupt (Item : in out Terminal_Session) is
-      Escape : constant String := [1 => Character'Val (27)];
    begin
-      if not Hostkit.Spawn.Is_Attached (Item.Pair.Console) then
-         Type_Into (Item, String'(1 => Character'Val (3)));
-         return;
-      end if;
-
-      --  Vk 67 is C, scan code 46 is the key it sits on, 3 is what Ctrl-C
-      --  produces, and 8 is the left control key being down.
-      Type_Into
-        (Item,
-         Escape & "[67;46;3;1;8;1_" & Escape & "[67;46;3;0;8;1_");
+      Type_Into (Item, String'(1 => Character'Val (3)));
    end Type_Interrupt;
 
    procedure Type_Into (Item : in out Terminal_Session; Text : String) is
