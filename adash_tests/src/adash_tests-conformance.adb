@@ -1144,19 +1144,14 @@ package body Adash_Tests.Conformance is
             --  `Output_Of ("../adash_tests/bin/adash_test_emit")`. So these
             --  are checked where the utilities are, and what they demonstrate
             --  is checked everywhere by the cases that use companions.
-            Needs_Posix_Utilities : constant Boolean :=
-              Ada.Directories.Base_Name (Script) in "capture" | "status";
-
             Arguments : Hostkit.String_Vectors.Vector;
          begin
-            if Needs_Posix_Utilities
-              and then Hostkit.Host.Current = Hostkit.Host.Windows
-            then
-               Record_Result
-                 (Into, Identity, Skipped,
-                  Because ("tooling.conformance.other_host"));
-
-            elsif not Ada.Directories.Exists (Expected_Path) then
+            --  Every example runs on every host. Two of them read a POSIX
+            --  utility and were skipped on Windows until they learned to ask
+            --  the host which programs it has; two more wrote files or asked
+            --  where they were, and use the shell's own Read_File and
+            --  Current_Directory and the directory this runner gives them.
+            if not Ada.Directories.Exists (Expected_Path) then
                Record_Result
                  (Into, Identity, Malformed,
                   Because ("tooling.conformance.no_expected"));

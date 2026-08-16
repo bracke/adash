@@ -19,6 +19,7 @@ with Adash.Execution.Commands;
 with Adash.Execution.Jobs;
 with Adash.Execution.Pipelines;
 with Adash.Execution.Redirection;
+with Adash.Execution.Signals;
 with Adash.Execution.Streams;
 
 package body Adash.Commands.Builtins is
@@ -528,10 +529,29 @@ package body Adash.Commands.Builtins is
                      Wait_Error : Adash.Errors.Error_Info;
                      Ended      : Adash.Execution.Exit_Status;
 
-                     Finished : constant Boolean :=
+                     --  The terminal, for as long as this program runs.
+                     --
+                     --  Both halves, as in Pipelines.Run: the console mode
+                     --  where the shell watches its terminal, and the
+                     --  terminal's foreground group where the host has them.
+                     --  This is the path a user types -- `run ("cat")` --
+                     --  and it waits here rather than in Pipelines.Run, so it
+                     --  needs its own handover rather than inheriting one.
+                     Ours : Integer;
+
+                     Finished : Boolean;
+                  begin
+                     Adash.Execution.Signals.Hand_Over_Terminal;
+                     Adash.Execution.Pipelines.Hand_The_Terminal_To
+                       (Adash.Execution.Pipelines.Group (Running), Ours);
+
+                     Finished :=
                        Adash.Execution.Jobs.Wait
                          (Shell.Jobs, Started, Shell.Interrupt, Wait_Error);
-                  begin
+
+                     Adash.Execution.Pipelines.Take_The_Terminal_Back (Ours);
+                     Adash.Execution.Signals.Take_Terminal_Back;
+
                      if not Finished then
                         --  Interrupted, or stopped. Asked to end so that a
                         --  program the user walked away from does not outlive
@@ -890,6 +910,29 @@ package body Adash.Commands.Builtins is
                      --  that saves a file and prints a result could not have
                      --  its output read by anything. `Status` says it worked;
                      --  a failure says so on standard error.
+                     return Adash.Execution.Success;
+               end case;
+            end;
+
+         when Command_Make_Directory =>
+            declare
+               Path : constant String := Argument (Arguments, 1);
+               Done : Adash.Filesystem.Written;
+            begin
+               Adash.Filesystem.Make_Directory (Path, Done);
+
+               case Done is
+                  when Adash.Filesystem.Write_Refused =>
+                     return Failed (Adash.Errors.Error_File_Not_Writable,
+                                    [1 => M.Named ("path", Path)]);
+
+                  when Adash.Filesystem.Write_Failed =>
+                     return Failed (Adash.Errors.Error_File_Write_Failed,
+                                    [1 => M.Named ("path", Path)]);
+
+                  when Adash.Filesystem.Write_Ok =>
+                     --  Silent, like writing: a command that announced itself
+                     --  would put its own lines into a script's output.
                      return Adash.Execution.Success;
                end case;
             end;

@@ -153,6 +153,7 @@ output = [
   "!line.command_entry{name=suspend,summary=!command.suspend.doc!}!",
   "!line.command_entry{name=resume,summary=!command.resume.doc!}!",
   "!line.command_entry{name=write_file,summary=!command.write_file.doc!}!",
+  "!line.command_entry{name=make_directory,summary=!command.make_directory.doc!}!",
   "!line.command_entry{name=append_file,summary=!command.append_file.doc!}!",
   "!line.command_entry{name=settings,summary=!command.settings.doc!}!",
   "!line.command_entry{name=save_settings,summary=!command.save_settings.doc!}!",

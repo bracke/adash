@@ -143,6 +143,14 @@ package body Adash.Commands is
        [1 => Text ("Text"), 2 => Text ("File"), others => Nothing],
        Changes_State,
        M.Msg_Command_Write_File_Doc, M.Msg_Command_Hint, Available),
+
+      --  A command rather than a function, for the same reason writing is:
+      --  making a directory has consequences, and a reader should see it
+      --  happen rather than find it inside a condition.
+      (Command_Make_Directory, Named ("make_directory"), 1, 1,
+       [1 => Text ("Directory"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Make_Directory_Doc, M.Msg_Command_Hint, Available),
       (Command_Append_File, Named ("append_file"), 2, 2,
        [1 => Text ("Text"), 2 => Text ("File"), others => Nothing],
        Changes_State,

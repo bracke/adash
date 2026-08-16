@@ -419,30 +419,6 @@ package body Adash.Execution.Pipelines is
    -- Capture --
    -------------
 
-   --  The terminal, handed to a job for as long as it runs.
-   --
-   --  A child is started in a process group of its own -- that is what makes a
-   --  job a job, and what lets a signal reach the job rather than the shell.
-   --  The cost of it is that the group is not the terminal's foreground one,
-   --  and a POSIX terminal stops any program in another group that reads it.
-   --  So a program that asks a question was stopped where it asked, and a
-   --  shell running `cat` looked like a shell that had hung.
-   --
-   --  Giving the terminal to the job is what every shell does about that, and
-   --  taking it back afterwards is the other half: a shell that forgot would
-   --  leave the terminal owned by a group with nothing in it, and its own next
-   --  read would stop it.
-   --
-   --  Safe to call from a shell that has ignored Signal_Background_Write. The
-   --  handover itself raises that signal at a process that does not own the
-   --  terminal, and a shell that had not refused it would stop itself in the
-   --  act of reclaiming its own terminal -- which is the failure hostkit warns
-   --  about where it declares this.
-   procedure Hand_The_Terminal_To (Group : Integer; Taken : out Integer);
-
-   --  Give it back to whoever had it.
-   procedure Take_The_Terminal_Back (Group : Integer);
-
    procedure Hand_The_Terminal_To (Group : Integer; Taken : out Integer) is
       Ours : Integer;
    begin

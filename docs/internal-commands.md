@@ -133,6 +133,7 @@ the commands that cannot be honoured decline rather than pretending.
 |---|---|---|
 | `write_file (Text : String; File : String)` | 2 | writes text to a file, replacing what was there |
 | `append_file (Text : String; File : String)` | 2 | adds text to the end |
+| `make_directory (Directory : String)` | 1 | makes a directory, and any above it that is missing |
 | `settings (Setting : String; Value : String)` | 0, or 2 | lists the settings, or changes one |
 | `save_settings` | 0 | writes the current settings to the configuration file |
 
@@ -141,6 +142,13 @@ which is the order `run_into` does not use — those two are named after what ru
 and these after what is written. Appending to a file that is not there makes it,
 because the first turn of a loop that collects lines is not an error. A write
 that worked says nothing; `Status` says what became of it.
+
+`make_directory` makes every missing directory in the path rather than only the
+last: a script that has worked out `logs/2026/august` means all of it. A
+directory that is already there is not a failure — what was asked for is that it
+be there — and something that is not a directory in the way is refused and says
+so. It is a command rather than a function for the same reason writing is one:
+it has consequences, and a reader should see it happen.
 
 `settings` takes nothing or two arguments — a query form taking one is not
 written. The setting names are `color`, `history.enabled`, `history.limit`,

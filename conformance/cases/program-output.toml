@@ -782,3 +782,68 @@ output = [
   "FALSE",
 ]
 diagnostics = []
+
+[[case]]
+id = "files.make_directory-makes-the-place-a-file-goes"
+requirement = """
+`write_file` into a directory that is not there is refused, and until this
+existed a script had no way to make one: a shell that could save a file could
+not decide where to put it, and reached for a program to make the place.
+
+Every missing directory in the path rather than only the last, because a script
+that has worked out `logs/2026/august` means all of it. A directory that is
+already there is not a failure -- what was asked for is that it be there, and a
+script that ran twice would otherwise fail on its second turn for having
+succeeded on its first. Something that is not a directory in the way is refused
+and says so.
+
+A command rather than a function, for the same reason writing is one: it has
+consequences, and a reader should see it happen rather than find it inside a
+condition.
+"""
+script = """
+make_directory ("{store}/deep/and/deeper");
+put_line (Boolean'Image (Is_Directory ("{store}/deep/and/deeper")));
+write_file ("held", "{store}/deep/and/deeper/file.txt");
+put_line (Read_File ("{store}/deep/and/deeper/file.txt"));
+make_directory ("{store}/deep/and/deeper");
+put_line (Integer'Image (Status));
+make_directory ("{store}/deep/and/deeper/file.txt");
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "TRUE",
+  "held",
+  " 0",
+  " 1",
+]
+diagnostics = [
+  "!error.file_not_writable{path={store}/deep/and/deeper/file.txt}!",
+]
+
+[[case]]
+id = "files.read_file-of-a-directory-is-nothing"
+requirement = """
+A directory holds no text, so reading one answers with none -- the same answer
+as a file that is not there, and for the same reason: a question has no
+consequences, and a function that raised here would make `Read_File` unusable
+in the expression a script actually writes.
+
+Which is why the two are told apart by asking, not by reading. `Exists` says
+something is there and `Is_Directory` says what it is, and a script that cares
+asks before it reads.
+"""
+script = """
+make_directory ("{store}/a-directory");
+put_line ("[" & Read_File ("{store}/a-directory") & "]");
+put_line (Boolean'Image (Exists ("{store}/a-directory")));
+put_line (Boolean'Image (Is_Directory ("{store}/a-directory")));
+quit (0);"""
+exit_status = 0
+output = [
+  "[]",
+  "TRUE",
+  "TRUE",
+]
+diagnostics = []

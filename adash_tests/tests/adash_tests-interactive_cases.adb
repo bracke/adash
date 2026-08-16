@@ -2504,11 +2504,14 @@ package body Adash_Tests.Interactive_Cases is
          return;
       end if;
 
-      --  Captured, so what the program read comes back through the shell and
-      --  is told apart from what the terminal echoed by its case.
+      --  Through `run`, which is the path a user types and, until this was
+      --  written, the one that did not hand the terminal over: it waits for
+      --  the job itself rather than through Pipelines.Run, so it needed its
+      --  own handover. The program writes back what it read, so what appears
+      --  is told apart from the terminal's echo by its case.
       Type_Into
         (Session,
-         "put_line (To_Upper (Output_Of (""" & Reader & """)));" & Return_Key);
+         "run (""" & Reader & """);" & Return_Key);
 
       --  A moment for the program to start and reach its read, drained the
       --  whole time rather than waited out: a terminal nobody reads fills up,
@@ -2521,7 +2524,10 @@ package body Adash_Tests.Interactive_Cases is
 
       Type_Into (Session, "typed" & Return_Key);
 
-      Assert (Waited_For (Session, "TYPED", Tries => 600),
+      --  Marked by the program, because a terminal that echoes what is typed
+      --  would otherwise answer this test by itself. This pseudo-terminal does
+      --  not echo and another host's may.
+      Assert (Waited_For (Session, "read=typed", Tries => 600),
               "a program in a submission could not read a line from the "
               & "terminal: [" & Plainly (Session) & "]");
 

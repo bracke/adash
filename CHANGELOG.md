@@ -1743,6 +1743,22 @@ what changed.
   example a directory of its own to run in, which is where a writing example
   puts its files instead of asking `mktemp` for somewhere.
 
+- **`make_directory`, and every example now runs on every host.** `write_file`
+  into a directory that is not there is refused, and a script had no way to make
+  one — so a shell that could save a file could not decide where to put it, and
+  reached for a program to make the place. It makes every missing directory in
+  the path, is not a failure when the directory is already there, and refuses
+  what is not a directory in the way. With it, and with `Read_File` and
+  `Current_Directory`, the four examples that were skipped on Windows are
+  skipped nowhere: the two that read a POSIX utility ask the host which programs
+  it has and say the same thing either way, which is a lesson the examples were
+  quietly avoiding.
+
+- **`Read_File` of a directory reads as nothing**, and now says so where it is
+  documented and asserts it where it is tested. The same answer as a file that
+  is not there, for the same reason; `Exists` and `Is_Directory` tell them
+  apart.
+
 ### Fixed
 
 - **A program the shell runs can read the terminal.** A job is started in a

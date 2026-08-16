@@ -374,6 +374,7 @@ en.command.stop.doc = Ask a job to stop.
 en.command.suspend.doc = Suspend a running job, leaving it able to be resumed.
 en.command.resume.doc = Resume a suspended job, in the background.
 en.command.write_file.doc = Write text to a file, replacing what was there: write_file (TEXT, FILE).
+en.command.make_directory.doc = Make a directory, and any above it that is missing: make_directory (DIRECTORY).
 en.command.append_file.doc = Add text to the end of a file: append_file (TEXT, FILE).
 en.command.forget.doc = Forget history, in this session and in the file: forget (COUNT) or forget ("LINE").
 en.command.settings.doc = List the settings, or change one: settings (NAME, VALUE).

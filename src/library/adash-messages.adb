@@ -518,6 +518,8 @@ package body Adash.Messages is
          when Msg_Command_Save_Settings_Doc =>
             return "command.save_settings.doc";
          when Msg_Command_Write_File_Doc    => return "command.write_file.doc";
+         when Msg_Command_Make_Directory_Doc =>
+            return "command.make_directory.doc";
          when Msg_Command_Append_File_Doc   =>
             return "command.append_file.doc";
          when Msg_Line_History_Entry         => return "line.history_entry";
@@ -855,6 +857,7 @@ package body Adash.Messages is
             | Msg_Command_Suspend_Doc | Msg_Command_Resume_Doc
             | Msg_Command_Settings_Doc | Msg_Command_Save_Settings_Doc
             | Msg_Command_Write_File_Doc | Msg_Command_Append_File_Doc
+            | Msg_Command_Make_Directory_Doc
             | Msg_Command_Hint =>
             return No_Placeholders;
 

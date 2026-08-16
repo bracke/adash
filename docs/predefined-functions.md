@@ -117,6 +117,13 @@ either way.
 A path nobody can reach — no such directory, nothing named at all — is not a
 file, so the answer is `False` rather than a failure.
 
+`Read_File` answers with nothing for a file that is not there, a file this shell
+cannot read, a file that is not UTF-8, and a **directory** — all the same
+answer, because a question has no consequences and a function that raised here
+could not be written in the expression a script actually wants. `Exists` and
+`Is_Directory` are how a script that cares tells them apart, and it asks before
+it reads. Making the place a file goes is `make_directory`, which is a command.
+
 ## Text
 
 | Call | Answers | Notes |

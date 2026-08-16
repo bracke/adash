@@ -13,35 +13,70 @@
 --  the user: a program explaining why it failed should be heard, not swallowed
 --  into a value the script is about to compare against something.
 
-put_line ("[" & Output_Of ("echo", "hello world") & "]");
+--  A program that says something, named the way this host names it.
+--
+--  There is no program every host has: `echo` is a POSIX one, and where it is
+--  missing the interpreter is asked to say the words instead. What a program is
+--  called, and how its arguments are shaped, is the host's business and not
+--  this language's -- which is why the shell answers `Is_Executable` at all.
+Posix : Boolean := Is_Executable ("/bin/echo");
+
+function Said (What : String) return String is
+begin
+   if Posix then
+      return Output_Of ("/bin/echo", What);
+   end if;
+
+   return Output_Of ("cmd", "/c", "echo " & What);
+end Said;
+
+put_line ("[" & Said ("hello world") & "]");
 
 --  Arguments arrive as they were written. There is no word-splitting here and
 --  no re-scanning of what a String holds, so one argument with a space in it
---  is one argument.
-put_line ("[" & Output_Of ("echo", "one two", "three") & "]");
+--  is one argument -- which is why the two below arrive as two.
+function Said_Twice (One : String; Two : String) return String is
+begin
+   if Posix then
+      return Output_Of ("/bin/echo", One, Two);
+   end if;
+
+   return Output_Of ("cmd", "/c", "echo " & One & " " & Two);
+end Said_Twice;
+
+put_line ("[" & Said_Twice ("one two", "three") & "]");
 
 --  A program that wrote nothing answers with the empty string rather than
 --  failing, so a script can compare it.
-if Output_Of ("true") = "" then
+function Quiet (Working : Boolean) return String is
+begin
+   if Posix then
+      return Output_Of (if Working then "/bin/true" else "/bin/false");
+   end if;
+
+   return Output_Of ("cmd", "/c", if Working then "exit 0" else "exit 1");
+end Quiet;
+
+if Quiet (True) = "" then
    put_line ("that one said nothing");
 end if;
 
 --  Running a program for its output is still running a program, so `Status`
 --  says what became of it.
-Ignored : String := Output_Of ("false");
+Ignored : String := Quiet (False);
 
 put_line (f"and it exited {Status'Image}");
 
 --  Which makes the two together a way to use a program only when it worked.
-function Reported (Program : String) return String is
-   Said : String := Output_Of (Program);
+function Reported (Working : Boolean) return String is
+   Said_Now : String := Quiet (Working);
 begin
    if Status /= 0 then
       return "(it failed)";
    end if;
 
-   return Said;
+   return Said_Now;
 end Reported;
 
-put_line (Reported ("true"));
-put_line (Reported ("false"));
+put_line (Reported (True));
+put_line (Reported (False));

@@ -271,6 +271,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.stop.doc` | Ask a job to stop. |
 | `command.suspend.doc` | Suspend a running job, leaving it able to be resumed. |
 | `command.resume.doc` | Resume a suspended job, in the background. |
+| `command.make_directory.doc` | Make a directory, and any above it that is missing: make_directory (DIRECTORY). |
 | `command.write_file.doc` | Write text to a file, replacing what was there: write_file (TEXT, FILE). |
 | `command.append_file.doc` | Add text to the end of a file: append_file (TEXT, FILE). |
 | `command.settings.doc` | List the settings, or change one: settings (NAME, VALUE). |

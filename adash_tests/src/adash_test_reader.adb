@@ -16,5 +16,8 @@ with Ada.Text_IO;
 --  Either way it either answers or waits, and both are answers.
 procedure Adash_Test_Reader is
 begin
-   Ada.Text_IO.Put_Line (Ada.Text_IO.Get_Line);
+   --  Marked, so that what this program wrote is told apart from what a
+   --  terminal echoed. Some terminals echo what is typed and some do not, and
+   --  a test that could not tell the two apart would pass on the echo alone.
+   Ada.Text_IO.Put_Line ("read=" & Ada.Text_IO.Get_Line);
 end Adash_Test_Reader;

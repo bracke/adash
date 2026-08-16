@@ -94,6 +94,35 @@ package Adash.Execution.Pipelines is
       Group : Integer := -1;
    end record;
 
+   --  The terminal, handed to a job for as long as it runs.
+   --
+   --  A child is started in a process group of its own -- that is what makes a
+   --  job a job, and what lets a signal reach the job rather than the shell.
+   --  The cost of it is that the group is not the terminal's foreground one,
+   --  and a POSIX terminal stops any program in another group that reads it.
+   --  So a program that asks a question was stopped where it asked, and a
+   --  shell running `cat` looked like a shell that had hung.
+   --
+   --  Giving the terminal to the job is what every shell does about that, and
+   --  taking it back afterwards is the other half: a shell that forgot would
+   --  leave the terminal owned by a group with nothing in it, and its own next
+   --  read would stop it.
+   --
+   --  Safe to call from a shell that has ignored Signal_Background_Write. The
+   --  handover itself raises that signal at a process that does not own the
+   --  terminal, and a shell that had not refused it would stop itself in the
+   --  act of reclaiming its own terminal -- which is the failure hostkit warns
+   --  about where it declares this.
+   --  @param Group The job's process group, or -1 to do nothing.
+   --  @param Taken Whoever had the terminal before, to give it back to, or -1
+   --         where nothing was handed over.
+   procedure Hand_The_Terminal_To (Group : Integer; Taken : out Integer);
+
+   --  Give it back to whoever had it.
+   --
+   --  @param Group What Hand_The_Terminal_To reported, or -1 to do nothing.
+   procedure Take_The_Terminal_Back (Group : Integer);
+
    --  Start every stage, waiting for none of them.
    --
    --  Waiting on the first before starting the second would deadlock the moment

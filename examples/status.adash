@@ -11,25 +11,44 @@
 --  128 + n for a program a signal killed. A script forwarding a status does not
 --  have to translate it.
 
-run ("true");
+--  A program that succeeds and a program that fails, named the way this host
+--  names them.
+--
+--  There is no program every host has: `true` and `false` are POSIX, and where
+--  they are missing the interpreter is asked to exit with a number instead.
+--  Which is a real lesson about a shell that runs programs -- what a program is
+--  called, and how its arguments are shaped, is the host's business and not the
+--  language's -- and the reason the shell answers `Is_Executable` at all.
+Posix : Boolean := Is_Executable ("/bin/true");
+
+procedure Run_Something (Working : Boolean) is
+begin
+   if Posix then
+      run (if Working then "/bin/true" else "/bin/false");
+   else
+      run ("cmd", "/c", if Working then "exit 0" else "exit 1");
+   end if;
+end Run_Something;
+
+Run_Something (True);
 put_line (Status);
 
-run ("false");
+Run_Something (False);
 put_line (Status);
 
 --  Which makes a subprogram that answers the question directly, in the
 --  language rather than by a convention of the shell.
-function Ran (What : String) return Boolean is
+function Ran (Working : Boolean) return Boolean is
 begin
-   run (What);
+   Run_Something (Working);
    return Status = 0;
 end Ran;
 
-if Ran ("true") then
+if Ran (True) then
    put_line ("that one worked");
 end if;
 
-if not Ran ("false") then
+if not Ran (False) then
    put_line ("that one did not");
 end if;
 

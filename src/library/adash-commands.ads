@@ -98,6 +98,7 @@ package Adash.Commands is
       --  writes files, but only ever what a program printed; without these,
       --  a script can work something out and has nowhere to put it.
       Command_Write_File,
+      Command_Make_Directory,
       Command_Append_File,
 
       --  The user's own settings.

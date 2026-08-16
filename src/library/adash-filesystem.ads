@@ -108,6 +108,29 @@ package Adash.Filesystem is
       Text   : out Ada.Strings.Unbounded.Unbounded_String;
       Result : out Reading);
 
+   --  Make a directory, and any directory above it that is missing.
+   --
+   --  The other half of Write in a different sense than Read is: `write_file`
+   --  into a directory that is not there is refused, and until this existed a
+   --  script had no way to make one -- so a shell that could save a file could
+   --  not decide where to put it, and reached for a program to make the place.
+   --
+   --  Every missing directory in the path, rather than only the last: a script
+   --  that has just worked out `logs/2026/august` means all of it, and a
+   --  command that made one level would have the script call it three times
+   --  and check between each. Nothing that is already there is disturbed.
+   --
+   --  A directory that already exists is Write_Ok rather than a failure. What
+   --  the caller asked for is that it be there, and it is; a script that ran
+   --  twice would otherwise fail on its second turn for having succeeded on
+   --  its first.
+   --
+   --  @param Path The directory.
+   --  @param Result Write_Refused where something that is not a directory is
+   --         in the way, or the host will not form the name; Write_Failed
+   --         where it could not be made for any other reason.
+   procedure Make_Directory (Path : String; Result : out Written);
+
    --  Add text to the end of a file, making it when it is not there.
    --
    --  @param Path Where to write.

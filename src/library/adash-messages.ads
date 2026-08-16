@@ -363,7 +363,8 @@ package Adash.Messages is
       Msg_Command_Pipe_Run_Doc, Msg_Command_Start_Doc, Msg_Command_Wait_Doc, Msg_Command_Stop_Doc,
       Msg_Command_Suspend_Doc, Msg_Command_Resume_Doc,
       Msg_Command_Settings_Doc, Msg_Command_Save_Settings_Doc,
-      Msg_Command_Write_File_Doc, Msg_Command_Append_File_Doc,
+      Msg_Command_Write_File_Doc,
+   Msg_Command_Make_Directory_Doc, Msg_Command_Append_File_Doc,
       Msg_Command_Hint,
 
       --  Output lines.

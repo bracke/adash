@@ -155,6 +155,52 @@ package body Adash.Filesystem is
    -- Write --
    -----------
 
+   ---------------------
+   -- Make_Directory --
+   ---------------------
+
+   procedure Make_Directory (Path : String; Result : out Written) is
+   begin
+      if Path = "" then
+         Result := Write_Refused;
+         return;
+      end if;
+
+      --  Already there, and already a directory: what the caller asked for is
+      --  the state of the world, not the act.
+      if Ada.Directories.Exists (Path) then
+         Result :=
+           (if Is_Directory (Path) then Write_Ok else Write_Refused);
+         return;
+      end if;
+
+      begin
+         --  Create_Path rather than Create_Directory: every missing level, in
+         --  one call, which is what a script naming a path three deep means.
+         Ada.Directories.Create_Path (Path);
+      exception
+         when Ada.IO_Exceptions.Name_Error =>
+            --  A name this host will not form, or something in the way that is
+            --  not a directory.
+            Result := Write_Refused;
+            return;
+
+         when Ada.IO_Exceptions.Use_Error | Ada.IO_Exceptions.Device_Error =>
+            Result := Write_Failed;
+            return;
+      end;
+
+      --  Asked rather than assumed: Create_Path is allowed to succeed quietly
+      --  on a host that did not make anything.
+      Result :=
+        (if Ada.Directories.Exists (Path) and then Is_Directory (Path)
+         then Write_Ok else Write_Failed);
+
+   exception
+      when others =>
+         Result := Write_Failed;
+   end Make_Directory;
+
    procedure Write
      (Path   : String;
       Text   : String;
