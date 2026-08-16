@@ -2916,17 +2916,21 @@ a program that is **not reading**, on a terminal asked to report an interrupt
 key, is told about a Ctrl-C. That last one is the shell's exact situation while
 a submission runs, so the mechanism is there.
 
-The shell still does not stop. It arms the recording at start-up, asks the
-terminal to report an interrupt before every submission -- processed input on,
-and the virtual-terminal input raw mode left behind off -- and the machine asks
-between instructions as it does everywhere.
+The shell still does not stop, and the question is now one sentence with a
+probe behind it. Everything around it went into the companion in turn -- the
+terminal, the editor's line read, the tasking run-time, an engine submission of
+its own -- and the interrupt arrived every time. What separates the case that
+is told from the case that is not is **being busy**: a program waiting is told
+that Ctrl-C was typed, and the same program spinning is never told, which makes
+a runaway loop the one thing that cannot be stopped and the one case the poll
+exists for.
 
-And the terminal is not the reason: the probe now does the shell's own sequence
--- a line read in raw mode, the settings put back, a terminal asked to report
-an interrupt key, then waiting without reading -- and it is told. Sixty lines
-of companion get what the shell does not, so the fault is inside the shell:
-the recording, the asking, or the looking. Which of the three needs the shell
-to say what it sees, and that is the next thing to build.
+Two ways of giving the host a moment were tried in the machine's poll -- a
+yield to our own tasks, and a millisecond of sleep every million instructions
+-- and neither helped, so it is not a scheduling window. Both are reverted:
+machinery that works nowhere is worse than none. The probe's modes are in the
+tree, and the next attempt starts from a busy process that is not told rather
+than from a terminal nobody has checked.
 
 Every step of this was documentation being wrong and the machine being right:
 about batch files, about what a console does with a character, about whether a

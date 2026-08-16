@@ -4,7 +4,6 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 
 with Adash.Errors;
-with Adash.Execution.Signals;
 with Adash.Machine;
 with Adash.Language.Symbols;
 with Adash.Language.Types;
@@ -217,47 +216,9 @@ package body Adash.Language.Evaluation is
    -- Stop_Requested --
    ----------------------
 
-   --  How many polls between one yield and the next.
-   --
-   --  The machine asks every 1024 instructions; this makes every thousandth
-   --  of those asks give the host a moment first -- a keystroke noticed within
-   --  something like a hundredth of a second, at the cost of one millisecond
-   --  of sleep per million instructions.
-   --
-   --  A sleep rather than a yield. `delay 0.0` is a yield to whatever else is
-   --  ready to run in this program, and it was tried: on the host that needs
-   --  this, a keystroke still went unnoticed, because what has to happen is
-   --  not another task of ours running but the *host* delivering a notice on a
-   --  thread of its own.
-   Yield_Every : constant := 1_024;
-
-   Polls : Natural := 0;
-
    overriding function Stop_Requested (Item : in out Bridge) return Boolean is
       pragma Unreferenced (Item);
    begin
-      --  A moment for the host, where a host needs one.
-      --
-      --  Measured: on a host with no signal dispositions in force, a program
-      --  *waiting* is told that Ctrl-C was typed, and the same program *busy*
-      --  in a tight loop is never told at all. The notice arrives on a thread
-      --  the host makes, and a process that never stops computing never gives
-      --  it the chance -- so a runaway loop was precisely the thing that could
-      --  not be stopped, which is the one case this poll exists for.
-      --
-      --  Only where the host installs nothing. Where a signal is delivered to
-      --  this thread there is nothing to wait for, and a yield in the hottest
-      --  loop in the language would be paid for by every program on every
-      --  host.
-      if not Adash.Execution.Signals.Is_Installed then
-         Polls := Polls + 1;
-
-         if Polls >= Yield_Every then
-            Polls := 0;
-            delay 0.001;
-         end if;
-      end if;
-
       return Current_Cancel /= null and then Is_Cancelled (Current_Cancel.all);
    end Stop_Requested;
 

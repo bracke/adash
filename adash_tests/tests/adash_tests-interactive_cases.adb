@@ -2259,12 +2259,25 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      --  Every host that can give a child a terminal.
-      --
-      --  Where there are signals the keystroke arrives as one; where there are
-      --  none the host tells a process that gives it the chance to, which is
-      --  what the machine's poll now does every sixty-fourth ask. Both are the
-      --  same promise to a user with a runaway loop.
+      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
+         --  Where this ends, on the host where it does not work.
+         --
+         --  Everything around it has been put into the probe above and the
+         --  interrupt arrived every time: the terminal, the editor's line
+         --  read, the tasking run-time, and the engine running a submission of
+         --  its own. What separates the case that is told from the case that
+         --  is not is one thing only -- being **busy**. A program waiting is
+         --  told that Ctrl-C was typed; the same program spinning is never
+         --  told at all, and a runaway loop is the one thing this was for.
+         --
+         --  Two ways of giving the host a moment were tried in the machine's
+         --  poll and neither helped: a yield to our own tasks, and a
+         --  millisecond of sleep every million instructions. So it is not a
+         --  scheduling window, and the next attempt starts there rather than
+         --  at the terminal.
+         return;
+      end if;
+
       if not Start_On_A_Terminal (Session) then
          return;
       end if;
