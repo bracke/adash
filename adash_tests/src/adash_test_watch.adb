@@ -5,6 +5,9 @@ with Ada.Text_IO;
 with Hostkit.Descriptors;
 with Hostkit.Terminal_Control;
 
+with Adash.Interactive.Editing;
+with Adash.Interactive.History;
+
 with Adash.Execution.Signals;
 with Adash.Errors;
 
@@ -75,45 +78,28 @@ begin
    end;
 
    if After_A_Line then
-      --  A line, read exactly as the editor reads one: raw, then the saved
-      --  settings put back.
+      --  A line read by the *editor*, not by hand. The hand-rolled version --
+      --  save, raw, read, restore -- is told about a Ctrl-C afterwards, and
+      --  the shell is not, so the difference is somewhere the editor goes and
+      --  this did not. Read_Line is the editor.
       declare
-         Saved : Hostkit.Terminal_Control.Mode;
+         Recall : Adash.Interactive.History.Log;
+         Line   : String (1 .. 256);
+         Last   : Natural;
 
-         Have : constant Boolean :=
-           Hostkit.Terminal_Control.Save_Mode
-             (Hostkit.Descriptors.Standard_Input, Saved);
-
-         Ignored_Raw : constant Boolean :=
-           Hostkit.Terminal_Control.Set_Raw
-             (Hostkit.Descriptors.Standard_Input);
-         pragma Unreferenced (Ignored_Raw);
-
-         Buffer : Ada.Streams.Stream_Element_Array (1 .. 64);
-         Last   : Ada.Streams.Stream_Element_Offset;
-
-         use type Hostkit.Descriptors.Transfer_Outcome;
+         Outcome : constant Adash.Interactive.Editing.Read_Outcome :=
+           Adash.Interactive.Editing.Read_Line
+             (Prompt        => "",
+              Prompt_Width  => 0,
+              Recall        => Recall,
+              Allow_Editing => True,
+              Into          => Line,
+              Last          => Last);
       begin
-         for Turn in 1 .. 40 loop
-            exit when Hostkit.Descriptors.Wait_Readable
-                        (Hostkit.Descriptors.Standard_Input, 50)
-              and then Hostkit.Descriptors.Read
-                         (Hostkit.Descriptors.Standard_Input, Buffer, Last)
-                       = Hostkit.Descriptors.Transfer_Ok;
-         end loop;
-
-         Ada.Text_IO.Put_Line (Report, "read-a-line=" & Boolean'Image (Have));
-
-         if Have then
-            declare
-               Back : constant Boolean :=
-                 Hostkit.Terminal_Control.Restore_Mode
-                   (Hostkit.Descriptors.Standard_Input, Saved);
-            begin
-               Ada.Text_IO.Put_Line
-                 (Report, "restored=" & Boolean'Image (Back));
-            end;
-         end if;
+         Ada.Text_IO.Put_Line
+           (Report,
+            "read-a-line="
+            & Adash.Interactive.Editing.Read_Outcome'Image (Outcome));
       end;
    end if;
 
