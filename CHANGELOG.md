@@ -1745,6 +1745,16 @@ what changed.
 
 ### Fixed
 
+- **A background job does not share the keyboard.** Only where the shell
+  watches its own terminal, which is the host with no job control: there the
+  shell holds the terminal raw and reads it between instructions, so a
+  background program given that same terminal would race it for keystrokes and
+  read them in a mode nobody chose for it. It is given hostkit's null device
+  instead, so it sees end of input rather than a stream that never answers. A
+  job whose input was redirected keeps what it was given. On POSIX the host
+  settles this itself, by stopping a background program that reads the
+  terminal, and nothing here takes that decision away from it.
+
 - **A runaway loop in a script can be stopped on Windows too, and a program
   the shell runs still gets a usable console.** The watching was armed by the
   interactive session alone, so `adash script.adash` ran with nobody looking;

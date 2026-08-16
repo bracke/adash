@@ -2356,6 +2356,113 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after an interrupt");
    end An_Interrupt_Stops_A_Loop_Through_A_Terminal;
 
+   --  What a user typed while a loop was running is still there afterwards.
+   --
+   --  A promise with two very different mechanisms behind it. Where the host
+   --  reports the interrupt, the terminal's own buffer holds what was typed
+   --  and the shell never sees it until it reads a line. Where the shell
+   --  watches its terminal instead, it reads those bytes itself while looking
+   --  for the Ctrl-C -- so it has to put back everything that was not the
+   --  interrupt, and put a raw return back as the line feed a reader expects.
+   --
+   --  Neither mechanism is visible from here, which is the point: what a user
+   --  is promised is that the line they typed runs, and this is that promise.
+   procedure Type_Ahead_Survives_An_Interrupt
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure Type_Ahead_Survives_An_Interrupt
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      --  A loop that ends by itself, rather than one an interrupt ends.
+      --
+      --  Interrupting was the first shape of this case and it asserted
+      --  something untrue: a POSIX terminal flushes what has been typed when
+      --  it turns Ctrl-C into a signal, deliberately, so type-ahead does not
+      --  survive an interrupt anywhere and should not. What it survives is a
+      --  submission that takes a while -- which is the whole of what a user
+      --  typing ahead is doing.
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""running"")); for I in 1 .. 3_000_000 loop "
+         & "null; end loop; put_line (To_Upper (""ended""));"
+         & Return_Key);
+
+      Assert (Waited_For (Session, "RUNNING", Tries => 600),
+              "the loop never started: [" & Plainly (Session) & "]");
+
+      --  Typed while the loop runs, and typed whole: a user who wanted to say
+      --  something next does not wait for a prompt to say it.
+      Type_Into (Session, "put_line (To_Upper (""kept""));" & Return_Key);
+
+      Assert (Waited_For (Session, "ENDED", Tries => 900),
+              "the submission never ended: [" & Plainly (Session) & "]");
+
+      Assert (Waited_For (Session, "KEPT", Tries => 900),
+              "the line typed while the loop ran was lost: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after keeping a typed-ahead line");
+   end Type_Ahead_Survives_An_Interrupt;
+
+   --  The shell can read a line from the terminal while a submission runs.
+   --
+   --  The other half of watching. A shell that watches its terminal holds it
+   --  raw, and a read taken on a raw terminal answers nothing usable: no echo,
+   --  and a return that arrives as a carriage return where the reader waits
+   --  for a line feed -- so a script asking a question would hang with the
+   --  user unable to see what they typed. The terminal is handed back for the
+   --  duration of the read and taken again afterwards, and this is that.
+   --
+   --  Whichever way it were wrong, this would hang rather than answer, and the
+   --  wait is bounded.
+   procedure A_Submission_Can_Read_A_Line_From_The_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Submission_Can_Read_A_Line_From_The_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""asking"")); put_line (To_Upper (Read_Line));"
+         & Return_Key);
+
+      Assert (Waited_For (Session, "ASKING", Tries => 600),
+              "the submission never reached its question: ["
+              & Plainly (Session) & "]");
+
+      Type_Into (Session, "answered" & Return_Key);
+
+      Assert (Waited_For (Session, "ANSWERED", Tries => 600),
+              "a submission could not read a line from the terminal: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after reading a line");
+   end A_Submission_Can_Read_A_Line_From_The_Terminal;
+
    --------------------
 
    overriding procedure Register_Tests (T : in out Case_Type) is
@@ -2424,6 +2531,10 @@ package body Adash_Tests.Interactive_Cases is
                         "Ctrl-C at the prompt abandons the line");
       Register_Routine (T, An_Interrupt_Stops_A_Loop_Through_A_Terminal'Access,
                         "an interrupt stops a loop through a terminal");
+      Register_Routine (T, Type_Ahead_Survives_An_Interrupt'Access,
+                        "a line typed while a loop ran still runs after it");
+      Register_Routine (T, A_Submission_Can_Read_A_Line_From_The_Terminal'Access,
+                        "a submission can read a line typed at the terminal");
       Register_Routine (T, A_Session_Answers_Through_A_Terminal'Access,
                         "a session answers through a pseudo-terminal");
    end Register_Tests;

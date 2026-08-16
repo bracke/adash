@@ -80,5 +80,12 @@ Anything that needs the terminal for itself is given it back for that
 duration — a program in the foreground, a program whose output is being
 captured, and the shell's own `Read_Line`.
 
+A job started into the background is a different case: there is no "for that
+duration" to give it back for, since the shell carries on while it runs. Where
+the shell is watching, a background job is given the null device as its input
+rather than the terminal it cannot safely share, so it reads end of input
+instead of racing the shell for keystrokes. A job whose input was redirected
+keeps what it was given.
+
 A job killed by a signal reports 128 + n, which is the convention every shell
 follows and what `Adash.Execution` documents as the one status model.
