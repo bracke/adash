@@ -17,7 +17,9 @@ with Adash.Interactive.Prompt;
 with Adash.Persistence;
 with Ada.Strings.Unbounded;
 
+with Hostkit.Descriptors;
 with Hostkit.Locks;
+with Hostkit.Terminal_Control;
 
 with Adash.Persistence.History;
 with Adash.Scripting.Startup;
@@ -1109,6 +1111,24 @@ package body Adash.Interactive.Session is
             end;
 
             if Outcome = Adash.Interactive.Editing.Line_Read then
+               --  A terminal that will report a Ctrl-C while this runs.
+               --
+               --  The editor puts back the settings it saved when it took the
+               --  line, and what it saved is whatever the terminal happened to
+               --  have: a console handed over by a pseudo-console arrives
+               --  without the flag that makes an interrupt key an interrupt,
+               --  so a runaway loop there could not be stopped by anybody. The
+               --  question is asked of the host rather than answered here, and
+               --  a host that refuses leaves the loop as it was.
+               declare
+                  Ignored : constant Boolean :=
+                    Hostkit.Terminal_Control.Set_Interruptible
+                      (Hostkit.Descriptors.Standard_Input);
+                  pragma Unreferenced (Ignored);
+               begin
+                  null;
+               end;
+
                declare
                   Answer : Adash.Engine.Result;
                   use type Adash.Engine.Submission_Kind;
