@@ -461,6 +461,13 @@ package body Adash.Execution.Pipelines is
          return False;
       end if;
 
+      --  The terminal, for as long as these programs have it. Their output is
+      --  a pipe, which is what makes this a capture -- their *input* is still
+      --  the terminal, and a program reading a line from a console the shell
+      --  is holding raw for its own reasons is a program whose user cannot see
+      --  what they type.
+      Adash.Execution.Signals.Hand_Over_Terminal;
+
       --  Read to end of file before waiting. A program that writes more than a
       --  pipe holds blocks until somebody drains it, and a shell that waited
       --  first would be that somebody -- waiting for a program that is waiting
@@ -512,6 +519,8 @@ package body Adash.Execution.Pipelines is
       D.Close (Ends.Read_End);
 
       Ignored := Wait (Started, Cancel, Final);
+
+      Adash.Execution.Signals.Take_Terminal_Back;
       return True;
    end Capture;
 

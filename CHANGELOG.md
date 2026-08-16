@@ -1745,6 +1745,19 @@ what changed.
 
 ### Fixed
 
+- **A runaway loop in a script can be stopped on Windows too, and a program
+  the shell runs still gets a usable console.** The watching was armed by the
+  interactive session alone, so `adash script.adash` ran with nobody looking;
+  it is armed around a script's submission as well now, and only when standard
+  input is a terminal -- a script reading a pipe has no keyboard to watch, and
+  a shell reading that pipe would be eating the script's own input. `Output_Of`
+  hands the terminal back for the duration of the program it captures, as a
+  foreground program already did: their output is a pipe, but their input is
+  still the terminal. So does the shell's own `Read_Line`, which on a raw
+  terminal would otherwise echo nothing and wait for a line feed that a raw
+  return never sends. Type-ahead read by the watcher is written back with its
+  return as a line feed, for the same reason.
+
 - **A runaway loop can be stopped on Windows.** The shell waited for the host
   to say Ctrl-C had been typed, and there it never does: a probe spinning on a
   console is not told, and is still not told half a second after it stops

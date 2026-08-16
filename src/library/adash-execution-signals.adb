@@ -1,4 +1,5 @@
 with Ada.Calendar;
+with Ada.Characters.Latin_1;
 with Ada.Streams;
 
 with Hostkit.Signals;
@@ -173,8 +174,9 @@ package body Adash.Execution.Signals is
    Seen_Typed : Boolean := False;
    pragma Atomic (Seen_Typed);
 
-   --  What a terminal sends for the interrupt key.
+   --  What a terminal sends for the interrupt key, and for a return.
    Interrupt_Key : constant Ada.Streams.Stream_Element := 3;
+   Return_Key    : constant Ada.Streams.Stream_Element := 13;
 
    function Interrupt_Pending return Boolean is
    begin
@@ -340,8 +342,18 @@ package body Adash.Execution.Signals is
             else
                --  Everything else is what the user typed while waiting, and it
                --  belongs to whoever reads next rather than to this look.
+               --
+               --  A return arrives as a carriage return here, because that is
+               --  what a raw terminal sends and nothing is translating it. The
+               --  reader that takes these bytes next may be the editor, which
+               --  reads either, or a script's Read_Line, which looks for a
+               --  line feed and would wait forever for one. So it is written
+               --  down as the line feed it means.
                Count := Count + 1;
-               Kept (Count) := Character'Val (Natural (Buffer (Index)));
+               Kept (Count) :=
+                 (if Buffer (Index) = Return_Key
+                  then Ada.Characters.Latin_1.LF
+                  else Character'Val (Natural (Buffer (Index))));
             end if;
          end loop;
 

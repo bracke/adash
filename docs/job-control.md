@@ -71,7 +71,14 @@ handed a raw console is one nobody can type a line into, and what stops a
 foreground program there is the program's own interrupt.
 
 Bytes that are not the interrupt key go back to the shell's input buffer, so
-typing ahead during a long loop works the same way on every host.
+typing ahead during a long loop works the same way on every host. A script is
+watched the same way as an interactive session, and only when standard input is
+a terminal: a script reading a pipe has no keyboard, and a shell reading that
+pipe would be taking the script's own input.
+
+Anything that needs the terminal for itself is given it back for that
+duration — a program in the foreground, a program whose output is being
+captured, and the shell's own `Read_Line`.
 
 A job killed by a signal reports 128 + n, which is the convention every shell
 follows and what `Adash.Execution` documents as the one status model.

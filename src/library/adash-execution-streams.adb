@@ -1,6 +1,9 @@
 with Ada.Characters.Latin_1;
+with Ada.Finalization;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
+
+with Adash.Execution.Signals;
 
 package body Adash.Execution.Streams is
 
@@ -110,6 +113,41 @@ package body Adash.Execution.Streams is
 
    function Read_Line (Ended : out Boolean) return String is
       use Ada.Strings.Unbounded;
+
+      --  The terminal, for as long as this read takes.
+      --
+      --  On a host where the shell watches its own terminal for Ctrl-C,
+      --  watching means holding it raw -- and a raw terminal echoes nothing
+      --  and ends a line with a carriage return, so a user answering a
+      --  script's question would see nothing they typed and the read would
+      --  wait for a line feed that never comes. Handed back for the duration
+      --  and taken again afterwards, which is what a program the shell runs
+      --  gets too.
+      --
+      --  A no-op everywhere else, and on the same host whenever nothing is
+      --  being watched.
+      type Borrowed_Terminal is new Ada.Finalization.Limited_Controlled with
+        null record;
+
+      overriding procedure Initialize (Item : in out Borrowed_Terminal);
+      overriding procedure Finalize (Item : in out Borrowed_Terminal);
+
+      overriding procedure Initialize (Item : in out Borrowed_Terminal) is
+         pragma Unreferenced (Item);
+      begin
+         Adash.Execution.Signals.Hand_Over_Terminal;
+      end Initialize;
+
+      overriding procedure Finalize (Item : in out Borrowed_Terminal) is
+         pragma Unreferenced (Item);
+      begin
+         Adash.Execution.Signals.Take_Terminal_Back;
+      end Finalize;
+
+      --  Declared before anything that returns, so every way out of this
+      --  function puts the terminal back -- including the ones that raise.
+      Borrowed : Borrowed_Terminal;
+      pragma Unreferenced (Borrowed);
 
       --  Where the first line ends in what is held, or zero when no terminator
       --  has arrived yet.

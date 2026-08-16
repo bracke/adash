@@ -3,6 +3,7 @@ with Ada.IO_Exceptions;
 with Ada.Streams.Stream_IO;
 
 with Adash.Errors;
+with Adash.Execution.Signals;
 with Adash.Language.Lexer;
 with Adash.Language.Parser;
 with Adash.Language.Symbols;
@@ -12,7 +13,9 @@ with Adash.Messages;
 with Adash.Scripting.Modules;
 with Adash.Source;
 
+with Hostkit.Descriptors;
 with Hostkit.Fs;
+with Hostkit.Terminal_Control;
 
 package body Adash.Scripting is
 
@@ -78,11 +81,36 @@ package body Adash.Scripting is
       Submitted : Adash.Engine.Result;
       use type Adash.Engine.Submission_Kind;
    begin
+      --  A script's runaway loop is a runaway loop too.
+      --
+      --  Where the host reports an interrupt to a program that is busy, the
+      --  signal arrives here as it does anywhere else and there is nothing to
+      --  arrange. Where it does not -- Windows -- the shell has to be watching
+      --  its terminal when the key is pressed, and until now only the
+      --  interactive session did that: a script on that host ran with nobody
+      --  looking, so `adash loops.adash` could not be stopped.
+      --
+      --  Only when standard input is a terminal. A script reading a pipe has
+      --  no keyboard to watch, and a shell that read that pipe looking for
+      --  Ctrl-C would be eating the script's own input.
+      if not Hostkit.Terminal_Control.Interrupt_Reaches_A_Busy_Program
+        and then Hostkit.Descriptors.Is_Terminal
+                   (Hostkit.Descriptors.Standard_Input)
+      then
+         Adash.Execution.Signals.Watch_Terminal
+           (Hostkit.Descriptors.Standard_Input);
+      end if;
+
       --  Through the engine, like everything else. A script that took another
       --  route would be a second interpreter.
       Adash.Engine.Submit
         (Session, Text, Name, Adash.Source.Origin_File, Submitted, Report,
          On_Output => On_Output);
+
+      --  Put back before anything else runs, so the terminal a script leaves
+      --  behind is the terminal it was given.
+      Adash.Execution.Signals.Stop_Watching;
+      Adash.Execution.Signals.Acknowledge_Interrupt;
 
       Carried := Submitted.Carried_Bytes;
       Status := Submitted.Status;
