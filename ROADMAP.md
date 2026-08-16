@@ -2919,13 +2919,19 @@ a submission runs, so the mechanism is there.
 The shell still does not stop. It arms the recording at start-up, asks the
 terminal to report an interrupt before every submission -- processed input on,
 and the virtual-terminal input raw mode left behind off -- and the machine asks
-between instructions as it does everywhere. What differs between the probe that
-works and the shell that does not is a terminal the shell has already read a
-line from. That is where the next attempt starts, and it starts with a probe
-that works rather than with a reading of the documentation, which has been
-wrong four times here: about batch files, about what a console does with a
-character, about whether a key event was needed, and about where the keystroke
-went.
+between instructions as it does everywhere.
+
+And the terminal is not the reason: the probe now does the shell's own sequence
+-- a line read in raw mode, the settings put back, a terminal asked to report
+an interrupt key, then waiting without reading -- and it is told. Sixty lines
+of companion get what the shell does not, so the fault is inside the shell:
+the recording, the asking, or the looking. Which of the three needs the shell
+to say what it sees, and that is the next thing to build.
+
+Every step of this was documentation being wrong and the machine being right:
+about batch files, about what a console does with a character, about whether a
+key event was needed, about where the keystroke went, and about whether the
+terminal could report one at all.
 
 An earlier attempt to have the shell poll its own input between instructions is
 described above and was reverted; the boundaries it drew -- only between

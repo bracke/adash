@@ -2251,19 +2251,19 @@ package body Adash_Tests.Interactive_Cases is
       if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
          --  Where the trail ends, on the host where this does not work.
          --
-         --  Measured, in the probe above: a program that is *not* reading, on
-         --  a terminal that has been asked to report an interrupt key, is told
-         --  about a Ctrl-C typed as the byte. That is the shell's exact
-         --  situation while a submission runs, and the mechanism is there.
+         --  The terminal is not the reason, and that is measured rather than
+         --  argued. The probe above does what this shell does -- reads a line
+         --  in raw mode, puts the saved settings back, asks for a terminal
+         --  that reports an interrupt key, and then waits without reading --
+         --  and it is told about a Ctrl-C typed at it. Sixty lines of
+         --  companion get the interrupt that the shell does not.
          --
-         --  The shell still does not stop. It arms the recording at start-up,
-         --  it asks the terminal to report an interrupt before every
-         --  submission -- Hostkit.Terminal_Control.Set_Interruptible, which
-         --  turns processed input on and the virtual-terminal input that raw
-         --  mode left behind off -- and the machine asks between instructions
-         --  as it does everywhere. What differs between the probe that works
-         --  and the shell that does not is a terminal this one has already
-         --  read a line from, and that is where the next person should look.
+         --  So what is left is inside the shell: it arms the recording at
+         --  start-up, asks the terminal before every submission, and the
+         --  machine looks between instructions as it does on every host. One
+         --  of those three is not doing what it says on this host, and finding
+         --  out which needs the shell itself to say what it sees -- which is
+         --  the next thing to build, and the reason the probe exists at all.
          return;
       end if;
 

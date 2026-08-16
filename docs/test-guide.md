@@ -167,14 +167,19 @@ Tab completing a word, Up recalling a line, Up *not* recalling a line typed with
 a space in front of it, backspace removing something, and **Ctrl-C at the
 prompt** abandoning the line being typed so that the next one runs.
 
-One thing stays off that host: **Ctrl-C while a program is running**, and the
-account of it is now measured rather than reasoned. A companion sitting on a
-terminal recorded what arrives: `byte= 3` for a Ctrl-C typed as the byte, and
--- on a terminal asked to report an interrupt key, with nothing reading -- an
-interrupt recorded, which is the shell's exact situation while a submission
-runs. The mechanism is there and the shell still does not stop. What differs
-between the probe that works and the shell that does not is a terminal the
-shell has already read a line from, and that is where the next attempt starts.
+One thing stays off that host: **Ctrl-C while a program is running**, and what
+is known about it is measured rather than reasoned. A companion sitting on a
+terminal records what reaches it, and on that host it reports: `byte= 3` for a
+Ctrl-C typed as the byte; an accented character in the console's code page,
+which is why raw mode now asks for UTF-8; and -- after reading a line in raw
+mode, restoring the settings and asking for a terminal that reports an
+interrupt key, which is precisely the shell's own sequence -- an interrupt.
+
+Sixty lines of companion get the interrupt the shell does not, so the terminal
+is not the reason. What is left is inside the shell: the recording it arms, the
+terminal it asks before every submission, or the look the machine takes between
+instructions. Which of the three needs the shell to say what it sees, and that
+is the next thing to build.
 
 And
 the **accented** half of the backspace case. Three ways of typing that
