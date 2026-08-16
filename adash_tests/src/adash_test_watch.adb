@@ -94,7 +94,15 @@ procedure Adash_Test_Watch is
 
    task body Present is
    begin
-      delay 0.01;
+      --  Idle, and going on being idle. A program that is told about a Ctrl-C
+      --  while waiting and not told while busy might be one where the notice
+      --  needs *some* thread to be waiting -- so this one waits for as long as
+      --  the probe runs, and the busy mode below spins beside it. If the flag
+      --  is set then, a shell has a fix: a thread that idles is a thread the
+      --  host can hand a notice to.
+      for Turn in 1 .. 400 loop
+         delay 0.05;
+      end loop;
    end Present;
 
 begin
