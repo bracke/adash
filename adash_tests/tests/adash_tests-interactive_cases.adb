@@ -1933,25 +1933,10 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
    begin
-      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt) then
-         --  A host where a keystroke interrupts a program that is running.
-         --
-         --  Both ways of typing one have been tried on the host where it does
-         --  not: the byte 0x03, which is what a line discipline takes, and the
-         --  key event a console in win32-input-mode asks for. The key event is
-         --  the right encoding -- the case below, which runs there, uses it
-         --  and the editor sees the interrupt at the prompt -- and it still
-         --  does not stop a running loop. What arrives is *input to be read*,
-         --  and nothing is reading while a submission runs; there is no
-         --  asynchronous event for the shell to have recorded.
-         --
-         --  A shell could poll its own input between instructions instead.
-         --  That is a decision rather than a fix: while a child is running,
-         --  the input belongs to the child, and a shell reading it to look for
-         --  a Ctrl-C would be taking keystrokes from the program it started.
-         return;
-      end if;
-
+      --  Every host that can give a child a terminal. Where there are signals
+      --  the terminal turns the keystroke into one; where there are not, the
+      --  shell looks at its own input between two instructions and finds it
+      --  there. Both are the same promise to a user with a runaway loop.
       if not Start_On_A_Terminal (Session) then
          return;
       end if;

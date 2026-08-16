@@ -4,6 +4,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 
 with Adash.Errors;
+with Adash.Execution.Signals;
 with Adash.Machine;
 with Adash.Language.Symbols;
 with Adash.Language.Types;
@@ -219,7 +220,28 @@ package body Adash.Language.Evaluation is
    overriding function Stop_Requested (Item : in out Bridge) return Boolean is
       pragma Unreferenced (Item);
    begin
-      return Current_Cancel /= null and then Is_Cancelled (Current_Cancel.all);
+      if Current_Cancel /= null and then Is_Cancelled (Current_Cancel.all) then
+         return True;
+      end if;
+
+      --  And on a host that cannot deliver an interrupt by itself, a look at
+      --  the input. Only there: where dispositions are installed the signal
+      --  does this job, and reading input to ask the same question would take
+      --  a keystroke the user typed ahead.
+      --
+      --  Here rather than inside Interrupt_Pending, because *here* is between
+      --  two instructions of the machine. A child running has the shell inside
+      --  one instruction, not between two, so its keystrokes stay its own.
+      declare
+         use type Adash.Execution.Signals.Watcher_Access;
+
+         Looks : constant Adash.Execution.Signals.Watcher_Access :=
+           Adash.Execution.Signals.Watching;
+      begin
+         return not Adash.Execution.Signals.Is_Installed
+           and then Looks /= null
+           and then Looks.Interrupt_Typed;
+      end;
    end Stop_Requested;
 
    package S renames Adash.Language.Syntax;
