@@ -516,6 +516,10 @@ package body Adash.Messages is
          when Msg_Command_Run_New_Doc        => return "command.run_new.doc";
          when Msg_Command_Run_Errors_Into_Doc =>
             return "command.run_errors_into.doc";
+         when Msg_Command_Run_Errors_Append_Doc =>
+            return "command.run_errors_append.doc";
+         when Msg_Command_Run_Errors_New_Doc =>
+            return "command.run_errors_new.doc";
          when Msg_Command_Pipe_Doc           => return "command.pipe.doc";
          when Msg_Command_Pipe_Run_Doc       => return "command.pipe_run.doc";
          when Msg_Command_Start_Doc          => return "command.start.doc";
@@ -863,6 +867,8 @@ package body Adash.Messages is
             | Msg_Command_Run_Doc | Msg_Command_Run_Into_Doc
             | Msg_Command_Run_From_Doc | Msg_Command_Run_Append_Doc
             | Msg_Command_Run_New_Doc | Msg_Command_Run_Errors_Into_Doc
+            | Msg_Command_Run_Errors_Append_Doc
+            | Msg_Command_Run_Errors_New_Doc
             | Msg_Command_Pipe_Doc
             | Msg_Command_Pipe_Run_Doc
             | Msg_Command_Start_Doc | Msg_Command_Wait_Doc

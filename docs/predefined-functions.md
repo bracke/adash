@@ -143,7 +143,8 @@ capture of two lines carried an invisible byte that made every comparison
 against text the script wrote itself fail on that host alone. A lone carriage
 return is left where it is — it is not a line ending anywhere this runs.
 
-The same limit bounds `Output_Of`: a program that writes more than it is stopped
+The same limit bounds `Error_Of` — a program that complains without stopping is
+stopped the same way — and bounds `Output_Of`: a program that writes more than it is stopped
 where it stands, by closing the pipe rather than by signalling it, and the
 capture is refused whole. It bounds `Read_Line` differently, because input that
 has been read cannot be asked for again — a line longer than the limit arrives

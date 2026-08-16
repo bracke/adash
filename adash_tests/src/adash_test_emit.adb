@@ -13,7 +13,8 @@ with Hostkit.Host;
 --  Four arguments are read rather than written:
 --
 --    --exit=N    exit with status N
---    --error=T   write T to standard error rather than to standard output
+--    --error=T   write T to standard error rather than to standard output,
+--                as many times as --repeat says
 --    --part=T    write T to standard error without ending the line, which is
 --                what a program killed mid-write leaves behind
 --    --sleep=S   wait S seconds before finishing
@@ -85,8 +86,13 @@ begin
             Status := Integer'Value (After (Value, "--exit="));
 
          elsif Introduced_By (Value, "--error=") then
-            Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Standard_Error, After (Value, "--error="));
+            --  Repeated like the ordinary arguments are, so that a case can
+            --  have a program that complains more than a shell will hold as
+            --  easily as one that says more than it will hold.
+            for Turn in 1 .. Times loop
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error, After (Value, "--error="));
+            end loop;
 
          elsif Introduced_By (Value, "--part=") then
             --  No terminator. A program that dies part-way through saying

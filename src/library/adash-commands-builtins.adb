@@ -379,6 +379,7 @@ package body Adash.Commands.Builtins is
 
          when Command_Run | Command_Run_Into | Command_Run_From
             | Command_Run_Append | Command_Run_New | Command_Run_Errors_Into
+            | Command_Run_Errors_Append | Command_Run_Errors_New
             | Command_Start =>
             declare
                Waits : constant Boolean := Id /= Command_Start;
@@ -388,7 +389,8 @@ package body Adash.Commands.Builtins is
                Redirects : constant Boolean :=
                  Id in Command_Run_Into | Command_Run_From
                      | Command_Run_Append | Command_Run_New
-                     | Command_Run_Errors_Into;
+                     | Command_Run_Errors_Into | Command_Run_Errors_Append
+                     | Command_Run_Errors_New;
 
                First_Word : constant Positive := (if Redirects then 2 else 1);
 
@@ -418,7 +420,9 @@ package body Adash.Commands.Builtins is
                           (case Id is
                               when Command_Run_From =>
                                 Adash.Execution.Streams.Role_Input,
-                              when Command_Run_Errors_Into =>
+                              when Command_Run_Errors_Into
+                                 | Command_Run_Errors_Append
+                                 | Command_Run_Errors_New =>
                                 Adash.Execution.Streams.Role_Error,
                               when others =>
                                 Adash.Execution.Streams.Role_Output),
@@ -426,9 +430,10 @@ package body Adash.Commands.Builtins is
                           (case Id is
                               when Command_Run_From =>
                                 Adash.Execution.Redirection.Redirect_From_File,
-                              when Command_Run_Append =>
+                              when Command_Run_Append
+                                 | Command_Run_Errors_Append =>
                                 Adash.Execution.Redirection.Redirect_Append_File,
-                              when Command_Run_New =>
+                              when Command_Run_New | Command_Run_Errors_New =>
                                 Adash.Execution.Redirection.Redirect_To_New_File,
                               when others =>
                                 Adash.Execution.Redirection.Redirect_To_File),

@@ -1129,3 +1129,61 @@ output = [
   "]",
 ]
 diagnostics = []
+
+[[case]]
+id = "files.a-program-that-complains-too-much-is-stopped"
+requirement = """
+`Error_Of` collects through the same path `Output_Of` does, so the limit that
+holds there holds here -- and a program that complains without stopping is
+exactly the shape that would find a mistake in the sharing. A shell that
+bounded one stream and not the other would be a shell whose second reader
+nobody had run past the end.
+
+The program is stopped the same way: the shell closes the pipe, and the next
+write into a pipe nobody holds open ends the program. Its ordinary output is
+untouched by any of this, which is what makes the two functions worth having
+separately.
+"""
+script = """
+settings ("read.limit", "1");
+put_line ("[" & Error_Of ("{emit}", "--repeat=16000", "--error=0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789") & "]");
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "!line.setting{key=read.limit,value=1,summary=!setting.read-limit!}!",
+  "[]",
+  " 1",
+]
+diagnostics = [
+  "!error.output_too_large{program={emit}}!",
+]
+
+[[case]]
+id = "run.what-a-program-complains-about-has-three-places-to-go"
+requirement = """
+Output can be written, added to, or written to a file that must not already
+exist. Complaints could only be written, which left a script that wanted to
+collect what went wrong across several runs -- the commonest thing anybody does
+with an error log -- with nowhere to put the second one.
+
+The three forms are the three the output side has, and they refuse the same
+way: a file that is already there is what `run_errors_new` will not write over.
+"""
+script = """
+run_errors_into ("{store}/log.txt", "{emit}", "--error=first");
+run_errors_append ("{store}/log.txt", "{emit}", "--error=second");
+put_line ("[" & Read_File ("{store}/log.txt") & "]");
+run_errors_new ("{store}/log.txt", "{emit}", "--error=third");
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "[first",
+  "second",
+  "]",
+  " 1",
+]
+diagnostics = [
+  "!error.redirection_open_failed{path={store}/log.txt}!",
+]

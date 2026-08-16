@@ -112,6 +112,22 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Run_Errors_Into_Doc, M.Msg_Command_Hint, Available),
 
+      --  The same three forms the output side has. A log of what went wrong is
+      --  the thing a script most often wants to add to rather than replace,
+      --  and a file that must not already exist is how a script keeps two runs
+      --  from writing over each other -- neither is less useful for being
+      --  about the error stream, and a shell offering three forms for one
+      --  stream and one for the other would have to explain why.
+      (Command_Run_Errors_Append, Named ("run_errors_append"), 2, Any_Number,
+       [1 => Text ("File"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_Errors_Append_Doc, M.Msg_Command_Hint, Available),
+
+      (Command_Run_Errors_New, Named ("run_errors_new"), 2, Any_Number,
+       [1 => Text ("File"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_Errors_New_Doc, M.Msg_Command_Hint, Available),
+
       --  A pipeline, built a stage at a time and then run. Two commands rather
       --  than one because a pipeline is a list of command lines, and a single
       --  call would have to carry a boundary between them inside its arguments.

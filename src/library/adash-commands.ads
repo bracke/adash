@@ -87,6 +87,8 @@ package Adash.Commands is
       Command_Run_Append,
       Command_Run_New,
       Command_Run_Errors_Into,
+      Command_Run_Errors_Append,
+      Command_Run_Errors_New,
       Command_Pipe,
       Command_Pipe_Run,
       Command_Start,
