@@ -72,9 +72,19 @@ procedure Adash_Test_Watch is
    --  waiting mode asks the same thing with a delay between asks, and is told;
    --  if this one is not, what matters is being busy rather than anything the
    --  shell does.
+   --  "busy-raw" is "busy" with the terminal left raw and its input polled as
+   --  the loop spins. Where the host will not tell a busy program that Ctrl-C
+   --  was typed, the keystroke itself is still a byte at the terminal -- the
+   --  raw record above shows it arriving -- and a shell that cannot be told
+   --  can look. This is whether that works while busy.
+   Busy_Polling : constant Boolean :=
+     Ada.Command_Line.Argument_Count >= 3
+       and then Ada.Command_Line.Argument (3) = "busy-raw";
+
    Busy_Loop : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
-       and then Ada.Command_Line.Argument (3) = "busy";
+       and then (Ada.Command_Line.Argument (3) = "busy"
+                 or else Ada.Command_Line.Argument (3) = "busy-raw");
 
    Through_The_Engine : constant Boolean :=
      Ada.Command_Line.Argument_Count >= 3
@@ -168,8 +178,9 @@ begin
 
    if Busy_Loop then
       declare
-         Told    : Boolean := False;
-         Started : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+         Told      : Boolean := False;
+         Saw_Three : Boolean := False;
+         Started   : constant Ada.Calendar.Time := Ada.Calendar.Clock;
 
          use type Ada.Calendar.Time;
       begin
@@ -185,10 +196,44 @@ begin
                Told := Adash.Execution.Signals.Interrupt_Pending;
                exit when Told;
             end loop;
+
+            --  The other way of finding out, for the host that will not say.
+            --  A poll that waits no time at all, so this stays a busy loop
+            --  rather than becoming the waiting one that is already answered.
+            if Busy_Polling
+              and then Hostkit.Descriptors.Wait_Readable
+                         (Hostkit.Descriptors.Standard_Input, 0)
+            then
+               declare
+                  Buffer : Ada.Streams.Stream_Element_Array (1 .. 64);
+                  Last   : Ada.Streams.Stream_Element_Offset;
+
+                  use type Ada.Streams.Stream_Element;
+                  use type Hostkit.Descriptors.Transfer_Outcome;
+               begin
+                  if Hostkit.Descriptors.Read
+                       (Hostkit.Descriptors.Standard_Input, Buffer, Last)
+                     = Hostkit.Descriptors.Transfer_Ok
+                  then
+                     for Index in Buffer'First .. Last loop
+                        Ada.Text_IO.Put_Line
+                          (Report,
+                           "while-busy="
+                           & Natural'Image (Natural (Buffer (Index))));
+
+                        Saw_Three := Saw_Three or else Buffer (Index) = 3;
+                     end loop;
+
+                     Ada.Text_IO.Flush (Report);
+                  end if;
+               end;
+            end if;
          end loop;
 
          Ada.Text_IO.Put_Line
            (Report, "busy-told=" & Boolean'Image (Told));
+         Ada.Text_IO.Put_Line
+           (Report, "saw-three=" & Boolean'Image (Saw_Three));
          Ada.Text_IO.Flush (Report);
 
          --  And the same question one moment after the spinning stops.

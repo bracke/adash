@@ -2067,137 +2067,156 @@ package body Adash_Tests.Interactive_Cases is
       --  reading, on a terminal asked to report an interrupt key. That is the
       --  shape a shell is in while a submission runs, and the answer decides
       --  whether stopping a runaway loop is the host's job or the shell's.
+      --
+      --  Asked twice, because the record so far says the notice never comes on
+      --  one host and says nothing about why. "busy" is that host's answer
+      --  again; "busy-raw" is the same spinning program with the terminal left
+      --  raw and the input polled as it spins -- which is how the shell would
+      --  find the keystroke itself, on a host that will not tell it. The raw
+      --  record above already shows byte= 3 arriving there.
       declare
-         Second : Hostkit.Pty.Pair;
-         Waiter : Hostkit.Spawn.Process_Handle;
-         Asked  : Hostkit.String_Vectors.Vector;
+         procedure Ask_A_Watcher
+           (Mode : String; File : String; Record_Into : out
+              Ada.Strings.Unbounded.Unbounded_String);
 
-         Elsewhere : constant String :=
-           Ada.Directories.Compose
-             (Ada.Directories.Containing_Directory
-                (Ada.Command_Line.Command_Name),
-              "terminal-waiting.txt");
+         procedure Ask_A_Watcher
+           (Mode : String; File : String; Record_Into : out
+              Ada.Strings.Unbounded.Unbounded_String)
+         is
+            Second : Hostkit.Pty.Pair;
+            Waiter : Hostkit.Spawn.Process_Handle;
+            Asked  : Hostkit.String_Vectors.Vector;
 
-         Waited : Ada.Strings.Unbounded.Unbounded_String;
+            Elsewhere : constant String :=
+              Ada.Directories.Compose
+                (Ada.Directories.Containing_Directory
+                   (Ada.Command_Line.Command_Name),
+                 File);
+         begin
+            Record_Into := Ada.Strings.Unbounded.Null_Unbounded_String;
+
+            if Ada.Directories.Exists (Elsewhere) then
+               Ada.Directories.Delete_File (Elsewhere);
+            end if;
+
+            Asked.Append
+              (Ada.Strings.Unbounded.To_Unbounded_String (Elsewhere));
+            Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("4"));
+            Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String (Mode));
+
+            Assert (Hostkit.Pty.Open (Second),
+                    "could not open a second terminal");
+            Assert (Hostkit.Pty.Set_Size (Second, (Rows => 24, Columns => 80)),
+                    "could not size the second terminal");
+
+            declare
+               Theirs : Hostkit.Spawn.Options;
+            begin
+               Assert (Hostkit.Pty.Attach (Second, Theirs),
+                       "could not start the waiter on a terminal");
+               Assert (Hostkit.Spawn.Start
+                         (Ada.Directories.Compose
+                            (Ada.Directories.Containing_Directory
+                               (Ada.Command_Line.Command_Name),
+                             "adash_test_watch"
+                             & Hostkit.Fs.Executable_Suffix),
+                          Asked, Theirs, Waiter)
+                       = Hostkit.Spawn.Spawn_Ok,
+                       "the waiter would not start on a terminal");
+            end;
+
+            Hostkit.Pty.Close_Device (Second);
+
+            delay 0.5;
+
+            --  A line for it to read, so it goes through what the editor does.
+            declare
+               Line : constant Ada.Streams.Stream_Element_Array (1 .. 2) :=
+                 [Character'Pos ('x'), 13];
+               Last : Ada.Streams.Stream_Element_Offset;
+
+               use type Hostkit.Descriptors.Transfer_Outcome;
+
+               Sent : constant Boolean :=
+                 Hostkit.Descriptors.Write (Second.To_Child, Line, Last)
+                 = Hostkit.Descriptors.Transfer_Ok;
+
+               use type Ada.Streams.Stream_Element_Offset;
+            begin
+               Assert (Sent and then Last = Line'Last,
+                       "could not type a line at the second terminal");
+            end;
+
+            delay 0.5;
+
+            declare
+               Data : constant Ada.Streams.Stream_Element_Array (1 .. 1) :=
+                 [1 => Ada.Streams.Stream_Element (3)];
+               Last : Ada.Streams.Stream_Element_Offset;
+
+               use type Ada.Streams.Stream_Element_Offset;
+               use type Hostkit.Descriptors.Transfer_Outcome;
+
+               Sent : constant Boolean :=
+                 Hostkit.Descriptors.Write (Second.To_Child, Data, Last)
+                 = Hostkit.Descriptors.Transfer_Ok;
+            begin
+               Assert (Sent and then Last = Data'Last,
+                       "could not type at the second terminal");
+            end;
+
+            for Attempt in 1 .. 200 loop
+               exit when Hostkit.Spawn.Wait
+                           (Waiter, Hostkit.Spawn.Wait_Poll, Result)
+                         and then Result.State /= Hostkit.Spawn.Wait_Running;
+
+               declare
+                  Ignored : constant Boolean := Drained_Into_Nothing (Second);
+                  pragma Unreferenced (Ignored);
+               begin
+                  null;
+               end;
+            end loop;
+
+            Hostkit.Pty.Close (Second);
+
+            if Ada.Directories.Exists (Elsewhere) then
+               declare
+                  Kept : Ada.Text_IO.File_Type;
+               begin
+                  Ada.Text_IO.Open (Kept, Ada.Text_IO.In_File, Elsewhere);
+
+                  while not Ada.Text_IO.End_Of_File (Kept) loop
+                     Ada.Strings.Unbounded.Append
+                       (Record_Into, Ada.Text_IO.Get_Line (Kept) & " ");
+                  end loop;
+
+                  Ada.Text_IO.Close (Kept);
+               end;
+            end if;
+         end Ask_A_Watcher;
+
+         Waited  : Ada.Strings.Unbounded.Unbounded_String;
+         Watched : Ada.Strings.Unbounded.Unbounded_String;
       begin
-         if Ada.Directories.Exists (Elsewhere) then
-            Ada.Directories.Delete_File (Elsewhere);
-         end if;
-
-         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String (Elsewhere));
-         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("4"));
-         --  The shell's own sequence: a line read in raw mode, the settings
-         --  put back, and only then a terminal asked to report an interrupt.
-         --  That is the one difference left between a companion that is told
-         --  about a Ctrl-C and a shell that is not.
-         --  The shell without its frontend: arm, ask the terminal to report an
-         --  interrupt, and run a submission that never ends. Everything the
-         --  frontend does has been tried in this companion and the interrupt
-         --  arrived each time, so what is left is the engine and the machine.
-         --  Busy, and nothing else: a tight loop asking whether an interrupt
-         --  arrived. The same question with a delay between asks is answered;
-         --  if this one is not, what matters is being busy rather than
-         --  anything the shell does with an engine or a terminal.
-         Asked.Append (Ada.Strings.Unbounded.To_Unbounded_String ("busy"));
-
-         Assert (Hostkit.Pty.Open (Second), "could not open a second terminal");
-         Assert (Hostkit.Pty.Set_Size (Second, (Rows => 24, Columns => 80)),
-                 "could not size the second terminal");
-
-         declare
-            Theirs : Hostkit.Spawn.Options;
-         begin
-            Assert (Hostkit.Pty.Attach (Second, Theirs),
-                    "could not start the waiter on a terminal");
-            Assert (Hostkit.Spawn.Start
-                      (Ada.Directories.Compose
-                         (Ada.Directories.Containing_Directory
-                            (Ada.Command_Line.Command_Name),
-                          "adash_test_watch" & Hostkit.Fs.Executable_Suffix),
-                       Asked, Theirs, Waiter)
-                    = Hostkit.Spawn.Spawn_Ok,
-                    "the waiter would not start on a terminal");
-         end;
-
-         Hostkit.Pty.Close_Device (Second);
-
-         delay 0.5;
-
-         --  A line for it to read, so it goes through what the editor does.
-         declare
-            Line : constant Ada.Streams.Stream_Element_Array (1 .. 2) :=
-              [Character'Pos ('x'), 13];
-            Last : Ada.Streams.Stream_Element_Offset;
-
-            use type Hostkit.Descriptors.Transfer_Outcome;
-            Sent : constant Boolean :=
-              Hostkit.Descriptors.Write (Second.To_Child, Line, Last)
-              = Hostkit.Descriptors.Transfer_Ok;
-
-            use type Ada.Streams.Stream_Element_Offset;
-         begin
-            Assert (Sent and then Last = Line'Last,
-                    "could not type a line at the second terminal");
-         end;
-
-         delay 0.5;
-
-         declare
-            Data : constant Ada.Streams.Stream_Element_Array (1 .. 1) :=
-              [1 => Ada.Streams.Stream_Element (3)];
-            Last : Ada.Streams.Stream_Element_Offset;
-
-            use type Ada.Streams.Stream_Element_Offset;
-            use type Hostkit.Descriptors.Transfer_Outcome;
-            Sent : constant Boolean :=
-              Hostkit.Descriptors.Write (Second.To_Child, Data, Last)
-              = Hostkit.Descriptors.Transfer_Ok;
-         begin
-            Assert (Sent and then Last = Data'Last,
-                    "could not type at the second terminal");
-         end;
-
-         for Attempt in 1 .. 200 loop
-            exit when Hostkit.Spawn.Wait
-                        (Waiter, Hostkit.Spawn.Wait_Poll, Result)
-                      and then Result.State /= Hostkit.Spawn.Wait_Running;
-
-            declare
-               Ignored : constant Boolean := Drained_Into_Nothing (Second);
-               pragma Unreferenced (Ignored);
-            begin
-               null;
-            end;
-         end loop;
-
-         Hostkit.Pty.Close (Second);
-
-         if Ada.Directories.Exists (Elsewhere) then
-            declare
-               File : Ada.Text_IO.File_Type;
-            begin
-               Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Elsewhere);
-
-               while not Ada.Text_IO.End_Of_File (File) loop
-                  Ada.Strings.Unbounded.Append
-                    (Waited, Ada.Text_IO.Get_Line (File) & " ");
-               end loop;
-
-               Ada.Text_IO.Close (File);
-            end;
-         end if;
+         Ask_A_Watcher ("busy", "terminal-waiting.txt", Waited);
+         Ask_A_Watcher ("busy-raw", "terminal-watching.txt", Watched);
 
          --  A program that never stops computing is not told about a Ctrl-C
-         --  on every host: where the notice comes on a thread the host makes,
-         --  it needs a moment to arrive. That is why the machine's poll gives
-         --  the host one, and this records which kind of host this is rather
-         --  than asserting one answer -- what the *shell* does about it is the
-         --  case below, which is the claim that matters.
+         --  on every host, and where it is not, the record says so rather than
+         --  this case asserting one answer. What the *shell* does about it is
+         --  the case below, which is the claim that matters.
          Assert (Ada.Strings.Fixed.Index
                    (Ada.Strings.Unbounded.To_String (Waited), "busy-told")
                  > 0,
                  "the busy probe did not run at all: ["
                  & Ada.Strings.Unbounded.To_String (Waited) & "]");
+
+         Assert (Ada.Strings.Fixed.Index
+                   (Ada.Strings.Unbounded.To_String (Watched), "busy-told")
+                 > 0,
+                 "the polling probe did not run at all: ["
+                 & Ada.Strings.Unbounded.To_String (Watched) & "]");
 
          --  Printed, not only asserted. What this case is for is finding out,
          --  and an assertion that holds says nothing on the host whose answer
@@ -2205,6 +2224,8 @@ package body Adash_Tests.Interactive_Cases is
          --  when it passes as well as when it fails.
          Ada.Text_IO.Put_Line
            ("busy-probe: " & Ada.Strings.Unbounded.To_String (Waited));
+         Ada.Text_IO.Put_Line
+           ("polling-probe: " & Ada.Strings.Unbounded.To_String (Watched));
       end;
    end A_Terminal_Says_What_Reaches_A_Program;
 
