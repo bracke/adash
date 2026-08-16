@@ -190,6 +190,22 @@ begin
          Ada.Text_IO.Put_Line
            (Report, "busy-told=" & Boolean'Image (Told));
          Ada.Text_IO.Flush (Report);
+
+         --  And the same question one moment after the spinning stops.
+         --
+         --  "Never told" and "told, but not while busy" are two different
+         --  defects with two different fixes, and the line above cannot tell
+         --  them apart. If the flag is set here, the notice did arrive and
+         --  something about being busy kept it from being seen -- and a shell
+         --  can look again. If it is still clear, the notice was never
+         --  delivered at all, and no amount of looking would find it.
+         delay 0.5;
+
+         Ada.Text_IO.Put_Line
+           (Report,
+            "after-busy="
+            & Boolean'Image (Adash.Execution.Signals.Interrupt_Pending));
+         Ada.Text_IO.Flush (Report);
       end;
 
       Ada.Text_IO.Put_Line (Report, "end");
