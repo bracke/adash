@@ -1,0 +1,11 @@
+--  Read by two conformance cases: one that lets this shell capture all of it,
+--  and one that sets a limit it goes past.
+--
+--  Sixteen thousand lines of a hundred characters is a little over a mebibyte,
+--  which is the smallest `read.limit` a user can set.
+for Line in 1 .. 16_000 loop
+   put_line ("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
+end loop;
+
+put_line ("that was all of it");
+quit (0);

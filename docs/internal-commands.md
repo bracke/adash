@@ -143,6 +143,16 @@ and these after what is written. Appending to a file that is not there makes it,
 because the first turn of a loop that collects lines is not an error. A write
 that worked says nothing; `Status` says what became of it.
 
+**Writing puts down exactly the bytes it is given.** The three readers drop the
+carriage return in front of a line feed, because a String in this language is
+text and a line in text ends with a line feed — but nothing on the way out puts
+one back. A file a script writes on Windows therefore has line feeds alone,
+which every tool made this century reads and a few old ones show as one long
+line. That is deliberate: a shell that added carriage returns on one host would
+make `write_file (Read_File (P), Q)` change the file it copied, and a script
+that wants them can write them, since `Character'Val (13)` is a character like
+any other.
+
 `make_directory` makes every missing directory in the path rather than only the
 last: a script that has worked out `logs/2026/august` means all of it. A
 directory that is already there is not a failure — what was asked for is that it

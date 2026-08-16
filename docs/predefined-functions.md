@@ -119,7 +119,8 @@ file, so the answer is `False` rather than a failure.
 
 `Read_File` answers in text, like `Output_Of` and `Read_Line`: a carriage return
 in front of a line feed is part of the line ending a Windows file has and goes
-with it, and a lone carriage return is left where it is.
+with it, and a lone carriage return is left where it is. Nothing puts them back
+on the way out — see `write_file` in the command reference for why.
 
 `Read_File` answers with nothing for a file that is not there, a file this shell
 cannot read, a file that is not UTF-8, and a **directory** — all the same

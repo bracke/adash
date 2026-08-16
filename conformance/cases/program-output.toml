@@ -1004,3 +1004,78 @@ output = [
   "TRUE",
 ]
 diagnostics = []
+
+[[case]]
+id = "run.a-shell-runs-a-shell-that-says-more-than-a-mebibyte"
+requirement = """
+Two hundred kilobytes from a child shell works everywhere; this is the same
+question at a mebibyte and a half, which is the size at which one host answered
+with nothing at all.
+
+Inside what a capture holds by default, so nothing here is refused: what is
+being asked is whether a child shell can write that much into a pipe and be
+drained of it. If this passes and the refusal below does not, then what is
+broken is the refusal and not the writing, which is as far as anybody has
+narrowed it.
+"""
+script = """
+put_line (Boolean'Image (Index (Output_Of ("{shell}", "{root}/conformance/fixtures/says-too-much.adash"), "that was all of it") > 0));
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "TRUE",
+  " 0",
+]
+diagnostics = []
+
+[[case]]
+id = "run.a-child-shell-past-the-limit-is-refused-and-says-so"
+requirement = """
+The case that has never been explained, written down so that it either passes
+or says something.
+
+A program past `read.limit` is stopped and the capture refused, and the same
+case with the test crate's own program passes on every host. With a child shell
+as the program, one host came back with an empty capture, a failing status, and
+no diagnostic of any kind. Everything else about that has since been ruled out:
+a shell runs a shell, a child fills a pipe and is drained of it, and the line
+endings that made the first version of this fail are fixed.
+
+A refusal that says nothing is a defect whatever causes it, so this asserts the
+saying rather than only the refusing.
+"""
+script = """
+settings ("read.limit", "1");
+put_line ("[" & Output_Of ("{shell}", "{root}/conformance/fixtures/says-too-much.adash") & "]");
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "!line.setting{key=read.limit,value=1,summary=!setting.read-limit!}!",
+  "[]",
+  " 1",
+]
+diagnostics = [
+  "!error.output_too_large{program={shell}}!",
+]
+
+[[case]]
+id = "input.a-line-ending-is-a-line-ending-however-it-is-spelled"
+requirement = """
+The third reader's half of the same rule. `Read_Line` drops the carriage return
+in front of a line feed, as `Output_Of` and `Read_File` do, so a script reading
+input written on Windows compares against text the same way everywhere.
+
+Asserted through input this case supplies rather than through a host that
+happens to send it, for the reason the other two are: a rule one host of three
+exercises is a rule that breaks quietly on the other two.
+
+The last line is what a lone carriage return does, which is nothing: it is not a
+line ending anywhere this runs, so it stays inside the line it was typed in.
+"""
+arguments = ["{root}/conformance/fixtures/echoes.adash"]
+input = "one\r\ntwo\r\nthr\ree\n"
+exit_status = 0
+output = ["[one]", "[two]", "[thr\ree]", "read to the end"]
+diagnostics = []

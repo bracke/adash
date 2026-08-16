@@ -1763,6 +1763,14 @@ what changed.
   differently: input that has been read cannot be asked for again, so a line
   longer than the limit arrives in pieces rather than being dropped.
 
+- **All three readers' line-ending rule is asserted, and writing's is written
+  down.** `Read_Line` had only its own comment for the carriage return it drops;
+  a case supplies input spelled the Windows way and asserts it, and asserts that
+  a lone carriage return stays where it is. Nothing puts a carriage return back
+  on the way out, which is deliberate -- a shell that added them on one host
+  would make `write_file (Read_File (P), Q)` change the file it copied -- and
+  was written nowhere until now.
+
 - **`Read_File` hands back text as well.** It kept the carriage returns a
   Windows file has while the shell's other two readers dropped them, so a script
   comparing what it read against text it wrote itself failed on that host and
