@@ -599,13 +599,33 @@ package body Adash.Commands.Builtins is
                end if;
 
                declare
-                  Error  : Adash.Errors.Error_Info;
-                  Ended  : Adash.Execution.Exit_Status;
-                  Done   : constant Boolean :=
+                  Error : Adash.Errors.Error_Info;
+                  Ended : Adash.Execution.Exit_Status;
+
+                  --  Waiting for a job is putting it in the foreground, in the
+                  --  only sense a user means by the word: nothing else runs
+                  --  until it ends. So it gets the terminal for as long as
+                  --  that takes, exactly as a program started by `run` does --
+                  --  a job asked a question while the shell held the terminal
+                  --  would be stopped where it asked.
+                  Ours : Integer;
+
+                  Done : Boolean;
+               begin
+                  Adash.Execution.Signals.Hand_Over_Terminal;
+                  Adash.Execution.Pipelines.Hand_The_Terminal_To
+                    (Adash.Execution.Jobs.Group
+                       (Shell.Jobs, Adash.Execution.Jobs.Job_Id (Wanted)),
+                     Ours);
+
+                  Done :=
                     Adash.Execution.Jobs.Wait
                       (Shell.Jobs, Adash.Execution.Jobs.Job_Id (Wanted),
                        Cancel => null, Error => Error);
-               begin
+
+                  Adash.Execution.Pipelines.Take_The_Terminal_Back (Ours);
+                  Adash.Execution.Signals.Take_Terminal_Back;
+
                   if not Done then
                      --  Suspended rather than finished. Said plainly: waiting
                      --  for it would wait for an ending it cannot reach while

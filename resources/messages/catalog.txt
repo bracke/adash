@@ -170,6 +170,7 @@ en.config.wants.range = between {low} and {high}
 en.config.wants.choice = one of {choices}
 en.error.file_not_writable = nothing can be written at {path}
 en.error.file_write_failed = writing to {path} did not finish
+en.error.file_too_large = {path} holds more than this shell will read at once
 en.error.stream_write_failed = could not write to {stream}
 en.error.stream_read_failed = could not read from {stream}
 en.error.job_unknown = no such job: {job}

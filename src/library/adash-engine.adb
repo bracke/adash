@@ -283,6 +283,24 @@ package body Adash.Engine is
             begin
                Adash.Filesystem.Read (Text_At (1), Held, Result);
 
+               --  A file too big to hold is the one refusal that is said out
+               --  loud. The others are ordinary answers to an ordinary
+               --  question -- there is no such file, it is not text -- and a
+               --  script asking about them expects nothing back. This one is
+               --  a file that is there, that this shell can read, and that it
+               --  will not: silence would tell the user their file was empty,
+               --  and they would go looking for a reason it is not.
+               if Result = Adash.Filesystem.Read_Too_Large then
+                  Sink.Notes.Emit
+                    (D.From_Error
+                       (Adash.Errors.Failure
+                          (Adash.Errors.Error_File_Too_Large,
+                           [1 => Adash.Messages.Named
+                                   ("path", Text_At (1))]),
+                        D.Severity_Error, D.Category_Execution,
+                        D.Owner_Commands));
+               end if;
+
                --  A file that is not there reads as nothing, and so does one
                --  that could not be read: a question has no consequences, and
                --  a function that raised where a file was missing would make

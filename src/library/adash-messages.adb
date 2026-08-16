@@ -294,6 +294,7 @@ package body Adash.Messages is
          when Msg_Config_Wants_Choice =>
             return "config.wants.choice";
          when Msg_File_Write_Failed          => return "error.file_write_failed";
+         when Msg_File_Too_Large             => return "error.file_too_large";
          when Msg_Job_Unknown                => return "error.job_unknown";
          when Msg_Job_Is_Suspended           => return "error.job_is_suspended";
          when Msg_Execution_Cancelled        => return "error.execution_cancelled";
@@ -981,7 +982,7 @@ package body Adash.Messages is
             return [1 => N ("stream")];
 
          when Msg_File_Not_Writable
-            | Msg_File_Write_Failed =>
+            | Msg_File_Write_Failed | Msg_File_Too_Large =>
             return [1 => N ("path")];
 
          when Msg_Machine_Stack_Full | Msg_Machine_Stack_Empty

@@ -23,6 +23,7 @@ package body Adash.Errors is
             | Error_Stream_Read_Failed
             | Error_File_Not_Writable
             | Error_File_Write_Failed
+            | Error_File_Too_Large
             | Error_Job_Unknown
             | Error_Job_Is_Suspended
             | Error_Cancelled
@@ -178,6 +179,8 @@ package body Adash.Errors is
             return Adash.Messages.Msg_File_Not_Writable;
          when Error_File_Write_Failed      =>
             return Adash.Messages.Msg_File_Write_Failed;
+         when Error_File_Too_Large         =>
+            return Adash.Messages.Msg_File_Too_Large;
          when Error_Job_Unknown            => return Adash.Messages.Msg_Job_Unknown;
          when Error_Job_Is_Suspended       =>
             return Adash.Messages.Msg_Job_Is_Suspended;

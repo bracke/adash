@@ -107,9 +107,23 @@ package body Adash.Filesystem is
       declare
          Chunk : Stream_Element_Array (1 .. 4_096);
          Last  : Stream_Element_Offset;
+
+         Taken : Natural := 0;
       begin
          while not Ada.Streams.Stream_IO.End_Of_File (File) loop
             Ada.Streams.Stream_IO.Read (File, Chunk, Last);
+
+            --  Counted before it is kept, and stopped at the limit rather than
+            --  after it: a shell that noticed afterwards would already be
+            --  holding whatever it was asked to hold.
+            if Taken + Natural (Last) > Max_File_Size then
+               Ada.Streams.Stream_IO.Close (File);
+               Text := Ada.Strings.Unbounded.Null_Unbounded_String;
+               Result := Read_Too_Large;
+               return;
+            end if;
+
+            Taken := Taken + Natural (Last);
 
             for Index in Chunk'First .. Last loop
                Ada.Strings.Unbounded.Append
@@ -179,13 +193,22 @@ package body Adash.Filesystem is
          --  one call, which is what a script naming a path three deep means.
          Ada.Directories.Create_Path (Path);
       exception
-         when Ada.IO_Exceptions.Name_Error =>
-            --  A name this host will not form, or something in the way that is
-            --  not a directory.
+         when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
+            --  A name this host will not form, something in the way that is
+            --  not a directory, or a place this process may not write.
+            --
+            --  Use_Error counts as a refusal here and not where a file is
+            --  written, and the difference is real: a write can stop half way
+            --  and leave a file that is neither what was there nor what was
+            --  meant, so "did not finish" is what a caller needs to hear. A
+            --  directory is made or it is not. A name too long for the host --
+            --  which is what raises this in practice -- was never begun, and
+            --  telling a user that writing did not finish would send them
+            --  looking for what was half done.
             Result := Write_Refused;
             return;
 
-         when Ada.IO_Exceptions.Use_Error | Ada.IO_Exceptions.Device_Error =>
+         when Ada.IO_Exceptions.Device_Error =>
             Result := Write_Failed;
             return;
       end;

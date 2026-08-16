@@ -120,7 +120,14 @@ file, so the answer is `False` rather than a failure.
 `Read_File` answers with nothing for a file that is not there, a file this shell
 cannot read, a file that is not UTF-8, and a **directory** — all the same
 answer, because a question has no consequences and a function that raised here
-could not be written in the expression a script actually wants. `Exists` and
+could not be written in the expression a script actually wants.
+
+It also refuses a file larger than **16 MiB**, and that refusal is the one it
+says out loud: a shell holds what it reads in one String, so a script that named
+a disk image by mistake would otherwise have the session grow until the host
+stopped it. The file is refused whole rather than truncated — half a file is not
+a shorter file, and a script cannot tell which half it got — and something that
+size is a job for a program that streams it. `Exists` and
 `Is_Directory` are how a script that cares tells them apart, and it asks before
 it reads. Making the place a file goes is `make_directory`, which is a command.
 

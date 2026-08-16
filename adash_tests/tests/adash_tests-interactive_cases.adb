@@ -8,6 +8,7 @@ with Hostkit.Fs;
 with Hostkit.Pty;
 with Hostkit.Signals;
 with Hostkit.Spawn;
+with Hostkit.Terminal_Control;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 
@@ -2626,6 +2627,71 @@ package body Adash_Tests.Interactive_Cases is
       Hostkit.Pty.Close (Terminal);
    end A_Background_Job_Is_Given_Nothing_To_Read;
 
+   --  A job waited for gets the terminal, like a program started in front.
+   --
+   --  `wait` is what puts a job in the foreground in the only sense a user
+   --  means by the word: nothing else runs until it ends. It waits through the
+   --  same call `run` does and, until this was written, without the handover
+   --  `run` had just been given -- so a job that asked a question was stopped
+   --  where it asked.
+   --
+   --  The program waits a moment before reading, because a background program
+   --  that reads a POSIX terminal is stopped where it reads: one that read
+   --  immediately would be stopped before the shell had handed the terminal
+   --  over, and this would be measuring a race.
+   procedure A_Job_Waited_For_Gets_The_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Job_Waited_For_Gets_The_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+
+      Reader : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Command_Line.Command_Name),
+           "adash_test_reader" & Hostkit.Fs.Executable_Suffix);
+   begin
+      if not Hostkit.Terminal_Control.Supports_Foreground_Group then
+         --  Where a terminal has no owning group there is nothing to hand
+         --  over, and a job started into the background on that host was
+         --  given nothing to read at the moment it started -- which the case
+         --  above asserts, and which `wait` cannot undo.
+         return;
+      end if;
+
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into
+        (Session,
+         "start (""" & Reader & """, ""2""); wait (1);" & Return_Key);
+
+      --  Drained while the job starts and waits, rather than delayed: a
+      --  terminal nobody reads fills up, and a shell blocked part-way through
+      --  echoing a line this long is not reading what follows it either.
+      for Attempt in 1 .. 60 loop
+         exit when not Drained (Session);
+         delay 0.05;
+      end loop;
+
+      Type_Into (Session, "typed" & Return_Key);
+
+      Assert (Waited_For (Session, "read=typed", Tries => 900),
+              "a job waited for could not read a line from the terminal: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after waiting for a job");
+   end A_Job_Waited_For_Gets_The_Terminal;
+
    --------------------
 
    overriding procedure Register_Tests (T : in out Case_Type) is
@@ -2701,6 +2767,8 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine (T, A_Program_In_A_Submission_Can_Read_A_Line'Access,
                         "a program in a submission can read a line typed at "
                         & "the terminal");
+      Register_Routine (T, A_Job_Waited_For_Gets_The_Terminal'Access,
+                        "a job waited for gets the terminal");
       Register_Routine (T, A_Background_Job_Is_Given_Nothing_To_Read'Access,
                         "a background job is given nothing to read where the "
                         & "shell watches");

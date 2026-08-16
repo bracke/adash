@@ -847,3 +847,31 @@ output = [
   "TRUE",
 ]
 diagnostics = []
+
+[[case]]
+id = "files.make_directory-refuses-a-name-the-host-will-not-form"
+requirement = """
+The other refusal, and the one nobody writes a test for: not something in the
+way, but a name this host will not take at all. Every host has a limit on how
+long one part of a path may be, and a name past it is refused where it is
+named.
+
+Refused rather than failed, and the difference is not pedantry. A write can
+stop half way and leave a file that is neither what was there before nor what
+was meant, so "did not finish" is what its caller needs to hear. A directory is
+made or it is not, and a name the host never accepted was never begun -- a user
+told that writing did not finish would go looking for what was half done.
+"""
+script = """
+make_directory ("{store}/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
+put_line (Integer'Image (Status));
+put_line (Boolean'Image (Exists ("{store}/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")));
+quit (0);"""
+exit_status = 0
+output = [
+  " 1",
+  "FALSE",
+]
+diagnostics = [
+  "!error.file_not_writable{path={store}/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz}!",
+]

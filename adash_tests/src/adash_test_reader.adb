@@ -1,3 +1,4 @@
+with Ada.Command_Line;
 with Ada.Text_IO;
 
 --  Reads one line and writes it back.
@@ -15,7 +16,19 @@ with Ada.Text_IO;
 --
 --  Either way it either answers or waits, and both are answers.
 procedure Adash_Test_Reader is
+   --  How long to wait before reading, when a caller says.
+   --
+   --  For a test that starts this in the background and then waits for it: on
+   --  a POSIX host a background program that reads the terminal is stopped
+   --  where it reads, so one that read immediately would be stopped before the
+   --  shell had handed the terminal over -- and the test would be measuring a
+   --  race rather than the handover.
+   Wait_First : constant Duration :=
+     (if Ada.Command_Line.Argument_Count >= 1
+      then Duration'Value (Ada.Command_Line.Argument (1)) else 0.0);
 begin
+   delay Wait_First;
+
    --  Marked, so that what this program wrote is told apart from what a
    --  terminal echoed. Some terminals echo what is typed and some do not, and
    --  a test that could not tell the two apart would pass on the echo alone.

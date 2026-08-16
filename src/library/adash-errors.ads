@@ -64,6 +64,13 @@ package Adash.Errors is
       Error_File_Not_Writable,
       Error_File_Write_Failed,
 
+      --  Reading a file the script named, and finding more than a shell will
+      --  hold. Its own code because it is neither a missing file nor an
+      --  unreadable one: the file is there, this shell can read it, and it
+      --  will not -- which is a thing the user can act on by reading it with a
+      --  program that streams instead.
+      Error_File_Too_Large,
+
       --  Execution: jobs and cancellation.
       Error_Job_Unknown,
 

@@ -1,4 +1,5 @@
 with Ada.Directories;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
 with AUnit.Assertions;
@@ -12,6 +13,8 @@ package body Adash_Tests.Filesystem_Cases is
    package F renames Adash.Filesystem;
 
    use type F.Written;
+   use type F.Reading;
+   use type Ada.Directories.File_Size;
 
    --  A file that is there for the length of one test, and gone after it.
    function Write (Name : String) return String;
@@ -34,6 +37,9 @@ package body Adash_Tests.Filesystem_Cases is
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
 
    procedure Writing_Replaces_And_Appending_Adds
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_File_Bigger_Than_The_Limit_Is_Refused
      (Test : in out AUnit.Test_Cases.Test_Case'Class);
 
    procedure A_Write_With_Nowhere_To_Go_Is_Refused
@@ -137,6 +143,68 @@ package body Adash_Tests.Filesystem_Cases is
       Ada.Directories.Delete_File (Path);
    end Writing_Replaces_And_Appending_Adds;
 
+   --  More than a shell will hold is refused, and refused whole.
+   --
+   --  A shell keeps what it reads in one String, in memory, so a script that
+   --  names a file by mistake -- a disk image, a log nobody rotated -- would
+   --  have the shell grow until the host stopped it, taking the session with
+   --  it. A limit can be refused; running out cannot.
+   --
+   --  Whole, because half a file is not a shorter file: a script handed the
+   --  first sixteen mebibytes of something has no way to know that is what it
+   --  got, and every answer it computes from that is wrong in a way nothing
+   --  reports.
+   --
+   --  The file is written here rather than assumed to exist, and taken away
+   --  afterwards, because a test that leaves sixteen mebibytes behind on every
+   --  run is a test somebody eventually deletes.
+   procedure A_File_Bigger_Than_The_Limit_Is_Refused
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      Path : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-too-large");
+
+      Block : constant String (1 .. 64 * 1_024) := [others => 'x'];
+
+      Written : F.Written;
+      Read    : F.Reading;
+      Held    : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      F.Write (Path, Block, Written);
+      Assert (Written = F.Write_Ok, "the first block was not written");
+
+      --  One block past the limit, added a block at a time rather than built
+      --  in memory here: a test that needed sixteen mebibytes of its own to
+      --  measure a limit of sixteen mebibytes would be measuring itself too.
+      while Ada.Directories.Size (Path) <= F.Max_File_Size loop
+         F.Append (Path, Block, Written);
+         exit when Written /= F.Write_Ok;
+      end loop;
+
+      Assert (Written = F.Write_Ok, "the file could not be grown past the limit");
+
+      F.Read (Path, Held, Read);
+
+      Assert (Read = F.Read_Too_Large,
+              "a file past the limit was not refused: " & F.Reading'Image (Read));
+      Assert (Ada.Strings.Unbounded.Length (Held) = 0,
+              "a refused read handed back part of the file");
+
+      --  And one below it still reads.
+      F.Write (Path, Block, Written);
+      Assert (Written = F.Write_Ok, "the small file was not written");
+
+      F.Read (Path, Held, Read);
+      Assert (Read = F.Read_Ok, "a file inside the limit was refused");
+      Assert (Ada.Strings.Unbounded.Length (Held) = Block'Length,
+              "a file inside the limit was read short");
+
+      Ada.Directories.Delete_File (Path);
+   end A_File_Bigger_Than_The_Limit_Is_Refused;
+
    procedure A_Write_With_Nowhere_To_Go_Is_Refused
      (Test : in out AUnit.Test_Cases.Test_Case'Class)
    is
@@ -188,6 +256,9 @@ package body Adash_Tests.Filesystem_Cases is
       Register_Routine
         (T, A_Write_With_Nowhere_To_Go_Is_Refused'Access,
          "filesystem : a write with nowhere to go is refused");
+      Register_Routine
+        (T, A_File_Bigger_Than_The_Limit_Is_Refused'Access,
+         "filesystem : a file bigger than the limit is refused whole");
    end Register_Tests;
 
 end Adash_Tests.Filesystem_Cases;

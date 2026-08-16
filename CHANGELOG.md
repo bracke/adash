@@ -1754,6 +1754,25 @@ what changed.
   it has and say the same thing either way, which is a lesson the examples were
   quietly avoiding.
 
+- **`Read_File` will not read more than 16 MiB.** A shell holds what it reads in
+  one String, so a script that named a disk image or an unrotated log by mistake
+  had the session grow until the host stopped it, taking everything in it. The
+  file is refused whole rather than truncated -- half a file is not a shorter
+  file, and a script cannot tell which half it got -- and this refusal is said
+  out loud, unlike the ordinary ones: silence would tell a user their file was
+  empty and send them looking for a reason it is not.
+
+- **A job waited for gets the terminal.** `wait` puts a job in the foreground in
+  the only sense a user means by the word, and it waited through the same call
+  `run` does without the handover `run` had just been given -- so a job that
+  asked a question was stopped where it asked. (`resume` needs nothing: it
+  resumes into the background, and there is no foreground resume to fix.)
+
+- **A directory name the host will not form is refused, not failed.** Every host
+  has a limit on how long one part of a path may be, and `make_directory` called
+  a name past it a write that did not finish -- sending a user looking for what
+  was half done. A directory is made or it is not.
+
 - **`Read_File` of a directory reads as nothing**, and now says so where it is
   documented and asserts it where it is tested. The same answer as a file that
   is not there, for the same reason; `Exists` and `Is_Directory` tell them

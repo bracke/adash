@@ -217,6 +217,7 @@ package Adash.Messages is
       Msg_Config_Wants_Range,
       Msg_Config_Wants_Choice,
       Msg_File_Write_Failed,
+   Msg_File_Too_Large,
       Msg_Job_Unknown,
       Msg_Job_Is_Suspended,
       Msg_Execution_Cancelled,
