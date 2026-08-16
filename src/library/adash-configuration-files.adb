@@ -338,6 +338,9 @@ package body Adash.Configuration.Files is
          when Adash.Persistence.Store_Not_Text =>
             Note (Msg.Msg_Config_Not_Text);
 
+         when Adash.Persistence.Store_Too_Large =>
+            Note (Msg.Msg_Config_Too_Large);
+
          when others =>
             Note (Msg.Msg_Config_Unreadable);
       end case;

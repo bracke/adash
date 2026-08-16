@@ -922,10 +922,12 @@ that failed on one host and not the others: a case that ran this shell over a
 fixture writing a mebibyte got nothing back on Windows, no output and no
 complaint, while the same case answered on Linux and macOS.
 
-So this is that with the size taken out of it. If it passes everywhere, what
-failed there was about how much the child wrote; if it fails on the same host,
-what failed was running a shell from a shell at all -- and either answer is
-worth more than the guess it replaces.
+It answered: a shell runs a shell fine, and what was wrong was the line endings.
+A program on Windows ends a line with a carriage return and a line feed, so a
+capture with two lines in it came back with a stray carriage return inside --
+invisible, and enough to make every comparison against text the script wrote
+itself fail on that host and nowhere else. `Output_Of` hands back text with the
+line endings text has, which is what this case now asserts on all three hosts.
 """
 script = """
 put_line (Output_Of ("{shell}", "{root}/conformance/fixtures/says-a-little.adash"));

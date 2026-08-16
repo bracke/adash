@@ -602,6 +602,7 @@ package body Adash.Messages is
          when Msg_Config_Syntax              => return "config.syntax";
          when Msg_Config_Unreadable          => return "config.unreadable";
          when Msg_Config_Not_Text            => return "config.not-text";
+         when Msg_Config_Too_Large           => return "config.too-large";
          when Msg_Config_Newer_Schema        => return "config.newer-schema";
          when Msg_Config_Migrated            => return "config.migrated";
          when Msg_History_Unreadable         => return "history.unreadable";
@@ -963,7 +964,8 @@ package body Adash.Messages is
          when Msg_Config_Syntax =>
             return [N ("path"), N ("line"), N ("column"), N ("detail")];
 
-         when Msg_Config_Unreadable | Msg_Config_Not_Text =>
+         when Msg_Config_Unreadable | Msg_Config_Not_Text
+            | Msg_Config_Too_Large =>
             return [1 => N ("path")];
 
          when Msg_Config_Newer_Schema | Msg_Config_Migrated =>

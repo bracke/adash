@@ -172,7 +172,7 @@ package body Adash.Persistence is
             if Length (Text) + Natural (Last) > Limit then
                Close (File);
                Into := Null_Unbounded_String;
-               Result := Store_Not_Text;
+               Result := Store_Too_Large;
                return;
             end if;
 

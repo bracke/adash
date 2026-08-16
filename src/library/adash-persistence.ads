@@ -90,7 +90,17 @@ package Adash.Persistence is
       --  It exists and holds bytes that are not text this shell can use --
       --  malformed UTF-8. Reported here rather than left to the parser,
       --  because it is a property of the file rather than of the format.
-      Store_Not_Text);
+      Store_Not_Text,
+
+      --  It exists, it is readable, and it holds more than this shell will
+      --  read at once.
+      --
+      --  Its own outcome rather than Store_Not_Text, which is what it used to
+      --  answer: that would tell a user their configuration file was not text
+      --  when it is, which sends them looking for a broken byte that is not
+      --  there. Nothing about this file is wrong except its size, and the
+      --  thing to do about it is different.
+      Store_Too_Large);
 
    --  Whether an outcome means the work was done.
    --
@@ -119,10 +129,10 @@ package Adash.Persistence is
    --         configuration file or a history log, and a shell that read
    --         whatever it found under those names would be one that a file
    --         swapped for something enormous could kill -- so the same bound a
-   --         script's reads have applies to the shell's own. Store_Not_Text
-   --         is the refusal: past the limit the file is not something this
-   --         shell can carry, which is what that outcome already means for a
-   --         file that is not UTF-8.
+   --         script's reads have applies to the shell's own. Past the limit
+   --         the file is not something this
+   --         shell can carry -- said as Store_Too_Large, which is what the
+   --         file is, rather than as one of the failures it is not.
    procedure Read
      (Path   : String;
       Into   : out Contents;

@@ -344,6 +344,7 @@ en.config.bad-choice = {key} must be one of {detail}.
 en.config.syntax = {path}: line {line}, column {column}: {detail}
 en.config.unreadable = {path} could not be read; the defaults are in force.
 en.config.not-text = {path} is not valid UTF-8; the defaults are in force.
+en.config.too-large = {path} holds more than this shell will read at once; the defaults are in force.
 en.config.newer-schema = {path} was written by a newer Adash (schema {detail}); unknown settings were ignored.
 en.config.migrated = {path} was written for schema {detail} and has been brought forward.
 

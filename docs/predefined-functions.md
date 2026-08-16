@@ -130,6 +130,13 @@ refused whole rather than truncated — half a file is not a shorter file, and a
 script cannot tell which half it got — and something that size is a job for a
 program that streams it.
 
+`Output_Of` hands back **text**: the newline a program ended with is dropped, as
+in every shell, and a carriage return that a host puts in front of a line feed
+is dropped with it. A program on Windows writes `\r\n`, and without that a
+capture of two lines carried an invisible byte that made every comparison
+against text the script wrote itself fail on that host alone. A lone carriage
+return is left where it is — it is not a line ending anywhere this runs.
+
 The same limit bounds `Output_Of`: a program that writes more than it is stopped
 where it stands, by closing the pipe rather than by signalling it, and the
 capture is refused whole. It bounds `Read_Line` differently, because input that

@@ -234,6 +234,41 @@ package body Adash.Engine is
 
                Sink.Shell.Last_Status := Final.Status;
 
+               --  Line endings first, and this is not cosmetic. A program on
+               --  Windows writes a line as carriage return and line feed, so
+               --  the capture of anything with two lines in it came back with
+               --  a stray carriage return inside -- and a script comparing
+               --  `Output_Of (...)` against text it wrote itself failed there
+               --  and nowhere else, for a byte nobody can see. A String in
+               --  this language is text, and a line in text ends with a line
+               --  feed; the host's spelling of that belongs to the host.
+               --
+               --  A lone carriage return is left alone: it is not a line
+               --  ending on any host this runs on, and something that carried
+               --  one meant it.
+               declare
+                  Whole : constant String :=
+                    Ada.Strings.Unbounded.To_String (Written);
+
+                  Text  : String (1 .. Whole'Length);
+                  Kept  : Natural := 0;
+               begin
+                  for Index in Whole'Range loop
+                     if Whole (Index) = Ada.Characters.Latin_1.CR
+                       and then Index < Whole'Last
+                       and then Whole (Index + 1) = Ada.Characters.Latin_1.LF
+                     then
+                        null;
+                     else
+                        Kept := Kept + 1;
+                        Text (Kept) := Whole (Index);
+                     end if;
+                  end loop;
+
+                  Written :=
+                    Ada.Strings.Unbounded.To_Unbounded_String (Text (1 .. Kept));
+               end;
+
                --  Without the newline it ended with, which is the convention
                --  every shell follows and the reason `cd (Output_Of ("pwd"))`
                --  works. Only from the end, and only line endings: what is in

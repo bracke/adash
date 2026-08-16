@@ -690,6 +690,63 @@ package body Adash_Tests.Persistence_Cases is
    -- Register_Tests --
    --------------------
 
+   --  A store file past the limit is refused, and refused as what it is.
+   --
+   --  A configuration file and a history log are files this shell reads for
+   --  itself, without anybody naming them, so a file swapped for something
+   --  enormous under a name the shell already knows would take the session
+   --  down at start-up -- the one place a user cannot get past by typing
+   --  something else.
+   --
+   --  Store_Too_Large rather than Store_Not_Text, which is what it answered
+   --  before: telling a user their configuration file is not text when it is
+   --  sends them looking for a broken byte that is not there. Nothing about
+   --  the file is wrong except its size.
+   --
+   --  The limit is passed rather than reached, so this costs a few kilobytes
+   --  instead of sixteen mebibytes: what is asserted is the rule, and that the
+   --  default is sixteen mebibytes is asserted where the default lives.
+   procedure A_Store_File_Past_The_Limit_Is_Refused
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Store_File_Past_The_Limit_Is_Refused
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Path : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-store-large");
+
+      Text : constant String (1 .. 4_096) := [others => 's'];
+
+      Kept    : Adash.Persistence.Contents;
+      Written : Adash.Persistence.Outcome;
+      Read    : Adash.Persistence.Outcome;
+   begin
+      Adash.Persistence.Write (Path, Text, Written);
+      Assert (Written = Adash.Persistence.Store_Ok,
+              "the store file was not written");
+
+      --  One byte short of what is there.
+      Adash.Persistence.Read (Path, Kept, Read, Limit => Text'Length - 1);
+      Assert (Read = Adash.Persistence.Store_Too_Large,
+              "a store file past the limit was not refused as too large: "
+              & Adash.Persistence.Outcome'Image (Read));
+      Assert (Ada.Strings.Unbounded.Length (Kept) = 0,
+              "a refused read handed back part of the file");
+
+      --  And exactly what is there still reads.
+      Adash.Persistence.Read (Path, Kept, Read, Limit => Text'Length);
+      Assert (Read = Adash.Persistence.Store_Ok,
+              "a store file inside the limit was refused: "
+              & Adash.Persistence.Outcome'Image (Read));
+      Assert (Ada.Strings.Unbounded.Length (Kept) = Text'Length,
+              "a store file inside the limit was read short");
+
+      Ada.Directories.Delete_File (Path);
+   end A_Store_File_Past_The_Limit_Is_Refused;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -717,6 +774,9 @@ package body Adash_Tests.Persistence_Cases is
                         "a cache holds nothing that cannot be rebuilt");
       Register_Routine (T, Forgetting_Takes_The_Last_Occurrence'Access,
                         "forgetting a line takes its last occurrence");
+      Register_Routine (T, A_Store_File_Past_The_Limit_Is_Refused'Access,
+                        "persistence : a store file past the limit is refused "
+                        & "as too large");
       Register_Routine (T, Forgetting_Leaves_What_The_File_Did_Not_Hold'Access,
                         "forgetting leaves what a file did not hold");
    end Register_Tests;

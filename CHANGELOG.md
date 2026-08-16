@@ -1763,6 +1763,19 @@ what changed.
   differently: input that has been read cannot be asked for again, so a line
   longer than the limit arrives in pieces rather than being dropped.
 
+- **`Output_Of` hands back text, not the host's line endings.** A program on
+  Windows ends a line with a carriage return and a line feed, so a capture with
+  two lines in it carried a stray carriage return inside -- invisible, and
+  enough to make every comparison against text the script wrote itself fail on
+  that host and nowhere else. Found by asking why one conformance case failed
+  there and passed on the other two, which is the only way anybody was going to
+  find it.
+
+- **A store file past the limit says it is too large**, rather than saying it is
+  not text. Telling a user their configuration file is not valid UTF-8 when it
+  is sends them looking for a broken byte that is not there; nothing is wrong
+  with the file except its size.
+
 - **The shell's own reads are bounded too.** The setting covers what a script
   reads; a script file itself, a module read into one, and the configuration and
   history files were still read whole, so `adash some-disk-image` was a session

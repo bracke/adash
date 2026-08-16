@@ -3,6 +3,8 @@ with Ada.Text_IO;
 
 with AUnit.Assertions;
 
+with Adash.Filesystem;
+
 with Adash.Diagnostics;
 with Adash.Engine;
 with Adash.Errors;
@@ -491,6 +493,68 @@ package body Adash_Tests.Scripting_Cases is
    -- Register_Tests --
    --------------------
 
+   --  A script too large to hold is refused rather than read.
+   --
+   --  `adash <path>` runs whatever the path names, and a path a user typed can
+   --  be the wrong one: a disk image, a log nobody rotated. Without a bound
+   --  that is a session that grows until the host ends it, and the user never
+   --  learns why -- a shell asked to run something it cannot hold should say
+   --  so, at the file, before anything of it is kept.
+   --
+   --  Sixteen mebibytes is the bound, so the file this writes is that and a
+   --  little: the limit here is not a setting, because a script is read before
+   --  there is a session whose settings could be consulted.
+   procedure A_Script_Too_Large_Is_Refused
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Script_Too_Large_Is_Refused
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Session : E.Session;
+      Context : Sc.Loading;
+      Result  : Sc.Outcome;
+      Status  : Adash.Execution.Exit_Status;
+      Report  : D.List;
+
+      Path : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-huge.adash");
+
+      Block : constant String (1 .. 64 * 1_024) := [others => 'z'];
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+      use type Ada.Directories.File_Size;
+   begin
+      --  A comment, so that what is refused is refused for its size rather
+      --  than for being nonsense: a file of z's would not parse either, and a
+      --  test that could not tell the two apart would pass on the wrong one.
+      Adash.Filesystem.Write (Path, "--  " & Block, Written);
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the first block was not written");
+
+      while Ada.Directories.Size (Path) <= Adash.Filesystem.Default_Limit loop
+         Adash.Filesystem.Append (Path, Block, Written);
+         exit when Written /= Adash.Filesystem.Write_Ok;
+      end loop;
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the script could not be grown past the limit");
+
+      E.Open (Session);
+      Sc.Run_File (Session, Path, Context, Result, Status, Report);
+
+      Assert (Result = Sc.Script_Unreadable,
+              "a script past the limit was not refused: "
+              & Sc.Outcome'Image (Result));
+      Assert (Report.Count > 0,
+              "a script past the limit was refused without saying so");
+
+      Ada.Directories.Delete_File (Path);
+   end A_Script_Too_Large_Is_Refused;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -527,6 +591,9 @@ package body Adash_Tests.Scripting_Cases is
       Register_Routine
         (T, Startup_Has_A_Documented_Order_And_Never_Refuses_To_Start'Access,
          "scripting : startup has a documented order and never refuses to start");
+      Register_Routine
+        (T, A_Script_Too_Large_Is_Refused'Access,
+         "scripting : a script too large to hold is refused at the file");
    end Register_Tests;
 
 end Adash_Tests.Scripting_Cases;

@@ -479,6 +479,7 @@ package Adash.Messages is
       Msg_Config_Syntax,
       Msg_Config_Unreadable,
       Msg_Config_Not_Text,
+   Msg_Config_Too_Large,
       Msg_Config_Newer_Schema,
       Msg_Config_Migrated,
 
