@@ -1871,6 +1871,32 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after an edited line");
    end Backspace_Removes_A_Character_Through_A_Terminal;
 
+   --  Take whatever a terminal has to give and drop it.
+   --
+   --  For a test that must keep a terminal from filling up while it waits for
+   --  a child: a program writing into a full one waits instead of finishing,
+   --  and this test is about what the child *read*, not what it wrote.
+   --
+   --  @param Item The pair to drain.
+   --  @return True when something was taken.
+   function Drained_Into_Nothing (Item : Hostkit.Pty.Pair) return Boolean;
+
+   function Drained_Into_Nothing (Item : Hostkit.Pty.Pair) return Boolean is
+      Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
+      Last   : Ada.Streams.Stream_Element_Offset := 0;
+
+      use type Ada.Streams.Stream_Element_Offset;
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      if not Hostkit.Descriptors.Wait_Readable (Item.From_Child, 50) then
+         return False;
+      end if;
+
+      return Hostkit.Descriptors.Read (Item.From_Child, Buffer, Last)
+             = Hostkit.Descriptors.Transfer_Ok
+        and then Last >= Buffer'First;
+   end Drained_Into_Nothing;
+
    --  What actually reaches a program on this host's terminal.
    --
    --  Two questions have been asked of the documentation and answered wrongly
@@ -1925,6 +1951,12 @@ package body Adash_Tests.Interactive_Cases is
          Assert (Hostkit.Descriptors.Write (Terminal.To_Child, Data, Last)
                  = Hostkit.Descriptors.Transfer_Ok,
                  "could not type into the terminal");
+
+         --  How much of it went is not this test's question -- what the
+         --  watcher read is -- but a write that stopped early would make the
+         --  record short for a reason worth seeing.
+         Assert (Natural (Last) = Text'Length,
+                 "only part of what was typed reached the terminal");
       end Send;
 
       Escape : constant String := [1 => Character'Val (27)];
@@ -1987,22 +2019,15 @@ package body Adash_Tests.Interactive_Cases is
 
          --  Drained while it runs: a terminal nobody reads fills up, and a
          --  program writing into a full one waits instead of finishing.
-         if Hostkit.Descriptors.Wait_Readable (Terminal.From_Child, 50) then
-            declare
-               Buffer : Ada.Streams.Stream_Element_Array (1 .. 512);
-               Last   : Ada.Streams.Stream_Element_Offset := 0;
-
-               Ignored : constant Hostkit.Descriptors.Transfer_Outcome :=
-                 Hostkit.Descriptors.Read (Terminal.From_Child, Buffer, Last);
-               pragma Unreferenced (Ignored);
-            begin
-               --  Read to keep the terminal from filling; what it said is the
-               --  watcher's business and not this test's.
-               if Last >= Buffer'First then
-                  null;
-               end if;
-            end;
-         end if;
+         --  Drained while it runs: a terminal nobody reads fills up, and a
+         --  program writing into a full one waits instead of finishing. What
+         --  it said is the watcher's business, not this test's.
+         declare
+            Ignored : constant Boolean := Drained_Into_Nothing (Terminal);
+            pragma Unreferenced (Ignored);
+         begin
+            null;
+         end;
       end loop;
 
       Hostkit.Pty.Close (Terminal);
