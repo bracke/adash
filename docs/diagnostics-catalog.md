@@ -527,10 +527,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `tooling.bench.what.config` | parse a configuration file |
 | `tooling.bench.what.session` | open an engine session |
 | `tooling.check.header` | Adash repository check |
-| `tooling.check.checking` | checking {what} |
 | `tooling.check.passed` | {count, plural, =0 {no checks ran} one {# check passed} other {# checks passed}} |
 | `tooling.check.failed` | {count, plural, =0 {no failures} one {# check failed} other {# checks failed}} |
-| `tooling.check.ok` | ok |
 | `tooling.check.missing_file` | required file is missing: {path} |
 | `tooling.check.missing_directory` | required directory is missing: {path} |
 | `tooling.check.version_mismatch` | version disagreement: {first} says {first_value}, {second} says {second_value} |

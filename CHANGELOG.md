@@ -17,6 +17,15 @@ what changed.
   all three hosts on every push. The bounds are an order of magnitude above
   what the operations take, because a gate that fails on a loaded CI runner is
   a gate somebody disables.
+- `adash_check` reads the message catalog in both directions, which
+  `docs/RELEASE.md` has always claimed it did: a catalog key no source can
+  reach is a finding, and a `tooling.*` key a tool names and the catalog lacks
+  is a finding. Keys built at run time are credited through the dotted prefix
+  their source joins to. It found two unreachable keys on its first run.
+- `adash_bench` fails on drift as well as on a ceiling: a median more than four
+  times the operation's own fastest run means it gets slower as it repeats,
+  which the report has called a defect since it was written and nothing could
+  fail on.
 - `Hostkit.Pty.Write_Fails_When_Unheld` (in hostkit) — whether writing to a
   terminal fails once nothing holds the device side. macOS refuses the write;
   Linux and Windows take the bytes into a buffer nobody reads. Adash's terminal

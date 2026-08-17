@@ -69,3 +69,25 @@ history = 100
 # stands between pressing return on `adash` and seeing a prompt.
 config = 400
 session = 2500
+
+# When a figure is slower than itself.
+#
+# adash_bench prints the median *and* the fastest run because the gap between
+# them is a shape a median alone hides: an operation that starts fast and gets
+# slower as it repeats -- a cache filling with entries nothing evicts, a list
+# that is rescanned from the start, a file handle opened once per call and
+# never closed -- shows here as a fastest run far below the median. The tool
+# has said so in its own report since it was written, and nothing failed on it.
+#
+# `ratio` is how many times the fastest run the median may be. Measured on the
+# three CI hosts, the worst honest gap is 1.6 (Windows completing a program
+# name, where the work itself varies with what is on PATH); everything else is
+# within a few percent. Four leaves room for a runner that stalls for part of a
+# run without leaving room for an operation that degrades.
+#
+# `floor` is the median below which the ratio is not applied, in microseconds.
+# The smallest figures here are a fraction of a microsecond, where the ratio is
+# measuring the clock's resolution rather than the operation.
+[drift]
+ratio = 4
+floor = 20

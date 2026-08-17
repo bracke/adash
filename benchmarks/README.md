@@ -19,6 +19,13 @@ report it as a defect on every run. What a bound this loose still catches is
 the thing worth catching: an operation that became ten times slower because of
 what it now does.
 
+The **drift** rule in the same file gates the other signal this report has
+always printed and never failed on: a median far above the fastest run means
+the operation got slower while it was being measured, which no machine
+explains. A median more than four times the fastest run fails, and only where
+the median is at least 20 us — below that the ratio measures the clock rather
+than the operation. On the three CI hosts the worst honest gap is 1.6.
+
 The table below is what this project's machine measures. It is *not* what the
 ceilings are, and the two should not be conflated — one is a measurement, the
 other is a limit chosen so that only a real regression trips it.

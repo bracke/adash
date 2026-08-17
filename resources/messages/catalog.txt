@@ -542,6 +542,9 @@ en.tooling.bench.ceilings_unreadable = the ceilings could not be read from {path
 en.tooling.bench.ceilings_malformed = the ceilings in {path} are not readable TOML: line {line}, {reason}
 en.tooling.bench.no_ceiling = ^ {what} has no ceiling in {path}. A figure nothing bounds is a figure no run can fail on
 en.tooling.bench.over_ceiling = ^ {what} took {measured} us, over its ceiling of {ceiling} us
+en.tooling.bench.drifted = ^ {what} has a median of {measured} us against a fastest run of {fastest} us, more than {ratio} times: it gets slower as it repeats
+en.tooling.bench.no_drift_rule = {path} records no drift rule, and a report the tool calls a defect that nothing can fail on is a report
+en.tooling.bench.some_drift = An operation got slower while it was being measured. A loaded machine moves every figure together; this moves one figure away from its own fastest run, so look for what accumulates -- a cache nothing evicts, a list rescanned from the start, a handle opened per call.
 en.tooling.bench.over_some_ceiling = Over a ceiling. A bound in {path} is an order of magnitude above what the operation takes, so this is a change in what the operation does rather than a slow machine. Find what it now does that it did not, or say in that file why the bound moved.
 en.tooling.bench.within_ceilings = Every figure is within its ceiling, as recorded in {path}.
 en.tooling.bench.what.utf8 = load and validate UTF-8
@@ -556,12 +559,12 @@ en.tooling.bench.what.history = encode a history entry
 en.tooling.bench.what.config = parse a configuration file
 en.tooling.bench.what.session = open an engine session
 en.tooling.check.header = Adash repository check
-en.tooling.check.checking = checking {what}
 en.tooling.check.passed = {count, plural, =0 {no checks ran} one {# check passed} other {# checks passed}}
 en.tooling.check.failed = {count, plural, =0 {no failures} one {# check failed} other {# checks failed}}
-en.tooling.check.ok = ok
 en.tooling.check.missing_file = required file is missing: {path}
 en.tooling.check.missing_directory = required directory is missing: {path}
+en.tooling.check.catalog_key_unused = the catalog carries {key} and no source names it, so nothing can ever show it
+en.tooling.check.catalog_key_absent = a tool names {key} and the catalog does not carry it, so a user gets the fallback form
 en.tooling.check.version_unreadable = the version could not be read from {path}; two files that both read as nothing compare equal, which is how this check passed for years
 en.tooling.check.inventory_unreadable = repository.toml has a spec entry at character {position} whose path could not be read
 en.tooling.check.version_mismatch = version disagreement: {first} says {first_value}, {second} says {second_value}

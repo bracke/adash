@@ -89,6 +89,12 @@ procedure Adash_Bench_Main is
    --  the whole shape of it.
    Over_A_Ceiling : Boolean := False;
 
+   --  Told apart from a figure over its ceiling, because they are different
+   --  reports: one says this machine is slower than the bound allows, and the
+   --  other says the operation got slower while it was being measured, which
+   --  no machine explains.
+   Drifted : Boolean := False;
+
    --  One rendered line, by key.
    function Say (Key : String) return String;
    function Say (Key : String) return String
@@ -210,6 +216,38 @@ procedure Adash_Bench_Main is
       end;
    end Ceiling_For;
 
+   --  A rule out of the [drift] table.
+   --
+   --  @param Named Which rule.
+   --  @return Its value, or -1 when the file records none.
+   function Drift_Rule (Named : String) return Long_Long_Integer;
+
+   function Drift_Rule (Named : String) return Long_Long_Integer is
+      use type Doc.Node;
+      use type Doc.Value_Kind;
+
+      Table : constant Doc.Node :=
+        Doc.Value (Ceilings, Doc.Root (Ceilings), "drift");
+   begin
+      if Table = Doc.No_Node
+        or else Doc.Kind (Ceilings, Table) /= Doc.Table_Value
+      then
+         return -1;
+      end if;
+
+      declare
+         Rule : constant Doc.Node := Doc.Value (Ceilings, Table, Named);
+      begin
+         if Rule = Doc.No_Node
+           or else Doc.Kind (Ceilings, Rule) /= Doc.Integer_Value
+         then
+            return -1;
+         end if;
+
+         return Doc.As_Integer (Ceilings, Rule);
+      end;
+   end Drift_Rule;
+
    procedure Report (What : String; Samples : in out Sample_Array);
 
    procedure Report (What : String; Samples : in out Sample_Array) is
@@ -277,6 +315,37 @@ procedure Adash_Bench_Main is
                 Adash.Messages.Named
                   ("ceiling", Counted (Integer (Bound)))]));
       end if;
+
+      --  And the shape a ceiling cannot see: an operation slower than itself.
+      declare
+         Ratio : constant Long_Long_Integer := Drift_Rule ("ratio");
+         Floor : constant Long_Long_Integer := Drift_Rule ("floor");
+      begin
+         if Ratio < 0 or else Floor < 0 then
+            Over_A_Ceiling := True;
+            IO.Put_Line
+              ("  " & Catalog.Text
+                 ("tooling.bench.no_drift_rule",
+                  [Adash.Messages.Named ("path", Ceilings_Path)]));
+
+         elsif Tenths / 10 >= Floor
+           and then Best_Tenths > 0
+           and then Tenths > Ratio * Best_Tenths
+         then
+            Over_A_Ceiling := True;
+            Drifted := True;
+            IO.Put_Line
+              ("  " & Catalog.Text
+                 ("tooling.bench.drifted",
+                  [Adash.Messages.Named ("what", Named (What)),
+                   Adash.Messages.Named
+                     ("measured", Counted (Integer (Tenths / 10))),
+                   Adash.Messages.Named
+                     ("fastest", Counted (Integer (Best_Tenths / 10))),
+                   Adash.Messages.Named
+                     ("ratio", Counted (Integer (Ratio)))]));
+         end if;
+      end;
    end Report;
 
    Samples : Sample_Array;
@@ -576,7 +645,13 @@ begin
    IO.New_Line;
 
    --  The verdict, which is the whole reason a machine can run this.
-   if Over_A_Ceiling then
+   if Drifted then
+      IO.Put_Line
+        (Catalog.Text
+           ("tooling.bench.some_drift",
+            [Adash.Messages.Named ("path", Ceilings_Path)]));
+
+   elsif Over_A_Ceiling then
       IO.Put_Line
         (Catalog.Text
            ("tooling.bench.over_some_ceiling",

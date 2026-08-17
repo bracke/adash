@@ -1,4 +1,5 @@
 with Ada.Characters.Latin_1;
+with Ada.Strings.Fixed;
 with Ada.Directories;
 
 with Project_Tools.Files;
@@ -21,6 +22,8 @@ package body Adash_Tests.Repository is
    Key_Inventory_Unreadable : constant String :=
      "tooling.check.inventory_unreadable";
    Key_Catalog_Missing_Key  : constant String := "tooling.check.catalog_missing_key";
+   Key_Catalog_Key_Unused   : constant String := "tooling.check.catalog_key_unused";
+   Key_Catalog_Key_Absent   : constant String := "tooling.check.catalog_key_absent";
    Key_Catalog_Unreadable   : constant String := "tooling.check.catalog_unreadable";
    Key_Escape_Sequence      : constant String := "tooling.check.escape_sequence";
    Key_Silent_Truncation    : constant String :=
@@ -1028,6 +1031,234 @@ package body Adash_Tests.Repository is
       end loop;
    end Check_Grammar_Covers_The_Syntax;
 
+   ---------------------------------
+   -- Check_Catalog_Keys_Are_Used --
+   ---------------------------------
+
+   --  The other direction, and the tooling's keys.
+   --
+   --  Check_Message_Catalog walks Message_Id and asks the catalog about each
+   --  one. That is one half of what the release guide has always claimed --
+   --  "a message is in the catalog and not in the code, or the reverse" -- and
+   --  the reverse was not written.
+   --
+   --  It matters most for the keys that are not Message_Ids at all. Every
+   --  `tooling.*` key is a string literal in a tool, checked by nobody: a
+   --  typo renders as the invariant fallback form, which is legible enough
+   --  that it survives review, and the catalog entry it was supposed to reach
+   --  sits there unused. Eight of those keys were added to this repository in
+   --  one afternoon on nothing but care.
+   --
+   --  Both directions, because each finds a different mistake: a key the
+   --  catalog has and nothing uses is a message that was removed or renamed
+   --  and left behind, and a key a tool uses and the catalog lacks is a
+   --  sentence the user will never see.
+   --
+   --  Keys built at run time are allowed for by their prefix: a tool that says
+   --  `"tooling.bench.what." & What` carries the dotted prefix as a literal,
+   --  so a catalog key underneath one is counted as used.
+   procedure Check_Catalog_Keys_Are_Used (Root : String; Into : in out Report);
+
+   procedure Check_Catalog_Keys_Are_Used (Root : String; Into : in out Report)
+   is
+      Catalog_Path : constant String :=
+        Join (Root, "resources/messages/catalog.txt");
+      Catalog : constant String := Read_If_Present (Catalog_Path);
+
+      Sources : US.Unbounded_String;
+
+      --  Whether a key belongs to the enumerated messages, which the check
+      --  above already covers in both directions by construction.
+      function Is_A_Message (Key : String) return Boolean;
+
+      function Is_A_Message (Key : String) return Boolean is
+      begin
+         for Id in Msg.Message_Id loop
+            if Msg.Key (Id) = Key then
+               return True;
+            end if;
+         end loop;
+
+         return False;
+      end Is_A_Message;
+
+      --  Whether any source names this key, itself or by a dotted prefix.
+      function Named_In_Source (Key : String) return Boolean;
+
+      function Named_In_Source (Key : String) return Boolean is
+         Text : constant String := US.To_String (Sources);
+
+         --  A dotted prefix counts only where a source *joins* something to
+         --  it. The literal alone is not evidence: this very procedure builds
+         --  the string '"'tooling.'"' to search with, and that one
+         --  occurrence made every tooling key in the catalog look used --
+         --  which is the check reporting on its own source rather than on the
+         --  repository.
+         function Joined_To_Something (Piece : String) return Boolean;
+
+         function Joined_To_Something (Piece : String) return Boolean is
+            Wanted : constant String := '"' & Piece & '"';
+            From   : Positive := Text'First;
+         begin
+            loop
+               declare
+                  At_Piece : constant Natural :=
+                    Ada.Strings.Fixed.Index (Text, Wanted, From);
+               begin
+                  exit when At_Piece = 0;
+
+                  declare
+                     After : Natural := At_Piece + Wanted'Length;
+                  begin
+                     while After <= Text'Last
+                       and then (Text (After) = ' '
+                                 or else Text (After) = Ada.Characters.Latin_1.LF
+                                 or else Text (After) = Ada.Characters.Latin_1.CR)
+                     loop
+                        After := After + 1;
+                     end loop;
+
+                     if After <= Text'Last and then Text (After) = '&' then
+                        return True;
+                     end if;
+                  end;
+
+                  From := At_Piece + 1;
+               end;
+            end loop;
+
+            return False;
+         end Joined_To_Something;
+
+      begin
+         if Project_Tools.Text.Contains (Text, '"' & Key & '"') then
+            return True;
+         end if;
+
+         for Index in reverse Key'Range loop
+            if Key (Index) = '.'
+              and then Joined_To_Something (Key (Key'First .. Index))
+            then
+               return True;
+            end if;
+         end loop;
+
+         return False;
+      end Named_In_Source;
+
+      Locale : constant String := "en.";
+   begin
+      if Catalog = "" then
+         --  Check_Message_Catalog has already said so.
+         return;
+      end if;
+
+      for Path of Source_Files (Root) loop
+         US.Append (Sources, Read_If_Present (US.To_String (Path)));
+      end loop;
+
+      for Path of Tooling_Files (Root) loop
+         US.Append (Sources, Read_If_Present (US.To_String (Path)));
+      end loop;
+
+      --  Direction one: every key the catalog carries is reachable from code.
+      declare
+         From : Positive := Catalog'First;
+      begin
+         while From <= Catalog'Last loop
+            declare
+               Stop : Natural := From;
+            begin
+               while Stop <= Catalog'Last
+                 and then Catalog (Stop) /= Ada.Characters.Latin_1.LF
+               loop
+                  Stop := Stop + 1;
+               end loop;
+
+               declare
+                  Line : constant String := Catalog (From .. Stop - 1);
+               begin
+                  if Line'Length > Locale'Length
+                    and then Line (Line'First .. Line'First + Locale'Length - 1) = Locale
+                  then
+                     declare
+                        Marker : constant Natural :=
+                          Ada.Strings.Fixed.Index (Line, " =");
+                     begin
+                        if Marker > Line'First + Locale'Length then
+                           declare
+                              Key : constant String :=
+                                Line (Line'First + Locale'Length .. Marker - 1);
+                           begin
+                              Into.Checks_Run := Into.Checks_Run + 1;
+
+                              if not Is_A_Message (Key)
+                                and then not Named_In_Source (Key)
+                              then
+                                 Add (Into, Key_Catalog_Key_Unused,
+                                      [1 => Msg.Named ("key", Key)]);
+                              end if;
+                           end;
+                        end if;
+                     end;
+                  end if;
+               end;
+
+               From := Stop + 1;
+            end;
+         end loop;
+      end;
+
+      --  Direction two: every key a tool names is in the catalog. Only the
+      --  `tooling.` keys, because those are the ones written as literals; a
+      --  message's key comes from Msg.Key and cannot be mistyped without the
+      --  compiler saying so, which is the whole reason messages are an
+      --  enumeration.
+      declare
+         Text   : constant String := US.To_String (Sources);
+         Prefix : constant String := '"' & "tooling.";
+         From   : Positive := Text'First;
+      begin
+         loop
+            declare
+               At_Key : constant Natural :=
+                 Ada.Strings.Fixed.Index (Text, Prefix, From);
+            begin
+               exit when At_Key = 0;
+
+               declare
+                  Starts : constant Positive := At_Key + 1;
+                  Ends   : Natural := Starts;
+               begin
+                  while Ends <= Text'Last and then Text (Ends) /= '"' loop
+                     Ends := Ends + 1;
+                  end loop;
+
+                  if Ends <= Text'Last then
+                     declare
+                        Key : constant String := Text (Starts .. Ends - 1);
+                     begin
+                        Into.Checks_Run := Into.Checks_Run + 1;
+
+                        --  A prefix rather than a key: what a tool that builds
+                        --  a key at run time carries.
+                        if Key (Key'Last) /= '.'
+                          and then not Project_Tools.Text.Contains
+                                         (Catalog, Locale & Key & " =")
+                        then
+                           Add (Into, Key_Catalog_Key_Absent,
+                                [1 => Msg.Named ("key", Key)]);
+                        end if;
+                     end;
+                  end if;
+
+                  From := Positive'Max (At_Key + 1, Text'First);
+               end;
+            end;
+         end loop;
+      end;
+   end Check_Catalog_Keys_Are_Used;
+
    procedure Check_No_Forbidden_Units (Root : String; Into : in out Report) is
    begin
       for Path of Source_Files (Root) loop
@@ -1059,6 +1290,7 @@ package body Adash_Tests.Repository is
       Check_Required_Files (Root, Into);
       Check_Required_Directories (Root, Into);
       Check_Version_Consistency (Root, Into);
+      Check_Catalog_Keys_Are_Used (Root, Into);
       Check_Package_Inventory (Root, Into);
       Check_Message_Catalog (Root, Into);
       Check_No_Terminal_Escapes (Root, Into);
