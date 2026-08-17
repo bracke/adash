@@ -303,10 +303,25 @@ package body Adash.Commands.Builtins is
                return Adash.Execution.Success;
             end;
 
-         when Command_Pipe_Run =>
+         when Command_Pipe_Run | Command_Pipe_Into | Command_Pipe_Append
+            | Command_Pipe_New | Command_Pipe_Errors_Into
+            | Command_Pipe_Errors_Append | Command_Pipe_Errors_New
+            | Command_Pipe_All_Into | Command_Pipe_All_Append
+            | Command_Pipe_All_New =>
             declare
                Running : Adash.Execution.Pipelines.Running;
                Error   : Adash.Errors.Error_Info;
+
+               --  Where the pipeline's own output goes, when the command says.
+               --  Nothing is opened until the plan is applied, so a pipeline
+               --  refused for being empty has not touched the file.
+               Attach : Adash.Execution.Redirection.Plan;
+
+               Places : constant Boolean := Id /= Command_Pipe_Run;
+
+               Both : constant Boolean :=
+                 Id in Command_Pipe_All_Into | Command_Pipe_All_Append
+                     | Command_Pipe_All_New;
             begin
                if Adash.Execution.Pipelines.Length (Shell.Pending) = 0
                then
@@ -315,6 +330,63 @@ package body Adash.Commands.Builtins is
                   --  had run something.
                   return Failed (Adash.Errors.Error_Empty_Pipeline,
                                  M.No_Arguments);
+               end if;
+
+               if Places then
+                  declare
+                     Asked : constant Adash.Execution.Redirection.Redirection :=
+                       (Role =>
+                          (if Id in Command_Pipe_Errors_Into
+                                  | Command_Pipe_Errors_Append
+                                  | Command_Pipe_Errors_New
+                           then Adash.Execution.Streams.Role_Error
+                           else Adash.Execution.Streams.Role_Output),
+                        Kind =>
+                          (case Id is
+                              when Command_Pipe_Append
+                                 | Command_Pipe_Errors_Append
+                                 | Command_Pipe_All_Append =>
+                                Adash.Execution.Redirection.Redirect_Append_File,
+                              when Command_Pipe_New | Command_Pipe_Errors_New
+                                 | Command_Pipe_All_New =>
+                                Adash.Execution.Redirection.Redirect_To_New_File,
+                              when others =>
+                                Adash.Execution.Redirection.Redirect_To_File),
+                        Path =>
+                          Ada.Strings.Unbounded.To_Unbounded_String
+                            (Argument (Arguments, 1)));
+
+                     Joined : constant Adash.Execution.Redirection.Redirection :=
+                       (Role => Adash.Execution.Streams.Role_Error,
+                        Kind =>
+                          Adash.Execution.Redirection.Redirect_Join_Output,
+                        Path => Ada.Strings.Unbounded.Null_Unbounded_String);
+
+                     Refused : Adash.Errors.Error_Info;
+                  begin
+                     if (Both
+                         and then not Adash.Execution.Redirection.Add
+                                        (Attach, Joined, Refused))
+                       or else not Adash.Execution.Redirection.Add
+                                     (Attach, Asked, Refused)
+                       or else not Adash.Execution.Pipelines.Redirect_Last
+                                     (Shell.Pending, Attach, Refused)
+                     then
+                        --  Cleared, as a pipeline that would not start is:
+                        --  stages left behind would be at the front of
+                        --  whatever the user built next.
+                        Shell.Pending :=
+                          Adash.Execution.Pipelines.Empty_Plan;
+
+                        Report.Emit
+                          (Adash.Diagnostics.From_Error
+                             (Refused, Adash.Diagnostics.Severity_Error,
+                              Adash.Diagnostics.Category_Execution,
+                              Adash.Diagnostics.Owner_Commands));
+
+                        return Adash.Execution.From_Start_Error (Refused.Code);
+                     end if;
+                  end;
                end if;
 
                if not Adash.Execution.Pipelines.Start
@@ -345,10 +417,25 @@ package body Adash.Commands.Builtins is
 
                   Wait_Error : Adash.Errors.Error_Info;
 
-                  Finished : constant Boolean :=
+                  --  The terminal, as a waited-for program gets it. A
+                  --  pipeline waits here rather than in Pipelines.Run, so it
+                  --  needs its own handover -- without which a stage that
+                  --  asked a question was stopped where it asked.
+                  Ours : Integer;
+
+                  Finished : Boolean;
+               begin
+                  Adash.Execution.Signals.Hand_Over_Terminal;
+                  Adash.Execution.Pipelines.Hand_The_Terminal_To
+                    (Adash.Execution.Pipelines.Group (Running), Ours);
+
+                  Finished :=
                     Adash.Execution.Jobs.Wait
                       (Shell.Jobs, Started, Shell.Interrupt, Wait_Error);
-               begin
+
+                  Adash.Execution.Pipelines.Take_The_Terminal_Back (Ours);
+                  Adash.Execution.Signals.Take_Terminal_Back;
+
                   if not Finished then
                      declare
                         Stop_Error : Adash.Errors.Error_Info;

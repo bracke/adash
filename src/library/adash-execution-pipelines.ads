@@ -4,6 +4,7 @@ with Ada.Strings.Unbounded;
 with Hostkit.Spawn;
 
 with Adash.Errors;
+with Adash.Execution.Redirection;
 with Adash.Filesystem;
 with Adash.Execution.Cancellation;
 with Adash.Execution.Commands;
@@ -123,6 +124,23 @@ package Adash.Execution.Pipelines is
    --
    --  @param Group What Hand_The_Terminal_To reported, or -1 to do nothing.
    procedure Take_The_Terminal_Back (Group : Integer);
+
+   --  Give the last stage's streams somewhere else to go.
+   --
+   --  The last stage is the one whose output is the pipeline's: the others are
+   --  already attached to the stage after them, and redirecting one of those
+   --  would be cutting the pipeline in half. Which is why this takes no stage
+   --  number -- there is one answer and a caller choosing would be choosing
+   --  wrong.
+   --
+   --  @param Item The plan, changed in place.
+   --  @param Attach What to attach; nothing is opened until this is called.
+   --  @param Error What stopped it, when this returns False.
+   --  @return True when every redirection in the plan was applied.
+   function Redirect_Last
+     (Item   : in out Plan;
+      Attach : Adash.Execution.Redirection.Plan;
+      Error  : out Adash.Errors.Error_Info) return Boolean;
 
    --  Start every stage, waiting for none of them.
    --

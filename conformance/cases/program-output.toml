@@ -1305,3 +1305,34 @@ output = [
 diagnostics = [
   "complained",
 ]
+
+[[case]]
+id = "pipelines.a-pipeline-s-streams-have-somewhere-to-go"
+requirement = """
+Everything a single program gained -- three files for output, three for
+complaints, three for both -- stopped at the moment a script used more than one
+program: a pipeline could only run, and where its output went was wherever the
+shell's was. That was the largest asymmetry left in the language.
+
+The nine names are the nine that already exist for one program, so a reader who
+has learned those has learned these.
+
+The **last** stage is the one redirected, which the case shows by leaving the
+first stage's complaint where it was: the others are attached to the stage after
+them, and redirecting one of those would cut the pipeline in half.
+"""
+script = """
+pipe ("{emit}", "one", "--error=noise", "two");
+pipe ("{upcase}");
+pipe_all_into ("{store}/piped.txt");
+put_line ("[" & Read_File ("{store}/piped.txt") & "]");
+quit (0);"""
+exit_status = 0
+output = [
+  "[ONE",
+  "TWO",
+  "]",
+]
+diagnostics = [
+  "noise",
+]

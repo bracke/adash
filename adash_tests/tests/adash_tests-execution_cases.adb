@@ -1019,8 +1019,10 @@ package body Adash_Tests.Execution_Cases is
       Result  : Hostkit.Spawn.Status;
 
       Ends : Hostkit.Descriptors.Pipe_Ends;
+      Outs : Hostkit.Descriptors.Pipe_Ends;
 
       Said : Ada.Strings.Unbounded.Unbounded_String;
+      Wrote : Ada.Strings.Unbounded.Unbounded_String;
 
       Written : Adash.Filesystem.Written;
 
@@ -1047,17 +1049,25 @@ package body Adash_Tests.Execution_Cases is
 
       Assert (Hostkit.Descriptors.Create_Pipe (Ends),
               "no pipe for the shell's error stream");
+      Assert (Hostkit.Descriptors.Create_Pipe (Outs),
+              "no pipe for the shell's output");
 
       Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
 
       Options.Error_Output := Ends.Write_End;
 
+      --  Its output as well as its complaints, because an empty error stream
+      --  says nothing about which of the two things happened: a shell that
+      --  wrote its diagnostic somewhere else, or one that never got that far.
+      Options.Output := Outs.Write_End;
+
       Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
               = Hostkit.Spawn.Spawn_Ok,
               "the shell would not start on the probe script");
 
-      --  This end of it, so that reading ends when the shell does.
+      --  These ends of them, so that reading ends when the shell does.
       Hostkit.Descriptors.Close (Ends.Write_End);
+      Hostkit.Descriptors.Close (Outs.Write_End);
 
       loop
          declare
@@ -1076,12 +1086,31 @@ package body Adash_Tests.Execution_Cases is
 
       Hostkit.Descriptors.Close (Ends.Read_End);
 
+      loop
+         declare
+            Chunk : Ada.Streams.Stream_Element_Array (1 .. 4_096);
+            Last  : Ada.Streams.Stream_Element_Offset;
+         begin
+            exit when Hostkit.Descriptors.Read (Outs.Read_End, Chunk, Last)
+                      /= Hostkit.Descriptors.Transfer_Ok;
+
+            for Index in Chunk'First .. Last loop
+               Ada.Strings.Unbounded.Append
+                 (Wrote, Character'Val (Natural (Chunk (Index))));
+            end loop;
+         end;
+      end loop;
+
+      Hostkit.Descriptors.Close (Outs.Read_End);
+
       declare
-         Ignored : constant Boolean :=
+         Ended : constant Boolean :=
            Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Block, Result);
-         pragma Unreferenced (Ignored);
       begin
-         null;
+         Ada.Text_IO.Put_Line
+           ("stopped-child-probe: ended=" & Boolean'Image (Ended)
+            & " state=" & Hostkit.Spawn.Wait_State'Image (Result.State)
+            & " code=" & Integer'Image (Result.Exit_Code));
       end;
 
       --  Byte by byte, because what is being looked for is a byte nobody has
@@ -1104,9 +1133,13 @@ package body Adash_Tests.Execution_Cases is
          end loop;
 
          Ada.Text_IO.Put_Line
-           ("stopped-child-probe: "
-            & Ada.Strings.Unbounded.To_String (Shown));
+           ("stopped-child-probe: errors=["
+            & Ada.Strings.Unbounded.To_String (Shown) & "]");
       end;
+
+      Ada.Text_IO.Put_Line
+        ("stopped-child-probe: output=["
+         & Ada.Strings.Unbounded.To_String (Wrote) & "]");
 
       Ada.Directories.Delete_File (Script);
    end What_A_Stopped_Child_Leaves_On_A_Shells_Error_Stream;

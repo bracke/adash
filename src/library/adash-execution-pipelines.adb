@@ -458,6 +458,38 @@ package body Adash.Execution.Pipelines is
           (D.Standard_Input, Group);
    end Take_The_Terminal_Back;
 
+   ---------------------
+   -- Redirect_Last --
+   ---------------------
+
+   function Redirect_Last
+     (Item   : in out Plan;
+      Attach : Adash.Execution.Redirection.Plan;
+      Error  : out Adash.Errors.Error_Info) return Boolean
+   is
+      Count : constant Natural := Natural (Item.Stages.Length);
+   begin
+      Error := Adash.Errors.Success;
+
+      if Count = 0 then
+         --  Nothing to redirect. Not an error here: the caller that runs an
+         --  empty pipeline is the one that says so, and saying it twice in
+         --  two different ways would be two answers to one mistake.
+         return True;
+      end if;
+
+      declare
+         Last : C.Invocation := Item.Stages.Element (Count);
+      begin
+         if not Adash.Execution.Redirection.Apply (Attach, Last, Error) then
+            return False;
+         end if;
+
+         Item.Stages.Replace_Element (Count, Last);
+         return True;
+      end;
+   end Redirect_Last;
+
    function Capture
      (Item    : in out Plan;
       Cancel  : access Adash.Execution.Cancellation.Token;

@@ -531,6 +531,24 @@ package body Adash.Messages is
          when Msg_Command_Run_All_New_Doc =>
             return "command.run_all_new.doc";
          when Msg_Command_Pipe_Doc           => return "command.pipe.doc";
+         when Msg_Command_Pipe_Into_Doc =>
+            return "command.pipe_into.doc";
+         when Msg_Command_Pipe_Append_Doc =>
+            return "command.pipe_append.doc";
+         when Msg_Command_Pipe_New_Doc =>
+            return "command.pipe_new.doc";
+         when Msg_Command_Pipe_Errors_Into_Doc =>
+            return "command.pipe_errors_into.doc";
+         when Msg_Command_Pipe_Errors_Append_Doc =>
+            return "command.pipe_errors_append.doc";
+         when Msg_Command_Pipe_Errors_New_Doc =>
+            return "command.pipe_errors_new.doc";
+         when Msg_Command_Pipe_All_Into_Doc =>
+            return "command.pipe_all_into.doc";
+         when Msg_Command_Pipe_All_Append_Doc =>
+            return "command.pipe_all_append.doc";
+         when Msg_Command_Pipe_All_New_Doc =>
+            return "command.pipe_all_new.doc";
          when Msg_Command_Pipe_Run_Doc       => return "command.pipe_run.doc";
          when Msg_Command_Start_Doc          => return "command.start.doc";
          when Msg_Command_Wait_Doc           => return "command.wait.doc";
@@ -883,6 +901,15 @@ package body Adash.Messages is
             | Msg_Command_Run_All_Into_Doc | Msg_Command_Run_All_Append_Doc
             | Msg_Command_Run_All_New_Doc
             | Msg_Command_Pipe_Doc
+            | Msg_Command_Pipe_Into_Doc
+            | Msg_Command_Pipe_Append_Doc
+            | Msg_Command_Pipe_New_Doc
+            | Msg_Command_Pipe_Errors_Into_Doc
+            | Msg_Command_Pipe_Errors_Append_Doc
+            | Msg_Command_Pipe_Errors_New_Doc
+            | Msg_Command_Pipe_All_Into_Doc
+            | Msg_Command_Pipe_All_Append_Doc
+            | Msg_Command_Pipe_All_New_Doc
             | Msg_Command_Pipe_Run_Doc
             | Msg_Command_Start_Doc | Msg_Command_Wait_Doc
             | Msg_Command_Stop_Doc

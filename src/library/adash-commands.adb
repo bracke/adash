@@ -162,6 +162,53 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Pipe_Run_Doc, M.Msg_Command_Hint, Available),
 
+      --  A pipeline's streams, put where a single program's can be put.
+      --
+      --  Nine names rather than a flag, because they are the nine that already
+      --  exist for one program and a reader who has learned those has learned
+      --  these. The file comes first for the same reason it does there: the
+      --  arguments after a program name belong to the program.
+      --
+      --  The last stage is the one redirected. The others are attached to the
+      --  stage after them, and redirecting one of those would cut the pipeline
+      --  in half.
+      (Command_Pipe_Into, Named ("pipe_into"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_Into_Doc, M.Msg_Command_Hint, Available),
+      (Command_Pipe_Append, Named ("pipe_append"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_Append_Doc, M.Msg_Command_Hint, Available),
+      (Command_Pipe_New, Named ("pipe_new"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_New_Doc, M.Msg_Command_Hint, Available),
+      (Command_Pipe_Errors_Into, Named ("pipe_errors_into"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_Errors_Into_Doc, M.Msg_Command_Hint, Available),
+      (Command_Pipe_Errors_Append, Named ("pipe_errors_append"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_Errors_Append_Doc, M.Msg_Command_Hint, Available),
+      (Command_Pipe_Errors_New, Named ("pipe_errors_new"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_Errors_New_Doc, M.Msg_Command_Hint, Available),
+      (Command_Pipe_All_Into, Named ("pipe_all_into"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_All_Into_Doc, M.Msg_Command_Hint, Available),
+      (Command_Pipe_All_Append, Named ("pipe_all_append"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_All_Append_Doc, M.Msg_Command_Hint, Available),
+      (Command_Pipe_All_New, Named ("pipe_all_new"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_All_New_Doc, M.Msg_Command_Hint, Available),
+
       --  Job control. `start` names a program and its arguments separately
       --  rather than taking a command line: a filename with a space in it is
       --  one argument, and splitting a string here would invent a quoting rule

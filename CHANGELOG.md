@@ -1832,6 +1832,17 @@ what changed.
   is not there, for the same reason; `Exists` and `Is_Directory` tell them
   apart.
 
+- **A pipeline's streams have somewhere to go.** Everything a single program
+  gained -- three files for output, three for complaints, three for both --
+  stopped at the moment a script used more than one program: a pipeline could
+  only run, and its output went wherever the shell's went. The nine `pipe_*`
+  forms are the nine `run_*` forms, and they redirect the last stage, which is
+  the one whose output is the pipeline's.
+
+- **A pipeline waited for gets the terminal**, which `run` and `wait` were
+  given and `pipe_run` was not: a stage that asked a question was stopped where
+  it asked.
+
 - **`All_Of`.** The reading half of `run_all_into`: everything a program wrote,
   in the order it wrote it. A script could send both streams to one file and
   could not read both back as one answer, so anything that wanted to look at

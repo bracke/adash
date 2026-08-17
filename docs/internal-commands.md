@@ -104,6 +104,15 @@ reads as the empty string rather than failing.
 | `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
+| `pipe_into (File : String)` | 1 | runs the pipeline with its output written to a file |
+| `pipe_append (File : String)` | 1 | adds its output to the end of a file |
+| `pipe_new (File : String)` | 1 | as `pipe_into`, refusing a file that is already there |
+| `pipe_errors_into (File : String)` | 1 | writes what the last stage complains about to a file |
+| `pipe_errors_append (File : String)` | 1 | adds what it complains about to the end of a file |
+| `pipe_errors_new (File : String)` | 1 | as `pipe_errors_into`, refusing a file that is there |
+| `pipe_all_into (File : String)` | 1 | everything the last stage writes, in one file |
+| `pipe_all_append (File : String)` | 1 | adds everything it writes to the end of one file |
+| `pipe_all_new (File : String)` | 1 | as `pipe_all_into`, refusing a file that is there |
 
 The redirection file comes **first**, because it is what distinguishes these
 four from `run` — there is no `>` here, and no word-splitting anywhere: an
@@ -148,6 +157,12 @@ which is the order `run_into` does not use — those two are named after what ru
 and these after what is written. Appending to a file that is not there makes it,
 because the first turn of a loop that collects lines is not an error. A write
 that worked says nothing; `Status` says what became of it.
+
+The nine `pipe_*` forms are the nine `run_*` forms, for a pipeline: the same
+names, the same order of arguments, and the same three ways of meeting a file.
+They redirect the **last** stage, which is the one whose output is the
+pipeline's — the others are attached to the stage after them, and redirecting
+one of those would cut the pipeline in half.
 
 The `run_all_*` three are what a build log wants: the error stream follows the
 output stream into the **same open file** rather than opening a second one, so
