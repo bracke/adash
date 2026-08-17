@@ -1210,9 +1210,13 @@ package body Adash_Tests.Execution_Cases is
    --  place of a shell saying one sentence or nothing at all.
    --
    --  What is asserted is the absence of that trace, which is true on every
-   --  host: what the shell says instead differs -- a signal takes it on two of
-   --  them before it can say anything -- and a case asserting the message
+   --  host: what the shell *says* instead differs -- a signal takes it on two
+   --  of them before it can say anything -- and a case asserting the message
    --  would be asserting which host it was run on.
+   --
+   --  How it ends is asserted in both shapes: signalled, or exited with 74,
+   --  which is the number for an input/output error and the one the shell
+   --  chooses when it is left to choose.
    procedure A_Shell_Whose_Reader_Left_Says_No_Stack_Trace
      (T : in out AUnit.Test_Cases.Test_Case'Class);
 
@@ -1334,6 +1338,23 @@ package body Adash_Tests.Execution_Cases is
          --  for another hundred and ninety-nine thousand lines.
          Assert (Ended and then Result.State /= Hostkit.Spawn.Wait_Running,
                  "the shell did not end when its reader left");
+
+         --  And how it ended, in the two shapes a host has for it. Where the
+         --  terminal signals a writer whose reader has gone, that signal takes
+         --  the shell before it can decide anything -- 74 is what it decides
+         --  when it is left to decide, and asserting only one of the two would
+         --  be asserting which host this ran on.
+         if Result.State = Hostkit.Spawn.Wait_Exited then
+            Assert (Result.Exit_Code = 74,
+                    "a shell with nowhere to write exited with"
+                    & Integer'Image (Result.Exit_Code)
+                    & " rather than 74");
+         else
+            Assert (Result.State = Hostkit.Spawn.Wait_Signalled,
+                    "a shell with nowhere to write neither exited nor was "
+                    & "signalled: "
+                    & Hostkit.Spawn.Wait_State'Image (Result.State));
+         end if;
       end;
 
       --  The two lines a GNAT traceback always has. Either of them means the
