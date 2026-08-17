@@ -2802,14 +2802,51 @@ package body Adash_Tests.Interactive_Cases is
          return;
       end if;
 
-      Assert (Waited_For (Session, "RUNNING", Tries => 600),
-              "the script never started: [" & Plainly (Session) & "]");
+      --  Waited for patiently rather than through Waited_For, which stops the
+      --  moment a drain comes back with nothing: on a console that is what a
+      --  terminal says while a child is still starting, and this case was
+      --  reading it as "the script never started" on the one host where
+      --  starting takes longest.
+      declare
+         Seen : Boolean := False;
+      begin
+         for Attempt in 1 .. 200 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Seen := Times_Seen (Session, "RUNNING") > 0;
+            end;
+
+            exit when Seen;
+            delay 0.05;
+         end loop;
+
+         Assert (Seen,
+                 "the script never started: [" & Plainly (Session) & "]");
+      end;
 
       Type_Interrupt (Session);
 
-      Assert (Waited_For (Session, "TIDIED", Tries => 900),
-              "an interrupted script did not run what it registered: ["
-              & Plainly (Session) & "]");
+      declare
+         Tidied : Boolean := False;
+      begin
+         for Attempt in 1 .. 300 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Tidied := Times_Seen (Session, "TIDIED") > 0;
+            end;
+
+            exit when Tidied;
+            delay 0.05;
+         end loop;
+
+         Assert (Tidied,
+                 "an interrupted script did not run what it registered: ["
+                 & Plainly (Session) & "]");
+      end;
 
       Finish (Session, Ended);
 
