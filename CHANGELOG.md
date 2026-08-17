@@ -1903,6 +1903,19 @@ what changed.
 
 ### Fixed
 
+- **Writing to a reader that has gone no longer prints a traceback.** On
+  Windows `put_line` into a closed pipe raises where POSIX raises a signal the
+  shell refuses, and unhandled it reached the last-chance handler: fifteen lines
+  of addresses where a shell should say one sentence, on the standard error
+  somebody else's diagnostic was already using. It is reported as a stream write
+  failure now, and the run ends -- a program that cannot say anything has
+  nothing further to do.
+
+  This is the thing that had been mistaken for a blank line ahead of a
+  diagnostic since yesterday. The traceback begins with the carriage return and
+  line feed that end the child's unfinished line, and everything after it was
+  what nobody could account for.
+
 - **A program the shell runs can read the terminal.** A job is started in a
   process group of its own -- that is what makes it a job, and what lets a
   signal reach the job rather than the shell -- and a POSIX terminal stops any

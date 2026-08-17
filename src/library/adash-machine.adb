@@ -2818,10 +2818,43 @@ package body Adash.Machine is
                   if Here.Code = Write_Line then
                      Ada.Text_IO.New_Line;
                   end if;
+
+               exception
+                  when others =>
+                     --  Writing to somewhere that has gone.
+                     --
+                     --  A shell whose reader closed the pipe -- `adash x |
+                     --  head -1`, or a capture that refused what it was being
+                     --  handed -- was writing into nothing, and on Windows
+                     --  that raises where POSIX raises a signal the shell
+                     --  refuses. Unhandled, it reached the last-chance
+                     --  handler and printed a traceback: fifteen lines of
+                     --  addresses where a shell should say one sentence, and
+                     --  on the standard error somebody else's diagnostic was
+                     --  already using.
+                     --
+                     --  Reported as what it is instead. A program that cannot
+                     --  say anything more has nothing further to do, so this
+                     --  ends the run rather than carrying on writing into a
+                     --  stream that will refuse the next line too.
+                     Fail (Raised, "Device_Error",
+                           M.Msg_Stream_Write_Failed,
+                           [1 => To_Unbounded_String ("output"),
+                            others => Null_Unbounded_String],
+                           1);
                end;
 
             when New_Line =>
-               Ada.Text_IO.New_Line;
+               begin
+                  Ada.Text_IO.New_Line;
+               exception
+                  when others =>
+                     Fail (Raised, "Device_Error",
+                           M.Msg_Stream_Write_Failed,
+                           [1 => To_Unbounded_String ("output"),
+                            others => Null_Unbounded_String],
+                           1);
+               end;
 
             when Push_Handler =>
                if Guards_Used = Max_Guards then
