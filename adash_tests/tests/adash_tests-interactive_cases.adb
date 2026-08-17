@@ -7,6 +7,7 @@ with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Fs;
 with Hostkit.Host;
+with Hostkit.Process;
 with Hostkit.Pty;
 with Hostkit.Signals;
 with Hostkit.Spawn;
@@ -2821,6 +2822,54 @@ package body Adash_Tests.Interactive_Cases is
       Ada.Directories.Delete_File (Script);
    end An_Interrupted_Script_Still_Tidies_Up;
 
+   --  End a session without typing at it.
+   --
+   --  `Finish` asks the shell to quit, which means typing -- and a probe is
+   --  exactly the place where the child may already be gone, where typing is
+   --  refused, and where a refusal is a fact to record rather than a failure
+   --  to report. Closing the terminal is the other way to say it: the child
+   --  loses its input and its output at once.
+   procedure Close_Without_Typing
+     (Item : in out Terminal_Session; Ended : out Boolean);
+
+   procedure Close_Without_Typing
+     (Item : in out Terminal_Session; Ended : out Boolean)
+   is
+      Result : Hostkit.Spawn.Status;
+
+      use type Hostkit.Spawn.Wait_State;
+   begin
+      Ended := False;
+
+      Hostkit.Pty.Close (Item.Pair);
+
+      for Attempt in 1 .. 40 loop
+         if Hostkit.Spawn.Wait (Item.Child, Hostkit.Spawn.Wait_Poll, Result)
+           and then Result.State /= Hostkit.Spawn.Wait_Running
+         then
+            Ended := True;
+            exit;
+         end if;
+
+         delay 0.05;
+      end loop;
+
+      if not Ended then
+         --  Still there with nothing to read and nowhere to write. Asked to
+         --  stop, so a probe does not leave a process behind.
+         declare
+            Asked : constant Boolean :=
+              Hostkit.Process.Request_Stop
+                (Hostkit.Spawn.Process_Id (Item.Child));
+            pragma Unreferenced (Asked);
+         begin
+            null;
+         end;
+      end if;
+
+      Item.Started := False;
+   end Close_Without_Typing;
+
    --  What a shell on a terminal says when it is given a script.
    --
    --  A record rather than an assertion, and the third time this file has
@@ -2904,7 +2953,7 @@ package body Adash_Tests.Interactive_Cases is
             & Ada.Strings.Unbounded.To_String (Shown) & "]");
       end;
 
-      Finish (Session, Ended);
+      Close_Without_Typing (Session, Ended);
 
       --  And the same question of a script that does not stop.
       declare
@@ -2952,10 +3001,11 @@ package body Adash_Tests.Interactive_Cases is
                   & Ada.Strings.Unbounded.To_String (Shown) & "]");
             end;
 
-            Finish (Second, Over);
+            Close_Without_Typing (Second, Over);
 
             Ada.Text_IO.Put_Line
-              ("busy-script-on-a-terminal: ended=" & Boolean'Image (Over));
+              ("busy-script-on-a-terminal: ended-when-closed="
+               & Boolean'Image (Over));
          end if;
 
          Ada.Directories.Delete_File (Busy);
