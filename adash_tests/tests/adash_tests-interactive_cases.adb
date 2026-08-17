@@ -1161,6 +1161,16 @@ package body Adash_Tests.Interactive_Cases is
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
 
+   --  End a session without typing at it.
+   --
+   --  `Finish` asks the shell to quit, which means typing -- and a probe -- and a
+   --  case whose shell is on its way out -- is exactly the place where the child may already be gone, where typing is
+   --  refused, and where a refusal is a fact to record rather than a failure
+   --  to report. Closing the terminal is the other way to say it: the child
+   --  loses its input and its output at once.
+   procedure Close_Without_Typing
+     (Item : in out Terminal_Session; Ended : out Boolean);
+
    --  Whether the shell on the other end has already gone.
    --
    --  Asked only when something has gone wrong, and asked without waiting: a
@@ -2912,11 +2922,14 @@ package body Adash_Tests.Interactive_Cases is
                  "the script never started: [" & Plainly (Session) & "]");
       end;
 
-      --  Not asserted. Where the child has already gone the write is refused,
-      --  and what matters is what the transcript shows: a shell that ran its
-      --  cleanup before leaving did the thing this case is about, whatever
-      --  ended it. The refusal travels into the message below instead.
+      --  Asserted, now that it is known to be true everywhere: the shell is
+      --  reading its terminal at this point on all three hosts, and a refusal
+      --  here would be news. The refusal this case used to fail on came later,
+      --  at the typing that used to end it.
       Reached_It := Try_Interrupt (Session);
+
+      Assert (Reached_It,
+              "the terminal refused the interrupt: [" & Plainly (Session) & "]");
 
       declare
          Tidied : Boolean := False;
@@ -2936,26 +2949,32 @@ package body Adash_Tests.Interactive_Cases is
 
          Assert (Tidied,
                  "an interrupted script did not run what it registered "
-                 & "(the interrupt "
-                 & (if Reached_It then "reached the terminal"
-                    else "was refused: nothing held the other end")
-                 & "): [" & Plainly (Session) & "]");
+                 & "after an interrupt the terminal took: ["
+                 & Plainly (Session) & "]");
       end;
 
-      Finish (Session, Ended);
+      --  Closed rather than quit, which is what this case was getting wrong.
+      --
+      --  A shell whose script was interrupted runs what was registered and
+      --  then leaves; `Finish` types `quit (0);` at it, and typing at a shell
+      --  that is already on its way out is a race the test loses on whichever
+      --  host is quickest. macOS was that host: the write came back refused,
+      --  the case reported "could not type into the terminal", and that was
+      --  read for a long time as the interrupt never arriving -- while the
+      --  transcript printed beside it says TIDIED, which is the whole claim,
+      --  already true before the typing that failed.
+      --
+      --  What was different about that host is a pty rule rather than a shell:
+      --  a write to the terminal is refused once nothing holds the far end,
+      --  where the other two accept it into a buffer nobody will read.
+      Close_Without_Typing (Session, Ended);
+
+      Assert (Ended,
+              "an interrupted script left a shell behind: ["
+              & Plainly (Session) & "]");
 
       Ada.Directories.Delete_File (Script);
    end An_Interrupted_Script_Still_Tidies_Up;
-
-   --  End a session without typing at it.
-   --
-   --  `Finish` asks the shell to quit, which means typing -- and a probe is
-   --  exactly the place where the child may already be gone, where typing is
-   --  refused, and where a refusal is a fact to record rather than a failure
-   --  to report. Closing the terminal is the other way to say it: the child
-   --  loses its input and its output at once.
-   procedure Close_Without_Typing
-     (Item : in out Terminal_Session; Ended : out Boolean);
 
    procedure Close_Without_Typing
      (Item : in out Terminal_Session; Ended : out Boolean)
