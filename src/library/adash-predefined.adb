@@ -377,6 +377,24 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_File_At_Hint,
        Status => Available),
 
+      --  Where a program is, which is what `which` answers elsewhere.
+      --
+      --  `Is_Executable` needs a path, so a script could ask about a program it
+      --  already knew the location of and could not ask about one on the
+      --  search path -- which is every program a user actually names. The
+      --  answer is the host's own resolution rather than a split of PATH by
+      --  this shell: on Windows a name matches with any of the PATHEXT
+      --  suffixes, and `git` there is `git.exe`.
+      (Id => Entity_Program_Path, Name => Named ("Program_Path"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 1,
+       Parameters => [1 => (Named ("Program"), Types.Type_String),
+                      others => (Named (""), Types.Type_None)],
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Program_Path_Doc,
+       Description => Adash.Messages.Msg_Predefined_Program_Path_Hint,
+       Status => Available),
+
       (Id => Entity_Index, Name => Named ("Index"),
        Sort => Sort_Function,
        Of_Type => Types.Type_Integer, Parameter_Count => 2,

@@ -1930,6 +1930,25 @@ what changed.
   the same period, and both lookups are a linear scan. The record says so, and
   says it is an inference from which rows moved rather than a measurement.
 
+- **A script can take things away again.** `remove_file`, `remove_directory`,
+  `rename` and `copy_file`. Removing a directory takes an **empty** one, and
+  that is the point: a recursive removal is one typo away from the most
+  destructive thing a shell can do, and a script that means it says so in three
+  lines that name what they destroy. `rename` and `copy_file` refuse to replace
+  what is already there.
+
+- **`on_exit` is `trap`.** A script that made a temporary directory had no way
+  to take it away when it was interrupted. It names a subprogram the session
+  declared and runs it when the session ends however it ends -- off the end,
+  through `quit`, or because an interrupt stopped what was running -- most
+  recently registered first, with the name resolved when it runs so cleanup can
+  be asked for at the top and declared below.
+
+- **`Program_Path` answers where a program is**, which `Is_Executable` could not:
+  it needs a path, and every program a user names is on the search path. The
+  host resolves it, because on Windows a name matches with any of the PATHEXT
+  suffixes.
+
 - **A script can see what is in a directory.** `File_Count` and `File_At` are
   the loop every other shell writes as `for f in *`, which had no equivalent
   here at all: a script had to run a program to find out what existed, which is

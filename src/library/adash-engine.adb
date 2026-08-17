@@ -2,7 +2,7 @@
 with Ada.Characters.Latin_1;
 with Ada.Directories;
 
-with Hostkit;
+with Hostkit.Process;
 
 with Adash.Errors;
 with Adash.Execution.Commands;
@@ -447,6 +447,12 @@ package body Adash.Engine is
                   then Adash.Filesystem.File_At (Text_At (1), Position)
                   else "");
             end;
+
+         when Adash.Predefined.Entity_Program_Path =>
+            --  The host's own resolution, not a split of PATH: see the note
+            --  where this entity is registered.
+            Answer := Adash.Language.Values.To_Value
+              (Hostkit.Process.Locate (Text_At (1)));
 
          when Adash.Predefined.Entity_Current_Directory =>
             --  Where the session is, which `cd` moves and which a script
@@ -1433,6 +1439,19 @@ package body Adash.Engine is
    ---------------------
    -- Exit_Requested --
    ---------------------
+
+   ----------------------
+   -- Take_Cleanups --
+   ----------------------
+
+   function Take_Cleanups
+     (Item : in out Session) return Hostkit.String_Vectors.Vector
+   is
+      Taken : constant Hostkit.String_Vectors.Vector := Item.Shell.Cleanups;
+   begin
+      Item.Shell.Cleanups.Clear;
+      return Taken;
+   end Take_Cleanups;
 
    function Exit_Requested (Item : Session) return Boolean is
    begin

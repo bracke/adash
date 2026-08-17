@@ -1,6 +1,8 @@
 private with Ada.Containers.Vectors;
 private with Ada.Strings.Unbounded;
 
+with Hostkit;
+
 with Adash.Configuration;
 with Adash.Diagnostics;
 with Adash.Execution;
@@ -117,6 +119,11 @@ package Adash.Commands is
       --  a script can work something out and has nowhere to put it.
       Command_Write_File,
       Command_Make_Directory,
+      Command_Remove_File,
+      Command_Remove_Directory,
+      Command_Rename,
+      Command_Copy_File,
+      Command_On_Exit,
       Command_Append_File,
 
       --  The user's own settings.
@@ -413,6 +420,17 @@ package Adash.Commands is
       --  an empty line is a line a file may contain, so a program that could
       --  only see the text could not tell the two apart.
       Input_Ended : Boolean := False;
+
+      --  What to run before this session ends, most recently asked first.
+      --
+      --  A script that makes a temporary directory has no way to take it away
+      --  again when it is interrupted, which is what `trap` is for elsewhere.
+      --  The names are of subprograms the script declared: held as text
+      --  because that is what a command's argument is, and looked up when they
+      --  run rather than now -- a name registered before the subprogram is
+      --  declared is a script written in an order the shell has no business
+      --  refusing.
+      Cleanups : Hostkit.String_Vectors.Vector;
 
       --  The user's settings, as this session is running with them.
       --

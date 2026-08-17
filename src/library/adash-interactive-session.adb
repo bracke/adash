@@ -1200,6 +1200,29 @@ package body Adash.Interactive.Session is
          end;
       end loop;
 
+      --  What `on_exit` asked for, before the history is merged and the
+      --  session is over: a cleanup that writes a file should be able to, and
+      --  one that types something should have it recorded like anything else.
+      declare
+         Waiting : constant Hostkit.String_Vectors.Vector :=
+           Adash.Engine.Take_Cleanups (Shell);
+
+         Answer : Adash.Engine.Result;
+      begin
+         for Name of Waiting loop
+            Adash.Engine.Submit
+              (Shell,
+               Text    => Ada.Strings.Unbounded.To_String (Name) & ";",
+               Name    => Interactive_Origin,
+               Kind    => Adash.Source.Origin_Interactive,
+               Outcome => Answer,
+               Report  => Report,
+               On_Output => Output_To'Unchecked_Access);
+         end loop;
+
+         Render_Diagnostics;
+      end;
+
       Merge_Session_History;
 
       if Adash.Engine.Exit_Requested (Shell) then

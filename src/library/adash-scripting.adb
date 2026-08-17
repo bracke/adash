@@ -14,6 +14,7 @@ with Adash.Messages;
 with Adash.Scripting.Modules;
 with Adash.Source;
 
+with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Fs;
 with Hostkit.Terminal_Control;
@@ -69,6 +70,11 @@ package body Adash.Scripting is
    -- Run_Text --
    --------------
 
+   --  What a cleanup's diagnostics are said to be from. Not the script: a
+   --  mistake in a cleanup is at the line that registered it, and pointing at
+   --  the script's own text would point at whatever happened to be there.
+   Name_Of_Cleanups : constant String := "on_exit";
+
    procedure Run_Text
      (Session : in out Adash.Engine.Session;
       Text    : String;
@@ -112,6 +118,33 @@ package body Adash.Scripting is
       --  behind is the terminal it was given.
       Adash.Execution.Signals.Stop_Watching;
       Adash.Execution.Signals.Acknowledge_Interrupt;
+
+      --  What `on_exit` asked for, before this text is done with.
+      --
+      --  After the interrupt is acknowledged, deliberately: a cleanup runs
+      --  *because* the script was interrupted as often as because it finished,
+      --  and one that inherited a pending interrupt would be stopped before it
+      --  could remove anything.
+      declare
+         Waiting : constant Hostkit.String_Vectors.Vector :=
+           Adash.Engine.Take_Cleanups (Session);
+
+         Ran_It  : Adash.Engine.Result;
+      begin
+         for Name of Waiting loop
+            --  Submitted as a call, because that is what it is. A name that
+            --  turns out not to be there is reported the way any undeclared
+            --  name is: the script asked for something it never declared.
+            Adash.Engine.Submit
+              (Session,
+               Ada.Strings.Unbounded.To_String (Name) & ";",
+               Name    => Name_Of_Cleanups,
+               Kind    => Adash.Source.Origin_Interactive,
+               Outcome => Ran_It,
+               Report  => Report,
+               On_Output => On_Output);
+         end loop;
+      end;
 
       Carried := Submitted.Carried_Bytes;
       Status := Submitted.Status;

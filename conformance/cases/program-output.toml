@@ -1503,3 +1503,104 @@ output = [
   " 5",
 ]
 diagnostics = []
+
+[[case]]
+id = "files.things-can-be-taken-away-again"
+requirement = """
+A script could make a file and a directory and unmake neither. That was
+defensible while unmaking was left to programs, and stopped being so when the
+shell began running where those programs are not -- and the directory listing
+makes it sharper still, since a script can now name exactly what it wants gone
+and then has to shell out to something that may not be there.
+
+Removing a directory takes an **empty** one, deliberately. A recursive removal
+is one typo away from the most destructive thing a shell can do; a script that
+means it says so in three lines that name what they destroy.
+
+A file that is not there is not an error to remove -- a script tidying up
+should not have to know whether it already has -- and `rename` and `copy_file`
+refuse to replace something that is already there, because a move that silently
+overwrote would be the destructive case wearing the safe one's name.
+"""
+script = """
+make_directory ("{store}/heap/inner");
+write_file ("x", "{store}/heap/a.txt");
+copy_file ("{store}/heap/a.txt", "{store}/heap/b.txt");
+rename ("{store}/heap/b.txt", "{store}/heap/inner/c.txt");
+put_line (Integer'Image (File_Count ("{store}/heap")));
+remove_directory ("{store}/heap");
+put_line (Integer'Image (Status));
+copy_file ("{store}/heap/a.txt", "{store}/heap/inner/c.txt");
+put_line (Integer'Image (Status));
+remove_file ("{store}/heap/a.txt");
+remove_file ("{store}/heap/nothing-here.txt");
+put_line (Integer'Image (Status));
+remove_file ("{store}/heap/inner/c.txt");
+remove_directory ("{store}/heap/inner");
+remove_directory ("{store}/heap");
+put_line (Boolean'Image (Exists ("{store}/heap")));
+quit (0);"""
+exit_status = 0
+output = [
+  " 2",
+  " 1",
+  " 1",
+  " 0",
+  "FALSE",
+]
+diagnostics = [
+  "!error.file_not_writable{path={store}/heap}!",
+  "!error.file_not_writable{path={store}/heap/inner/c.txt}!",
+]
+
+[[case]]
+id = "run.a-script-can-tidy-up-after-itself"
+requirement = """
+A script that makes a temporary directory had no way to take it away when it
+was interrupted -- what `trap` is for elsewhere, and what nothing here could
+say.
+
+`on_exit` names a subprogram the script declared, and the shell runs it when
+the session ends however it ends: off the end, through `quit`, or because an
+interrupt stopped what was running. Most recently registered first, so that
+cleanups undo in the order the things they clean up were made.
+
+The name is resolved when it runs rather than when it is registered, so a
+script may ask for cleanup at the top and declare it below -- which is the
+order anybody writes it in.
+"""
+script = """
+procedure Tidy is begin put_line ("tidied"); remove_file ("{store}/scratch.txt"); end Tidy;
+on_exit ("Tidy");
+write_file ("x", "{store}/scratch.txt");
+put_line (Boolean'Image (Exists ("{store}/scratch.txt")));
+quit (0);"""
+exit_status = 0
+output = [
+  "TRUE",
+  "tidied",
+]
+diagnostics = []
+
+[[case]]
+id = "run.where-a-program-is-can-be-asked"
+requirement = """
+`Is_Executable` needs a path, so a script could ask about a program whose
+location it already knew and could not ask about one on the search path --
+which is every program a user actually names.
+
+The host's own resolution, not a split of `PATH` by this shell: on Windows a
+name matches with any of the PATHEXT suffixes, and the answer for `git` there
+ends in `.exe`. Nothing at all for a name the host would not find, which is a
+question with no consequences and the answer a script tests.
+"""
+script = """
+put_line (Boolean'Image (Program_Path ("{shell}") /= ""));
+put_line ("[" & Program_Path ("no-such-program-anywhere-at-all") & "]");
+quit (0);"""
+exit_status = 0
+output = [
+  "TRUE",
+  "[]",
+]
+diagnostics = []

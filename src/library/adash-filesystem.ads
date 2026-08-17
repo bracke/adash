@@ -197,6 +197,59 @@ package Adash.Filesystem is
    --         never anything half done here for a caller to be told about.
    procedure Make_Directory (Path : String; Result : out Written);
 
+   --  Take a file away.
+   --
+   --  The other half of writing one, and it was missing for a reason that
+   --  stopped being true: unmaking things was left to programs, and this shell
+   --  now runs where the program that does it is not there. A script that can
+   --  make a file and cannot remove it is a script that leaks.
+   --
+   --  A file only. A directory is refused here and removed by the call below,
+   --  because the two mistakes they protect against are different sizes.
+   --
+   --  @param Path The file.
+   --  @param Result Write_Ok when it is gone -- including when it was not
+   --         there to start with, because what the caller asked for is that it
+   --         not be there. Write_Refused for a directory, or a file the host
+   --         will not part with.
+   procedure Remove_File (Path : String; Result : out Written);
+
+   --  Take an empty directory away.
+   --
+   --  **Empty only, and deliberately.** A recursive removal is one typo away
+   --  from a catastrophe -- the single most destructive thing a shell can be
+   --  asked to do -- and a script that means it can say it: list the directory,
+   --  remove what is in it, then remove the directory. That is three lines
+   --  which say what they will destroy, rather than one that says it in a way
+   --  a slip of the finger can widen.
+   --
+   --  @param Path The directory.
+   --  @param Result Write_Ok when it is gone, including when it was not there.
+   --         Write_Refused for something that is not a directory, one that
+   --         still holds something, or one the host will not part with.
+   procedure Remove_Directory (Path : String; Result : out Written);
+
+   --  Give something another name, or another place.
+   --
+   --  What `mv` does, and the same call for both because they are one act to a
+   --  filesystem: a rename within a place and a move between two.
+   --
+   --  @param From What to rename. Refused when there is nothing there.
+   --  @param To The new name. Refused when something is already there -- a
+   --         move that silently replaced what it landed on would be the
+   --         destructive case wearing the name of the safe one.
+   --  @param Result What became of it.
+   procedure Rename (From : String; To : String; Result : out Written);
+
+   --  Copy a file.
+   --
+   --  @param From The file to copy. Refused when it is not there or is a
+   --         directory: copying a tree is the recursive case again, and the
+   --         loop that does it is the caller's to write.
+   --  @param To Where to put it. Refused when something is already there.
+   --  @param Result What became of it.
+   procedure Copy_File (From : String; To : String; Result : out Written);
+
    --  Add text to the end of a file, making it when it is not there.
    --
    --  @param Path Where to write.

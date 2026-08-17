@@ -344,6 +344,111 @@ package body Adash.Filesystem is
       return Snapshot.Name (Path, Position);
    end File_At;
 
+   -------------------
+   -- Remove_File --
+   -------------------
+
+   procedure Remove_File (Path : String; Result : out Written) is
+   begin
+      if Path = "" then
+         Result := Write_Refused;
+         return;
+      end if;
+
+      if not Ada.Directories.Exists (Path) then
+         --  Already not there, which is what was asked for. A script tidying
+         --  up should not have to ask whether it already has.
+         Result := Write_Ok;
+         return;
+      end if;
+
+      if Is_Directory (Path) then
+         Result := Write_Refused;
+         return;
+      end if;
+
+      Ada.Directories.Delete_File (Path);
+      Result := Write_Ok;
+
+   exception
+      when others =>
+         Result := Write_Refused;
+   end Remove_File;
+
+   ------------------------
+   -- Remove_Directory --
+   ------------------------
+
+   procedure Remove_Directory (Path : String; Result : out Written) is
+   begin
+      if Path = "" then
+         Result := Write_Refused;
+         return;
+      end if;
+
+      if not Ada.Directories.Exists (Path) then
+         Result := Write_Ok;
+         return;
+      end if;
+
+      if not Is_Directory (Path) then
+         Result := Write_Refused;
+         return;
+      end if;
+
+      --  Delete_Directory rather than Delete_Tree, which is the whole of the
+      --  promise this makes: it fails on a directory that holds something,
+      --  and that failure is the point.
+      Ada.Directories.Delete_Directory (Path);
+      Result := Write_Ok;
+
+   exception
+      when others =>
+         Result := Write_Refused;
+   end Remove_Directory;
+
+   --------------
+   -- Rename --
+   --------------
+
+   procedure Rename (From : String; To : String; Result : out Written) is
+   begin
+      if From = "" or else To = "" or else not Ada.Directories.Exists (From)
+        or else Ada.Directories.Exists (To)
+      then
+         Result := Write_Refused;
+         return;
+      end if;
+
+      Ada.Directories.Rename (From, To);
+      Result := Write_Ok;
+
+   exception
+      when others =>
+         Result := Write_Refused;
+   end Rename;
+
+   -----------------
+   -- Copy_File --
+   -----------------
+
+   procedure Copy_File (From : String; To : String; Result : out Written) is
+   begin
+      if From = "" or else To = "" or else not Ada.Directories.Exists (From)
+        or else Is_Directory (From) or else Ada.Directories.Exists (To)
+      then
+         Result := Write_Refused;
+         return;
+      end if;
+
+      Ada.Directories.Copy_File (From, To);
+      Result := Write_Ok;
+
+   exception
+      when others =>
+         Result := Write_Failed;
+   end Copy_File;
+
    ---------------------
    -- Make_Directory --
    ---------------------

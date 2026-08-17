@@ -4,6 +4,8 @@ private with Ada.Strings.Unbounded;
 private with Adash.Language.Syntax;
 private with Adash.Language.Tokens;
 
+with Hostkit;
+
 with Adash.Commands;
 with Adash.Configuration;
 with Adash.Diagnostics;
@@ -201,6 +203,23 @@ package Adash.Engine is
    --
    --  @param Item Session to inspect.
    --  @return True when the user asked to leave.
+   --  What `on_exit` asked to have run, most recently asked first, and
+   --  forgotten as it is taken.
+   --
+   --  Taken rather than read, because whoever runs them must run them once:
+   --  a script that ends and a session that quits are the same moment reached
+   --  twice on some paths, and a cleanup that ran twice would remove what it
+   --  had already removed and complain the second time.
+   --
+   --  Not run here. Running them means submitting a call, which is what a
+   --  caller with a session in its hands already does -- and where the caller
+   --  puts them in its own ending is the caller's decision.
+   --
+   --  @param Item The session.
+   --  @return The names, in the order to run them.
+   function Take_Cleanups
+     (Item : in out Session) return Hostkit.String_Vectors.Vector;
+
    function Exit_Requested (Item : Session) return Boolean;
 
    --  The status the session should end with.

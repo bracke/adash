@@ -83,6 +83,7 @@ package Adash.Predefined is
       Entity_Current_Directory,
       Entity_File_Count,
       Entity_File_At,
+      Entity_Program_Path,
 
       --  Searching and shaping text.
       Entity_Index,

@@ -121,6 +121,7 @@ either way.
 | `Current_Directory` | `String` | where the session is, which `cd` moves |
 | `File_Count (Directory)` | `Integer` | how many names a directory holds |
 | `File_At (Directory; Position)` | `String` | one of them, sorted, counting from one |
+| `Program_Path (Program)` | `String` | where the host would find that program, or nothing |
 
 A path nobody can reach — no such directory, nothing named at all — is not a
 file, so the answer is `False` rather than a failure.

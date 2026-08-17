@@ -1203,6 +1203,78 @@ package body Adash.Commands.Builtins is
                end case;
             end;
 
+         when Command_On_Exit =>
+            declare
+               Name : constant String := Argument (Arguments, 1);
+            begin
+               if Name = "" then
+                  return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
+                                 [1 => M.Named ("name", "on_exit")]);
+               end if;
+
+               --  Most recent first, so that cleanups undo in the order that
+               --  matches how they were set up: a script that makes a
+               --  directory and then a file in it removes the file first.
+               Shell.Cleanups.Prepend
+                 (Ada.Strings.Unbounded.To_Unbounded_String (Name));
+
+               return Adash.Execution.Success;
+            end;
+
+         when Command_Remove_File | Command_Remove_Directory =>
+            declare
+               Path : constant String := Argument (Arguments, 1);
+               Done : Adash.Filesystem.Written;
+            begin
+               if Id = Command_Remove_File then
+                  Adash.Filesystem.Remove_File (Path, Done);
+               else
+                  Adash.Filesystem.Remove_Directory (Path, Done);
+               end if;
+
+               case Done is
+                  when Adash.Filesystem.Write_Refused =>
+                     return Failed (Adash.Errors.Error_File_Not_Writable,
+                                    [1 => M.Named ("path", Path)]);
+
+                  when Adash.Filesystem.Write_Failed =>
+                     return Failed (Adash.Errors.Error_File_Write_Failed,
+                                    [1 => M.Named ("path", Path)]);
+
+                  when Adash.Filesystem.Write_Ok =>
+                     --  Silent, as writing is: what became of it is Status.
+                     return Adash.Execution.Success;
+               end case;
+            end;
+
+         when Command_Rename | Command_Copy_File =>
+            declare
+               From : constant String := Argument (Arguments, 1);
+               To   : constant String := Argument (Arguments, 2);
+               Done : Adash.Filesystem.Written;
+            begin
+               if Id = Command_Rename then
+                  Adash.Filesystem.Rename (From, To, Done);
+               else
+                  Adash.Filesystem.Copy_File (From, To, Done);
+               end if;
+
+               case Done is
+                  when Adash.Filesystem.Write_Refused =>
+                     --  Named by where it was going, which is where the
+                     --  refusal usually is: something is already there.
+                     return Failed (Adash.Errors.Error_File_Not_Writable,
+                                    [1 => M.Named ("path", To)]);
+
+                  when Adash.Filesystem.Write_Failed =>
+                     return Failed (Adash.Errors.Error_File_Write_Failed,
+                                    [1 => M.Named ("path", To)]);
+
+                  when Adash.Filesystem.Write_Ok =>
+                     return Adash.Execution.Success;
+               end case;
+            end;
+
          when Command_Make_Directory =>
             declare
                Path : constant String := Argument (Arguments, 1);

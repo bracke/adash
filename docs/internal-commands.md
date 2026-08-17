@@ -152,6 +152,11 @@ the commands that cannot be honoured decline rather than pretending.
 | `write_file (Text : String; File : String)` | 2 | writes text to a file, replacing what was there |
 | `append_file (Text : String; File : String)` | 2 | adds text to the end |
 | `make_directory (Directory : String)` | 1 | makes a directory, and any above it that is missing |
+| `remove_file (File : String)` | 1 | takes a file away; one that is not there is not an error |
+| `remove_directory (Directory : String)` | 1 | takes an **empty** directory away |
+| `rename (From : String; To : String)` | 2 | renames or moves; refuses to replace what is there |
+| `copy_file (From : String; To : String)` | 2 | copies; refuses to replace what is there |
+| `on_exit (Subprogram : String)` | 1 | runs that subprogram before the session ends |
 | `settings (Setting : String; Value : String)` | 0, or 2 | lists the settings, or changes one |
 | `save_settings` | 0 | writes the current settings to the configuration file |
 
@@ -202,6 +207,20 @@ output stream into the **same open file** rather than opening a second one, so
 what a program said and what it complained about stay in the order it wrote
 them. Two opens of one path would be two file positions writing over each
 other, which is not a log of anything.
+
+**Removing a directory takes an empty one, deliberately.** A recursive removal
+is one typo away from the most destructive thing a shell can be asked to do, and
+a script that means it can say so in three lines that name what they destroy:
+list it, remove what is in it, remove it. `rename` and `copy_file` refuse to
+replace something already there — a move that silently overwrote would be the
+destructive case wearing the safe one's name.
+
+**`on_exit` is `trap`, under a name that says what it does.** It takes the name
+of a subprogram this session declared and runs it when the session ends however
+it ends: off the end, through `quit`, or because an interrupt stopped what was
+running. Most recently registered runs first, so cleanups undo in the order the
+things they clean up were made, and the name is resolved when it runs — so a
+script may register cleanup at the top and declare it below.
 
 **Writing puts down exactly the bytes it is given.** The three readers drop the
 carriage return in front of a line feed, because a String in this language is

@@ -448,12 +448,16 @@ package body Adash.Messages is
             return "predefined.file_count.doc";
          when Msg_Predefined_File_At_Doc =>
             return "predefined.file_at.doc";
+         when Msg_Predefined_Program_Path_Doc =>
+            return "predefined.program_path.doc";
          when Msg_Predefined_Current_Directory_Hint =>
             return "predefined.current_directory.hint";
          when Msg_Predefined_File_Count_Hint =>
             return "predefined.file_count.hint";
          when Msg_Predefined_File_At_Hint =>
             return "predefined.file_at.hint";
+         when Msg_Predefined_Program_Path_Hint =>
+            return "predefined.program_path.hint";
          when Msg_Predefined_Is_Executable_Doc =>
             return "predefined.is_executable.doc";
          when Msg_Predefined_Index_Doc =>
@@ -590,6 +594,16 @@ package body Adash.Messages is
          when Msg_Command_Write_File_Doc    => return "command.write_file.doc";
          when Msg_Command_Make_Directory_Doc =>
             return "command.make_directory.doc";
+         when Msg_Command_Remove_File_Doc =>
+            return "command.remove_file.doc";
+         when Msg_Command_Remove_Directory_Doc =>
+            return "command.remove_directory.doc";
+         when Msg_Command_Rename_Doc =>
+            return "command.rename.doc";
+         when Msg_Command_Copy_File_Doc =>
+            return "command.copy_file.doc";
+         when Msg_Command_On_Exit_Doc =>
+            return "command.on_exit.doc";
          when Msg_Command_Append_File_Doc   =>
             return "command.append_file.doc";
          when Msg_Line_History_Entry         => return "line.history_entry";
@@ -887,6 +901,8 @@ package body Adash.Messages is
             | Msg_Predefined_Current_Directory_Hint
             | Msg_Predefined_File_Count_Doc | Msg_Predefined_File_Count_Hint
             | Msg_Predefined_File_At_Doc | Msg_Predefined_File_At_Hint
+            | Msg_Predefined_Program_Path_Doc
+            | Msg_Predefined_Program_Path_Hint
             | Msg_Predefined_Is_Executable_Hint
             | Msg_Predefined_Index_Doc | Msg_Predefined_Index_Hint
             | Msg_Predefined_Trim_Doc | Msg_Predefined_Trim_Hint
@@ -955,6 +971,10 @@ package body Adash.Messages is
             | Msg_Command_Settings_Doc | Msg_Command_Save_Settings_Doc
             | Msg_Command_Write_File_Doc | Msg_Command_Append_File_Doc
             | Msg_Command_Make_Directory_Doc
+            | Msg_Command_Remove_File_Doc
+            | Msg_Command_Remove_Directory_Doc
+            | Msg_Command_Rename_Doc
+            | Msg_Command_Copy_File_Doc | Msg_Command_On_Exit_Doc
             | Msg_Command_Hint =>
             return No_Placeholders;
 

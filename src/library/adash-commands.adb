@@ -281,6 +281,48 @@ package body Adash.Commands is
        [1 => Text ("Directory"), others => Nothing],
        Changes_State,
        M.Msg_Command_Make_Directory_Doc, M.Msg_Command_Hint, Available),
+
+      --  Taking things away, which was left to programs until the shell ran
+      --  where those programs are not.
+      --
+      --  Commands rather than functions, like the ones that make things: a
+      --  removal has consequences and belongs where a reader sees it happen.
+      --  Removing a directory takes only an empty one -- see the note in
+      --  Adash.Filesystem for why there is no recursive form and what a script
+      --  that means it writes instead.
+      (Command_Remove_File, Named ("remove_file"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Remove_File_Doc, M.Msg_Command_Hint, Available),
+
+      (Command_Remove_Directory, Named ("remove_directory"), 1, 1,
+       [1 => Text ("Directory"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Remove_Directory_Doc, M.Msg_Command_Hint, Available),
+
+      --  The old name first and the new one second, which is the order both
+      --  `mv` and Ada's own Rename use, and the order a sentence has.
+      (Command_Rename, Named ("rename"), 2, 2,
+       [1 => Text ("From"), 2 => Text ("To"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Rename_Doc, M.Msg_Command_Hint, Available),
+
+      (Command_Copy_File, Named ("copy_file"), 2, 2,
+       [1 => Text ("From"), 2 => Text ("To"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Copy_File_Doc, M.Msg_Command_Hint, Available),
+
+      --  What to run on the way out, which is `trap` under a name that says
+      --  what it does.
+      --
+      --  The argument is the name of a subprogram this session declared. Held
+      --  as text and resolved when it runs: a script that registers cleanup at
+      --  the top and declares it below is written in an order nobody should
+      --  have to defend.
+      (Command_On_Exit, Named ("on_exit"), 1, 1,
+       [1 => Text ("Subprogram"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_On_Exit_Doc, M.Msg_Command_Hint, Available),
       (Command_Append_File, Named ("append_file"), 2, 2,
        [1 => Text ("Text"), 2 => Text ("File"), others => Nothing],
        Changes_State,
