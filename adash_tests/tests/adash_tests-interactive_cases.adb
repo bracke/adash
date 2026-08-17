@@ -1407,6 +1407,38 @@ package body Adash_Tests.Interactive_Cases is
 
             Index := Index + 1;
 
+         elsif Whole (Index) = Character'Val (16#1B#)
+           and then Index < Whole'Last
+           and then Whole (Index + 1) = ']'
+         then
+            --  An OSC sequence: ESC ] then text, then a bell or ESC \.
+            --
+            --  What a console sets its window title with, and it arrives
+            --  wherever the console feels like -- *inside a word*, in the run
+            --  that made this necessary: a case waiting for RUNNING found
+            --  "RUNNIN", the title, and then "G", and concluded that the shell
+            --  had never started.
+            Index := Index + 2;
+
+            while Index <= Whole'Last
+              and then Whole (Index) /= Character'Val (7)
+            loop
+               exit when Whole (Index) = Character'Val (16#1B#)
+                 and then Index < Whole'Last
+                 and then Whole (Index + 1) = '\';
+
+               Index := Index + 1;
+            end loop;
+
+            --  Past the bell, or past both bytes of the ESC \.
+            if Index <= Whole'Last
+              and then Whole (Index) = Character'Val (16#1B#)
+            then
+               Index := Index + 1;
+            end if;
+
+            Index := Index + 1;
+
          else
             Kept := Kept + 1;
             Result (Kept) := Whole (Index);
@@ -2815,7 +2847,8 @@ package body Adash_Tests.Interactive_Cases is
                Ignored : constant Boolean := Drained (Session);
                pragma Unreferenced (Ignored);
             begin
-               Seen := Times_Seen (Session, "RUNNING") > 0;
+               Seen := Ada.Strings.Fixed.Index
+                         (Plainly (Session), "RUNNING") > 0;
             end;
 
             exit when Seen;
@@ -2836,7 +2869,8 @@ package body Adash_Tests.Interactive_Cases is
                Ignored : constant Boolean := Drained (Session);
                pragma Unreferenced (Ignored);
             begin
-               Tidied := Times_Seen (Session, "TIDIED") > 0;
+               Tidied := Ada.Strings.Fixed.Index
+                           (Plainly (Session), "TIDIED") > 0;
             end;
 
             exit when Tidied;
