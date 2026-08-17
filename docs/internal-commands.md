@@ -104,6 +104,7 @@ reads as the empty string rather than failing.
 | `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
+| `pipe_from (File : String)` | 1 | takes the pipeline's input from a file; does not run it |
 | `pipe_into (File : String)` | 1 | runs the pipeline with its output written to a file |
 | `pipe_append (File : String)` | 1 | adds its output to the end of a file |
 | `pipe_new (File : String)` | 1 | as `pipe_into`, refusing a file that is already there |
@@ -157,6 +158,12 @@ which is the order `run_into` does not use — those two are named after what ru
 and these after what is written. Appending to a file that is not there makes it,
 because the first turn of a loop that collects lines is not an error. A write
 that worked says nothing; `Status` says what became of it.
+
+`pipe_from` records where the input comes from and runs nothing, which is the
+one difference from `run_from`: a pipeline reading one file and writing another
+would otherwise be two commands each insisting on running, and only one could.
+Its file is attached to the **first** stage, as the others are attached to the
+last.
 
 The nine `pipe_*` forms are the nine `run_*` forms, for a pipeline: the same
 names, the same order of arguments, and the same three ways of meeting a file.

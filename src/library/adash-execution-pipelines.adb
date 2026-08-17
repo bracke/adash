@@ -458,6 +458,33 @@ package body Adash.Execution.Pipelines is
           (D.Standard_Input, Group);
    end Take_The_Terminal_Back;
 
+   ----------------------
+   -- Redirect_First --
+   ----------------------
+
+   function Redirect_First
+     (Item   : in out Plan;
+      Attach : Adash.Execution.Redirection.Plan;
+      Error  : out Adash.Errors.Error_Info) return Boolean is
+   begin
+      Error := Adash.Errors.Success;
+
+      if Natural (Item.Stages.Length) = 0 then
+         return True;
+      end if;
+
+      declare
+         First : C.Invocation := Item.Stages.Element (1);
+      begin
+         if not Adash.Execution.Redirection.Apply (Attach, First, Error) then
+            return False;
+         end if;
+
+         Item.Stages.Replace_Element (1, First);
+         return True;
+      end;
+   end Redirect_First;
+
    ---------------------
    -- Redirect_Last --
    ---------------------

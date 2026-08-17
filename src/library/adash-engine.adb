@@ -186,7 +186,10 @@ package body Adash.Engine is
 
          when Adash.Predefined.Entity_Output_Of
             | Adash.Predefined.Entity_Error_Of
-            | Adash.Predefined.Entity_All_Of =>
+            | Adash.Predefined.Entity_All_Of
+            | Adash.Predefined.Entity_Output_Of_Pipe
+            | Adash.Predefined.Entity_Error_Of_Pipe
+            | Adash.Predefined.Entity_All_Of_Pipe =>
             --  The one predefined entity that runs something. What it wrote to
             --  standard output comes back as the value; what it wrote to
             --  standard error is not collected and reaches the user, because a
@@ -200,31 +203,64 @@ package body Adash.Engine is
                Final   : Adash.Execution.Pipelines.Outcome;
                Failure : Adash.Errors.Error_Info;
                Stop    : Natural;
+
+               --  The pipeline a script built, where the entity asks for it.
+               --
+               --  Taken rather than copied: a pipeline that answered twice
+               --  would run twice, and the second answer would surprise
+               --  whoever wrote the first.
+               Wants_The_Pipeline : constant Boolean :=
+                 Which in Adash.Predefined.Entity_Output_Of_Pipe
+                        | Adash.Predefined.Entity_Error_Of_Pipe
+                        | Adash.Predefined.Entity_All_Of_Pipe;
             begin
-               if Count = 0 or else Text_At (1) = "" then
+               if Wants_The_Pipeline then
+                  if Adash.Execution.Pipelines.Length (Sink.Shell.Pending) = 0
+                  then
+                     --  Nothing was built. Reported, as pipe_run reports it:
+                     --  a pipeline of nothing that answered with nothing would
+                     --  look like a pipeline that ran and said nothing.
+                     Sink.Notes.Emit
+                       (D.From_Error
+                          (Adash.Errors.Failure
+                             (Adash.Errors.Error_Empty_Pipeline,
+                              Adash.Messages.No_Arguments),
+                           D.Severity_Error, D.Category_Execution,
+                           D.Owner_Commands));
+                     return;
+                  end if;
+
+                  Line := Sink.Shell.Pending;
+                  Sink.Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
+
+               elsif Count = 0 or else Text_At (1) = "" then
                   --  Nothing to run. Answered as empty rather than reported:
                   --  the analyser has already required an argument, so this is
                   --  a program that computed an empty program name.
                   return;
                end if;
 
-               for Position in 2 .. Count loop
-                  Args.Append
-                    (Ada.Strings.Unbounded.To_Unbounded_String
-                       (Text_At (Position)));
-               end loop;
+               if not Wants_The_Pipeline then
+                  for Position in 2 .. Count loop
+                     Args.Append
+                       (Ada.Strings.Unbounded.To_Unbounded_String
+                          (Text_At (Position)));
+                  end loop;
 
-               Adash.Execution.Pipelines.Add_Stage
-                 (Line,
-                  Adash.Execution.Commands.Make (Text_At (1), Args));
+                  Adash.Execution.Pipelines.Add_Stage
+                    (Line,
+                     Adash.Execution.Commands.Make (Text_At (1), Args));
+               end if;
 
                if not Adash.Execution.Pipelines.Capture
                         (Line, Sink.Shell.Interrupt, Written, Final, Failure,
                          From =>
                            (case Which is
-                               when Adash.Predefined.Entity_Error_Of =>
+                               when Adash.Predefined.Entity_Error_Of
+                                  | Adash.Predefined.Entity_Error_Of_Pipe =>
                                  Adash.Execution.Pipelines.Only_Errors,
-                               when Adash.Predefined.Entity_All_Of =>
+                               when Adash.Predefined.Entity_All_Of
+                                  | Adash.Predefined.Entity_All_Of_Pipe =>
                                  Adash.Execution.Pipelines.Everything,
                                when others =>
                                  Adash.Execution.Pipelines.Only_Output),

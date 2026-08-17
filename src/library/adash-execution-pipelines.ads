@@ -142,6 +142,22 @@ package Adash.Execution.Pipelines is
       Attach : Adash.Execution.Redirection.Plan;
       Error  : out Adash.Errors.Error_Info) return Boolean;
 
+   --  Give the first stage's input somewhere to come from.
+   --
+   --  The first stage is the only one whose input is the pipeline's: every
+   --  other stage reads the one before it, and redirecting one of those would
+   --  cut the pipeline in half -- the same rule Redirect_Last states from the
+   --  other end.
+   --
+   --  @param Item The plan, changed in place.
+   --  @param Attach What to attach.
+   --  @param Error What stopped it, when this returns False.
+   --  @return True when every redirection in the plan was applied.
+   function Redirect_First
+     (Item   : in out Plan;
+      Attach : Adash.Execution.Redirection.Plan;
+      Error  : out Adash.Errors.Error_Info) return Boolean;
+
    --  Start every stage, waiting for none of them.
    --
    --  Waiting on the first before starting the second would deadlock the moment

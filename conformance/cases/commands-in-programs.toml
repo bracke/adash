@@ -153,6 +153,7 @@ output = [
   "!line.command_entry{name=run_all_new,summary=!command.run_all_new.doc!}!",
   "!line.command_entry{name=pipe,summary=!command.pipe.doc!}!",
   "!line.command_entry{name=pipe_run,summary=!command.pipe_run.doc!}!",
+  "!line.command_entry{name=pipe_from,summary=!command.pipe_from.doc!}!",
   "!line.command_entry{name=pipe_into,summary=!command.pipe_into.doc!}!",
   "!line.command_entry{name=pipe_append,summary=!command.pipe_append.doc!}!",
   "!line.command_entry{name=pipe_new,summary=!command.pipe_new.doc!}!",

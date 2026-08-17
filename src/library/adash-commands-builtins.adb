@@ -303,6 +303,46 @@ package body Adash.Commands.Builtins is
                return Adash.Execution.Success;
             end;
 
+         when Command_Pipe_From =>
+            --  Recorded, not run. See the note where this is registered.
+            declare
+               Asked : constant Adash.Execution.Redirection.Redirection :=
+                 (Role => Adash.Execution.Streams.Role_Input,
+                  Kind => Adash.Execution.Redirection.Redirect_From_File,
+                  Path =>
+                    Ada.Strings.Unbounded.To_Unbounded_String
+                      (Argument (Arguments, 1)));
+
+               Attach  : Adash.Execution.Redirection.Plan;
+               Refused : Adash.Errors.Error_Info;
+            begin
+               if Adash.Execution.Pipelines.Length (Shell.Pending) = 0 then
+                  --  Nothing built yet. Refused rather than remembered for
+                  --  whatever is built next: a file named before the first
+                  --  program is a line in the wrong order, and a shell that
+                  --  quietly applied it later would be guessing.
+                  return Failed (Adash.Errors.Error_Empty_Pipeline,
+                                 M.No_Arguments);
+               end if;
+
+               if not Adash.Execution.Redirection.Add (Attach, Asked, Refused)
+                 or else not Adash.Execution.Pipelines.Redirect_First
+                               (Shell.Pending, Attach, Refused)
+               then
+                  Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
+
+                  Report.Emit
+                    (Adash.Diagnostics.From_Error
+                       (Refused, Adash.Diagnostics.Severity_Error,
+                        Adash.Diagnostics.Category_Execution,
+                        Adash.Diagnostics.Owner_Commands));
+
+                  return Adash.Execution.From_Start_Error (Refused.Code);
+               end if;
+
+               return Adash.Execution.Success;
+            end;
+
          when Command_Pipe_Run | Command_Pipe_Into | Command_Pipe_Append
             | Command_Pipe_New | Command_Pipe_Errors_Into
             | Command_Pipe_Errors_Append | Command_Pipe_Errors_New

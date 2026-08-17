@@ -420,6 +420,12 @@ package body Adash.Messages is
             return "predefined.error_of.doc";
          when Msg_Predefined_All_Of_Doc      =>
             return "predefined.all_of.doc";
+         when Msg_Predefined_Output_Of_Pipe_Doc =>
+            return "predefined.output_of_pipe.doc";
+         when Msg_Predefined_Error_Of_Pipe_Doc =>
+            return "predefined.error_of_pipe.doc";
+         when Msg_Predefined_All_Of_Pipe_Doc =>
+            return "predefined.all_of_pipe.doc";
          when Msg_Predefined_Read_Line_Doc  =>
             return "predefined.read_line.doc";
          when Msg_Predefined_Input_Ended_Doc =>
@@ -466,6 +472,12 @@ package body Adash.Messages is
             return "predefined.error_of.hint";
          when Msg_Predefined_All_Of_Hint     =>
             return "predefined.all_of.hint";
+         when Msg_Predefined_Output_Of_Pipe_Hint =>
+            return "predefined.output_of_pipe.hint";
+         when Msg_Predefined_Error_Of_Pipe_Hint =>
+            return "predefined.error_of_pipe.hint";
+         when Msg_Predefined_All_Of_Pipe_Hint =>
+            return "predefined.all_of_pipe.hint";
          when Msg_Predefined_Read_Line_Hint =>
             return "predefined.read_line.hint";
          when Msg_Predefined_Input_Ended_Hint =>
@@ -531,6 +543,8 @@ package body Adash.Messages is
          when Msg_Command_Run_All_New_Doc =>
             return "command.run_all_new.doc";
          when Msg_Command_Pipe_Doc           => return "command.pipe.doc";
+         when Msg_Command_Pipe_From_Doc =>
+            return "command.pipe_from.doc";
          when Msg_Command_Pipe_Into_Doc =>
             return "command.pipe_into.doc";
          when Msg_Command_Pipe_Append_Doc =>
@@ -843,6 +857,9 @@ package body Adash.Messages is
             | Msg_Predefined_Output_Of_Doc | Msg_Predefined_Output_Of_Hint
             | Msg_Predefined_Error_Of_Doc | Msg_Predefined_Error_Of_Hint
             | Msg_Predefined_All_Of_Doc | Msg_Predefined_All_Of_Hint
+            | Msg_Predefined_Output_Of_Pipe_Doc | Msg_Predefined_Output_Of_Pipe_Hint
+            | Msg_Predefined_Error_Of_Pipe_Doc | Msg_Predefined_Error_Of_Pipe_Hint
+            | Msg_Predefined_All_Of_Pipe_Doc | Msg_Predefined_All_Of_Pipe_Hint
             | Msg_Predefined_Read_Line_Doc | Msg_Predefined_Read_Line_Hint
             | Msg_Predefined_Input_Ended_Doc
             | Msg_Predefined_Input_Ended_Hint
@@ -901,6 +918,7 @@ package body Adash.Messages is
             | Msg_Command_Run_All_Into_Doc | Msg_Command_Run_All_Append_Doc
             | Msg_Command_Run_All_New_Doc
             | Msg_Command_Pipe_Doc
+            | Msg_Command_Pipe_From_Doc
             | Msg_Command_Pipe_Into_Doc
             | Msg_Command_Pipe_Append_Doc
             | Msg_Command_Pipe_New_Doc

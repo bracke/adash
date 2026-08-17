@@ -75,6 +75,9 @@ two apart. The shape every filter has is therefore
 | `Output_Of (Program, Argument_1, Argument_2, Argument_3)` | `String` | runs a program and answers with what it wrote to standard output |
 | `Error_Of (Program : String; ...) return String` | what a program complained about |
 | `All_Of (Program : String; ...) return String` | everything it wrote, in the order it wrote it |
+| `Output_Of_Pipe` | `String` | what the pipeline built so far wrote |
+| `Error_Of_Pipe` | `String` | what its last stage complained about |
+| `All_Of_Pipe` | `String` | everything its last stage wrote |
 | `Status` | `Integer` | what the last program or command reported |
 
 `Output_Of` takes a program and **up to three arguments** — five in total is
@@ -143,6 +146,12 @@ is dropped with it. A program on Windows writes `\r\n`, and without that a
 capture of two lines carried an invisible byte that made every comparison
 against text the script wrote itself fail on that host alone. A lone carriage
 return is left where it is — it is not a line ending anywhere this runs.
+
+The three `*_Of_Pipe` functions take no arguments: the pipeline is already
+built, a stage at a time, by `pipe`. They empty it, because a pipeline that
+answered twice would run twice and the second answer would surprise whoever
+wrote the first — and an empty one is reported rather than answered with
+nothing, which would look like a pipeline that ran and said nothing.
 
 `All_Of` is the reading half of `run_all_into`: one pipe with a copy of its
 write end, so what a program said and what it complained about stay in the order

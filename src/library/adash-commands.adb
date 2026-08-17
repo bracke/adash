@@ -172,6 +172,19 @@ package body Adash.Commands is
       --  The last stage is the one redirected. The others are attached to the
       --  stage after them, and redirecting one of those would cut the pipeline
       --  in half.
+      --  Where the pipeline reads from, said while it is being built rather
+      --  than when it runs.
+      --
+      --  Unlike the others in this family this one does not run anything: a
+      --  pipeline that took its input from a file and put its output in
+      --  another would otherwise be two commands each insisting on running,
+      --  and only one of them could. So this records, and whichever of the
+      --  running forms follows does the work.
+      (Command_Pipe_From, Named ("pipe_from"), 1, 1,
+       [1 => Text ("File"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_From_Doc, M.Msg_Command_Hint, Available),
+
       (Command_Pipe_Into, Named ("pipe_into"), 1, 1,
        [1 => Text ("File"), others => Nothing],
        Changes_State,

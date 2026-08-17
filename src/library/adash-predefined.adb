@@ -197,6 +197,43 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_All_Of_Hint,
        Status => Available),
 
+      --  The reading half of the pipe_* family: the pipeline a script has
+      --  built, run for what it wrote rather than for where it wrote it.
+      --
+      --  No parameters, because the pipeline is already built -- `pipe` said
+      --  what it is, one stage at a time, and these are the question asked of
+      --  it. Which is also why they empty it: a pipeline that answered twice
+      --  would run twice, and the second answer would be a surprise.
+      (Id => Entity_Output_Of_Pipe, Name => Named ("Output_Of_Pipe"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 0,
+       Parameters => No_Parameters,
+       Optional_Parameters => 0,
+       Has_Side_Effects => True,
+       Documentation => Adash.Messages.Msg_Predefined_Output_Of_Pipe_Doc,
+       Description => Adash.Messages.Msg_Predefined_Output_Of_Pipe_Hint,
+       Status => Available),
+
+      (Id => Entity_Error_Of_Pipe, Name => Named ("Error_Of_Pipe"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 0,
+       Parameters => No_Parameters,
+       Optional_Parameters => 0,
+       Has_Side_Effects => True,
+       Documentation => Adash.Messages.Msg_Predefined_Error_Of_Pipe_Doc,
+       Description => Adash.Messages.Msg_Predefined_Error_Of_Pipe_Hint,
+       Status => Available),
+
+      (Id => Entity_All_Of_Pipe, Name => Named ("All_Of_Pipe"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 0,
+       Parameters => No_Parameters,
+       Optional_Parameters => 0,
+       Has_Side_Effects => True,
+       Documentation => Adash.Messages.Msg_Predefined_All_Of_Pipe_Doc,
+       Description => Adash.Messages.Msg_Predefined_All_Of_Pipe_Hint,
+       Status => Available),
+
       (Id => Entity_Read_Line, Name => Named ("Read_Line"),
        Sort => Sort_Function,
        Of_Type => Types.Type_String, Parameter_Count => 0,

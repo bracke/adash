@@ -1832,6 +1832,13 @@ what changed.
   is not there, for the same reason; `Exists` and `Is_Directory` tell them
   apart.
 
+- **`pipe_from`, and `Output_Of_Pipe` with its two companions.** The nine forms
+  below cover where a pipeline's output goes and neither where it comes from nor
+  how a script reads it. `pipe_from` attaches a file to the first stage and runs
+  nothing -- a pipeline reading one file and writing another would otherwise be
+  two commands each insisting on running -- and the three functions run the
+  pipeline built so far for what it wrote rather than for where it wrote it.
+
 - **A pipeline's streams have somewhere to go.** Everything a single program
   gained -- three files for output, three for complaints, three for both --
   stopped at the moment a script used more than one program: a pipeline could
