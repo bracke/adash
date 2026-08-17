@@ -9,6 +9,9 @@ with AUnit.Assertions;
 with Adash.Filesystem;
 
 with Hostkit;
+with Ada.Streams;
+with Ada.Strings.Fixed;
+with Hostkit.Fs;
 with Hostkit.Descriptors;
 with Hostkit.Signals;
 with Hostkit.Spawn;
@@ -965,6 +968,149 @@ package body Adash_Tests.Execution_Cases is
       Ada.Directories.Delete_File (Path);
    end A_Line_Longer_Than_The_Limit_Arrives_In_Pieces;
 
+   --  What a shell's error stream holds after it stops a child mid-write.
+   --
+   --  A record rather than an assertion. One host puts a blank line ahead of
+   --  the shell's own diagnostic there and nobody has identified what writes
+   --  it: the shell emits the diagnostic -- that much is now known -- and
+   --  something else reaches the stream first. A case cannot assert what
+   --  differs between hosts, so this prints the bytes and lets the run say.
+   --
+   --  The arrangement is the one that shows it: a shell reading a script that
+   --  captures a second shell past `read.limit`, so the capture is refused and
+   --  the child is stopped by the closing pipe. Its error stream is a pipe
+   --  this test reads, which is the only way to get the bytes rather than a
+   --  terminal's idea of them.
+   procedure What_A_Stopped_Child_Leaves_On_A_Shells_Error_Stream
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure What_A_Stopped_Child_Leaves_On_A_Shells_Error_Stream
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      --  Three levels up and back down: this binary is in the test crate's
+      --  bin, and the shell is in the bin beside the crate. In full, because a
+      --  relative command name runs out of directories to climb.
+      Shell : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Directories.Containing_Directory
+                (Ada.Directories.Containing_Directory
+                   (Ada.Directories.Full_Name
+                      (Ada.Command_Line.Command_Name)))),
+           "bin");
+
+      Binary : constant String :=
+        Ada.Directories.Compose
+          (Shell, "adash" & Hostkit.Fs.Executable_Suffix);
+
+      Fixture : constant String :=
+        "../conformance/fixtures/says-too-much.adash";
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-refusal.adash");
+
+      Told : Hostkit.String_Vectors.Vector;
+
+      Options : Hostkit.Spawn.Options;
+      Child   : Hostkit.Spawn.Process_Handle;
+      Result  : Hostkit.Spawn.Status;
+
+      Ends : Hostkit.Descriptors.Pipe_Ends;
+
+      Said : Ada.Strings.Unbounded.Unbounded_String;
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      if not Ada.Directories.Exists (Binary) then
+         --  Run from somewhere the shell was not built into. Nothing to say.
+         return;
+      end if;
+
+      Adash.Filesystem.Write
+        (Script,
+         "settings (""read.limit"", ""1"");" & Ada.Characters.Latin_1.LF
+         & "put_line (""["" & Output_Of ("""
+         & Binary & """, """ & Fixture & """) & ""]"");"
+         & Ada.Characters.Latin_1.LF
+         & "quit (0);" & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the probe script was not written");
+
+      Assert (Hostkit.Descriptors.Create_Pipe (Ends),
+              "no pipe for the shell's error stream");
+
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
+
+      Options.Error_Output := Ends.Write_End;
+
+      Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start on the probe script");
+
+      --  This end of it, so that reading ends when the shell does.
+      Hostkit.Descriptors.Close (Ends.Write_End);
+
+      loop
+         declare
+            Chunk : Ada.Streams.Stream_Element_Array (1 .. 4_096);
+            Last  : Ada.Streams.Stream_Element_Offset;
+         begin
+            exit when Hostkit.Descriptors.Read (Ends.Read_End, Chunk, Last)
+                      /= Hostkit.Descriptors.Transfer_Ok;
+
+            for Index in Chunk'First .. Last loop
+               Ada.Strings.Unbounded.Append
+                 (Said, Character'Val (Natural (Chunk (Index))));
+            end loop;
+         end;
+      end loop;
+
+      Hostkit.Descriptors.Close (Ends.Read_End);
+
+      declare
+         Ignored : constant Boolean :=
+           Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Block, Result);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
+
+      --  Byte by byte, because what is being looked for is a byte nobody has
+      --  seen: printable characters as themselves, everything else as its
+      --  number, so a line feed is visible where a rendering would hide it.
+      declare
+         Whole : constant String := Ada.Strings.Unbounded.To_String (Said);
+         Shown : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         for Index in Whole'Range loop
+            if Whole (Index) in ' ' .. '~' then
+               Ada.Strings.Unbounded.Append (Shown, Whole (Index));
+            else
+               Ada.Strings.Unbounded.Append
+                 (Shown,
+                  "<" & Ada.Strings.Fixed.Trim
+                          (Natural'Image (Character'Pos (Whole (Index))),
+                           Ada.Strings.Both) & ">");
+            end if;
+         end loop;
+
+         Ada.Text_IO.Put_Line
+           ("stopped-child-probe: "
+            & Ada.Strings.Unbounded.To_String (Shown));
+      end;
+
+      Ada.Directories.Delete_File (Script);
+   end What_A_Stopped_Child_Leaves_On_A_Shells_Error_Stream;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -1025,6 +1171,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, A_Line_Longer_Than_The_Limit_Arrives_In_Pieces'Access,
          "execution : a line longer than the limit arrives in pieces");
+      Register_Routine
+        (T, What_A_Stopped_Child_Leaves_On_A_Shells_Error_Stream'Access,
+         "execution : what a stopped child leaves on a shell's error stream");
    end Register_Tests;
 
 end Adash_Tests.Execution_Cases;
