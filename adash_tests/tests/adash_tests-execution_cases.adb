@@ -976,21 +976,16 @@ package body Adash_Tests.Execution_Cases is
    --  something else reaches the stream first. A case cannot assert what
    --  differs between hosts, so this prints the bytes and lets the run say.
    --
-   --  **What it says on Windows is not the blank line but something else**, and
-   --  what that is remains open. The child there exits 1 with nothing on
-   --  either stream -- not even the line it prints before anything can go
-   --  wrong -- while the same child says everything on the other two. Five
-   --  runs have ruled out, one at a time: a shell running a shell (a case
-   --  asserts it), a child filling a pipe and being drained of it (another
-   --  does), the streams being pipes rather than files, the third stream being
-   --  left unset, and the paths being written into the script as literals with
-   --  backslashes in them.
-   --
-   --  What is left is a difference between this test spawning the shell and
-   --  the conformance runner spawning it, and the runner curates an
-   --  environment where this inherits one. Whoever picks this up next starts
-   --  there. The probe stays because it costs one run of one program and it
-   --  will keep saying what it finds.
+   --  It said something else first, for a while: the child exited 1 with
+   --  nothing on either stream on Windows, and five runs ruled out one thing
+   --  at a time -- a shell running a shell, a child filling a pipe, pipes
+   --  rather than files, the third stream left unset, paths written into the
+   --  script as literals. What was left was the difference between this test
+   --  spawning the shell and the conformance runner spawning it, and the
+   --  difference was one line: the runner marks the ends it hands over as
+   --  inheritable and this did not. The runner's comment describes the
+   --  symptom exactly, having been written by somebody who had just spent a
+   --  day on it.
    --
    --  The arrangement is the one that shows it: a shell reading a script that
    --  captures a second shell past `read.limit`, so the capture is refused and
@@ -1074,6 +1069,22 @@ package body Adash_Tests.Execution_Cases is
       Assert (Hostkit.Descriptors.Create_Pipe (Outs),
               "no pipe for the shell's output");
 
+      --  The ends the child is given have to be marked as travelling.
+      --
+      --  This is what was wrong with the probe rather than with the shell:
+      --  five runs narrowed a silent exit 1 on Windows to "the difference
+      --  between how this test spawns the shell and how the conformance
+      --  runner does", and the difference was this line, which the runner has
+      --  and this did not. Its comment describes the symptom exactly -- a
+      --  child handed an invalid handle for its standard streams cannot read
+      --  its script, cannot write its answer, and exits 1 having said
+      --  nothing. On POSIX a descriptor travels unless it is marked not to,
+      --  which is why the probe worked there and only there.
+      Assert (Hostkit.Descriptors.Set_Inheritable (Ends.Write_End, True)
+              and then Hostkit.Descriptors.Set_Inheritable
+                         (Outs.Write_End, True),
+              "the child's streams would not travel to it");
+
       Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
       Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Binary));
       Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Fixture));
@@ -1099,6 +1110,7 @@ package body Adash_Tests.Execution_Cases is
            and then Hostkit.Descriptors.Open_File
                       (Hostkit.Fs.Null_Device,
                        Hostkit.Descriptors.Open_Read, Nothing)
+           and then Hostkit.Descriptors.Set_Inheritable (Nothing, True)
          then
             Options.Input := Nothing;
          end if;
