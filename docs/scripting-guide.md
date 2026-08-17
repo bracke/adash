@@ -43,6 +43,53 @@ filter has.
     Text : String := Output_Of ("git", "rev-parse", "HEAD");
     write_file (Text, "build.id");
 
+### Where what a program wrote goes
+
+Every program a script runs has three streams, and each of them is a command
+rather than punctuation:
+
+    run_into ("out.txt", "make", "all");          --  what it said
+    run_errors_into ("errors.txt", "make", "all"); --  what it complained about
+    run_all_into ("build.log", "make", "all");     --  both, in the order it wrote them
+
+Each of those three has an `_append` form for adding to a file and a `_new` form
+that refuses a file already there. `run_from` feeds a program from a file, and
+`start` runs one without waiting.
+
+The reading side matches: `Output_Of` answers with what a program said,
+`Error_Of` with what it complained about, and `All_Of` with everything it wrote.
+
+    if Index (All_Of ("make", "all"), "warning") > 0 then
+       put_line ("it built, and it was not happy about it");
+    end if;
+
+**`run_all_into` is not two files.** The error stream follows the output stream
+into the same open file, so the lines stay in the order the program wrote them;
+two files, however carefully a script interleaves them afterwards, cannot be
+made into one.
+
+### Pipelines
+
+A pipeline is built a stage at a time and then run by the command that says what
+becomes of it:
+
+    pipe ("git", "log", "--oneline");
+    pipe ("head", "-20");
+    pipe_into ("recent.txt");
+
+That is more words than a `|`, and it says what a `|` cannot: `pipe_from` gives
+the pipeline its input and runs nothing, `pipe_start` leaves it running as a job,
+and the nine `pipe_*` forms place its output exactly as the `run_*` forms place a
+single program's. `Output_Of_Pipe`, `Error_Of_Pipe` and `All_Of_Pipe` read it
+back as a value instead.
+
+Input is attached to the **first** stage and output to the **last** — every
+other stage is joined to its neighbour, and redirecting one of those would cut
+the pipeline in half. Each running form empties the pipeline, so a script that
+wants two of them builds it twice.
+
+`examples/pipelines.adash` runs all of this.
+
 `execution-model.md` describes running, redirection and pipelines;
 `internal-commands.md` lists what each command takes.
 

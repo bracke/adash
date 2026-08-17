@@ -1,0 +1,15 @@
+into a file:
+alpha
+beta
+
+into a value: alpha
+beta
+both streams:
+alpha
+beta
+
+!line.job_started{id=3,what=pipeline}!
+alpha
+beta
+!line.job_finished{id=3,status=0}!
+and that one ran while the script got on with something else

@@ -1,0 +1,60 @@
+--  Building a pipeline, and deciding what becomes of what it wrote.
+--
+--  A pipeline is built a stage at a time with `pipe` and then run by one of the
+--  commands that says what to do with its output. That is more words than a
+--  `|` and it buys what a `|` cannot say: where the input comes from, which of
+--  the two streams goes where, and whether the shell waits at all -- each as a
+--  command a reader sees happen, rather than as punctuation whose meaning
+--  depends on which side of it you are standing.
+--
+--  Each of the running forms empties the pipeline, so a script that wants two
+--  of them builds it twice. That is why `pipe` appears before every one below.
+
+--  A program every host has, reading its input and writing it sorted.
+Sorter : String := "sort";
+
+write_file ("beta" & Character'Val (10) & "alpha" & Character'Val (10),
+            "unsorted.txt");
+
+--  Where a pipeline reads from, said while it is being built. `pipe_from` runs
+--  nothing: a pipeline that read one file and wrote another would otherwise be
+--  two commands both insisting on running, and only one of them could.
+pipe (Sorter);
+pipe_from ("unsorted.txt");
+pipe_into ("sorted.txt");
+
+put_line ("into a file:");
+put_line (Read_File ("sorted.txt"));
+
+--  Or read back as a value, which is what `Output_Of` does for one program.
+--  The pipeline is already built, so this takes no arguments.
+pipe (Sorter);
+pipe_from ("unsorted.txt");
+
+put_line ("into a value: " & Output_Of_Pipe);
+
+--  Everything it wrote, in the order it wrote it: what it said and what it
+--  complained about, in one file. That is what a build log is, and two files
+--  cannot be made into one however carefully a script interleaves them.
+pipe (Sorter);
+pipe_from ("unsorted.txt");
+pipe_all_into ("everything.txt");
+
+put_line ("both streams:");
+put_line (Read_File ("everything.txt"));
+
+--  Left running, the way `start` leaves one program running: it becomes a job
+--  with a number, and `wait` is how a script comes back to it.
+--
+--  The number is three because the shell counts every job it has run, and the
+--  two pipelines above were jobs as well -- waited for and forgotten, but
+--  numbered on the way past. Neither `start` nor `pipe_start` takes a file, so
+--  what this one writes goes where the shell's own output goes: before the
+--  line after the wait, because the wait is what it waits for.
+pipe (Sorter);
+pipe_from ("unsorted.txt");
+pipe_start;
+
+wait (3);
+
+put_line ("and that one ran while the script got on with something else");

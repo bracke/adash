@@ -1832,6 +1832,15 @@ what changed.
   is not there, for the same reason; `Exists` and `Is_Directory` tell them
   apart.
 
+- **The scripting guide and an example teach the three families.** Twenty-odd
+  commands and six functions had existed only as rows in a reference table:
+  `examples/pipelines.adash` runs a pipeline into a file, into a value, into a
+  log of both streams, and into the background, and the guide says where what a
+  program wrote goes and how a pipeline is built. Writing the example found two
+  things worth knowing, and both are in it: a running form empties the pipeline,
+  so a script wanting two of them builds it twice, and the job number is the
+  shell's -- it counts every job it has run, foreground ones included.
+
 - **`pipe_start`.** `start` put one program in the background and nothing put a
   pipeline there, so a script that built one had to wait for it -- the last
   direction this family left open. It is a job like any other afterwards, and it
