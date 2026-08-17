@@ -19,6 +19,7 @@ package body Adash.Configuration is
          when History_Enabled_Setting  => return "history.enabled";
          when History_Limit_Setting    => return "history.limit";
          when Read_Limit_Setting       => return "read.limit";
+         when Trace_Setting            => return "trace.commands";
          when Prompt_Directory_Setting => return "prompt.directory";
          when Prompt_Failure_Setting   => return "prompt.failure";
          when Editing_Setting          => return "editing.enabled";
@@ -38,6 +39,7 @@ package body Adash.Configuration is
          when Color_Setting         => return Choice_Setting;
          when History_Limit_Setting => return Integer_Setting;
          when Read_Limit_Setting    => return Integer_Setting;
+         when Trace_Setting         => return Boolean_Setting;
          when others                => return Boolean_Setting;
       end case;
    end Kind;
@@ -57,6 +59,8 @@ package body Adash.Configuration is
             return Adash.Messages.Msg_Setting_History_Limit;
          when Read_Limit_Setting =>
             return Adash.Messages.Msg_Setting_Read_Limit;
+         when Trace_Setting =>
+            return Adash.Messages.Msg_Setting_Trace;
          when Prompt_Directory_Setting =>
             return Adash.Messages.Msg_Setting_Prompt_Directory;
          when Prompt_Failure_Setting =>

@@ -1930,6 +1930,16 @@ what changed.
   the same period, and both lookups are a linear scan. The record says so, and
   says it is an inference from which rows moved rather than a measurement.
 
+- **`Stage_Count` and `Stage_Status`** say what each stage of the last pipeline
+  reported. `Status` is the pipeline's own, which is its last stage's, and that
+  rule hides a failure in the middle; other shells answer this with an array
+  nobody remembers the name of, and this answers it in the shape the directory
+  listing already has.
+
+- **`trace.commands` announces each command before it runs**, which is `set -x`
+  elsewhere -- on standard error and as a note, because tracing that wrote into
+  a pipeline's data is a thing every shell user has been bitten by once.
+
 - **A script can take things away again.** `remove_file`, `remove_directory`,
   `rename` and `copy_file`. Removing a directory takes an **empty** one, and
   that is the point: a recursive removal is one typo away from the most

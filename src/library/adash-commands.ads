@@ -459,6 +459,15 @@ package Adash.Commands is
       --  scale.
       Last_Status : Adash.Execution.Exit_Status := Adash.Execution.Success;
 
+      --  What each stage of the last pipeline reported, in order.
+      --
+      --  `Status` is the pipeline's own, which is its last stage's -- the rule
+      --  every shell follows, and the one that hides a failure in the middle:
+      --  `pipe ("false"); pipe ("true"); pipe_run;` succeeds. Other shells
+      --  answer this with an array nobody can remember the name of; here it is
+      --  a count and a position, like a directory listing.
+      Stage_Statuses : Adash.Execution.Pipelines.Status_Vectors.Vector;
+
       --  How a foreground program learns the user asked it to stop.
       --
       --  `run` waits for a program, and a shell that could not be interrupted

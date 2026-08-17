@@ -3299,6 +3299,70 @@ ending the child's unfinished line, and everything after it was a stack trace
 nobody could account for.
 
 
+### What other shells had and this one did not
+
+Asked plainly -- *where are the gaps against bash?* -- and the answers came in
+three kinds. Some were features nobody had built, some were deliberate and stay
+deliberate, and one turned out to be a hole the rest of the design had grown
+around.
+
+**Nothing could see what was in a directory.** `Exists` and its neighbours ask
+about a path a script already names, and the commonest loop anybody writes in a
+shell is over the files in a place -- so a script had to run a program to find
+out what existed, which is exactly what the path questions were added to stop.
+`File_Count` and `File_At` answer from one reading of the directory, sorted,
+without `.` and `..`, so a loop sees a place that is not changing under it. Two
+functions rather than one that answers with a list, because a String and an
+Integer are what this language's values are.
+
+There is still no pattern expansion and there will not be: `"*.c"` is a string,
+and a listing with `Ends_With` beside it is how a script picks what it wants.
+That is the same rule that keeps arguments from being re-scanned.
+
+**Nothing could unmake what a script made.** Removal was left to programs on the
+grounds that unmaking things is what programs are for, and that stopped being
+true when the shell began running where those programs are not. `remove_file`,
+`remove_directory`, `rename`, `copy_file` -- and removing a directory takes an
+**empty** one. A recursive removal is one typo away from the most destructive
+thing a shell can be asked to do, and a script that means it says so in three
+lines that name what they destroy. `rename` and `copy_file` refuse to replace
+what is already there, because a move that silently overwrote would be the
+destructive case wearing the safe one's name.
+
+**A suspended job could not be brought back.** `suspend` stopped one and
+`resume` only ever let it carry on without the terminal, so Ctrl-Z was a
+one-way door. `foreground` resumes it and waits for it, with the terminal, since
+from where a user stands those are one act.
+
+**A script could not tidy up after itself.** `on_exit` names a subprogram to run
+when the session ends however it ends -- off the end, through `quit`, or because
+an interrupt stopped what was running, which is the case it exists for. It runs
+after the interrupt is acknowledged, so a cleanup is not stopped before it can
+remove anything, and the name is resolved when it runs, so cleanup can be asked
+for at the top and declared below.
+
+**A pipeline could not say which stage failed.** `Status` is the pipeline's own,
+which is its last stage's, and that rule hides a failure in the middle.
+`Stage_Count` and `Stage_Status` are the same count-and-position shape the
+directory listing has, rather than an array with a name nobody remembers.
+
+**A script could not see what it was doing.** `trace.commands` announces each
+command before it runs, on standard error and as a note -- tracing that wrote
+into a pipeline's data is a thing every shell user has been bitten by once.
+
+**And `Is_Executable` could not answer about a program.** It needs a path, and
+every program a user names is on the search path; `Program_Path` asks the host,
+because a name on Windows matches with any of the PATHEXT suffixes.
+
+What is deliberately still absent: word splitting and re-scanning, glob
+expansion, aliases, `set -e`, and `|` and `>` as punctuation. What is absent and
+not yet decided: a prompt format -- the prompt is a model of structured
+elements rather than text, and a template for it would be the formatting
+mini-language this shell has avoided everywhere else. `pushd`, `popd` and `cd -`
+are absent because this language has variables: `Here : String :=
+Current_Directory;` is the whole of what a directory stack was for.
+
+
 ## What Adash cannot do yet
 
 Two lists. The first says where the subset ends -- what is Ada and is

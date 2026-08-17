@@ -84,6 +84,8 @@ package Adash.Predefined is
       Entity_File_Count,
       Entity_File_At,
       Entity_Program_Path,
+      Entity_Stage_Count,
+      Entity_Stage_Status,
 
       --  Searching and shaping text.
       Entity_Index,

@@ -40,6 +40,16 @@ package Adash.Configuration is
       --  How many entries are kept. Read by Adash.Interactive.History.
       History_Limit_Setting,
 
+      --  Whether each internal command is announced before it runs.
+      --
+      --  What `set -x` is for elsewhere: a script that does not do what its
+      --  author expected is usually a script whose author cannot see what it
+      --  did. Announced on standard error, as a note, so that the output a
+      --  script produces is still the output a script produces -- and as a
+      --  structured line like everything else the shell says, so a tool
+      --  reading a session can tell a trace from a result.
+      Trace_Setting,
+
       --  The most a single read will hold, in mebibytes. Read by
       --  Adash.Filesystem and by whatever captures a program's output.
       --

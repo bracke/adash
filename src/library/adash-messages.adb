@@ -450,6 +450,10 @@ package body Adash.Messages is
             return "predefined.file_at.doc";
          when Msg_Predefined_Program_Path_Doc =>
             return "predefined.program_path.doc";
+         when Msg_Predefined_Stage_Count_Doc =>
+            return "predefined.stage_count.doc";
+         when Msg_Predefined_Stage_Status_Doc =>
+            return "predefined.stage_status.doc";
          when Msg_Predefined_Current_Directory_Hint =>
             return "predefined.current_directory.hint";
          when Msg_Predefined_File_Count_Hint =>
@@ -458,6 +462,10 @@ package body Adash.Messages is
             return "predefined.file_at.hint";
          when Msg_Predefined_Program_Path_Hint =>
             return "predefined.program_path.hint";
+         when Msg_Predefined_Stage_Count_Hint =>
+            return "predefined.stage_count.hint";
+         when Msg_Predefined_Stage_Status_Hint =>
+            return "predefined.stage_status.hint";
          when Msg_Predefined_Is_Executable_Doc =>
             return "predefined.is_executable.doc";
          when Msg_Predefined_Index_Doc =>
@@ -667,6 +675,8 @@ package body Adash.Messages is
          when Msg_Setting_History_Enabled    => return "setting.history-enabled";
          when Msg_Setting_History_Limit      => return "setting.history-limit";
          when Msg_Setting_Read_Limit         => return "setting.read-limit";
+         when Msg_Setting_Trace              => return "setting.trace";
+         when Msg_Line_Traced                => return "line.traced";
          when Msg_Setting_Prompt_Directory   => return "setting.prompt-directory";
          when Msg_Setting_Prompt_Failure     => return "setting.prompt-failure";
          when Msg_Setting_Editing            => return "setting.editing";
@@ -903,6 +913,9 @@ package body Adash.Messages is
             | Msg_Predefined_File_At_Doc | Msg_Predefined_File_At_Hint
             | Msg_Predefined_Program_Path_Doc
             | Msg_Predefined_Program_Path_Hint
+            | Msg_Predefined_Stage_Count_Doc | Msg_Predefined_Stage_Count_Hint
+            | Msg_Predefined_Stage_Status_Doc
+            | Msg_Predefined_Stage_Status_Hint
             | Msg_Predefined_Is_Executable_Hint
             | Msg_Predefined_Index_Doc | Msg_Predefined_Index_Hint
             | Msg_Predefined_Trim_Doc | Msg_Predefined_Trim_Hint
@@ -1054,6 +1067,7 @@ package body Adash.Messages is
             | Msg_Interactive_Read_Failed
             | Msg_Setting_Color | Msg_Setting_History_Enabled
             | Msg_Setting_History_Limit | Msg_Setting_Read_Limit
+            | Msg_Setting_Trace
             | Msg_Setting_Prompt_Directory
             | Msg_Setting_Prompt_Failure | Msg_Setting_Editing
             | Msg_Setting_Session_File
@@ -1075,6 +1089,9 @@ package body Adash.Messages is
 
          when Msg_Config_Syntax =>
             return [N ("path"), N ("line"), N ("column"), N ("detail")];
+
+         when Msg_Line_Traced =>
+            return [1 => N ("command")];
 
          when Msg_Config_Unreadable | Msg_Config_Not_Text
             | Msg_Config_Too_Large =>

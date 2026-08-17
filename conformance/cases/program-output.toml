@@ -1604,3 +1604,56 @@ output = [
   "[]",
 ]
 diagnostics = []
+
+[[case]]
+id = "pipelines.what-each-stage-reported-can-be-asked"
+requirement = """
+`Status` is the pipeline's own, which is its last stage's -- the rule every
+shell follows, and the one that hides a failure in the middle: a pipeline whose
+first stage failed and whose last one did not is a pipeline that succeeded.
+
+Other shells answer this with an array nobody remembers the name of. Here it is
+a count and a position, the shape a directory listing already has. A position
+outside the pipeline answers zero, which is what `Status` answers before
+anything has run: a question about something that did not happen.
+"""
+script = """
+pipe ("{emit}", "--exit=3", "x");
+pipe ("{upcase}");
+pipe_run;
+put_line (Integer'Image (Status) & Integer'Image (Stage_Count) & Integer'Image (Stage_Status (1)) & Integer'Image (Stage_Status (2)) & Integer'Image (Stage_Status (9)));
+quit (0);"""
+exit_status = 0
+output = [
+  "X",
+  " 0 2 3 0 0",
+]
+diagnostics = []
+
+[[case]]
+id = "settings.commands-can-be-announced-before-they-run"
+requirement = """
+A script that does not do what its author expected is usually a script whose
+author cannot see what it did -- which is what `set -x` is for elsewhere.
+
+On standard error and as a note, so that what a script writes is still what a
+script writes: tracing that wrote into a pipeline's data is a thing every shell
+user has been bitten by once. As a structured line like everything else, so a
+tool reading a session can tell a trace from a result.
+
+The command that turns it on is not traced, because it was not on when it ran.
+"""
+script = """
+settings ("trace.commands", "true");
+write_file ("x", "{store}/traced.txt");
+remove_file ("{store}/traced.txt");
+quit (0);"""
+exit_status = 0
+output = [
+  "!line.setting{key=trace.commands,value=true,summary=!setting.trace!}!",
+]
+diagnostics = [
+  "!line.traced{command=write_file x {store}/traced.txt}!",
+  "!line.traced{command=remove_file {store}/traced.txt}!",
+  "!line.traced{command=quit 0}!",
+]

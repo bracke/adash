@@ -136,7 +136,56 @@ package body Adash.Commands.Builtins is
          return (Kind => Adash.Execution.Exit_Internal_Failure, others => <>);
       end Failed;
 
+      --  What a command is called, asked of the table rather than worked out
+      --  from the identifier's position in it: the two agree today and nothing
+      --  says they must, and a trace naming the wrong command would be worse
+      --  than no trace at all.
+      function Spelling_Of (Which : Command_Id) return String;
+
+      function Spelling_Of (Which : Command_Id) return String is
+      begin
+         for Index in 1 .. Adash.Commands.Count loop
+            if Adash.Commands.Entry_At (Index).Id = Which then
+               return M.Value (Adash.Commands.Entry_At (Index).Name);
+            end if;
+         end loop;
+
+         return "";
+      end Spelling_Of;
+
    begin
+      --  Announced before it runs, where the user asked for that.
+      --
+      --  On standard error and as a note, so the output a script produces is
+      --  still the output a script produces -- `set -x` writing into a
+      --  pipeline's data is a thing every shell user has been bitten by once.
+      --  What is said is the command and what it was given, which is what a
+      --  reader is trying to see.
+      if Adash.Configuration.Boolean_Value
+           (Shell.Chosen, Adash.Configuration.Trace_Setting)
+      then
+         declare
+            Said : Ada.Strings.Unbounded.Unbounded_String :=
+              Ada.Strings.Unbounded.To_Unbounded_String (Spelling_Of (Id));
+         begin
+            for Position in 1 .. Given loop
+               Ada.Strings.Unbounded.Append
+                 (Said, " " & Argument (Arguments, Position));
+            end loop;
+
+            Report.Emit
+              (Adash.Diagnostics.Make
+                 (Message   => M.Msg_Line_Traced,
+                  Level     => Adash.Diagnostics.Severity_Note,
+                  Of_Kind   => Adash.Diagnostics.Category_Execution,
+                  Raised_By => Adash.Diagnostics.Owner_Commands,
+                  Arguments =>
+                    [1 => M.Named
+                            ("command",
+                             Ada.Strings.Unbounded.To_String (Said))]));
+         end;
+      end if;
+
       case Id is
 
          when Command_Change_Directory =>
@@ -525,6 +574,11 @@ package body Adash.Commands.Builtins is
                      Ended : constant Adash.Execution.Exit_Status :=
                        Adash.Execution.Jobs.Result (Shell.Jobs, Started).Status;
                   begin
+                     --  What each stage said, for the question `Status` cannot
+                     --  answer: a failure in the middle of a pipeline.
+                     Shell.Stage_Statuses :=
+                       Adash.Execution.Jobs.Result (Shell.Jobs, Started).Stages;
+
                      Adash.Execution.Jobs.Forget (Shell.Jobs, Started);
                      return Ended;
                   end;

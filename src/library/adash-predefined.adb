@@ -395,6 +395,33 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Program_Path_Hint,
        Status => Available),
 
+      --  What each stage of the last pipeline reported.
+      --
+      --  `Status` is the pipeline's own, which is its last stage's, and that
+      --  rule hides a failure in the middle: a pipeline whose first stage
+      --  failed and whose last one did not is a pipeline that succeeded, and
+      --  every shell agrees. These two are how a script asks the other
+      --  question -- a count and a position, as a directory listing is,
+      --  rather than an array with a name nobody remembers.
+      (Id => Entity_Stage_Count, Name => Named ("Stage_Count"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_Integer, Parameter_Count => 0,
+       Parameters => No_Parameters,
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Stage_Count_Doc,
+       Description => Adash.Messages.Msg_Predefined_Stage_Count_Hint,
+       Status => Available),
+
+      (Id => Entity_Stage_Status, Name => Named ("Stage_Status"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_Integer, Parameter_Count => 1,
+       Parameters => [1 => (Named ("Position"), Types.Type_Integer),
+                      others => (Named (""), Types.Type_None)],
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Stage_Status_Doc,
+       Description => Adash.Messages.Msg_Predefined_Stage_Status_Hint,
+       Status => Available),
+
       (Id => Entity_Index, Name => Named ("Index"),
        Sort => Sort_Function,
        Of_Type => Types.Type_Integer, Parameter_Count => 2,

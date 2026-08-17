@@ -288,6 +288,7 @@ package body Adash.Engine is
                end if;
 
                Sink.Shell.Last_Status := Final.Status;
+               Sink.Shell.Stage_Statuses := Final.Stages;
 
                --  Line endings first, and this is not cosmetic. A program on
                --  Windows writes a line as carriage return and line feed, so
@@ -446,6 +447,34 @@ package body Adash.Engine is
                  (if Position >= 1
                   then Adash.Filesystem.File_At (Text_At (1), Position)
                   else "");
+            end;
+
+         when Adash.Predefined.Entity_Stage_Count =>
+            Answer := Adash.Language.Values.To_Value
+              (Integer (Sink.Shell.Stage_Statuses.Length));
+
+         when Adash.Predefined.Entity_Stage_Status =>
+            declare
+               Position : Integer := 0;
+            begin
+               if Count >= 1
+                 and then not Adash.Language.Values.Get
+                                (Arguments (1), Position)
+               then
+                  Position := 0;
+               end if;
+
+               --  Zero for a stage nobody ran, which is what Status answers
+               --  before anything has run: a position outside a pipeline is a
+               --  question about something that did not happen.
+               Answer := Adash.Language.Values.To_Value
+                 (if Position >= 1
+                    and then Position <=
+                               Integer (Sink.Shell.Stage_Statuses.Length)
+                  then Integer
+                         (Adash.Execution.Numeric
+                            (Sink.Shell.Stage_Statuses.Element (Position)))
+                  else 0);
             end;
 
          when Adash.Predefined.Entity_Program_Path =>
