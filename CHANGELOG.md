@@ -1973,6 +1973,14 @@ what changed.
 
 ### Fixed
 
+- **A script had the host's signal defaults, so Ctrl-C killed it outright.** The
+  shell's policy was taken by the interactive session and by nothing else,
+  which looked harmless until something depended on the shell surviving long
+  enough to notice: `on_exit` is exactly that, and a script that is killed runs
+  no cleanup at all. The machine stops a loop between instructions because the
+  interrupt is *recorded*, and nothing was recording it for a script. Found by
+  writing the case for the thing `on_exit` exists for.
+
 - **The two statuses the shell exits with on its own are written down**, in the
   table and in the two pages that repeat the model: 2 for a usage error, 74 for
   having nowhere left to write. Neither ever reaches `Status` -- one happens

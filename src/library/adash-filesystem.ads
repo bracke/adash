@@ -158,9 +158,10 @@ package Adash.Filesystem is
    --  One of the names in a directory, counting from one.
    --
    --  In the same order File_Count counted, and from the same reading of the
-   --  directory: the two are answered from one snapshot, so a loop from 1 to
-   --  File_Count sees a directory that is not changing underneath it. A file
-   --  made while the loop runs turns up the next time something asks.
+   --  directory: a loop from 1 to File_Count walks the listing the count came
+   --  from, so a file made while the loop runs does not shift the ones after
+   --  it. Asking File_Count again reads the directory again -- a script that
+   --  lists a place, removes something and lists it again sees what it did.
    --
    --  The name alone, not the path -- `Compose` is not this package's job and
    --  a script joining them with the separator it chose is a script that knows

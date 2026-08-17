@@ -11,7 +11,9 @@ with Adash.Configuration.Files;
 with Adash.Diagnostics;
 with Adash.Source;
 with Adash.Engine;
+with Adash.Errors;
 with Adash.Execution;
+with Adash.Execution.Signals;
 with Adash.Interactive.Session;
 with Adash.Messages;
 with Adash.Messages.Rendering;
@@ -332,6 +334,23 @@ procedure Adash_Main is
          Output  => Output_To'Unchecked_Access);
 
    begin
+      --  The shell's signal policy, which only the interactive session was
+      --  taking.
+      --
+      --  A script had the host's defaults, so a Ctrl-C killed it outright --
+      --  which looks fine until something depends on the shell surviving long
+      --  enough to notice. `on_exit` does exactly that: a script interrupted
+      --  half way is the case it exists for, and a script that is killed runs
+      --  nothing at all. The machine stops a loop between instructions because
+      --  the interrupt is *recorded*, and nothing was recording it here.
+      declare
+         Armed : constant Adash.Errors.Error_Info :=
+           Adash.Execution.Signals.Install;
+         pragma Unreferenced (Armed);
+      begin
+         null;
+      end;
+
       Adash.Engine.Open (Session);
       Adash.Engine.Use_Script_Runner (Session, Sourcing'Unchecked_Access);
 

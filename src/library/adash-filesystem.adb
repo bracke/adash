@@ -225,8 +225,21 @@ package body Adash.Filesystem is
    --  is being read, which is not a race a user could ever be asked to think
    --  about.
    protected Snapshot is
-      procedure Take (Path : String; Count : out Natural);
+      --  Reads the directory again. What File_Count does, and the reason it
+      --  does: a script that lists a place, removes something, and lists it
+      --  again must see what it did -- the first version of this held the
+      --  first reading for as long as the path stayed the same, and would have
+      --  told that script the file it had just removed was still there.
+      procedure Refresh (Path : String; Count : out Natural);
+
+      --  Answers from the last reading, taking one only where there is none
+      --  for this path. A loop from 1 to File_Count therefore walks the
+      --  listing the count came from, which is the property that matters:
+      --  a file made while the loop runs does not shift the ones after it.
       function Name (Path : String; Position : Positive) return String;
+
+      --  For a caller that asks for a name without having counted first.
+      procedure Take_If_Missing (Path : String; Count : out Natural);
    private
       Of_Path : Ada.Strings.Unbounded.Unbounded_String;
       Held    : Name_Lists.Vector;
@@ -288,17 +301,13 @@ package body Adash.Filesystem is
 
    protected body Snapshot is
 
-      procedure Take (Path : String; Count : out Natural) is
-         use type Ada.Strings.Unbounded.Unbounded_String;
+      procedure Refresh (Path : String; Count : out Natural) is
       begin
-         if not Taken or else Of_Path /= Path then
-            Read_Directory (Path, Held);
-            Of_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
-            Taken := True;
-         end if;
-
+         Read_Directory (Path, Held);
+         Of_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
+         Taken := True;
          Count := Natural (Held.Length);
-      end Take;
+      end Refresh;
 
       function Name (Path : String; Position : Positive) return String is
          use type Ada.Strings.Unbounded.Unbounded_String;
@@ -312,6 +321,18 @@ package body Adash.Filesystem is
          return Ada.Strings.Unbounded.To_String (Held.Element (Position));
       end Name;
 
+      procedure Take_If_Missing (Path : String; Count : out Natural) is
+         use type Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         if not Taken or else Of_Path /= Path then
+            Read_Directory (Path, Held);
+            Of_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
+            Taken := True;
+         end if;
+
+         Count := Natural (Held.Length);
+      end Take_If_Missing;
+
    end Snapshot;
 
    -------------------
@@ -321,7 +342,7 @@ package body Adash.Filesystem is
    function File_Count (Path : String) return Natural is
       Answer : Natural;
    begin
-      Snapshot.Take (Path, Answer);
+      Snapshot.Refresh (Path, Answer);
       return Answer;
    end File_Count;
 
@@ -332,10 +353,10 @@ package body Adash.Filesystem is
    function File_At (Path : String; Position : Positive) return String is
       Answer : Natural;
    begin
-      --  Asked of the same snapshot the count came from, and taken here too so
-      --  that a caller which asks for a name without having counted first gets
-      --  an answer rather than nothing.
-      Snapshot.Take (Path, Answer);
+      --  Asked of the same reading the count came from, and taken here only
+      --  where there is none: a caller that asks for a name without having
+      --  counted first should get an answer rather than nothing.
+      Snapshot.Take_If_Missing (Path, Answer);
 
       if Position > Answer then
          return "";

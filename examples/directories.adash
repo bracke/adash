@@ -1,0 +1,69 @@
+--  Looking at a directory, and clearing up after yourself.
+--
+--  The loop other shells write as `for f in *.log` is written here as a count
+--  and a position. There is no pattern expansion in this language and there
+--  will not be -- an argument is what it says, and nothing re-scans it -- so a
+--  listing with `Ends_With` beside it is how a script picks the ones it wants.
+
+--  What to do on the way out, said before there is anything to clean up.
+--
+--  `on_exit` names a subprogram this session declared, and the shell runs it
+--  when the session ends however it ends: off the end, through `quit`, or
+--  because an interrupt stopped what was running. That last one is why it
+--  exists -- a script interrupted half way through is exactly the script that
+--  leaves a temporary directory behind.
+--
+--  The name is resolved when it runs, so it can be asked for at the top and
+--  declared below, which is the order anybody writes it in.
+on_exit ("Tidy_Up");
+
+make_directory ("work/output");
+
+write_file ("first", "work/one.log");
+write_file ("second", "work/two.log");
+write_file ("not a log", "work/notes.txt");
+
+--  Sorted, and without `.` and `..`: a loop that had to skip those every time
+--  would be a loop with a wart in it.
+put_line ("everything in work:");
+
+for Index in 1 .. File_Count ("work") loop
+   put_line ("  " & File_At ("work", Index));
+end loop;
+
+--  Which makes picking the ones you meant an ordinary condition.
+put_line ("the logs:");
+
+for Index in 1 .. File_Count ("work") loop
+   Name : String := File_At ("work", Index);
+
+   if Ends_With (Name, ".log") then
+      put_line ("  " & Name & " holds: " & Read_File ("work/" & Name));
+   end if;
+end loop;
+
+--  Unmaking, in the order that works: what is in a directory before the
+--  directory. `remove_directory` takes an empty one and nothing else, because
+--  a recursive removal is one typo away from the most destructive thing a
+--  shell can be asked to do -- and a script that means it says so in lines
+--  that name what they destroy, as these do.
+procedure Tidy_Up is
+begin
+   put_line ("tidying up");
+
+   for Index in reverse 1 .. File_Count ("work") loop
+      Held : String := "work/" & File_At ("work", Index);
+
+      --  A directory is not a file, and `remove_file` says so rather than
+      --  quietly doing something else. Asking first is the shape every one of
+      --  these questions has: `Exists` before writing, `Is_Directory` here.
+      if not Is_Directory (Held) then
+         remove_file (Held);
+      end if;
+   end loop;
+
+   remove_directory ("work/output");
+   remove_directory ("work");
+
+   put_line ("work is gone: " & Boolean'Image (not Exists ("work")));
+end Tidy_Up;

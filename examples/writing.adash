@@ -58,5 +58,8 @@ end Save;
 Save ("keep this", "kept.txt");
 Save ("keep this", "nor-this-directory/kept.txt");
 
---  Nothing here removes a file. Unmaking things is what programs are for, and
---  this shell runs programs.
+--  Taking things away again is `remove_file` and its neighbours, which
+--  `directories.adash` uses. Unmaking was left to programs for a long time, on
+--  the grounds that unmaking things is what programs are for -- and that
+--  stopped being true when this shell began running where those programs are
+--  not there to be run.

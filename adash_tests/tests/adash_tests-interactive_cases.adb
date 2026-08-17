@@ -1,3 +1,4 @@
+with Ada.Characters.Latin_1;
 with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Strings.Fixed;
@@ -15,6 +16,7 @@ with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 
 with Adash.Diagnostics;
+with Adash.Filesystem;
 with Adash.Execution.Signals;
 with Adash.Execution.Streams;
 with Adash.Interactive.Completion;
@@ -1152,7 +1154,8 @@ package body Adash_Tests.Interactive_Cases is
    --  @param Item The session to fill in.
    --  @return False when this host has no pseudo-terminals, in which case
    --          nothing was started and the caller has nothing to do.
-   function Start_On_A_Terminal (Item : in out Terminal_Session) return Boolean;
+   function Start_On_A_Terminal
+     (Item : in out Terminal_Session; Script : String := "") return Boolean;
 
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
@@ -1201,13 +1204,21 @@ package body Adash_Tests.Interactive_Cases is
    --  work behind, so this asks the host to end one that would not go.
    procedure Finish (Item : in out Terminal_Session; Ended : out Boolean);
 
-   function Start_On_A_Terminal (Item : in out Terminal_Session) return Boolean
+   function Start_On_A_Terminal
+     (Item : in out Terminal_Session; Script : String := "") return Boolean
    is
       use type Hostkit.Spawn.Spawn_Outcome;
 
       Options : Hostkit.Spawn.Options;
       Args    : Hostkit.String_Vectors.Vector;
    begin
+      if Script /= "" then
+         --  A shell running a script rather than a prompt. The terminal is
+         --  the same either way, and what a script does when a user presses
+         --  Ctrl-C at it is a question only a terminal can ask.
+         Args.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
+      end if;
+
       if not Hostkit.Pty.Is_Supported then
          --  A host with neither pseudo-terminals nor a console of its own.
          --  What the shell does there is checked by the conformance suite,
@@ -1253,8 +1264,14 @@ package body Adash_Tests.Interactive_Cases is
       --  keys -- and its own erase key deletes a byte, which is exactly the
       --  behaviour one of these tests exists to say the shell does not have.
       --  A user waits for the prompt too; this only says so.
-      Assert (Waited_For (Item, "adash"),
-              "no prompt arrived on the terminal");
+      --
+      --  A shell running a script prints no prompt, so there is nothing to
+      --  wait for: what a caller in that shape waits for is whatever the
+      --  script says, which only the caller knows.
+      if Script = "" then
+         Assert (Waited_For (Item, "adash"),
+                 "no prompt arrived on the terminal");
+      end if;
 
       return True;
    end Start_On_A_Terminal;
@@ -2714,6 +2731,66 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after waiting for a job");
    end A_Job_Waited_For_Gets_The_Terminal;
 
+   --  A script interrupted still runs what it registered.
+   --
+   --  `on_exit` exists for this case rather than for the tidy one: a script
+   --  that reaches its own end can put the removal on the last line. The case
+   --  that needs it is the script stopped half way, and until this was written
+   --  the only thing asserted was ending through `quit`.
+   --
+   --  Through a terminal, because that is where an interrupt comes from. What
+   --  the shell does with it differs by host -- a signal on two of them, a
+   --  keystroke the shell reads on the third -- and both paths end in the same
+   --  place, which is what this asserts.
+   procedure An_Interrupted_Script_Still_Tidies_Up
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure An_Interrupted_Script_Still_Tidies_Up
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-tidy.adash");
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+   begin
+      Adash.Filesystem.Write
+        (Script,
+         "procedure Tidy is begin put_line (To_Upper (""tidied"")); end Tidy;"
+         & Ada.Characters.Latin_1.LF
+         & "on_exit (""Tidy"");" & Ada.Characters.Latin_1.LF
+         & "put_line (To_Upper (""running""));" & Ada.Characters.Latin_1.LF
+         & "loop null; end loop;" & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the script was not written");
+
+      if not Start_On_A_Terminal (Session, Script) then
+         return;
+      end if;
+
+      Assert (Waited_For (Session, "RUNNING", Tries => 600),
+              "the script never started: [" & Plainly (Session) & "]");
+
+      Type_Interrupt (Session);
+
+      Assert (Waited_For (Session, "TIDIED", Tries => 900),
+              "an interrupted script did not run what it registered: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+
+      Ada.Directories.Delete_File (Script);
+   end An_Interrupted_Script_Still_Tidies_Up;
+
    --------------------
 
    overriding procedure Register_Tests (T : in out Case_Type) is
@@ -2789,6 +2866,8 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine (T, A_Program_In_A_Submission_Can_Read_A_Line'Access,
                         "a program in a submission can read a line typed at "
                         & "the terminal");
+      Register_Routine (T, An_Interrupted_Script_Still_Tidies_Up'Access,
+                        "a script interrupted still runs what it registered");
       Register_Routine (T, A_Job_Waited_For_Gets_The_Terminal'Access,
                         "a job waited for gets the terminal");
       Register_Routine (T, A_Background_Job_Is_Given_Nothing_To_Read'Access,
