@@ -1909,6 +1909,12 @@ what changed.
   between submissions, so they are worked out once and adopted wholesale: 1620
   us to 493, where a fresh chain costs one append per name and no questions.
 
+  The table is built while the package is elaborated rather than on first use.
+  Lazily was the obvious way and it carried an assumption nobody had written
+  down -- that no two things analyse at once -- which is true of the engine
+  today but is a property of a caller, held in a package that cannot see its
+  callers. Elaboration has no such question in it.
+
   The suspicion recorded this morning -- that the per-name registry lookups had
   grown -- was wrong, and one measurement said so: analysing one, five and
   twenty lines cost 1578, 2514 and 6518 us, which is 250 us a line and 1.3

@@ -4,6 +4,15 @@ with Adash.Commands;
 with Adash.Errors;
 with Adash.Language.Symbols;
 
+--  Ready before this body is, because this body builds its table during its
+--  own elaboration: the commands it names and the symbols it makes them into
+--  have to be there first. Said rather than left to the binder to work out, so
+--  that a change here fails to build instead of failing at start-up on
+--  somebody else's machine. Scopes comes in through the specification, which is
+--  elaborated before this body by the language rules.
+pragma Elaborate_All (Adash.Commands);
+pragma Elaborate_All (Adash.Language.Symbols);
+
 package body Adash.Predefined is
 
    package Symbols renames Adash.Language.Symbols;
@@ -592,23 +601,28 @@ package body Adash.Predefined is
      (Index_Type => Positive, Element_Type => Symbols.Symbol,
       "=" => Symbols."=");
 
-   Prepared : Symbol_Lists.Vector;
-   Ready    : Boolean := False;
-   Sound    : Boolean := False;
+   --  Built while this package is elaborated, not on first use.
+   --
+   --  Lazily was the obvious way and it carried an assumption nobody had
+   --  written down: that no two things analyse at once. That is true of the
+   --  engine today -- a submission is analysed before it runs, and what runs
+   --  is what has tasks -- but it is a property of a caller, held in a
+   --  package that cannot see its callers, and two of them arriving together
+   --  would each build the same vector into the same vector.
+   --
+   --  Elaboration has no such question in it. The table is a constant, the
+   --  commands are a constant, and the answer is the same for the life of the
+   --  process; Elaborate_All below says which packages have to be ready
+   --  first.
+   Sound : Boolean := False;
 
-   function Prepare return Boolean;
+   function Prepare return Symbol_Lists.Vector;
 
-   function Prepare return Boolean is
-      Trial : Adash.Language.Scopes.Chain;
-      Error : Adash.Errors.Error_Info;
+   function Prepare return Symbol_Lists.Vector is
+      Trial    : Adash.Language.Scopes.Chain;
+      Error    : Adash.Errors.Error_Info;
+      Building : Symbol_Lists.Vector;
    begin
-      if Ready then
-         return Sound;
-      end if;
-
-      Ready := True;
-      Sound := False;
-
       for Current of Registry loop
          declare
             Kind : constant Symbols.Symbol_Kind :=
@@ -623,10 +637,14 @@ package body Adash.Predefined is
                             Provided => True);
          begin
             if not Trial.Declare_Symbol (Made, Error) then
-               return False;
+               --  A defect in the table above rather than in anybody's
+               --  program. Reported through Install, which is where a caller
+               --  is listening; what comes back from here is what was built
+               --  before the clash, and Sound says not to use it.
+               return Building;
             end if;
 
-            Prepared.Append (Made);
+            Building.Append (Made);
          end;
       end loop;
 
@@ -640,22 +658,24 @@ package body Adash.Predefined is
                             Types.Type_None, Provided => True);
          begin
             if not Trial.Declare_Symbol (Made, Error) then
-               return False;
+               return Building;
             end if;
 
-            Prepared.Append (Made);
+            Building.Append (Made);
          end;
       end loop;
 
       Sound := True;
-      return True;
+      return Building;
    end Prepare;
+
+   Prepared : constant Symbol_Lists.Vector := Prepare;
 
    function Install (Into : in out Adash.Language.Scopes.Chain) return Boolean is
       Error : Adash.Errors.Error_Info;
       pragma Unreferenced (Error);
    begin
-      if not Prepare then
+      if not Sound then
          return False;
       end if;
 
