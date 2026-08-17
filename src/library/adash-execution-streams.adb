@@ -103,6 +103,30 @@ package body Adash.Execution.Streams is
       Item := (Handle => D.Invalid, Owned => False);
    end Release;
 
+   --  Whether a write to this program's output has failed. See the note in
+   --  the specification: an ending that runs finalization cannot be allowed
+   --  after this.
+   Gone : Boolean := False;
+   pragma Atomic (Gone);
+
+   -------------------------
+   -- Note_Output_Gone --
+   -------------------------
+
+   procedure Note_Output_Gone is
+   begin
+      Gone := True;
+   end Note_Output_Gone;
+
+   -----------------------
+   -- Output_Is_Gone --
+   -----------------------
+
+   function Output_Is_Gone return Boolean is
+   begin
+      return Gone;
+   end Output_Is_Gone;
+
    -----------------------
    -- Background_Input --
    -----------------------

@@ -2773,14 +2773,24 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Written = Adash.Filesystem.Write_Ok,
               "the script was not written");
 
-      --  No longer gated to hosts with signals.
-      --
-      --  It was, because on Windows nothing arrived on the terminal at all --
-      --  and the probe below found why: the shell's output was buffered by
-      --  block there, so a script that printed a line and then ran forever
-      --  showed nothing until it ended, which for a script that never ends is
-      --  nothing at all. A line written to a terminal is pushed out now, and
-      --  the question this case asks can be asked on every host.
+      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt)
+      then
+         --  Where this stops, and what has been ruled out.
+         --
+         --  On Windows nothing arrives on this terminal while the script runs.
+         --  The probe below showed the same shell, given a script that prints
+         --  one line and stops, saying all of it at the moment it exits -- so
+         --  buffering was the obvious explanation, and buffering was tested:
+         --  a line written to a terminal is pushed out as it is written now,
+         --  which changed nothing here. That fix is worth keeping on its own
+         --  account and it is not the answer to this.
+         --
+         --  So what is left is something about a shell that keeps running on a
+         --  pseudo-console, and the probe below is where to add to the record.
+         Ada.Directories.Delete_File (Script);
+         return;
+      end if;
+
       if not Start_On_A_Terminal (Session, Script) then
          Ada.Directories.Delete_File (Script);
          return;

@@ -1991,7 +1991,20 @@ what changed.
   Found by the third probe of its kind: the interrupted-script case could not
   run on Windows because nothing arrived on the terminal, and rather than guess
   the probe printed every byte -- which showed the same script *did* say
-  everything, at the moment it exited. The case runs on all three hosts now.
+  everything, at the moment it exited.
+
+  It did **not** fix that host: a script that keeps running on a pseudo-console
+  is still silent there, so the interrupted-script case stays on the two hosts
+  with signals. The theory was tested rather than assumed, and what it ruled
+  out is written where the next person will be standing.
+
+- **Ending after a failed write no longer runs a finalizer over it.** The
+  machine reports a failed write to the program that made it and lets the
+  session carry on, which is right -- and that left the process ending
+  *normally*, into finalization, which closes the standard files, which
+  flushes them, which fails again: `PROGRAM_ERROR` inside a finalizer and a
+  stack trace on the stream that has been refusing everything. Windows showed
+  this first and the fix there was too narrow; every exit point asks now.
 
 - **The two statuses the shell exits with on its own are written down**, in the
   table and in the two pages that repeat the model: 2 for a usage error, 74 for

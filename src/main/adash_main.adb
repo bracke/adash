@@ -14,6 +14,7 @@ with Adash.Engine;
 with Adash.Errors;
 with Adash.Execution;
 with Adash.Execution.Signals;
+with Adash.Execution.Streams;
 with Adash.Interactive.Session;
 with Adash.Messages;
 with Adash.Messages.Rendering;
@@ -77,6 +78,28 @@ procedure Adash_Main is
      Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Output);
    Stderr_Is_Terminal : constant Boolean :=
      Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Error);
+
+   --  End the program with a status.
+   --
+   --  Ordinarily by returning, which is what Ada does and what runs
+   --  finalization. Not where a write has already failed: finalization closes
+   --  the standard files, closing them flushes them, the flush fails for the
+   --  same reason, and an exception in a finalizer is PROGRAM_ERROR and a
+   --  stack trace -- on the stream that has been refusing everything.
+   --
+   --  The machine reports a failed write to the program that made it and lets
+   --  the session carry on, which is right; this is the other end of that,
+   --  where carrying on is over.
+   procedure Leave_With (Status : Integer);
+
+   procedure Leave_With (Status : Integer) is
+   begin
+      if Adash.Execution.Streams.Output_Is_Gone then
+         Hostkit.Process.End_Now (Status);
+      end if;
+
+      CLI.Set_Exit_Status (CLI.Exit_Status (Status));
+   end Leave_With;
 
    procedure Put_Line_Styled
      (File : IO.File_Type;
@@ -434,7 +457,7 @@ begin
          Status : constant Natural := Adash.Interactive.Session.Run (Catalog);
       begin
          Catalog.Close;
-         CLI.Set_Exit_Status (CLI.Exit_Status (Status));
+         Leave_With (Status);
          return;
       end;
    end if;
@@ -446,13 +469,13 @@ begin
          if Argument in "--help" | "-h" then
             Report_Usage (IO.Standard_Output, Stdout_Is_Terminal);
             Catalog.Close;
-            CLI.Set_Exit_Status (CLI.Exit_Status (Exit_Success));
+            Leave_With (Exit_Success);
             return;
 
          elsif Argument in "--version" | "-V" then
             Report_Version;
             Catalog.Close;
-            CLI.Set_Exit_Status (CLI.Exit_Status (Exit_Success));
+            Leave_With (Exit_Success);
             return;
 
          elsif Argument'Length > 0 and then Argument (Argument'First) /= '-' then
@@ -463,7 +486,7 @@ begin
                Status : constant Natural := Run_Script (Argument, Index + 1);
             begin
                Catalog.Close;
-               CLI.Set_Exit_Status (CLI.Exit_Status (Status));
+               Leave_With (Status);
                return;
             end;
 
@@ -478,14 +501,14 @@ begin
             IO.New_Line (IO.Standard_Error);
             Report_Usage (IO.Standard_Error, Stderr_Is_Terminal);
             Catalog.Close;
-            CLI.Set_Exit_Status (CLI.Exit_Status (Exit_Usage));
+            Leave_With (Exit_Usage);
             return;
          end if;
       end;
    end loop;
 
    Catalog.Close;
-   CLI.Set_Exit_Status (CLI.Exit_Status (Exit_Success));
+   Leave_With (Exit_Success);
 
 exception
    when Ada.IO_Exceptions.Device_Error | Ada.IO_Exceptions.Status_Error

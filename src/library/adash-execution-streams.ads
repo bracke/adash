@@ -47,6 +47,24 @@ package Adash.Execution.Streams is
    --  @return An owned endpoint.
    function Owned (Handle : Hostkit.Descriptors.Descriptor) return Endpoint;
 
+   --  Say that this program's output has stopped taking anything.
+   --
+   --  The machine catches a failed write and reports it, which is right: a
+   --  script whose `put_line` fails is a script that failed, and it should
+   --  hear about it rather than die. But that leaves the process ending
+   --  *normally* -- and ending normally runs finalization, and finalization
+   --  closes the standard files, which flushes them, which fails again, which
+   --  is `PROGRAM_ERROR` inside a finalizer and a stack trace on the way out.
+   --
+   --  So whoever catches the failure says so here, and whoever ends the
+   --  program asks before it returns.
+   procedure Note_Output_Gone;
+
+   --  Whether a write to this program's output has failed.
+   --
+   --  @return True once Note_Output_Gone has been called.
+   function Output_Is_Gone return Boolean;
+
    --  What a background job's input should be, given what it was told.
    --
    --  A job started into the background cannot be handed the terminal the way

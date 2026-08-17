@@ -6,6 +6,7 @@ with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with Ada.Unchecked_Deallocation;
 
+with Adash.Execution.Streams;
 with Adash.Terminal;
 
 package body Adash.Machine is
@@ -2851,6 +2852,12 @@ package body Adash.Machine is
                   when others =>
                      --  Writing to somewhere that has gone.
                      --
+                     --  Said out loud to whoever ends this program, because
+                     --  ending it the ordinary way now means finalizing the
+                     --  file this just failed on. See
+                     --  Adash.Execution.Streams.Note_Output_Gone.
+                     Adash.Execution.Streams.Note_Output_Gone;
+                     --
                      --  A shell whose reader closed the pipe -- `adash x |
                      --  head -1`, or a capture that refused what it was being
                      --  handed -- was writing into nothing, and on Windows
@@ -2878,6 +2885,7 @@ package body Adash.Machine is
                   Flush_If_Watched;
                exception
                   when others =>
+                     Adash.Execution.Streams.Note_Output_Gone;
                      Fail (Raised, "Device_Error",
                            M.Msg_Stream_Write_Failed,
                            [1 => To_Unbounded_String ("output"),
