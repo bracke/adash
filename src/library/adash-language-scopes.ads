@@ -66,6 +66,24 @@ package Adash.Language.Scopes is
    --         existing declaration is comes back through Clashed_At: a span is
    --         what a chain has, and a line is what a buffer makes of one.
    --  @return True when the declaration was accepted.
+   --  Declare a name that is known not to clash, without asking whether it
+   --  does.
+   --
+   --  For a table whose contents are fixed and checked once: the shell's own
+   --  subprograms and commands, which are declared into every chain before a
+   --  submission is analysed. Asking each time meant scanning what had already
+   --  been declared for each of the eighty-seven, which is the shape of the
+   --  cost -- and asking eighty-seven questions whose answers cannot have
+   --  changed since the program was built.
+   --
+   --  A caller that has not checked has no business here. The check is not
+   --  expensive to keep somewhere: Adash.Predefined does it once, against a
+   --  chain of its own, and reports a table defect exactly as it did before.
+   --
+   --  @param Item Chain to declare in.
+   --  @param Entry_To_Add The symbol.
+   procedure Adopt (Item : in out Chain; Entry_To_Add : Symbols.Symbol);
+
    function Declare_Symbol
      (Item         : in out Chain;
       Entry_To_Add : Symbols.Symbol;

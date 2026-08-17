@@ -1901,6 +1901,20 @@ what changed.
   by `read.limit` exactly as `Output_Of` is, which a case now runs past the end
   to show.
 
+- **Analysing a submission is three times faster than this morning, and faster
+  than it was before any of today's work.** `Adash.Predefined.Install` declared
+  all eighty-seven of the shell's names into the chain before every analysis,
+  and declaring asks whether the name is there already -- a scan of what has
+  been declared so far, for each of the eighty-seven. The answers cannot change
+  between submissions, so they are worked out once and adopted wholesale: 1620
+  us to 493, where a fresh chain costs one append per name and no questions.
+
+  The suspicion recorded this morning -- that the per-name registry lookups had
+  grown -- was wrong, and one measurement said so: analysing one, five and
+  twenty lines cost 1578, 2514 and 6518 us, which is 250 us a line and 1.3
+  milliseconds that does not depend on the program. A per-name cost does not
+  look like that.
+
 - **The benchmark record was re-run.** It described a build from before the
   stream families, the readers' bounds and the write handling. Three rows moved
   and they are the three that scan the command and predefined registries --

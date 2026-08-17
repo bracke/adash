@@ -32,39 +32,52 @@ would be quoted long after anybody remembered that.
 
 On a development build (`-Og`), 200 repetitions, on a sixteen-core machine
 carrying a load average of about 1.5 while the figures were taken. One run of
-three, all of which agreed: analysis fell between 1607 and 1634 us across them
-and every other row within about three percent, so a reader should take the
+four, all of which agreed: analysis fell between 493 and 549 us across them and
+every other row within about three percent, so a reader should take the
 row-to-row *shape* from this and not the last digit.
 
 | Operation | Median | Fastest |
 |---|---:|---:|
 | load and validate UTF-8 | 0.4 us | 0.4 us |
-| lex | 21.0 us | 20.3 us |
-| parse | 26.1 us | 25.4 us |
-| **analyse** | **1620.5 us** | **1511.3 us** |
-| lower and run | 5.9 us | 5.7 us |
-| highlight (per keystroke) | 18.5 us | 18.3 us |
-| complete a command prefix | 34.4 us | 34.0 us |
-| complete a program name | 2780.9 us | 2681.5 us |
+| lex | 20.6 us | 20.1 us |
+| parse | 27.5 us | 26.0 us |
+| **analyse** | **492.8 us** | **469.9 us** |
+| lower and run | 5.9 us | 5.8 us |
+| highlight (per keystroke) | 19.0 us | 18.7 us |
+| complete a command prefix | 36.2 us | 35.4 us |
+| complete a program name | 2757.3 us | 2668.3 us |
 | encode a history entry | 0.7 us | 0.7 us |
-| parse a configuration file | 11.7 us | 11.5 us |
-| open an engine session | 109.5 us | 101.0 us |
+| parse a configuration file | 11.6 us | 11.5 us |
+| open an engine session | 109.8 us | 105.2 us |
 
-**Three rows moved together since the last record, and they are the three that
-scan the tables.** Analysis went from 910 us to 1620, highlighting from 12.8 to
-18.5, completing a command prefix from 24.3 to 34.4 -- while lexing, parsing,
-lowering and running, encoding a history entry and opening a session did not
-move at all. In the same period the tables those three consult grew from 61
-entries to 87: the command registry from 33 to 51 and the predefined registry
-from 28 to 36, as the stream families, the pipeline forms and their functions
-were added.
+**Analysis had nearly doubled, and the cause was not where it looked.** Three
+rows moved together -- analysis 910 to 1620 us, highlighting 12.8 to 18.5,
+completing a command prefix 24.3 to 34.4 -- while lexing, parsing, lowering and
+running, encoding a history entry and opening a session did not move at all. In
+the same period the tables those three consult grew from 61 entries to 87, as
+the stream families, the pipeline forms and their functions were added, and the
+obvious suspicion was the linear scan each lookup does.
 
-Both lookups are a linear scan of a registry, and each of the three operations
-does one per name it meets. That is consistent with what moved and with what did
-not, and it is where anybody making this faster should look first -- but it is an
-inference from which rows moved, not something anybody has measured directly,
-and a sorted or hashed lookup should be tried against a measurement rather than
-against this paragraph.
+The obvious suspicion was wrong, and one measurement said so. Analysing programs
+of one, five and twenty lines cost 1578, 2514 and 6518 us: about 250 us a line,
+and **1.3 milliseconds that did not depend on the program at all**. A per-name
+scan does not look like that. What does is `Adash.Predefined.Install`, which
+declared all eighty-seven names into the chain before every analysis -- and
+declaring asks whether the name is there already, which scans what has been
+declared so far. Eighty-seven of those is the fixed cost, and it grows with the
+square of the table.
+
+The answers cannot change between one submission and the next, so they are
+worked out once now and adopted wholesale. Analysis is **493 us**, which is
+below where it was before any of this was added. The check that two entities do
+not share a name is exactly as it was: it runs once, against a chain of that
+package's own, and a table defect is still a failure to install.
+
+Highlighting and completing a command prefix did *not* come back down, which is
+the other half of the same measurement: those two really do scan the registries
+per word, and their growth is proportional to the tables. At 19 and 36 us they
+are far below anything a person notices, and a lookup that does not scan is
+where to start if that ever stops being true.
 
 Nothing else added since the last record touches these paths: the bounds checks
 are one comparison per chunk read, the write handler costs nothing until a write

@@ -1,3 +1,5 @@
+with Ada.Containers.Vectors;
+
 with Adash.Commands;
 with Adash.Errors;
 with Adash.Language.Symbols;
@@ -572,9 +574,41 @@ package body Adash.Predefined is
    -- Install --
    -------------
 
-   function Install (Into : in out Adash.Language.Scopes.Chain) return Boolean is
+   --  The symbols this table becomes, built once.
+   --
+   --  Installing used to make eighty-seven symbols and declare each of them,
+   --  and declaring asks whether the name is already there -- a scan of what
+   --  has been declared so far, for each of the eighty-seven, on every
+   --  analysis. That was most of what analysing a one-line submission cost:
+   --  1.6 milliseconds, of which about 1.3 was fixed and none of it depended
+   --  on the program.
+   --
+   --  The answers cannot change between one submission and the next, so they
+   --  are worked out once. The check that two entities do not share a name is
+   --  kept exactly as it was -- it runs here, against a chain of this
+   --  package's own, and a table defect is still reported as a failure to
+   --  install rather than as a diagnostic about somebody's program.
+   package Symbol_Lists is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Symbols.Symbol,
+      "=" => Symbols."=");
+
+   Prepared : Symbol_Lists.Vector;
+   Ready    : Boolean := False;
+   Sound    : Boolean := False;
+
+   function Prepare return Boolean;
+
+   function Prepare return Boolean is
+      Trial : Adash.Language.Scopes.Chain;
       Error : Adash.Errors.Error_Info;
    begin
+      if Ready then
+         return Sound;
+      end if;
+
+      Ready := True;
+      Sound := False;
+
       for Current of Registry loop
          declare
             Kind : constant Symbols.Symbol_Kind :=
@@ -583,48 +617,54 @@ package body Adash.Predefined is
                   when Sort_Constant  => Symbols.Symbol_Constant,
                   when Sort_Function  => Symbols.Symbol_Function,
                   when Sort_Procedure => Symbols.Symbol_Procedure);
+
+            Made : constant Symbols.Symbol :=
+              Symbols.Make (M.Value (Current.Name), Kind, Current.Of_Type,
+                            Provided => True);
          begin
-            if not Into.Declare_Symbol
-              (Symbols.Make (M.Value (Current.Name), Kind, Current.Of_Type,
-                             Provided => True),
-               Error)
-            then
-               --  Two entities share a name. That is a defect in the table
-               --  above, not in whatever program is being analysed, so it is
-               --  reported to the caller as a failure of installation rather
-               --  than as a diagnostic about the source.
+            if not Trial.Declare_Symbol (Made, Error) then
                return False;
             end if;
+
+            Prepared.Append (Made);
          end;
       end loop;
 
-      --  The shell's internal commands, declared alongside the language's own
-      --  subprograms rather than handled separately.
-      --
-      --  Before this they were invisible to the analyser: `quit` inside an
-      --  `if` was reported as an undeclared name, which told the user they had
-      --  made a typo when what had actually happened is that Adash cannot lower
-      --  the call yet. A name the shell obviously knows should never be
-      --  reported as unknown.
       for Index in 1 .. Adash.Commands.Count loop
          declare
             About : constant Adash.Commands.Metadata :=
               Adash.Commands.Entry_At (Index);
+
+            Made : constant Symbols.Symbol :=
+              Symbols.Make (M.Value (About.Name), Symbols.Symbol_Procedure,
+                            Types.Type_None, Provided => True);
          begin
-            if not Into.Declare_Symbol
-              (Symbols.Make (M.Value (About.Name), Symbols.Symbol_Procedure,
-                             Types.Type_None, Provided => True),
-               Error)
-            then
-               --  A command shares a name with a predefined subprogram. Like
-               --  the collision above, that is a defect in one of the two
-               --  tables rather than in the program being analysed.
+            if not Trial.Declare_Symbol (Made, Error) then
                return False;
             end if;
+
+            Prepared.Append (Made);
          end;
       end loop;
 
+      Sound := True;
       return True;
+   end Prepare;
+
+   function Install (Into : in out Adash.Language.Scopes.Chain) return Boolean is
+      Error : Adash.Errors.Error_Info;
+      pragma Unreferenced (Error);
+   begin
+      if not Prepare then
+         return False;
+      end if;
+
+      for Current of Prepared loop
+         Into.Adopt (Current);
+      end loop;
+
+      return True;
+
    end Install;
 
 end Adash.Predefined;

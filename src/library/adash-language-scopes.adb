@@ -85,6 +85,23 @@ package body Adash.Language.Scopes is
    -- Declare_Symbol --
    ----------------------
 
+   -------------
+   -- Adopt --
+   -------------
+
+   procedure Adopt (Item : in out Chain; Entry_To_Add : Symbols.Symbol) is
+   begin
+      Ensure_Started (Item);
+      Item.Entries.Append (Entry_To_Add);
+
+      declare
+         Innermost : Scope := Item.Levels.Last_Element;
+      begin
+         Innermost.Last := Natural (Item.Entries.Length);
+         Item.Levels.Replace_Element (Level_Count (Item), Innermost);
+      end;
+   end Adopt;
+
    function Declare_Symbol
      (Item         : in out Chain;
       Entry_To_Add : Symbols.Symbol;
