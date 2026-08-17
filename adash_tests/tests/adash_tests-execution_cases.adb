@@ -1061,6 +1061,25 @@ package body Adash_Tests.Execution_Cases is
       --  wrote its diagnostic somewhere else, or one that never got that far.
       Options.Output := Outs.Write_End;
 
+      --  And an input, which is the third stream and was the one left out.
+      --
+      --  On Windows the child exited 1 with nothing on either stream -- not
+      --  even the line it prints before anything can go wrong -- while the
+      --  same child on the other two hosts said everything. Two of three
+      --  streams given and the third left to whatever a spawn does with it is
+      --  the difference this rules in or out.
+      declare
+         Nothing : Hostkit.Descriptors.Descriptor;
+      begin
+         if Hostkit.Fs.Null_Device /= ""
+           and then Hostkit.Descriptors.Open_File
+                      (Hostkit.Fs.Null_Device,
+                       Hostkit.Descriptors.Open_Read, Nothing)
+         then
+            Options.Input := Nothing;
+         end if;
+      end;
+
       Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
               = Hostkit.Spawn.Spawn_Ok,
               "the shell would not start on the probe script");
