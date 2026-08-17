@@ -6,6 +6,8 @@ with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with Ada.Unchecked_Deallocation;
 
+with Adash.Terminal;
+
 package body Adash.Machine is
 
    use Ada.Strings.Unbounded;
@@ -396,6 +398,31 @@ package body Adash.Machine is
 
       Stack : Cell_Array renames Held.all;
       Slots : Cell_Array renames Room.all;
+
+      --  Whether a line written should be pushed out at once.
+      --
+      --  A terminal is watched by somebody: a person waiting to see what a
+      --  script is doing, or another program reading it as it runs. Ada's
+      --  Text_IO buffers by block, and on a pseudo-console that meant a script
+      --  printing a line and then working for a minute showed nothing until it
+      --  ended -- measured, on Windows, where a probe over a script that never
+      --  finished came back with an empty terminal and one over a script that
+      --  finished came back with everything at once.
+      --
+      --  Line by line only where somebody is watching. Into a file or a pipe
+      --  the buffering is what makes writing a great deal cheap, and nobody is
+      --  looking at it as it goes.
+      Watched : constant Boolean :=
+        Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Output);
+
+      procedure Flush_If_Watched;
+
+      procedure Flush_If_Watched is
+      begin
+         if Watched then
+            Ada.Text_IO.Flush;
+         end if;
+      end Flush_If_Watched;
 
       Counter : Natural := 0;
       Point   : Natural := 1;
@@ -2817,6 +2844,7 @@ package body Adash.Machine is
 
                   if Here.Code = Write_Line then
                      Ada.Text_IO.New_Line;
+                     Flush_If_Watched;
                   end if;
 
                exception
@@ -2847,6 +2875,7 @@ package body Adash.Machine is
             when New_Line =>
                begin
                   Ada.Text_IO.New_Line;
+                  Flush_If_Watched;
                exception
                   when others =>
                      Fail (Raised, "Device_Error",

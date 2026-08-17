@@ -1981,11 +1981,17 @@ what changed.
   interrupt is *recorded*, and nothing was recording it for a script. Found by
   writing the case for the thing `on_exit` exists for.
 
-  That case runs on the two hosts with signals. On Windows a shell started on a
-  pseudo-console **with a script** writes nothing to it at all -- not the line
-  the script prints before it loops, not a complaint -- while the same shell on
-  the same terminal without a script prompts and answers normally. That is a
-  new unknown, written into the case rather than guessed at.
+- **A script's output no longer waits for the script to end.** Ada's `Text_IO`
+  buffers by block, so on a pseudo-console a script that printed a line and
+  then worked for a minute showed nothing until it finished -- and for a script
+  that never finishes, nothing at all. A line written to a terminal is pushed
+  out as it is written now; into a file or a pipe the buffering stays, because
+  that is what makes writing a great deal cheap and nobody is watching it go.
+
+  Found by the third probe of its kind: the interrupted-script case could not
+  run on Windows because nothing arrived on the terminal, and rather than guess
+  the probe printed every byte -- which showed the same script *did* say
+  everything, at the moment it exited. The case runs on all three hosts now.
 
 - **The two statuses the shell exits with on its own are written down**, in the
   table and in the two pages that repeat the model: 2 for a usage error, 74 for
