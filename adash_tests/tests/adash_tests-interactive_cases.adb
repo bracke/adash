@@ -1161,6 +1161,9 @@ package body Adash_Tests.Interactive_Cases is
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
 
+   --  Type Ctrl-C and say whether the terminal took it.
+   function Try_Interrupt (Item : in out Terminal_Session) return Boolean;
+
    --  Type Ctrl-C.
    --
    --  The byte, on every host. A console asks for keys when it writes
@@ -1276,6 +1279,24 @@ package body Adash_Tests.Interactive_Cases is
 
       return True;
    end Start_On_A_Terminal;
+
+   --  Type Ctrl-C and say whether it went.
+   --
+   --  For a case where the child may already be gone: a pty refuses a write
+   --  when nothing holds the other end, and that refusal is a fact about the
+   --  run rather than a failure of the test -- one worth carrying to the
+   --  assertion that follows, which can then say what did happen.
+   function Try_Interrupt (Item : in out Terminal_Session) return Boolean is
+      Data : constant Ada.Streams.Stream_Element_Array (1 .. 1) :=
+        [1 => Ada.Streams.Stream_Element (3)];
+
+      Last : Ada.Streams.Stream_Element_Offset;
+
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      return Hostkit.Descriptors.Write (Item.Pair.To_Child, Data, Last)
+             = Hostkit.Descriptors.Transfer_Ok;
+   end Try_Interrupt;
 
    procedure Type_Interrupt (Item : in out Terminal_Session) is
    begin
@@ -2792,6 +2813,9 @@ package body Adash_Tests.Interactive_Cases is
 
       Written : Adash.Filesystem.Written;
 
+      --  Whether the interrupt reached the terminal at all.
+      Reached_It : Boolean := False;
+
       use type Adash.Filesystem.Written;
    begin
       Adash.Filesystem.Write
@@ -2849,7 +2873,11 @@ package body Adash_Tests.Interactive_Cases is
                  "the script never started: [" & Plainly (Session) & "]");
       end;
 
-      Type_Interrupt (Session);
+      --  Not asserted. Where the child has already gone the write is refused,
+      --  and what matters is what the transcript shows: a shell that ran its
+      --  cleanup before leaving did the thing this case is about, whatever
+      --  ended it. The refusal travels into the message below instead.
+      Reached_It := Try_Interrupt (Session);
 
       declare
          Tidied : Boolean := False;
@@ -2868,8 +2896,11 @@ package body Adash_Tests.Interactive_Cases is
          end loop;
 
          Assert (Tidied,
-                 "an interrupted script did not run what it registered: ["
-                 & Plainly (Session) & "]");
+                 "an interrupted script did not run what it registered "
+                 & "(the interrupt "
+                 & (if Reached_It then "reached the terminal"
+                    else "was refused: nothing held the other end")
+                 & "): [" & Plainly (Session) & "]");
       end;
 
       Finish (Session, Ended);
