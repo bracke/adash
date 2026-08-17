@@ -53,7 +53,15 @@ complete = 1000
 # whether the matching names can be run. What that costs is a fact about the
 # machine's PATH -- a CI runner carries a much longer one than a laptop -- so
 # this ceiling is looser than the rest on purpose.
-complete_program = 60000
+#
+# Raised from 60000 by the first CI run that used it. The three hosts do not
+# differ by a little here: 2.6 ms on Linux and macOS, 38.9 ms on the Windows
+# runner, whose PATH is long and whose "can this be run" question is a
+# filesystem call per candidate. A bound with half a host's measurement of
+# headroom is a bound that fails on a busy day and teaches everybody to ignore
+# it, so this one sits an order of magnitude above the slowest host rather than
+# above the fastest.
+complete_program = 400000
 
 history = 100
 
