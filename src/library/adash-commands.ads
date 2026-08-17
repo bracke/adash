@@ -110,6 +110,7 @@ package Adash.Commands is
       Command_Stop,
       Command_Suspend,
       Command_Resume,
+      Command_Foreground,
 
       --  Putting text a script computed into a file. `run_into` already
       --  writes files, but only ever what a program printed; without these,

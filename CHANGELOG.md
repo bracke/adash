@@ -1930,6 +1930,18 @@ what changed.
   the same period, and both lookups are a linear scan. The record says so, and
   says it is an inference from which rows moved rather than a measurement.
 
+- **A script can see what is in a directory.** `File_Count` and `File_At` are
+  the loop every other shell writes as `for f in *`, which had no equivalent
+  here at all: a script had to run a program to find out what existed, which is
+  what `Exists` and its neighbours were added to stop. They answer from one
+  reading of the directory, sorted, without `.` and `..`.
+
+- **`foreground` brings a stopped job back.** `suspend` stopped a job and
+  `resume` let it carry on without the terminal, so a job stopped with Ctrl-Z
+  could never be brought back to the keyboard -- the half of job control every
+  other shell calls `fg`. It resumes the job and waits for it, with the
+  terminal, because from where a user stands those are one act.
+
 ### Fixed
 
 - **The two statuses the shell exits with on its own are written down**, in the

@@ -424,6 +424,30 @@ package body Adash.Engine is
                   then Ada.Strings.Unbounded.To_String (Held) else "");
             end;
 
+         when Adash.Predefined.Entity_File_Count =>
+            Answer := Adash.Language.Values.To_Value
+              (Integer (Adash.Filesystem.File_Count (Text_At (1))));
+
+         when Adash.Predefined.Entity_File_At =>
+            declare
+               Position : Integer := 0;
+            begin
+               if Count >= 2
+                 and then not Adash.Language.Values.Get
+                                (Arguments (2), Position)
+               then
+                  Position := 0;
+               end if;
+
+               --  A position nobody could mean answers with nothing, as a
+               --  position past the end does: this is a question, and the
+               --  count beside it is how a script asks what is there.
+               Answer := Adash.Language.Values.To_Value
+                 (if Position >= 1
+                  then Adash.Filesystem.File_At (Text_At (1), Position)
+                  else "");
+            end;
+
          when Adash.Predefined.Entity_Current_Directory =>
             --  Where the session is, which `cd` moves and which a script
             --  otherwise had to ask a program for.

@@ -1438,3 +1438,68 @@ output = [
   "]",
 ]
 diagnostics = []
+
+[[case]]
+id = "files.a-directory-can-be-looked-at"
+requirement = """
+Nothing in this language could see what was in a directory. That is the
+commonest loop anybody writes in a shell -- over the files in a place -- and it
+had no equivalent at all: a script had to run a program to find out what
+existed, which is the thing `Exists` and its neighbours were added to stop.
+
+Two functions rather than one that answers with a list, because a String and an
+Integer are what this language's values are and a loop from 1 to the count reads
+as what it is. They answer from one reading of the directory, so the loop sees a
+place that is not changing under it.
+
+Sorted, so that two runs of one script do the same thing; `.` and `..` left out,
+because every directory has them and a loop that skips them every time has a
+wart in it. There is no pattern expansion here and there will not be -- a
+listing with `Ends_With` beside it is how a script picks the ones it wants.
+"""
+script = """
+make_directory ("{store}/place");
+write_file ("a", "{store}/place/beta.txt");
+write_file ("b", "{store}/place/alpha.log");
+make_directory ("{store}/place/inside");
+put_line (Integer'Image (File_Count ("{store}/place")));
+put_line (File_At ("{store}/place", 1) & " " & File_At ("{store}/place", 2) & " " & File_At ("{store}/place", 3));
+put_line ("[" & File_At ("{store}/place", 4) & "]");
+put_line (Integer'Image (File_Count ("{store}/no-such-place")));
+quit (0);"""
+exit_status = 0
+output = [
+  " 3",
+  "alpha.log beta.txt inside",
+  "[]",
+  " 0",
+]
+diagnostics = []
+
+[[case]]
+id = "jobs.a-suspended-job-can-be-brought-back-in-front"
+requirement = """
+The other half of suspending. `suspend` stopped a job and `resume` let it carry
+on without the terminal, so a job stopped with Ctrl-Z could never be brought
+back to the keyboard -- which is what every other shell calls `fg` and what a
+user who suspends something expects.
+
+`foreground` resumes it *and waits* for it, because those are one act from
+where a user stands: the point of bringing something back is to be in front of
+it again. It gets the terminal while it runs, exactly as a program started in
+front does.
+"""
+platforms = ["linux", "macos"]
+script = """
+start ("{emit}", "--sleep=0.2", "--exit=5");
+suspend (1);
+foreground (1);
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what={emit} --sleep=0.2 --exit=5}!",
+  "!line.job{job=1,description={emit} --sleep=0.2 --exit=5,state=!job.state.stopped!}!",
+  " 5",
+]
+diagnostics = []

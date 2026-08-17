@@ -868,6 +868,78 @@ package body Adash.Commands.Builtins is
                end;
             end;
 
+         when Command_Foreground =>
+            declare
+               Wanted : Integer;
+            begin
+               if not Whole_Argument (Arguments, 1, Wanted)
+                 or else Wanted < 1
+                 or else not Adash.Execution.Jobs.Contains
+                               (Shell.Jobs, Adash.Execution.Jobs.Job_Id (Wanted))
+               then
+                  return Failed (Adash.Errors.Error_Job_Unknown,
+                                 [1 => M.Named ("job", Trim (Wanted))]);
+               end if;
+
+               declare
+                  Which : constant Adash.Execution.Jobs.Job_Id :=
+                    Adash.Execution.Jobs.Job_Id (Wanted);
+
+                  Error : Adash.Errors.Error_Info;
+               begin
+                  --  Resumed first, and then waited for exactly as a program
+                  --  started in front is waited for -- the terminal handed
+                  --  over, the interrupt able to reach it, and the terminal
+                  --  taken back afterwards. A job brought to the front that
+                  --  could not be typed at would be half of what was asked.
+                  if not Adash.Execution.Jobs.Resume_In_Foreground
+                           (Shell.Jobs, Which, Error)
+                  then
+                     Report.Emit
+                       (Adash.Diagnostics.From_Error
+                          (Error, Adash.Diagnostics.Severity_Error,
+                           Adash.Diagnostics.Category_Execution,
+                           Adash.Diagnostics.Owner_Commands));
+
+                     return (Kind => Adash.Execution.Exit_Internal_Failure,
+                             others => <>);
+                  end if;
+
+                  declare
+                     Wait_Error : Adash.Errors.Error_Info;
+                     Ours       : Integer;
+                     Finished   : Boolean;
+                  begin
+                     Adash.Execution.Signals.Hand_Over_Terminal;
+                     Adash.Execution.Pipelines.Hand_The_Terminal_To
+                       (Adash.Execution.Jobs.Group (Shell.Jobs, Which), Ours);
+
+                     Finished :=
+                       Adash.Execution.Jobs.Wait
+                         (Shell.Jobs, Which, Shell.Interrupt, Wait_Error);
+
+                     Adash.Execution.Pipelines.Take_The_Terminal_Back (Ours);
+                     Adash.Execution.Signals.Take_Terminal_Back;
+
+                     if not Finished then
+                        --  Stopped again, or interrupted. Left in the table
+                        --  either way: a job a user suspended twice is still
+                        --  a job they can name.
+                        return (Kind => Adash.Execution.Exit_Cancelled,
+                                others => <>);
+                     end if;
+
+                     declare
+                        Ended : constant Adash.Execution.Exit_Status :=
+                          Adash.Execution.Jobs.Result (Shell.Jobs, Which).Status;
+                     begin
+                        Adash.Execution.Jobs.Forget (Shell.Jobs, Which);
+                        return Ended;
+                     end;
+                  end;
+               end;
+            end;
+
          when Command_Stop | Command_Suspend | Command_Resume =>
             declare
                Wanted : Integer;

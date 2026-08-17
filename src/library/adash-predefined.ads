@@ -81,6 +81,8 @@ package Adash.Predefined is
       --  a script: text in, text out, and no program started to do it.
       Entity_Read_File,
       Entity_Current_Directory,
+      Entity_File_Count,
+      Entity_File_At,
 
       --  Searching and shaping text.
       Entity_Index,

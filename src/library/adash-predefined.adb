@@ -350,6 +350,33 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Current_Directory_Hint,
        Status => Available),
 
+      --  What is in a directory, which nothing here could see before.
+      --
+      --  Two functions rather than one that answers with a list: a String and
+      --  an Integer are what this language's values are, and a loop from 1 to
+      --  the count reads as what it is. They answer from one reading of the
+      --  directory, so the loop sees a place that is not changing under it.
+      (Id => Entity_File_Count, Name => Named ("File_Count"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_Integer, Parameter_Count => 1,
+       Parameters => [1 => (Named ("Directory"), Types.Type_String),
+                      others => (Named (""), Types.Type_None)],
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_File_Count_Doc,
+       Description => Adash.Messages.Msg_Predefined_File_Count_Hint,
+       Status => Available),
+
+      (Id => Entity_File_At, Name => Named ("File_At"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 2,
+       Parameters => [1 => (Named ("Directory"), Types.Type_String),
+                      2 => (Named ("Position"), Types.Type_Integer),
+                      others => (Named (""), Types.Type_None)],
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_File_At_Doc,
+       Description => Adash.Messages.Msg_Predefined_File_At_Hint,
+       Status => Available),
+
       (Id => Entity_Index, Name => Named ("Index"),
        Sort => Sort_Function,
        Of_Type => Types.Type_Integer, Parameter_Count => 2,

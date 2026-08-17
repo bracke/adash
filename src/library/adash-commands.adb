@@ -254,6 +254,18 @@ package body Adash.Commands is
        [1 => Whole ("Job"), others => Nothing],
        Changes_State,
        M.Msg_Command_Resume_Doc, M.Msg_Command_Hint, Available),
+
+      --  The other half of suspending, which every other shell calls `fg`.
+      --
+      --  Named for what it does rather than for what it is short for: this
+      --  language spells things out, and `foreground (1)` says where the job
+      --  goes in a way `fg 1` never did. It resumes the job *and waits* for
+      --  it, because those are one act from where a user stands -- the point
+      --  of bringing something back is to be in front of it again.
+      (Command_Foreground, Named ("foreground"), 1, 1,
+       [1 => Whole ("Job"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Foreground_Doc, M.Msg_Command_Hint, Available),
       --  Text first, file second, matching assignment rather than `run_into`:
       --  nothing follows the text, so there is no boundary to protect, and
       --  `write_file (Report, "out.txt")` reads in the order it happens.

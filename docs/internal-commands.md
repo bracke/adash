@@ -139,6 +139,7 @@ heard rather than swallowed into a value.
 | `stop (Job : Integer)` | 1 | asks one to stop |
 | `suspend (Job : Integer)` | 1 | suspends one, leaving it able to be resumed |
 | `resume (Job : Integer)` | 1 | resumes a suspended one, in the background |
+| `foreground (Job : Integer)` | 1 | resumes a stopped job in front and waits for it |
 
 Jobs are numbered from one as they are started. On Windows there are no process
 groups and no pseudo-terminals; what that host *can* do is report Ctrl-C, and

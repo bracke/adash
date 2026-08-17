@@ -132,6 +132,45 @@ package Adash.Filesystem is
       Result : out Reading;
       Limit  : Natural := Default_Limit);
 
+   --  How many things a directory holds.
+   --
+   --  The gap this closes is larger than it looks: nothing in this language
+   --  could see what was in a directory, so the commonest loop anybody writes
+   --  in a shell -- over the files in a place -- had no equivalent at all, and
+   --  a script had to run a program to find out what existed. There is no
+   --  pattern expansion here and there will not be, so a listing plus `Index`
+   --  or `Ends_With` is how a script picks the ones it wants.
+   --
+   --  Everything in the directory, in one order: files, directories, and
+   --  whatever else the host keeps there, sorted by name so that two runs of
+   --  the same script do the same thing. `.` and `..` are left out -- every
+   --  directory has them, and a loop that has to skip them every time is a
+   --  loop with a wart in it.
+   --
+   --  Zero for a path that is not a directory, or one that cannot be read. A
+   --  question has no consequences, and `Is_Directory` is how a script tells
+   --  "no such place" from "nothing in it".
+   --
+   --  @param Path The directory.
+   --  @return How many names are in it.
+   function File_Count (Path : String) return Natural;
+
+   --  One of the names in a directory, counting from one.
+   --
+   --  In the same order File_Count counted, and from the same reading of the
+   --  directory: the two are answered from one snapshot, so a loop from 1 to
+   --  File_Count sees a directory that is not changing underneath it. A file
+   --  made while the loop runs turns up the next time something asks.
+   --
+   --  The name alone, not the path -- `Compose` is not this package's job and
+   --  a script joining them with the separator it chose is a script that knows
+   --  which one it wants.
+   --
+   --  @param Path The directory.
+   --  @param Position Which one, from one.
+   --  @return The name, or "" where there is no such position.
+   function File_At (Path : String; Position : Positive) return String;
+
    --  Make a directory, and any directory above it that is missing.
    --
    --  The other half of Write in a different sense than Read is: `write_file`

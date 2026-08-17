@@ -204,6 +204,28 @@ package Adash.Execution.Jobs is
       Id    : Job_Id;
       Error : out Adash.Errors.Error_Info) return Boolean;
 
+   --  Resume a stopped job and put it back in front.
+   --
+   --  The other half of suspending, and the half that was missing: `suspend`
+   --  stopped a job and `Resume_In_Background` let it carry on without the
+   --  terminal, so a job stopped with Ctrl-Z could never be brought back to
+   --  the keyboard. Every other shell calls that `fg`, and a user who suspends
+   --  something expects it.
+   --
+   --  Only the resuming is here. Waiting for it afterwards, and the terminal
+   --  that a foreground job needs while it runs, belong to the caller that has
+   --  both -- which is the command, and which does the same for a program it
+   --  started in front.
+   --
+   --  @param Item The table.
+   --  @param Id Which job.
+   --  @param Error Why it was refused, when this returns False.
+   --  @return True when the host was asked to continue it.
+   function Resume_In_Foreground
+     (Item  : in out Table;
+      Id    : Job_Id;
+      Error : out Adash.Errors.Error_Info) return Boolean;
+
    --  Resume a stopped job, in the background.
    --
    --  @param Item Table holding the job.

@@ -1,4 +1,5 @@
 with Ada.Characters.Latin_1;
+with Ada.Containers.Vectors;
 with Ada.Directories;
 with Ada.Streams.Stream_IO;
 with Ada.IO_Exceptions;
@@ -9,6 +10,14 @@ with Adash.Errors;
 with Adash.Source;
 
 package body Adash.Filesystem is
+
+   package Name_Lists is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Ada.Strings.Unbounded.Unbounded_String,
+      "="          => Ada.Strings.Unbounded."=");
+
+   package Name_Sorting is new Name_Lists.Generic_Sorting
+     ("<" => Ada.Strings.Unbounded."<");
 
    use type Ada.Directories.File_Kind;
 
@@ -203,6 +212,137 @@ package body Adash.Filesystem is
    -----------
    -- Write --
    -----------
+
+   --  The last directory read, and what was in it.
+   --
+   --  A loop over a directory asks for the count and then for each name, and
+   --  reading the directory again for every one of those would make a listing
+   --  of a thousand files a thousand readings. One snapshot answers all of
+   --  them.
+   --
+   --  Protected because this language has tasks: two of them listing two
+   --  directories would otherwise be one snapshot being built while the other
+   --  is being read, which is not a race a user could ever be asked to think
+   --  about.
+   protected Snapshot is
+      procedure Take (Path : String; Count : out Natural);
+      function Name (Path : String; Position : Positive) return String;
+   private
+      Of_Path : Ada.Strings.Unbounded.Unbounded_String;
+      Held    : Name_Lists.Vector;
+      Taken   : Boolean := False;
+   end Snapshot;
+
+   procedure Read_Directory (Path : String; Into : out Name_Lists.Vector);
+
+   --  Sorted by name, so that two runs of one script do the same thing. The
+   --  host's own order is whatever the filesystem felt like.
+   procedure Read_Directory (Path : String; Into : out Name_Lists.Vector) is
+      use Ada.Strings.Unbounded;
+
+      Search : Ada.Directories.Search_Type;
+      Found  : Ada.Directories.Directory_Entry_Type;
+   begin
+      Into.Clear;
+
+      if Path = "" or else not Is_Directory (Path) then
+         return;
+      end if;
+
+      begin
+         Ada.Directories.Start_Search
+           (Search, Path, "",
+            [Ada.Directories.Ordinary_File => True,
+             Ada.Directories.Directory     => True,
+             Ada.Directories.Special_File  => True]);
+
+         while Ada.Directories.More_Entries (Search) loop
+            Ada.Directories.Get_Next_Entry (Search, Found);
+
+            declare
+               Called : constant String :=
+                 Ada.Directories.Simple_Name (Found);
+            begin
+               if Called /= "." and then Called /= ".." then
+                  Into.Append (To_Unbounded_String (Called));
+               end if;
+            end;
+         end loop;
+
+         Ada.Directories.End_Search (Search);
+      exception
+         when others =>
+            --  A directory that stopped being readable half way through is a
+            --  directory this cannot answer about. What was collected is
+            --  discarded rather than handed over as though it were all of it.
+            if Ada.Directories.More_Entries (Search) then
+               Ada.Directories.End_Search (Search);
+            end if;
+
+            Into.Clear;
+            return;
+      end;
+
+      Name_Sorting.Sort (Into);
+   end Read_Directory;
+
+   protected body Snapshot is
+
+      procedure Take (Path : String; Count : out Natural) is
+         use type Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         if not Taken or else Of_Path /= Path then
+            Read_Directory (Path, Held);
+            Of_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
+            Taken := True;
+         end if;
+
+         Count := Natural (Held.Length);
+      end Take;
+
+      function Name (Path : String; Position : Positive) return String is
+         use type Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         if not Taken or else Of_Path /= Path
+           or else Position > Natural (Held.Length)
+         then
+            return "";
+         end if;
+
+         return Ada.Strings.Unbounded.To_String (Held.Element (Position));
+      end Name;
+
+   end Snapshot;
+
+   -------------------
+   -- File_Count --
+   -------------------
+
+   function File_Count (Path : String) return Natural is
+      Answer : Natural;
+   begin
+      Snapshot.Take (Path, Answer);
+      return Answer;
+   end File_Count;
+
+   ----------------
+   -- File_At --
+   ----------------
+
+   function File_At (Path : String; Position : Positive) return String is
+      Answer : Natural;
+   begin
+      --  Asked of the same snapshot the count came from, and taken here too so
+      --  that a caller which asks for a name without having counted first gets
+      --  an answer rather than nothing.
+      Snapshot.Take (Path, Answer);
+
+      if Position > Answer then
+         return "";
+      end if;
+
+      return Snapshot.Name (Path, Position);
+   end File_At;
 
    ---------------------
    -- Make_Directory --

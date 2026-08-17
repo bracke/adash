@@ -119,9 +119,27 @@ either way.
 | `Is_Executable (Path)` | `Boolean` | whether it could be run |
 | `Read_File (Path : String) return String` | what the file holds, or nothing when there is no such file |
 | `Current_Directory` | `String` | where the session is, which `cd` moves |
+| `File_Count (Directory)` | `Integer` | how many names a directory holds |
+| `File_At (Directory; Position)` | `String` | one of them, sorted, counting from one |
 
 A path nobody can reach — no such directory, nothing named at all — is not a
 file, so the answer is `False` rather than a failure.
+
+`File_Count` and `File_At` are how a script sees what is in a directory — the
+loop other shells write as `for f in *`:
+
+    for Index in 1 .. File_Count (Here) loop
+       Name : String := File_At (Here, Index);
+       if Ends_With (Name, ".log") then
+          put_line (Name);
+       end if;
+    end loop;
+
+There is no pattern expansion in this language and there will not be, so a
+listing with `Ends_With` or `Index` beside it is how a script picks the ones it
+wants. Both answer from **one** reading of the directory, so a loop sees a place
+that is not changing under it; a file made while it runs turns up the next time
+something asks. The names are sorted, and `.` and `..` are left out.
 
 `Read_File` answers in text, like `Output_Of` and `Read_Line`: a carriage return
 in front of a line feed is part of the line ending a Windows file has and goes

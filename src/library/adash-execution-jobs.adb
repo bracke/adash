@@ -423,10 +423,16 @@ package body Adash.Execution.Jobs is
    -- Resume_In_Background --
    ----------------------------
 
-   function Resume_In_Background
-     (Item  : in out Table;
-      Id    : Job_Id;
-      Error : out Adash.Errors.Error_Info) return Boolean
+   --  The two resumptions differ in one field and in who waits.
+   function Resume (Item : in out Table;
+                    Id : Job_Id;
+                    Into : Job_Placement;
+                    Error : out Adash.Errors.Error_Info) return Boolean;
+
+   function Resume (Item : in out Table;
+                    Id : Job_Id;
+                    Into : Job_Placement;
+                    Error : out Adash.Errors.Error_Info) return Boolean
    is
       Index : constant Natural := Find (Item, Id);
    begin
@@ -457,13 +463,35 @@ package body Adash.Execution.Jobs is
             return False;
          end if;
 
-         Current.Placement := Placement_Background;
+         Current.Placement := Into;
          Item.Jobs.Replace_Element (Index, Current);
 
          --  Confirmed for the same reason a stop is.
          Settle (Item, Index, Job_Running);
          return True;
       end;
+   end Resume;
+
+   ------------------------------
+   -- Resume_In_Foreground --
+   ------------------------------
+
+   function Resume_In_Foreground
+     (Item  : in out Table;
+      Id    : Job_Id;
+      Error : out Adash.Errors.Error_Info) return Boolean
+   is
+   begin
+      return Resume (Item, Id, Placement_Foreground, Error);
+   end Resume_In_Foreground;
+
+   function Resume_In_Background
+     (Item  : in out Table;
+      Id    : Job_Id;
+      Error : out Adash.Errors.Error_Info) return Boolean
+   is
+   begin
+      return Resume (Item, Id, Placement_Background, Error);
    end Resume_In_Background;
 
    --------------------------

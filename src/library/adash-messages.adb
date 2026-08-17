@@ -444,8 +444,16 @@ package body Adash.Messages is
             return "predefined.read_file.hint";
          when Msg_Predefined_Current_Directory_Doc =>
             return "predefined.current_directory.doc";
+         when Msg_Predefined_File_Count_Doc =>
+            return "predefined.file_count.doc";
+         when Msg_Predefined_File_At_Doc =>
+            return "predefined.file_at.doc";
          when Msg_Predefined_Current_Directory_Hint =>
             return "predefined.current_directory.hint";
+         when Msg_Predefined_File_Count_Hint =>
+            return "predefined.file_count.hint";
+         when Msg_Predefined_File_At_Hint =>
+            return "predefined.file_at.hint";
          when Msg_Predefined_Is_Executable_Doc =>
             return "predefined.is_executable.doc";
          when Msg_Predefined_Index_Doc =>
@@ -574,6 +582,7 @@ package body Adash.Messages is
          when Msg_Command_Wait_Doc           => return "command.wait.doc";
          when Msg_Command_Stop_Doc           => return "command.stop.doc";
          when Msg_Command_Suspend_Doc      => return "command.suspend.doc";
+         when Msg_Command_Foreground_Doc     => return "command.foreground.doc";
          when Msg_Command_Resume_Doc       => return "command.resume.doc";
          when Msg_Command_Settings_Doc      => return "command.settings.doc";
          when Msg_Command_Save_Settings_Doc =>
@@ -876,6 +885,8 @@ package body Adash.Messages is
             | Msg_Predefined_Read_File_Doc | Msg_Predefined_Read_File_Hint
             | Msg_Predefined_Current_Directory_Doc
             | Msg_Predefined_Current_Directory_Hint
+            | Msg_Predefined_File_Count_Doc | Msg_Predefined_File_Count_Hint
+            | Msg_Predefined_File_At_Doc | Msg_Predefined_File_At_Hint
             | Msg_Predefined_Is_Executable_Hint
             | Msg_Predefined_Index_Doc | Msg_Predefined_Index_Hint
             | Msg_Predefined_Trim_Doc | Msg_Predefined_Trim_Hint
@@ -940,6 +951,7 @@ package body Adash.Messages is
             | Msg_Command_Start_Doc | Msg_Command_Wait_Doc
             | Msg_Command_Stop_Doc
             | Msg_Command_Suspend_Doc | Msg_Command_Resume_Doc
+            | Msg_Command_Foreground_Doc
             | Msg_Command_Settings_Doc | Msg_Command_Save_Settings_Doc
             | Msg_Command_Write_File_Doc | Msg_Command_Append_File_Doc
             | Msg_Command_Make_Directory_Doc
