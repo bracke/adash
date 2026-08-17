@@ -2908,16 +2908,30 @@ package body Adash_Tests.Interactive_Cases is
 
       Hostkit.Pty.Close (Item.Pair);
 
-      for Attempt in 1 .. 40 loop
-         if Hostkit.Spawn.Wait (Item.Child, Hostkit.Spawn.Wait_Poll, Result)
-           and then Result.State /= Hostkit.Spawn.Wait_Running
-         then
-            Ended := True;
-            exit;
-         end if;
+      begin
+         for Attempt in 1 .. 40 loop
+            if Hostkit.Spawn.Wait (Item.Child, Hostkit.Spawn.Wait_Poll, Result)
+              and then Result.State /= Hostkit.Spawn.Wait_Running
+            then
+               Ended := True;
+               exit;
+            end if;
 
-         delay 0.05;
-      end loop;
+            delay 0.05;
+         end loop;
+
+      exception
+         when others =>
+            --  A probe records; it does not die of what it is watching.
+            --
+            --  This caught a real one: asking after a child whose console had
+            --  just been closed raised Constraint_Error out of hostkit, which
+            --  was converting a Windows exit code at the top of the unsigned
+            --  range into an Integer. That is fixed where it belongs, and the
+            --  handler stays -- a probe that falls over takes the record with
+            --  it, which is the one thing it must not do.
+            Ended := False;
+      end;
 
       if not Ended then
          --  Still there with nothing to read and nowhere to write. Asked to
