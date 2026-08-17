@@ -71,25 +71,37 @@ string literals with the whole escape set; `'Image` and `'Value` in both directi
 and a scalar type's own `'First` and `'Last`. Internal commands are callable from a
 program like any other subprogram.
 
-Six things reach outside the program. `Exists`, `Is_Directory` and
+A handful of things reach outside the program. `Exists`, `Is_Directory` and
 `Is_Executable` ask about a path, which is what a script does before it acts on
-one. `Read_Line` reads a line of the shell's
+one; `Read_File` answers with what a file holds and `Current_Directory` with
+where the session is. `Read_Line` reads a line of the shell's
 own input, so a script at the end of a pipe can see what it was given, and
 `Input_Ended` says when there is no more. `Env_Value` reads the environment:
 `cd (Env_Value ("HOME"))`. `Output_Of` runs a program and answers with what it
-wrote, so `Version : String := Output_Of ("git", "describe")` is writable.
+wrote, so `Version : String := Output_Of ("git", "describe")` is writable;
+`Error_Of` answers with what it complained about instead, and `All_Of` with
+everything it wrote in the order it wrote it. The same three read a pipeline
+back as `Output_Of_Pipe`, `Error_Of_Pipe` and `All_Of_Pipe`, and `Last_Job` is
+the number of the job just started.
 `Status` is what the last command did, on the one exit-status scale the shell
 itself exits with, so `run ("make"); if Status /= 0 then` is writable -- and so
 is a subprogram that answers the question. `Argument_Count` and `Argument` are
 what a script was invoked with, which is what makes `adash build.adash release`
-a tool somebody can call. All four answer with ordinary values: a String
+a tool somebody can call. Every one answers with an ordinary value: a String
 concatenates, an Integer does arithmetic.
 
-`write_file (Report, "out.txt")` saves what a script worked out, and
-`append_file` adds to the end of a file. They are commands rather than
-functions on purpose: asking about a path has no consequences and belongs in a
-condition, and writing has consequences and belongs where a reader sees it
-happen.
+`write_file (Report, "out.txt")` saves what a script worked out, `append_file`
+adds to the end of a file, and `make_directory` makes the place a file goes.
+They are commands rather than functions on purpose: asking about a path has no
+consequences and belongs in a condition, and writing has consequences and
+belongs where a reader sees it happen.
+
+Where a program's output goes is a command too, in three forms and for each of
+its two streams — and `run_all_into` puts both in one file, in the order the
+program wrote them, which two files cannot be made into afterwards. A pipeline
+says the same things with `pipe_from`, the same nine placements, and `pipe_run`
+or `pipe_start`: saying where a stream goes and running are separate commands,
+so a pipeline can read one file, write another, and be left running as a job.
 
 `source ("greeting")` finds a script beside the one asking for it, or in your
 own module directory; `source ("./setup.adash")` is a path and is used as
@@ -189,9 +201,12 @@ the value it ended with, so an interactive session builds up a vocabulary and a
 state.
 
 What the shell has: `cd`, `pwd`, `set`, `unset`, `env`, `quit`, `version`,
-`help`, `history`, `forget`, `source`, `run`, `run_into`, `run_append`, `run_new`,
-`run_from`, `pipe`, `pipe_run`, `write_file` and `append_file`, and job control
-through `start`, `jobs`, `wait`,
+`help`, `history`, `forget`, `source`, `write_file`, `append_file` and
+`make_directory`; `run` with `run_from` for its input and nine forms placing
+what it wrote — `run_into`, `run_append`, `run_new` for its output,
+`run_errors_*` for its complaints, `run_all_*` for both in one file; the same
+nine for a pipeline built with `pipe`, plus `pipe_from`, `pipe_run` and
+`pipe_start`; and job control through `start`, `jobs`, `wait`,
 `stop`, `suspend` and `resume`; `settings` and `save_settings` for its own
 configuration — every one of them working, none registered-but-missing.
 Line editing with completion — of commands, keywords, paths, and of programs on
