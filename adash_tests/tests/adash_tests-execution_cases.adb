@@ -1035,11 +1035,17 @@ package body Adash_Tests.Execution_Cases is
          return;
       end if;
 
+      --  The paths arrive as arguments rather than inside the text.
+      --
+      --  A Windows path is written with backslashes, and this script carried
+      --  two of them in string literals. The same arrangement written as a
+      --  fixture that reads its arguments works on that host, and this one
+      --  exited 1 with nothing on either stream -- so what is being ruled in
+      --  or out is whether a path in a literal is what breaks it.
       Adash.Filesystem.Write
         (Script,
          "settings (""read.limit"", ""1"");" & Ada.Characters.Latin_1.LF
-         & "put_line (""["" & Output_Of ("""
-         & Binary & """, """ & Fixture & """) & ""]"");"
+         & "put_line (""["" & Output_Of (Argument (1), Argument (2)) & ""]"");"
          & Ada.Characters.Latin_1.LF
          & "quit (0);" & Ada.Characters.Latin_1.LF,
          Written);
@@ -1053,6 +1059,8 @@ package body Adash_Tests.Execution_Cases is
               "no pipe for the shell's output");
 
       Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Binary));
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Fixture));
 
       Options.Error_Output := Ends.Write_End;
 
