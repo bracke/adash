@@ -58,10 +58,16 @@ line ran.
 
     Where : String := Output_Of ("git", "rev-parse", "HEAD");
 
-Arguments arrive exactly as written — no word-splitting, no globbing — so one
-argument with a space in it is one argument. `Status` follows the usual model: 0
-for success, 127 for a program that was not found, 128 + n for one a signal
-killed.
+Arguments arrive exactly as written — no word-splitting, no glob expansion — so
+one argument with a space in it is one argument. `Status` follows the usual
+model: 0 for success, 127 for a program that was not found, 128 + n for one a
+signal killed.
+
+Three things a shell script asks for constantly, spelled here:
+
+    run_with ("LC_ALL=C", "sort", "names.txt");     -- one variable, this run only
+    run_from_text (Computed, "jq", ".name");        -- what `printf | tool` does
+    if Matches (Name, "*.log") then ...             -- what `case $f in *.log)` does
 
 Redirection and pipelines are commands rather than punctuation:
 
@@ -127,8 +133,10 @@ Nine settings; `configuration-reference.md` lists them. They live in
 ## What Adash is not
 
 It is not a POSIX shell and does not try to be: there is no word-splitting, no
-globbing, no `$VAR` expansion, no backticks, no `&&`. What replaces them is a
-language — `Env_Value ("HOME")`, `if`, `Output_Of`, and a status you can test.
+glob *expansion*, no `$VAR` expansion, no backticks, no `&&`. What replaces them
+is a language — `Env_Value ("HOME")`, `if`, `Output_Of`, `Matches`, and a status
+you can test. Note which half of globbing is refused: a script may ask whether a
+name matches a pattern, and nothing rewrites an argument list behind its back.
 
 A line that would be a one-liner in `sh` is often a line here too, and sometimes
 it is three. What you get for that is a shell where a script is a program: it is

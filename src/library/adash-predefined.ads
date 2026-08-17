@@ -93,7 +93,8 @@ package Adash.Predefined is
       Entity_To_Upper,
       Entity_To_Lower,
       Entity_Starts_With,
-      Entity_Ends_With);
+      Entity_Ends_With,
+      Entity_Matches);
 
    --  What sort of thing an entity is.
    type Entity_Sort is

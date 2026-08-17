@@ -46,6 +46,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.command_start_failed` | could not start {command}: {reason} |
 | `error.redirection_open_failed` | could not open {path} for redirection |
 | `error.redirection_conflict` | more than one redirection targets {stream} |
+| `error.input_text_not_held` | the text could not be put where the program could read it ({reason}); this host has no temporary space this process may write in |
 | `error.pipe_creation_failed` | could not create a pipe for the pipeline |
 | `error.machine.stack_full` | the expression stack is full |
 | `error.machine.stack_empty` | the expression stack is empty |

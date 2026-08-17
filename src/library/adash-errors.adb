@@ -18,6 +18,7 @@ package body Adash.Errors is
             | Error_Command_Start_Failed
             | Error_Redirection_Open_Failed
             | Error_Redirection_Conflict
+            | Error_Input_Text_Not_Held
             | Error_Pipe_Creation_Failed
             | Error_Stream_Write_Failed
             | Error_Stream_Read_Failed
@@ -174,6 +175,7 @@ package body Adash.Errors is
          when Error_Command_Start_Failed   => return Adash.Messages.Msg_Command_Start_Failed;
          when Error_Redirection_Open_Failed => return Adash.Messages.Msg_Redirection_Open_Failed;
          when Error_Redirection_Conflict   => return Adash.Messages.Msg_Redirection_Conflict;
+         when Error_Input_Text_Not_Held    => return Adash.Messages.Msg_Input_Text_Not_Held;
          when Error_Pipe_Creation_Failed   => return Adash.Messages.Msg_Pipe_Creation_Failed;
          when Error_Stream_Write_Failed    => return Adash.Messages.Msg_Stream_Write_Failed;
          when Error_Stream_Read_Failed     => return Adash.Messages.Msg_Stream_Read_Failed;

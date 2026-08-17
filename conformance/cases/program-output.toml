@@ -600,6 +600,95 @@ output = ["TRUE", "TRUE", "FALSE"]
 diagnostics = []
 
 [[case]]
+id = "redirection.run_from_text-feeds-a-program-what-a-script-computed"
+requirement = """
+`printf %s "$json" | tool` is the shape every shell script has and this one did
+not: a pipeline reads from a program and a redirection reads from a file, and a
+String was neither. A script that had worked something out and wanted to hand it
+to a program had to write a file first, choose where to put it, and remember to
+remove it -- three decisions nobody wanted to make, on the failure path as well
+as the ordinary one.
+
+The text comes first for the same reason a file does. What the program reads is
+exactly the string, byte for byte: nothing is added, and a script that wants a
+line ending puts one there.
+
+What the shell does with it in between is not a promise, but it is not a pipe:
+a pipe holds one bufferful -- 64k on one host and 8k on another -- and a shell
+writing more than that into one waits for the program to read while a program
+that reads its whole input waits for the shell. That failure would arrive on
+somebody else's machine, at a size nobody could name.
+"""
+script = """
+run_from_text ("one" & Character'Val (10) & "two" & Character'Val (10), "{emit}", "--input");
+quit (0);"""
+exit_status = 0
+output = ["one", "two"]
+diagnostics = []
+
+[[case]]
+id = "text.matches-a-pattern"
+requirement = """
+The pattern language every user of a shell already has in their fingers: `*`
+for any run of characters, `?` for exactly one, `[abc]` and `[a-z]` for one of
+a set, `[!abc]` for one outside it.
+
+It is a question about a string, and that is the whole of it. Nothing is read
+from the filesystem and no argument list is rewritten -- `run ("rm", "*.tmp")`
+still passes those five characters to the program, because a shell where the
+same line means different things in different directories is the thing this
+language refuses to be. Expansion happening unasked was the objection; asking
+is a different act, and until this existed a script could not ask at all.
+
+Case-sensitive on every host. A file system that ignores case is a property of
+that file system, and this is not asking one.
+"""
+script = "put_line (Matches (\"report.log\", \"*.log\")); put_line (Matches (\"report.txt\", \"*.log\")); put_line (Matches (\"a.log\", \"?.log\")); put_line (Matches (\"file9\", \"file[0-9]\")); put_line (Matches (\"filex\", \"file[!0-9]\")); put_line (Matches (\"Report.log\", \"*.LOG\")); quit (0);"
+exit_status = 0
+output = ["TRUE", "FALSE", "TRUE", "TRUE", "TRUE", "FALSE"]
+diagnostics = []
+
+[[case]]
+id = "text.a-pattern-with-many-stars-still-answers"
+requirement = """
+A pattern of many stars against a name that nearly matches is where the
+recursive way of writing a matcher goes exponential, and a shell that hung on
+one would have grown a denial of service out of a convenience. This answers,
+and answers no.
+
+The empty pattern matches only the empty string, and `*` matches it too: a
+question about nothing has an answer, and refusing it would make every caller
+test for it first.
+"""
+script = "put_line (Matches (\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaab\", \"*a*a*a*a*a*a*c\")); put_line (Matches (\"\", \"*\")); put_line (Matches (\"\", \"?\")); put_line (Matches (\"\", \"\")); quit (0);"
+exit_status = 0
+output = ["FALSE", "TRUE", "FALSE", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "text.a-listing-is-picked-over-with-a-pattern"
+requirement = """
+What the two together are for, and the loop this language could not write. The
+directory answers with what is in it and the pattern says which of those the
+script wanted -- in the script, where a reader can see the rule, rather than in
+an expansion that happened before the line ran.
+"""
+script = """
+make_directory ("{store}/heap");
+write_file ("a", "{store}/heap/one.log");
+write_file ("b", "{store}/heap/two.txt");
+write_file ("c", "{store}/heap/three.log");
+for Index in 1 .. File_Count ("{store}/heap") loop
+   if Matches (File_At ("{store}/heap", Index), "*.log") then
+      put_line (File_At ("{store}/heap", Index));
+   end if;
+end loop;
+quit (0);"""
+exit_status = 0
+output = ["one.log", "three.log"]
+diagnostics = []
+
+[[case]]
 id = "files.writes-what-a-script-computed"
 requirement = """
 A script works something out and puts it in a file. Everything that wrote a file
@@ -1455,7 +1544,7 @@ place that is not changing under it.
 Sorted, so that two runs of one script do the same thing; `.` and `..` left out,
 because every directory has them and a loop that skips them every time has a
 wart in it. There is no pattern expansion here and there will not be -- a
-listing with `Ends_With` beside it is how a script picks the ones it wants.
+listing with `Matches` beside it is how a script picks the ones it wants.
 """
 script = """
 make_directory ("{store}/place");

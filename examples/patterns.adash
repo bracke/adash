@@ -1,0 +1,54 @@
+--  Picking files by name, and handing a program what a script worked out.
+--
+--  Three things a shell script does constantly, and the three this language
+--  could not say. Together because they are usually the same script: find the
+--  files that matter, compute something from them, hand it to a program.
+
+--  A place of our own to look at. `Current_Directory` is where this example
+--  was started, which is a directory the runner made for it.
+Here : String := Current_Directory;
+
+write_file ("first", "one.log");
+write_file ("second", "two.txt");
+write_file ("third", "three.log");
+
+--  What other shells write as `for f in *.log`.
+--
+--  The pattern is a question about a name, asked where a reader can see it,
+--  rather than an expansion that happened before the line ran. `run ("rm",
+--  "*.tmp")` still passes those five characters to the program: this shell
+--  does not rewrite an argument list from the filesystem, because then the
+--  same line would mean different things in different directories.
+for Index in 1 .. File_Count (Here) loop
+   Name : String := File_At (Here, Index);
+
+   if Matches (Name, "*.log") then
+      put_line ("log: " & Name);
+   end if;
+end loop;
+
+--  The pattern language is the one everybody already has: `*` for any run of
+--  characters, `?` for one, `[abc]` and `[a-z]` for one of a set, `[!abc]` for
+--  one outside it. It compares two strings and reads nothing.
+put_line (Matches ("report-9.txt", "report-[0-9].*"));
+put_line (Matches ("report-x.txt", "report-[0-9].*"));
+
+--  Case-sensitive on every host. A file system that ignores case is a property
+--  of that file system, and this is not asking one.
+put_line (Matches ("READ.ME", "read.*"));
+
+--  What the loop and the pattern are for together: the names a script wanted,
+--  gathered into one value it can hand to a program. `capture.adash` shows the
+--  handing over -- `run_from_text` gives a program text the script computed,
+--  which is what `printf '%s' "$x" | tool` says elsewhere.
+Collected : String := "";
+
+for Index in 1 .. File_Count (Here) loop
+   Name : String := File_At (Here, Index);
+
+   if Matches (Name, "*.log") then
+      Collected := Collected & Name & " ";
+   end if;
+end loop;
+
+put_line ("collected: " & Trim (Collected));

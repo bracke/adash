@@ -1,7 +1,9 @@
 with Ada.Command_Line;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
 with Hostkit.Host;
+with Hostkit.Process;
 
 --  Writes each argument on its own line, then exits with the status it was
 --  told to.
@@ -22,6 +24,11 @@ with Hostkit.Host;
 --    --repeat=N  write the arguments that follow N times each
 --    --crlf      end each line with a carriage return and a line feed, on
 --                every host -- which on Windows means letting Text_IO do it
+--    --input     write back what arrives on standard input, a line at a time
+--    --env=NAME  write what the environment holds under NAME, in brackets so
+--                that a variable set to nothing and a variable that is not
+--                there read the same way to a person and differently to a
+--                case that asserts the line
 --
 --  Between them a conformance case can have a program that says something, a
 --  program that fails, a program that complains where nobody should be
@@ -70,6 +77,24 @@ procedure Adash_Test_Emit is
       end if;
    end Say;
 
+   --  What the host says this process was given.
+   --
+   --  Through hostkit, because a program in this workspace does not read the
+   --  environment for itself: that is a platform question, and an empty
+   --  variable is absent on Windows and present on the other two -- which is
+   --  exactly the distinction a case about `set` is asking about.
+   function Read_Environment (Name : String) return String;
+
+   function Read_Environment (Name : String) return String is
+      Held : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      if Hostkit.Process.Environment_Value (Name, Held) then
+         return Ada.Strings.Unbounded.To_String (Held);
+      end if;
+
+      return "";
+   end Read_Environment;
+
    --  Whether an argument is one of the three, and what it carries.
    function Introduced_By (Value : String; Flag : String) return Boolean
    is (Value'Length > Flag'Length
@@ -101,6 +126,21 @@ begin
             Ada.Text_IO.Put
               (Ada.Text_IO.Standard_Error, After (Value, "--part="));
             Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
+
+         elsif Value = "--input" then
+            --  What a program given something to read does with it. Shipped
+            --  for the same reason the rest of this is: `cat` is a POSIX
+            --  utility and this suite runs where there is none.
+            while not Ada.Text_IO.End_Of_File loop
+               Say (Ada.Text_IO.Get_Line);
+            end loop;
+
+         elsif Introduced_By (Value, "--env=") then
+            --  What a child was actually given, which is the only way to ask
+            --  whether `set` reached one: the shell's own `env` lists what the
+            --  shell believes, and those were two different things until a
+            --  case could ask the child.
+            Say ("[" & Read_Environment (After (Value, "--env=")) & "]");
 
          elsif Value = "--crlf" then
             Windows_Endings := True;

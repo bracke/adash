@@ -344,10 +344,17 @@ package body Adash.Commands.Builtins is
                        (Argument (Arguments, Position)));
                end loop;
 
-               Adash.Execution.Pipelines.Add_Stage
-                 (Shell.Pending,
-                  Adash.Execution.Commands.Make
-                    (Argument (Arguments, 1), Args));
+               declare
+                  Stage : Adash.Execution.Commands.Invocation :=
+                    Adash.Execution.Commands.Make
+                      (Argument (Arguments, 1), Args);
+               begin
+                  --  The session's variables. A stage of a pipeline is a child
+                  --  like the one `run` starts, and both of them are what
+                  --  `set` means by "children".
+                  Stage.Environment := Shell.Environment;
+                  Adash.Execution.Pipelines.Add_Stage (Shell.Pending, Stage);
+               end;
 
                return Adash.Execution.Success;
             end;
@@ -586,6 +593,7 @@ package body Adash.Commands.Builtins is
             end;
 
          when Command_Run | Command_Run_Into | Command_Run_From
+            | Command_Run_From_Text | Command_Run_With
             | Command_Run_Append | Command_Run_New | Command_Run_Errors_Into
             | Command_Run_Errors_Append | Command_Run_Errors_New
             | Command_Run_All_Into | Command_Run_All_Append
@@ -597,12 +605,17 @@ package body Adash.Commands.Builtins is
                --  streams is going to it, so the program starts one later.
                Redirects : constant Boolean :=
                  Id in Command_Run_Into | Command_Run_From
+                     | Command_Run_From_Text
                      | Command_Run_Append | Command_Run_New
                      | Command_Run_Errors_Into | Command_Run_Errors_Append
                      | Command_Run_Errors_New | Command_Run_All_Into
                      | Command_Run_All_Append | Command_Run_All_New;
 
-               First_Word : constant Positive := (if Redirects then 2 else 1);
+               --  Where the program's own name starts. Every command here
+               --  that carries something of its own -- a file, the text, an
+               --  assignment -- carries it first, so the program follows it.
+               First_Word : constant Positive :=
+                 (if Redirects or else Id = Command_Run_With then 2 else 1);
 
                --  What the file is attached as, said in the terms the
                --  redirection subsystem uses rather than in open modes. That
@@ -622,13 +635,66 @@ package body Adash.Commands.Builtins is
                Told    : Ada.Strings.Unbounded.Unbounded_String :=
                  Ada.Strings.Unbounded.To_Unbounded_String
                    (Argument (Arguments, First_Word));
+
+               --  Where the text goes for a program to read it. Holds nothing
+               --  for every other command in this branch, and removes what it
+               --  holds when this declaration goes out of scope -- which is
+               --  every way out of here, including the dozen that report a
+               --  failure and the one where the user interrupted the program.
+               Input : Adash.Filesystem.Held_Text;
+
+               --  Where the `=` is in the assignment, for run_with.
+               Assigns_At : Natural := 0;
+
+               Put_There : Adash.Filesystem.Written :=
+                 Adash.Filesystem.Write_Ok;
+
+               use type Adash.Filesystem.Written;
             begin
+               if Id = Command_Run_With then
+                  --  Checked before anything runs, and spelled exactly as
+                  --  `set` spells an assignment: a command that took `LC_ALL`
+                  --  and quietly ran without it would be worse than one that
+                  --  refuses.
+                  declare
+                     Text : constant String := Argument (Arguments, 1);
+                  begin
+                     Assigns_At := 0;
+
+                     for Index in Text'Range loop
+                        if Text (Index) = '=' then
+                           Assigns_At := Index;
+                           exit;
+                        end if;
+                     end loop;
+
+                     if Assigns_At <= Text'First then
+                        return Failed
+                          (Adash.Errors.Error_Command_Bad_Assignment,
+                           [1 => M.Named ("text", Text)]);
+                     end if;
+                  end;
+               end if;
+
+               if Id = Command_Run_From_Text then
+                  Adash.Filesystem.Hold
+                    (Input, Argument (Arguments, 1), Put_There);
+
+                  if Put_There /= Adash.Filesystem.Write_Ok then
+                     return Failed
+                       (Adash.Errors.Error_Input_Text_Not_Held,
+                        [1 => M.Named
+                                ("reason",
+                                 Adash.Filesystem.Written'Image (Put_There))]);
+                  end if;
+               end if;
+
                if Redirects then
                   declare
                      Asked : constant Adash.Execution.Redirection.Redirection :=
                        (Role =>
                           (case Id is
-                              when Command_Run_From =>
+                              when Command_Run_From | Command_Run_From_Text =>
                                 Adash.Execution.Streams.Role_Input,
                               when Command_Run_Errors_Into
                                  | Command_Run_Errors_Append
@@ -638,7 +704,7 @@ package body Adash.Commands.Builtins is
                                 Adash.Execution.Streams.Role_Output),
                         Kind =>
                           (case Id is
-                              when Command_Run_From =>
+                              when Command_Run_From | Command_Run_From_Text =>
                                 Adash.Execution.Redirection.Redirect_From_File,
                               when Command_Run_Append
                                  | Command_Run_Errors_Append
@@ -649,9 +715,15 @@ package body Adash.Commands.Builtins is
                                 Adash.Execution.Redirection.Redirect_To_New_File,
                               when others =>
                                 Adash.Execution.Redirection.Redirect_To_File),
+                        --  The first argument names a file for every other
+                        --  command here and *is* the input for this one, so
+                        --  what goes into the plan is the file the text was
+                        --  put in.
                         Path =>
                           Ada.Strings.Unbounded.To_Unbounded_String
-                            (Argument (Arguments, 1)));
+                            (if Id = Command_Run_From_Text
+                             then Adash.Filesystem.Path (Input)
+                             else Argument (Arguments, 1)));
 
                      --  Both streams, where the command is one of the three
                      --  that says so: the output redirection above opens the
@@ -713,6 +785,15 @@ package body Adash.Commands.Builtins is
 
                   Attached : Adash.Errors.Error_Info;
                begin
+                  --  What the session says a child inherits.
+                  --
+                  --  This was the process's own environment, and `set`
+                  --  changed the session's -- so `set ("A=1")` put A in what
+                  --  `env` listed, in what `Env_Value` answered, and in
+                  --  nothing a program could see. The catalog has said "a
+                  --  variable children will inherit" since the command
+                  --  existed, and until now no child inherited one.
+                  Stage.Environment := Shell.Environment;
                   --  Opened now, not when the redirection was named: the file
                   --  is created at the moment the program is about to run, so
                   --  a command refused for any other reason has not touched it.
@@ -728,6 +809,22 @@ package body Adash.Commands.Builtins is
 
                      return (Kind => Adash.Execution.Exit_Internal_Failure,
                              others => <>);
+                  end if;
+
+                  --  The one variable, over what the child would have had.
+                  --  Started from the environment it inherits rather than
+                  --  from an empty block: a program run with `LC_ALL=C` still
+                  --  needs its PATH, and a shell that answered a request for
+                  --  one variable by taking away the rest would be answering a
+                  --  question nobody asked.
+                  if Id = Command_Run_With then
+                     declare
+                        Text : constant String := Argument (Arguments, 1);
+                     begin
+                        Env.Set (Stage.Environment,
+                                 Text (Text'First .. Assigns_At - 1),
+                                 Text (Assigns_At + 1 .. Text'Last));
+                     end;
                   end if;
 
                   --  A background job does not share the keyboard. What it

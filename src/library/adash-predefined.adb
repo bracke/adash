@@ -485,6 +485,28 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Ends_With_Hint,
        Status => Available),
 
+      --  Pattern matching, which the shell refuses to do behind a user's
+      --  back and would not otherwise offer at all.
+      --
+      --  Glob *expansion* is a deliberate refusal: `run ("rm", "*.tmp")`
+      --  passes those five characters to the program, because a shell that
+      --  rewrites an argument list from the filesystem is a shell where the
+      --  same line means different things in different directories. That
+      --  refusal was about expansion happening unasked; asking is a different
+      --  act, and until this existed a script could not ask at all -- "every
+      --  file ending in .log" was a loop with Ends_With and anything else was
+      --  written by hand.
+      (Id => Entity_Matches, Name => Named ("Matches"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_Boolean, Parameter_Count => 2,
+       Parameters => [1 => (Named ("Whole"), Types.Type_String),
+                      2 => (Named ("Pattern"), Types.Type_String),
+                      others => (Named (""), Types.Type_None)],
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Matches_Doc,
+       Description => Adash.Messages.Msg_Predefined_Matches_Hint,
+       Status => Available),
+
       (Id => Entity_Put, Name => Named ("Put"), Sort => Sort_Procedure,
        Of_Type => Types.Type_None, Parameter_Count => 1,
        Parameters => [1 => Any ("Item"), others => Any ("")],

@@ -54,6 +54,12 @@ package Adash.Errors is
       --  Execution: streams and redirection.
       Error_Redirection_Open_Failed,
       Error_Redirection_Conflict,
+
+      --  Text a command was to hand a program could not be put anywhere for
+      --  the program to read it. The host's temporary space is missing, full,
+      --  or not writable by this process -- which is a fact about the machine
+      --  rather than about the command, and is said as one.
+      Error_Input_Text_Not_Held,
       Error_Pipe_Creation_Failed,
       Error_Stream_Write_Failed,
       Error_Stream_Read_Failed,

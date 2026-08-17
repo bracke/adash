@@ -254,9 +254,16 @@ package body Adash.Engine is
                           (Text_At (Position)));
                   end loop;
 
-                  Adash.Execution.Pipelines.Add_Stage
-                    (Line,
-                     Adash.Execution.Commands.Make (Text_At (1), Args));
+                  declare
+                     Stage : Adash.Execution.Commands.Invocation :=
+                       Adash.Execution.Commands.Make (Text_At (1), Args);
+                  begin
+                     --  The session's variables, not this process's. A
+                     --  captured program is a child like any other, and `set`
+                     --  says it sets what children inherit.
+                     Stage.Environment := Sink.Shell.Environment;
+                     Adash.Execution.Pipelines.Add_Stage (Line, Stage);
+                  end;
                end if;
 
                if not Adash.Execution.Pipelines.Capture

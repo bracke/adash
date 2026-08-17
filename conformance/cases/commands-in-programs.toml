@@ -143,6 +143,8 @@ output = [
   "!line.command_entry{name=run,summary=!command.run.doc!}!",
   "!line.command_entry{name=run_into,summary=!command.run_into.doc!}!",
   "!line.command_entry{name=run_from,summary=!command.run_from.doc!}!",
+  "!line.command_entry{name=run_from_text,summary=!command.run_from_text.doc!}!",
+  "!line.command_entry{name=run_with,summary=!command.run_with.doc!}!",
   "!line.command_entry{name=run_append,summary=!command.run_append.doc!}!",
   "!line.command_entry{name=run_new,summary=!command.run_new.doc!}!",
   "!line.command_entry{name=run_errors_into,summary=!command.run_errors_into.doc!}!",
@@ -182,6 +184,70 @@ output = [
   "!line.command_entry{name=save_settings,summary=!command.save_settings.doc!}!",
 ]
 diagnostics = []
+
+[[case]]
+id = "environment.a-child-inherits-what-set-set"
+requirement = """
+`set` says it sets a variable children will inherit, and for as long as the
+command existed no child inherited one. The session kept its own block --
+`env` listed it, `Env_Value` answered from it -- and every program the shell
+started was given this process's environment instead, so a script that set a
+variable and ran a program that reads it saw nothing and had no way to find out
+why.
+
+Asked of the child rather than of the shell, because the shell's answer was
+never the one in doubt. `unset` is here for the same reason: a variable removed
+from a listing the child never had is not removed from anything.
+"""
+script = """
+set ("CASE_SEEN=through");
+run ("{emit}", "--env=CASE_SEEN");
+unset ("CASE_SEEN");
+run ("{emit}", "--env=CASE_SEEN");
+quit (0);"""
+exit_status = 0
+output = ["[through]", "[]"]
+diagnostics = []
+
+[[case]]
+id = "environment.run_with-sets-one-variable-for-one-program"
+requirement = """
+`LC_ALL=C sort` is the shape every shell has. Without it a script that wanted
+one variable for one program had to set it in the session, run, and unset it --
+and get that right on the path where the program failed, which is the path
+nobody writes.
+
+The assignment comes first, spelled the way `set` spells one, because what
+follows is the program and its arguments and there is no other place to put a
+boundary between them. It is one assignment: a rule that read assignments until
+an argument without an `=` in it would be a rule with an exception waiting for
+the first program whose path has one.
+
+What it does *not* do is take anything away. The child gets the session's
+variables with this one over the top, because a program run with `LC_ALL=C`
+still needs its PATH.
+"""
+script = """
+set ("CASE_KEPT=session");
+run_with ("CASE_ONCE=only-here", "{emit}", "--env=CASE_ONCE", "--env=CASE_KEPT");
+run ("{emit}", "--env=CASE_ONCE");
+quit (0);"""
+exit_status = 0
+output = ["[only-here]", "[session]", "[]"]
+diagnostics = []
+
+[[case]]
+id = "environment.run_with-refuses-what-is-not-an-assignment"
+requirement = """
+The same refusal `set` makes, in the same words: a command given `LC_ALL` where
+it wanted `LC_ALL=C` cannot know whether the user meant to set it empty or to
+remove it, and a program run without the variable it was supposed to have is a
+failure nobody sees until later.
+"""
+script = "run_with (\"CASE_NO_EQUALS\", \"{emit}\", \"never\"); quit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.command.bad_assignment{text=CASE_NO_EQUALS}!"]
 
 [[case]]
 id = "environment.env-lists-what-children-inherit-and-unset-removes-one"

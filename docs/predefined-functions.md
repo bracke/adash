@@ -131,14 +131,18 @@ loop other shells write as `for f in *`:
 
     for Index in 1 .. File_Count (Here) loop
        Name : String := File_At (Here, Index);
-       if Ends_With (Name, ".log") then
+       if Matches (Name, "*.log") then
           put_line (Name);
        end if;
     end loop;
 
-There is no pattern expansion in this language and there will not be, so a
-listing with `Ends_With` or `Index` beside it is how a script picks the ones it
-wants. Both answer from **one** reading of the directory, so a loop sees a place
+There is no pattern **expansion** in this language and there will not be: `run
+("rm", "*.tmp")` passes those five characters to the program, because a shell
+that rewrites an argument list from the filesystem is one where the same line
+means different things in different directories. Expansion happening unasked was
+the objection, and asking is a different act — a listing with `Matches` beside
+it is how a script picks the ones it wants, in the script where a reader can see
+the rule. Both answer from **one** reading of the directory, so a loop sees a place
 that is not changing under it; a file made while it runs turns up the next time
 something asks. The names are sorted, and `.` and `..` are left out.
 
@@ -198,6 +202,16 @@ it reads. Making the place a file goes is `make_directory`, which is a command.
 | `Index (Whole, Piece)` | `Integer` | where `Piece` starts, or **0** when it is not there |
 | `Starts_With (Whole, Piece)` | `Boolean` | |
 | `Ends_With (Whole, Piece)` | `Boolean` | |
+| `Matches (Whole, Pattern)` | `Boolean` | `*`, `?`, `[abc]`, `[a-z]`, `[!abc]` |
+
+`Matches` is the pattern language every user of a shell already has in their
+fingers and no more of it than that: `*` for any run of characters including
+none, `?` for exactly one, `[abc]` and `[a-z]` for one of a set, `[!abc]` for
+one outside it. It reads nothing from the filesystem — it compares two strings —
+and it is case-sensitive on every host, because a file system that ignores case
+is a property of that file system and this is not asking one. `/` is an ordinary
+character: a host writes its paths with `/` or with `\`, so a matcher that
+treated one as a boundary would mean different things in different places.
 
 `Index` answering zero rather than raising is what lets a script test before it
 slices. A `String` begins at one, so zero is a position no string has.

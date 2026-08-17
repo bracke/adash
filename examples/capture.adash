@@ -85,3 +85,38 @@ end Reported;
 
 put_line (Reported (True));
 put_line (Reported (False));
+
+--  Handing a program text this script computed.
+--
+--  `printf '%s' "$x" | tool` is the shape elsewhere, and until `run_from_text`
+--  existed this language had none: a pipeline reads from a program and a
+--  redirection reads from a file, and a String was neither. A script had to
+--  write a file first, choose where to put it, and remember to remove it -- on
+--  the path where the program failed as well as the ordinary one.
+--
+--  The text comes first, then the program and its arguments. What the program
+--  reads is exactly the string: a script that wants a line ending puts one
+--  there.
+Lines : String :=
+  "beta" & Character'Val (10) & "alpha" & Character'Val (10);
+
+--  Named without a branch, which nothing else in this file can do: `sort` is
+--  the one program all three of these hosts ship, and it reads its input the
+--  same way on each. Everything above needed `Posix` because `echo` and `true`
+--  do not exist on one of them.
+run_from_text (Lines, "sort");
+
+--  One variable, set for one program and nothing else.
+--
+--  `set` changes the session and every child after it. This changes what one
+--  program sees, takes nothing else away -- a program run with `LC_ALL=C`
+--  still needs its PATH -- and writes the assignment the way `set` writes one.
+if Posix then
+   run_with ("EXAMPLE_ONE=only-here", "sh", "-c", "echo [$EXAMPLE_ONE]");
+   run ("sh", "-c", "echo [$EXAMPLE_ONE]");
+else
+   run_with ("EXAMPLE_ONE=only-here", "cmd", "/c",
+             "if defined EXAMPLE_ONE (echo [%EXAMPLE_ONE%]) else (echo [])");
+   run ("cmd", "/c",
+        "if defined EXAMPLE_ONE (echo [%EXAMPLE_ONE%]) else (echo [])");
+end if;

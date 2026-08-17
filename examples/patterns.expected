@@ -1,0 +1,6 @@
+log: one.log
+log: three.log
+TRUE
+FALSE
+FALSE
+collected: one.log three.log

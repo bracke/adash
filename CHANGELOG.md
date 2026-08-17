@@ -11,6 +11,20 @@ what changed.
 
 ### Added
 
+- `Matches (Whole, Pattern)` — pattern matching over strings: `*`, `?`,
+  `[abc]`, `[a-z]`, `[!abc]`. Glob *expansion* remains refused — nothing
+  rewrites an argument list from the filesystem — but a script can now ask
+  whether a name matches, which is what `for f in *.log` and `case $f in` are
+  for. It reads nothing, and is case-sensitive on every host.
+- `run_from_text (Input, Program, …)` — runs a program with its input read from
+  text the script computed, which is what `printf '%s' "$x" | tool` says
+  elsewhere. The text goes through a private file rather than a pipe: a pipe
+  holds one bufferful, and a shell writing more than that into one waits for a
+  program that is waiting for the shell. The file is removed however the
+  command ends, including when it is refused or interrupted.
+- `run_with (Assignment, Program, …)` — runs a program with one variable set
+  for it alone, written `NAME=VALUE` as `set` writes one. It adds to what the
+  child would have had rather than replacing it.
 - `benchmarks/ceilings.toml` — a ceiling for every figure `adash_bench`
   measures. A figure over its ceiling, or a figure with no ceiling at all,
   makes the tool exit non-zero, which is what lets CI run the benchmarks on
@@ -33,6 +47,13 @@ what changed.
 
 ### Fixed
 
+- **A child now inherits what `set` set.** The catalog has described `set` as
+  "a variable children will inherit" since the command existed, and no child
+  ever inherited one: the session kept its own block — `env` listed it,
+  `Env_Value` answered from it — while every program the shell started was
+  given this process's environment instead. `set`, `unset` and the session's
+  variables now reach programs started by `run`, by a pipeline stage, and by a
+  captured run.
 - `adash_check` verifies that `alire.toml` and `repository.toml` agree about
   the version, which the release guide has always claimed and which had never
   been true: both reads returned nothing and two nothings compare equal. The

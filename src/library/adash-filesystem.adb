@@ -621,4 +621,87 @@ package body Adash.Filesystem is
          Result := Write_Failed;
    end Append;
 
+
+   ----------
+   -- Hold --
+   ----------
+
+   procedure Hold (Item : in out Held_Text; Text : String;
+                   Result : out Written)
+   is
+      Room : constant String :=
+        Hostkit.Fs.Create_Temporary_Directory ("adash-input");
+   begin
+      Finalize (Item);
+
+      if Room = "" then
+         --  No temporary space, or none this process may write in. Said as
+         --  what it is rather than as a failure to write a file the user
+         --  never named.
+         Result := Write_Failed;
+         return;
+      end if;
+
+      declare
+         Where : constant String := Hostkit.Fs.Join (Room, "input");
+      begin
+         Write (Where, Text, Result);
+
+         if Result = Write_Ok then
+            Item.Room := Ada.Strings.Unbounded.To_Unbounded_String (Room);
+            Item.File := Ada.Strings.Unbounded.To_Unbounded_String (Where);
+         else
+            begin
+               Ada.Directories.Delete_Directory (Room);
+            exception
+               when others =>
+                  null;
+            end;
+         end if;
+      end;
+   end Hold;
+
+   ----------
+   -- Path --
+   ----------
+
+   function Path (Item : Held_Text) return String is
+   begin
+      return Ada.Strings.Unbounded.To_String (Item.File);
+   end Path;
+
+   --------------
+   -- Finalize --
+   --------------
+
+   overriding procedure Finalize (Item : in out Held_Text) is
+      use Ada.Strings.Unbounded;
+   begin
+      if Item.File /= Null_Unbounded_String then
+         begin
+            Ada.Directories.Delete_File (To_String (Item.File));
+         exception
+            --  A file already gone is the outcome this wanted. Anything else
+            --  is a temporary file left behind, which the host clears and
+            --  which is not worth failing a command over.
+            when others =>
+               null;
+         end;
+
+         Item.File := Null_Unbounded_String;
+      end if;
+
+      if Item.Room /= Null_Unbounded_String then
+         begin
+            Ada.Directories.Delete_Directory (To_String (Item.Room));
+         exception
+            when others =>
+               null;
+         end;
+
+         Item.Room := Null_Unbounded_String;
+      end if;
+   end Finalize;
+
+
 end Adash.Filesystem;

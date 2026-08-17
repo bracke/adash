@@ -94,6 +94,43 @@ package body Adash.Commands is
        [1 => Text ("File"), others => Text ("Argument")],
        Changes_State,
        M.Msg_Command_Run_From_Doc, M.Msg_Command_Hint, Available),
+      --  The same, with the program's input coming from text this script
+      --  computed rather than from a file it has.
+      --
+      --  The gap this closes is one every shell script meets: `printf %s
+      --  "$json" | tool` has no spelling here, because a pipeline reads from a
+      --  program and a redirection reads from a file, and a String was neither.
+      --  A script that had worked something out and wanted to hand it to a
+      --  program had to write a file first, choose where to put it, and
+      --  remember to remove it -- three decisions nobody wanted to make.
+      --
+      --  The text comes first for the same reason a file does: what follows is
+      --  the program and its arguments, and there is no other place to put a
+      --  boundary between them.
+      (Command_Run_From_Text, Named ("run_from_text"), 2, Any_Number,
+       [1 => Text ("Input"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_From_Text_Doc, M.Msg_Command_Hint, Available),
+
+      --  The same, with one variable set for that program and nothing else.
+      --
+      --  `LC_ALL=C sort` is the shape every shell has and this one did not:
+      --  `set` changes the session, so a script wanting one variable for one
+      --  program had to set it, run, and unset it -- and get that right on the
+      --  path where the program failed, which is the path nobody writes.
+      --
+      --  One assignment, spelled the way `set` spells one, and the first
+      --  argument for the same reason a file is: what follows is the program
+      --  and its arguments, and a boundary a reader cannot see is worse than a
+      --  limit they can. A command needing two variables sets one in the
+      --  session; a rule that read assignments until something without an `=`
+      --  in it would be a rule with an exception waiting for the first path
+      --  that has one.
+      (Command_Run_With, Named ("run_with"), 2, Any_Number,
+       [1 => Text ("Assignment"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_With_Doc, M.Msg_Command_Hint, Available),
+
       (Command_Run_Append, Named ("run_append"), 2, Any_Number,
        [1 => Text ("File"), others => Text ("Argument")],
        Changes_State,

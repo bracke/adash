@@ -102,6 +102,8 @@ reads as the empty string rather than failing.
 | `run_all_append (File : String; Program : String; ...)` | 2 or more | adds everything it writes to the end of one file |
 | `run_all_new (File : String; Program : String; ...)` | 2 or more | as `run_all_into`, refusing a file that is already there |
 | `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
+| `run_from_text (Input : String; Program : String…)` | 2 .. any | runs it with its input read from text this script computed |
+| `run_with (Assignment : String; Program : String…)` | 2 .. any | runs it with one variable set for it alone, written `NAME=VALUE` |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
 | `pipe_start` | 0 | runs the pipeline in the background and names the job |

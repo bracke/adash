@@ -36,6 +36,7 @@ package body Adash.Messages is
          when Msg_Command_Start_Failed       => return "error.command_start_failed";
          when Msg_Redirection_Open_Failed    => return "error.redirection_open_failed";
          when Msg_Redirection_Conflict       => return "error.redirection_conflict";
+         when Msg_Input_Text_Not_Held        => return "error.input_text_not_held";
          when Msg_Pipe_Creation_Failed       => return "error.pipe_creation_failed";
          when Msg_Stream_Write_Failed        => return "error.stream_write_failed";
          when Msg_Stream_Read_Failed         => return "error.stream_read_failed";
@@ -480,6 +481,8 @@ package body Adash.Messages is
             return "predefined.starts_with.doc";
          when Msg_Predefined_Ends_With_Doc =>
             return "predefined.ends_with.doc";
+         when Msg_Predefined_Matches_Doc =>
+            return "predefined.matches.doc";
          when Msg_Predefined_Argument_Count_Doc =>
             return "predefined.argument_count.doc";
          when Msg_Predefined_Argument_Doc    => return "predefined.argument.doc";
@@ -524,6 +527,8 @@ package body Adash.Messages is
             return "predefined.starts_with.hint";
          when Msg_Predefined_Ends_With_Hint =>
             return "predefined.ends_with.hint";
+         when Msg_Predefined_Matches_Hint =>
+            return "predefined.matches.hint";
          when Msg_Predefined_Argument_Count_Hint =>
             return "predefined.argument_count.hint";
          when Msg_Predefined_Argument_Hint   => return "predefined.argument.hint";
@@ -552,6 +557,9 @@ package body Adash.Messages is
          when Msg_Command_Run_Doc            => return "command.run.doc";
          when Msg_Command_Run_Into_Doc       => return "command.run_into.doc";
          when Msg_Command_Run_From_Doc       => return "command.run_from.doc";
+         when Msg_Command_Run_From_Text_Doc  =>
+            return "command.run_from_text.doc";
+         when Msg_Command_Run_With_Doc       => return "command.run_with.doc";
          when Msg_Command_Run_Append_Doc     => return "command.run_append.doc";
          when Msg_Command_Run_New_Doc        => return "command.run_new.doc";
          when Msg_Command_Run_Errors_Into_Doc =>
@@ -923,6 +931,7 @@ package body Adash.Messages is
             | Msg_Predefined_To_Lower_Doc | Msg_Predefined_To_Lower_Hint
             | Msg_Predefined_Starts_With_Doc | Msg_Predefined_Starts_With_Hint
             | Msg_Predefined_Ends_With_Doc | Msg_Predefined_Ends_With_Hint
+            | Msg_Predefined_Matches_Doc | Msg_Predefined_Matches_Hint
             | Msg_Predefined_Argument_Count_Doc
             | Msg_Predefined_Argument_Count_Hint
             | Msg_Predefined_Argument_Doc | Msg_Predefined_Argument_Hint
@@ -958,6 +967,8 @@ package body Adash.Messages is
             | Msg_Command_Forget_Doc
             | Msg_Command_Source_Doc
             | Msg_Command_Run_Doc | Msg_Command_Run_Into_Doc
+            | Msg_Command_Run_From_Text_Doc
+            | Msg_Command_Run_With_Doc
             | Msg_Command_Run_From_Doc | Msg_Command_Run_Append_Doc
             | Msg_Command_Run_New_Doc | Msg_Command_Run_Errors_Into_Doc
             | Msg_Command_Run_Errors_Append_Doc
@@ -1108,6 +1119,9 @@ package body Adash.Messages is
 
          when Msg_Redirection_Conflict =>
             return [1 => N ("stream")];
+
+         when Msg_Input_Text_Not_Held =>
+            return [1 => N ("reason")];
 
          when Msg_Pipe_Creation_Failed =>
             return No_Placeholders;

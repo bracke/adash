@@ -707,6 +707,7 @@ package Adash.Machine is
       Text_Lower,
       Text_Starts,          --  whole, piece
       Text_Ends,
+      Text_Matches,         --  whole, pattern: * ? and a [class]
 
       --  Between the two numeric types, both ways. `Integer (F)` and
       --  `Float (I)`, which is how a value crosses in Ada -- written out,

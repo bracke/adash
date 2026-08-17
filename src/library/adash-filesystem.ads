@@ -1,3 +1,4 @@
+private with Ada.Finalization;
 with Ada.Strings.Unbounded;
 
 --  What the shell can ask about a path.
@@ -260,5 +261,58 @@ package Adash.Filesystem is
      (Path   : String;
       Text   : String;
       Result : out Written);
+
+   --  A file holding text, for as long as a command needs one.
+   --
+   --  What `run_from_text` is made of. A program reads its input from a
+   --  descriptor, so text a script computed has to become one somehow, and
+   --  there are two ways: a pipe the shell writes into, or a file the shell
+   --  makes first.
+   --
+   --  **A file, because a pipe would deadlock.** A pipe holds a bufferful --
+   --  64k on one host, 8k on another, and a caller cannot know which -- and a
+   --  shell writing more than that into a pipe waits for the program to read
+   --  it, while a program that reads its whole input before answering waits
+   --  for the shell. Both wait for ever, and the size at which that starts
+   --  differs per host, so the failure would arrive on somebody else's
+   --  machine. A file has no such point.
+   --
+   --  **In a private temporary directory**, so text a script did not choose to
+   --  publish -- a token, a password being piped into a program that wants it
+   --  on standard input -- is not readable by other users while it is there.
+   --
+   --  **Removed when the holder goes out of scope**, including where the
+   --  command was refused, raised, or was interrupted half way. That is why
+   --  this is a controlled type rather than a path and a matching call: the
+   --  command that uses it has a dozen ways out, and eleven of them would have
+   --  been the one nobody wrote the deletion on.
+   type Held_Text is limited private;
+
+   --  Put text in a file of its own.
+   --
+   --  @param Item The holder. Anything it held before is removed first.
+   --  @param Text What the file is to contain.
+   --  @param Result Write_Ok when the file is there and holds the text.
+   procedure Hold (Item : in out Held_Text; Text : String;
+                   Result : out Written);
+
+   --  Where the text is.
+   --
+   --  @param Item The holder.
+   --  @return The full path, or "" when it holds nothing.
+   function Path (Item : Held_Text) return String;
+
+private
+
+   type Held_Text is new Ada.Finalization.Limited_Controlled with record
+      --  The directory this made, which is what has to be removed: the file
+      --  inside it is ours and so is the directory, and removing only the file
+      --  would leave one empty directory per command in the host's temporary
+      --  space.
+      Room : Ada.Strings.Unbounded.Unbounded_String;
+      File : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
+
+   overriding procedure Finalize (Item : in out Held_Text);
 
 end Adash.Filesystem;

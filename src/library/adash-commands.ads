@@ -86,6 +86,8 @@ package Adash.Commands is
       Command_Run,
       Command_Run_Into,
       Command_Run_From,
+      Command_Run_From_Text,
+      Command_Run_With,
       Command_Run_Append,
       Command_Run_New,
       Command_Run_Errors_Into,

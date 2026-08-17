@@ -39,9 +39,22 @@ declaration written before a command is still in scope after it.
 through `Status`. `Output_Of` runs one and answers with what it wrote to
 standard output.
 
-**Arguments arrive as they were written.** There is no word-splitting, no
-globbing and no re-scanning of what a `String` holds, so `run ("echo", "one
-two")` passes one argument with a space in it. What a program is given is what
+**A child is given the session's environment**, which is what `set` and `unset`
+change and what `env` lists. `run_with ("NAME=VALUE", …)` puts one variable over
+the top of that for one program, and takes nothing away — a program run with
+`LC_ALL=C` still needs its PATH.
+
+**A program's input** comes from the shell's own, from a file (`run_from`), or
+from text the script computed (`run_from_text`). The last of those is what
+`printf %s "$x" | tool` says elsewhere; the text goes through a file of its own
+rather than a pipe, because a pipe holds one bufferful and a shell writing more
+than that into one waits for a program that is waiting for the shell.
+
+**Arguments arrive as they were written.** There is no word-splitting, no glob
+expansion and no re-scanning of what a `String` holds, so `run ("echo", "one
+two")` passes one argument with a space in it. A script that wants to know
+whether a name matches a pattern asks `Matches`, which reads nothing and
+rewrites nothing. What a program is given is what
 the program's own quoting rules would have had to be written for elsewhere.
 
 **Standard error is not collected.** It belongs to the user: a program
