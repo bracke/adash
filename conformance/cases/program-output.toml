@@ -1269,3 +1269,39 @@ output = [
   "TRUE",
 ]
 diagnostics = []
+
+[[case]]
+id = "files.everything-a-program-wrote-can-be-read-back-in-order"
+requirement = """
+The reading half of what `run_all_into` does for a file. A script could send
+both streams to one file and could not read both back as one answer, so
+anything that wanted to look at what a program did -- rather than store it --
+had to write a file and read it again.
+
+One pipe with a copy of its write end, for the same reason the file gets a copy
+of its descriptor: two pipes would be two orders, and the order is the point.
+
+Not a replacement for the other two and not the default. A script comparing a
+program's output against something does not want a warning in the middle of it,
+which is why `Output_Of` still collects one stream and leaves the other alone --
+asserted here beside it, so the difference is visible in one place.
+"""
+script = """
+put_line ("[" & All_Of ("{emit}", "said", "--error=complained", "after") & "]");
+put_line ("[" & Output_Of ("{emit}", "said", "--error=complained", "after") & "]");
+quit (0);"""
+exit_status = 0
+output = [
+  "[said",
+  "complained",
+  "after]",
+  "[said",
+  "after]",
+]
+
+#  Where the complaint goes when nobody collects it: to the shell's own error
+#  stream, which is exactly what `Output_Of` leaving the other stream alone
+#  means, and what the case above it is for.
+diagnostics = [
+  "complained",
+]

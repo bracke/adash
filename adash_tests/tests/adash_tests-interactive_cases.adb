@@ -1700,6 +1700,28 @@ package body Adash_Tests.Interactive_Cases is
               "the first line did not run: ["
               & Ada.Strings.Unbounded.To_String (Session.Seen) & "]");
 
+      --  The prompt back before anything else is typed.
+      --
+      --  Waiting for the answer is not waiting for the shell: the answer is
+      --  written while the submission is still running, and on a host where
+      --  the shell watches its own terminal for Ctrl-C it is still holding
+      --  that terminal raw and reading it when the answer appears. Typing into
+      --  that gap is a race, and it is the race that made this case fail one
+      --  run in a few on that host while the transcript showed the shell had
+      --  done everything it was asked.
+      --  Drained for a moment rather than waited for a marker: the editor
+      --  redraws the prompt on every keystroke, so the prompt is not something
+      --  a case can count, and what is wanted here is only that the shell has
+      --  finished with the line before another one is typed.
+      for Attempt in 1 .. 20 loop
+         declare
+            Ignored : constant Boolean := Drained (Session);
+            pragma Unreferenced (Ignored);
+         begin
+            delay 0.05;
+         end;
+      end loop;
+
       --  Up, as a terminal sends it, and then a return: the recalled line runs
       --  again and the answer arrives a second time.
       Type_Into
@@ -1707,7 +1729,7 @@ package body Adash_Tests.Interactive_Cases is
          String'(1 => Character'Val (27)) & "[A"
          & String'(1 => Character'Val (13)));
 
-      for Attempt in 1 .. 200 loop
+      for Attempt in 1 .. 600 loop
          exit when Times_Seen (Session, Answer) >= 2;
 
          declare

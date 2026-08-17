@@ -4,7 +4,6 @@ with Ada.Strings.Unbounded;
 with Hostkit.Spawn;
 
 with Adash.Errors;
-with Adash.Execution.Streams;
 with Adash.Filesystem;
 with Adash.Execution.Cancellation;
 with Adash.Execution.Commands;
@@ -229,12 +228,26 @@ package Adash.Execution.Pipelines is
    --         the session until the host ended it. Refused whole rather than
    --         truncated, because a script handed the first however-many bytes
    --         of an answer has no way to know that is what it got.
-   --  @param From Which of the last stage's streams to collect. Role_Output is
-   --         what a capture usually means; Role_Error collects what the
-   --         program complained about instead, and leaves its output where it
-   --         was going. Collecting both into one value would answer a question
-   --         nobody asked: what a program says and what it complains about are
-   --         two streams because they are two things.
+   --  Which of a program's streams a capture collects.
+   type Captured_Streams is
+     (
+      --  What the program said. What a capture usually means.
+      Only_Output,
+
+      --  What it complained about, leaving its output where it was going.
+      Only_Errors,
+
+      --  Both, through one pipe, in the order the program wrote them.
+      --
+      --  Not the default and not a replacement for the other two: what a
+      --  program says and what it complains about are two streams because they
+      --  are two things, and a script that compares output against something
+      --  does not want a warning in the middle of it. What this is for is the
+      --  other case -- a record of what happened, in order, which is what a
+      --  build log is.
+      Everything);
+
+   --  @param From Which of the last stage's streams to collect.
    function Capture
      (Item    : in out Plan;
       Cancel  : access Adash.Execution.Cancellation.Token;
@@ -242,8 +255,7 @@ package Adash.Execution.Pipelines is
       Final   : out Outcome;
       Error   : out Adash.Errors.Error_Info;
       Limit   : Natural := Adash.Filesystem.Default_Limit;
-      From    : Adash.Execution.Streams.Stream_Role :=
-        Adash.Execution.Streams.Role_Output) return Boolean;
+      From    : Captured_Streams := Only_Output) return Boolean;
 
    function Run
      (Item   : in out Plan;

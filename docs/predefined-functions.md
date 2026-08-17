@@ -74,6 +74,7 @@ two apart. The shape every filter has is therefore
 |---|---|---|
 | `Output_Of (Program, Argument_1, Argument_2, Argument_3)` | `String` | runs a program and answers with what it wrote to standard output |
 | `Error_Of (Program : String; ...) return String` | what a program complained about |
+| `All_Of (Program : String; ...) return String` | everything it wrote, in the order it wrote it |
 | `Status` | `Integer` | what the last program or command reported |
 
 `Output_Of` takes a program and **up to three arguments** — five in total is
@@ -142,6 +143,12 @@ is dropped with it. A program on Windows writes `\r\n`, and without that a
 capture of two lines carried an invisible byte that made every comparison
 against text the script wrote itself fail on that host alone. A lone carriage
 return is left where it is — it is not a line ending anywhere this runs.
+
+`All_Of` is the reading half of `run_all_into`: one pipe with a copy of its
+write end, so what a program said and what it complained about stay in the order
+it wrote them. It is not the default and not a replacement for the other two — a
+script comparing a program's output against something does not want a warning in
+the middle of it.
 
 The same limit bounds `Error_Of` — a program that complains without stopping is
 stopped the same way — and bounds `Output_Of`: a program that writes more than it is stopped

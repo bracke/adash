@@ -5,6 +5,7 @@ with Hostkit.Signals;
 
 with Adash.Execution.External;
 with Adash.Execution.Signals;
+with Adash.Execution.Streams;
 
 with Hostkit.Terminal_Control;
 use type Adash.Execution.External.Observation;
@@ -464,8 +465,7 @@ package body Adash.Execution.Pipelines is
       Final   : out Outcome;
       Error   : out Adash.Errors.Error_Info;
       Limit   : Natural := Adash.Filesystem.Default_Limit;
-      From    : Adash.Execution.Streams.Stream_Role :=
-        Adash.Execution.Streams.Role_Output) return Boolean
+      From    : Captured_Streams := Only_Output) return Boolean
    is
       Count   : constant Natural := Natural (Item.Stages.Length);
       Ends    : D.Pipe_Ends;
@@ -509,14 +509,21 @@ package body Adash.Execution.Pipelines is
       --  pipeline goes through.
       declare
          Last : C.Invocation := Item.Stages.Element (Count);
-
-         use type Adash.Execution.Streams.Stream_Role;
       begin
-         if From = Adash.Execution.Streams.Role_Error then
-            Last.Error_Output := S.Owned (Ends.Write_End);
-         else
-            Last.Output := S.Owned (Ends.Write_End);
-         end if;
+         case From is
+            when Only_Output =>
+               Last.Output := S.Owned (Ends.Write_End);
+
+            when Only_Errors =>
+               Last.Error_Output := S.Owned (Ends.Write_End);
+
+            when Everything =>
+               --  One pipe and a copy of its write end, for the reason
+               --  run_all_into gives a file a copy of its descriptor: two
+               --  pipes would be two orders, and the order is the point.
+               Last.Output := S.Owned (Ends.Write_End);
+               Last.Error_Output := S.Owned (D.Duplicate (Ends.Write_End));
+         end case;
 
          Item.Stages.Replace_Element (Count, Last);
       end;

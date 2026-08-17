@@ -418,6 +418,8 @@ package body Adash.Messages is
             return "predefined.output_of.doc";
          when Msg_Predefined_Error_Of_Doc    =>
             return "predefined.error_of.doc";
+         when Msg_Predefined_All_Of_Doc      =>
+            return "predefined.all_of.doc";
          when Msg_Predefined_Read_Line_Doc  =>
             return "predefined.read_line.doc";
          when Msg_Predefined_Input_Ended_Doc =>
@@ -462,6 +464,8 @@ package body Adash.Messages is
             return "predefined.output_of.hint";
          when Msg_Predefined_Error_Of_Hint   =>
             return "predefined.error_of.hint";
+         when Msg_Predefined_All_Of_Hint     =>
+            return "predefined.all_of.hint";
          when Msg_Predefined_Read_Line_Hint =>
             return "predefined.read_line.hint";
          when Msg_Predefined_Input_Ended_Hint =>
@@ -820,6 +824,7 @@ package body Adash.Messages is
             | Msg_Predefined_Status_Doc | Msg_Predefined_Status_Hint
             | Msg_Predefined_Output_Of_Doc | Msg_Predefined_Output_Of_Hint
             | Msg_Predefined_Error_Of_Doc | Msg_Predefined_Error_Of_Hint
+            | Msg_Predefined_All_Of_Doc | Msg_Predefined_All_Of_Hint
             | Msg_Predefined_Read_Line_Doc | Msg_Predefined_Read_Line_Hint
             | Msg_Predefined_Input_Ended_Doc
             | Msg_Predefined_Input_Ended_Hint

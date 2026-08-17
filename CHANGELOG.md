@@ -1832,6 +1832,11 @@ what changed.
   is not there, for the same reason; `Exists` and `Is_Directory` tell them
   apart.
 
+- **`All_Of`.** The reading half of `run_all_into`: everything a program wrote,
+  in the order it wrote it. A script could send both streams to one file and
+  could not read both back as one answer, so anything that wanted to look at
+  what a program did rather than store it had to write a file and read it again.
+
 - **`run_all_into`, `run_all_append` and `run_all_new`.** Each stream could be
   placed on its own and nothing joined them, so a build log -- one file with
   what a program said and what it complained about in the order it wrote them --

@@ -185,7 +185,8 @@ package body Adash.Engine is
             end;
 
          when Adash.Predefined.Entity_Output_Of
-            | Adash.Predefined.Entity_Error_Of =>
+            | Adash.Predefined.Entity_Error_Of
+            | Adash.Predefined.Entity_All_Of =>
             --  The one predefined entity that runs something. What it wrote to
             --  standard output comes back as the value; what it wrote to
             --  standard error is not collected and reaches the user, because a
@@ -220,9 +221,13 @@ package body Adash.Engine is
                if not Adash.Execution.Pipelines.Capture
                         (Line, Sink.Shell.Interrupt, Written, Final, Failure,
                          From =>
-                           (if Which = Adash.Predefined.Entity_Error_Of
-                            then Adash.Execution.Streams.Role_Error
-                            else Adash.Execution.Streams.Role_Output),
+                           (case Which is
+                               when Adash.Predefined.Entity_Error_Of =>
+                                 Adash.Execution.Pipelines.Only_Errors,
+                               when Adash.Predefined.Entity_All_Of =>
+                                 Adash.Execution.Pipelines.Everything,
+                               when others =>
+                                 Adash.Execution.Pipelines.Only_Output),
                          Limit =>
                            Natural
                              (Adash.Configuration.Integer_Value

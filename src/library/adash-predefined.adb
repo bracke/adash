@@ -182,6 +182,21 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Error_Of_Hint,
        Status => Available),
 
+      --  Everything a program wrote, in the order it wrote it. The reading
+      --  half of what run_all_into does for a file.
+      (Id => Entity_All_Of, Name => Named ("All_Of"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 4,
+       Parameters => [1 => (Named ("Program"), Types.Type_String),
+                      2 => (Named ("Argument_1"), Types.Type_String),
+                      3 => (Named ("Argument_2"), Types.Type_String),
+                      4 => (Named ("Argument_3"), Types.Type_String)],
+       Optional_Parameters => 3,
+       Has_Side_Effects => True,
+       Documentation => Adash.Messages.Msg_Predefined_All_Of_Doc,
+       Description => Adash.Messages.Msg_Predefined_All_Of_Hint,
+       Status => Available),
+
       (Id => Entity_Read_Line, Name => Named ("Read_Line"),
        Sort => Sort_Function,
        Of_Type => Types.Type_String, Parameter_Count => 0,
