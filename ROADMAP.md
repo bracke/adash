@@ -3069,6 +3069,27 @@ it". A file that is not UTF-8 reads as nothing as well -- a String here is
 text, and handing over bytes that are not would put something in a variable no
 operation on a String is defined for.
 
+**`make_directory` is what `write_file` was missing next.** Writing into a
+directory that is not there is refused, and nothing could make one -- so a shell
+that could save a file could not decide where to put it, and reached for a
+program to make the place. It makes every missing level of the path, because a
+script that has worked out `logs/2026/august` means all of it; a directory that
+is already there is not a failure, since what was asked is that it be there; and
+it never reports a *half*-done write, because a write can stop in the middle and
+a directory cannot.
+
+Which took two corrections to get right, both from the same cause. A name too
+long for the host is refused on one host by one exception, on another by a
+different one, and on a third by no exception at all -- `Create_Path` returns
+quietly having made nothing. Sorting the answer by which exception arrived would
+have reported the compiler's mapping rather than what happened, and what
+happened is that the host would not make it.
+
+**`Current_Directory` is where the session is**, which `cd` moved and which a
+script otherwise asked `pwd` for -- a process start for an answer already in
+hand, and one that only ran where that program exists. With it and `Read_File`,
+the four examples that were skipped on Windows run everywhere.
+
 **Configuration is still per-user.** Only history gained a per-session notion.
 
 **A subprogram declared on one line is callable on the next.** The session keeps
@@ -3165,6 +3186,117 @@ are types, packages, generics, task types, and protected objects with the state
 they ended with. What is not carried is a task object or an identity of one,
 for the reason given below: a task does not outlive its master, and a
 submission is one.
+
+
+### What a program writes, and where it goes
+
+**A shell that could put a program's output anywhere and its complaints
+nowhere.** `run_into` and its two neighbours placed the output stream and
+nothing placed the error stream, so a script could not keep a program's noise
+out of its own, could not save it, and could not read it in order to act on it.
+`Error_Of` is `Output_Of` for that stream and `run_errors_into` is `run_into`
+for it, each in the three forms the output side has -- write it, add to it,
+refuse a file that is there.
+
+**`run_all_into` is not two files.** A build log is one file with what a program
+said and what it complained about in the order it wrote them, and pointing both
+streams at one name gives two open files with two positions, each writing over
+the other. The error stream follows the output stream into the *same* open file,
+by a copy of the descriptor. `All_Of` reads the same thing back as a value.
+
+**A pipeline could only run.** Everything a single program gained stopped where
+a script used more than one: a pipeline had nowhere to send its output, nowhere
+to read its input, no way to be left running, and no way to be read back. It has
+all of those now, and getting there changed the shape of the family.
+
+Saying where a stream goes and running the pipeline were one command, which
+meant a pipeline could be given a file to read or a file to write and never
+both, and `pipe_start` -- which takes no file -- could not be combined with any
+of them. So "run this in the background with its output in a log", the
+commonest reason anybody backgrounds anything, could not be said. Saying and
+running are two things, so they are two commands: `pipe_from` and the nine
+placement forms say, `pipe_run` and `pipe_start` run. Nine more `start_*` names
+would have been the other road; nothing is released, so the language could be
+made coherent instead of accreted.
+
+Input attaches to the first stage and output to the last, because every other
+stage is joined to its neighbour and attaching to one of those would cut the
+pipeline in half. Running is what empties a pipeline, so a script wanting two
+runs builds it twice -- which the example teaches, having been written wrong
+first.
+
+**`Last_Job` is what `start` was already printing.** A script that started
+something could not learn its number: the shell said it on the way past, which
+is where a person reads it and nowhere a script can, and the numbers count every
+job the session has run including the foreground ones nobody names. Guessing was
+the alternative, and the first draft of the example guessed.
+
+### What a reader holds, and what it refuses
+
+**A shell holds what it reads in one String.** A script that named a disk image
+by mistake, or captured a program that never stopped writing, grew the session
+until the host ended it -- and a session that dies takes everything in it, while
+a read that is refused takes nothing. Every reader is bounded now: `Read_File`,
+`Output_Of` and its two companions, the shell's own `Read_Line`, and the files
+the shell reads for itself -- a script, a module, the configuration, the history
+log.
+
+The limit is `read.limit`, in mebibytes, because how much of a file is too much
+is a judgement about the work rather than a fact about shells. The shell's own
+reads take the default rather than the setting, since three of the four are read
+before there is a session whose settings could be consulted.
+
+What each does at the limit differs, and the difference is the point. A file and
+a capture are refused **whole**: half a file is not a shorter file, and a script
+handed the first megabyte of an answer has no way to know that is what it got. A
+line of input arrives **in pieces**, because input that has been read cannot be
+asked for again and dropping it would lose it. A program past the limit is
+stopped by closing the pipe rather than by a signal, which is the mechanism that
+works on the host that has no signals.
+
+**Three readers disagreed about what a line ends with.** A program on Windows
+ends a line with a carriage return and a line feed, and a file written there
+holds the same. `Read_Line` dropped the carriage return, `Output_Of` did not,
+and `Read_File` did not -- so a script comparing what it read against text it
+wrote itself failed on that host and nowhere else, for a byte nobody can see.
+All three answer in text now, and a lone carriage return is left where it is,
+because it is not a line ending anywhere this runs. Nothing puts one back on the
+way out: a shell that added them would make `write_file (Read_File (P), Q)`
+change the file it copied.
+
+### When there is nowhere to write
+
+**A shell printed a stack trace where it should have said one sentence.** A
+reader that takes what it wants and leaves closes the pipe underneath, and the
+next write fails: on POSIX the shell has refused the signal that would kill it,
+so the write raises, and Windows has no such signal and it raises there too.
+Unhandled it reached the last-chance handler -- fifteen lines of addresses, on
+the standard error something else may be reading.
+
+The two failures are not one failure. A write inside a submission is the
+*script's*: it is reported as a stream failure the program can see, and the
+shell exits as it does for any script that failed. A write the shell makes for
+itself has nobody to report to, so it ends the session with **74**, the
+convention for an input/output error, and says nothing at all -- the place a
+complaint would go is the place that just failed.
+
+Ending is `Hostkit.Process.End_Now` rather than a return, and that is not
+fussiness: returning runs finalization, finalization closes the standard files,
+closing them flushes them, the flush fails for the same reason, and an exception
+in a finalizer is `PROGRAM_ERROR` and a stack trace. The first version of the
+fix reported the failure properly and then traced anyway; the test written
+alongside it is what caught that.
+
+**This is what a day of unexplained Windows behaviour turned out to be.** A
+conformance case refused a capture there and reported no diagnostic, and five
+rounds of narrowing ruled out a shell running a shell, a child filling a pipe,
+pipes rather than files, a stream left unset, and paths written as literals.
+What was left was the probe's own missing line -- the handles it gave the child
+were never marked to travel, which the conformance runner had learned and
+written down a year of this project ago -- and behind that, the traceback: the
+"blank line" ahead of the diagnostic was the carriage return and line feed
+ending the child's unfinished line, and everything after it was a stack trace
+nobody could account for.
 
 
 ## What Adash cannot do yet
