@@ -1161,6 +1161,17 @@ package body Adash_Tests.Interactive_Cases is
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
 
+   --  Whether the shell on the other end has already gone.
+   --
+   --  Asked only when something has gone wrong, and asked without waiting: a
+   --  pty refuses a write when nothing holds the far end, so "could not type"
+   --  and "the shell left" are the same event seen from two sides, and which
+   --  one it was is the first thing a reader of the failure wants to know.
+   function Gone (Item : in out Terminal_Session) return Boolean;
+
+   --  What was seen so far, with the escape sequences taken out.
+   function Plainly (Item : Terminal_Session) return String;
+
    --  Type Ctrl-C and say whether the terminal took it.
    function Try_Interrupt (Item : in out Terminal_Session) return Boolean;
 
@@ -1298,6 +1309,22 @@ package body Adash_Tests.Interactive_Cases is
              = Hostkit.Descriptors.Transfer_Ok;
    end Try_Interrupt;
 
+   function Gone (Item : in out Terminal_Session) return Boolean is
+      Result : Hostkit.Spawn.Status;
+
+      use type Hostkit.Spawn.Wait_State;
+   begin
+      return Hostkit.Spawn.Wait (Item.Child, Hostkit.Spawn.Wait_Poll, Result)
+             and then Result.State /= Hostkit.Spawn.Wait_Running;
+   exception
+      --  A handle already reaped, or one this host will not answer about. The
+      --  question is only ever asked to describe a failure, so an unanswerable
+      --  one is best reported as "cannot say" rather than replacing the
+      --  failure under description with a different exception.
+      when others =>
+         return False;
+   end Gone;
+
    procedure Type_Interrupt (Item : in out Terminal_Session) is
    begin
       Type_Into (Item, String'(1 => Character'Val (3)));
@@ -1322,8 +1349,22 @@ package body Adash_Tests.Interactive_Cases is
          --  saw the whole of.
          Whole : constant Boolean := Ada.Streams."=" (Last, Data'Last);
       begin
-         Assert (Sent = Hostkit.Descriptors.Transfer_Ok and then Whole,
-                 "could not type into the terminal");
+         if Sent /= Hostkit.Descriptors.Transfer_Ok or else not Whole then
+            --  The transcript and the shell's state, not just the refusal.
+            --  A write to a pty fails for one interesting reason -- nothing
+            --  holds the far end -- and a message that says only "could not
+            --  type" sends a reader looking at the typing, which is never
+            --  where the answer is. What the shell had already said before it
+            --  went is what tells them why it went.
+            Assert (False,
+                    "could not type into the terminal (the shell had "
+                    & (if Gone (Item) then "already gone" else "not gone")
+                    & ", "
+                    & Ada.Streams.Stream_Element_Offset'Image (Last)
+                    & " of"
+                    & Ada.Streams.Stream_Element_Offset'Image (Data'Last)
+                    & " bytes taken): [" & Plainly (Item) & "]");
+         end if;
       end;
    end Type_Into;
 
@@ -1403,8 +1444,6 @@ package body Adash_Tests.Interactive_Cases is
    --  that looked for them together found nothing and reported that the
    --  interrupt had not worked -- which it had. What a reader sees is the text
    --  without the control, so that is what an assertion should ask about.
-   function Plainly (Item : Terminal_Session) return String;
-
    function Plainly (Item : Terminal_Session) return String is
       Whole  : constant String := Ada.Strings.Unbounded.To_String (Item.Seen);
       Result : String (1 .. Whole'Length);
@@ -3109,6 +3148,89 @@ package body Adash_Tests.Interactive_Cases is
          end if;
 
          Ada.Directories.Delete_File (Busy);
+      end;
+
+      --  And the question the interrupted-script case cannot ask: how long a
+      --  shell running that script is still there.
+      --
+      --  The case types an interrupt after the script's first line appears,
+      --  and on one host the terminal refused the byte -- which is a shell
+      --  that has already gone. A refusal says the shell went; it does not say
+      --  when, or what it had said by then, and those are the two facts that
+      --  tell "the loop ended on its own" apart from "something ended it".
+      --
+      --  So: the same script the case writes, waited for in the same way, then
+      --  asked every twentieth of a second whether the child is still running,
+      --  with nothing typed at all. A loop with no exit should still be there
+      --  when the asking stops.
+      declare
+         Tidy : constant String :=
+           Ada.Directories.Compose
+             (Ada.Directories.Current_Directory, "adash-test-lasted.adash");
+
+         Third : Terminal_Session;
+         Over  : Boolean;
+
+         Seen  : Boolean := False;
+         Left  : Natural := 0;
+      begin
+         Adash.Filesystem.Write
+           (Tidy,
+            "procedure Tidy is begin put_line (To_Upper (""tidied"")); "
+            & "end Tidy;" & Ada.Characters.Latin_1.LF
+            & "on_exit (""Tidy"");" & Ada.Characters.Latin_1.LF
+            & "put_line (To_Upper (""running""));" & Ada.Characters.Latin_1.LF
+            & "loop null; end loop;" & Ada.Characters.Latin_1.LF,
+            Written);
+
+         if Written = Adash.Filesystem.Write_Ok
+           and then Start_On_A_Terminal (Third, Tidy)
+         then
+            for Attempt in 1 .. 200 loop
+               declare
+                  Ignored : constant Boolean := Drained (Third);
+                  pragma Unreferenced (Ignored);
+               begin
+                  Seen := Ada.Strings.Fixed.Index
+                            (Plainly (Third), "RUNNING") > 0;
+               end;
+
+               exit when Seen;
+               delay 0.05;
+            end loop;
+
+            Ada.Text_IO.Put_Line
+              ("lasting-script-on-a-terminal: said-running="
+               & Boolean'Image (Seen));
+
+            --  Kept drained while it is asked about, so that a shell stopped
+            --  by a full terminal is not recorded as a shell that stayed.
+            for Attempt in 1 .. 80 loop
+               declare
+                  Ignored : constant Boolean := Drained (Third);
+                  pragma Unreferenced (Ignored);
+               begin
+                  if Gone (Third) then
+                     Left := Attempt;
+                     exit;
+                  end if;
+               end;
+
+               delay 0.05;
+            end loop;
+
+            Ada.Text_IO.Put_Line
+              ("lasting-script-on-a-terminal: "
+               & (if Left = 0 then "still running after four seconds"
+                  else "gone after"
+                       & Natural'Image (Left)
+                       & " twentieths of a second")
+               & ", transcript=[" & Plainly (Third) & "]");
+
+            Close_Without_Typing (Third, Over);
+         end if;
+
+         Ada.Directories.Delete_File (Tidy);
       end;
 
       Ada.Directories.Delete_File (Script);
