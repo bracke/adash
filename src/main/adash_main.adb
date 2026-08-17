@@ -3,6 +3,8 @@ with Ada.IO_Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
 
+with Hostkit.Process;
+
 with Adash.Commands;
 with Adash.Configuration;
 with Adash.Configuration.Files;
@@ -484,5 +486,11 @@ exception
       --  line the shell writes for itself -- a listing, a prompt, a
       --  diagnostic, this file's own usage text -- and there is no reporting
       --  it, only ending with a status that says what happened.
-      CLI.Set_Exit_Status (CLI.Exit_Status (Exit_Cannot_Write));
+      --
+      --  Ended here rather than returned, because returning runs finalization
+      --  and finalization closes the standard files: it flushes them, the
+      --  flush fails for the same reason, and an exception in a finalizer is
+      --  PROGRAM_ERROR and a stack trace -- printed on the stream that has
+      --  been refusing everything, which is the whole thing this is avoiding.
+      Hostkit.Process.End_Now (Exit_Cannot_Write);
 end Adash_Main;

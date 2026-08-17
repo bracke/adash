@@ -1914,6 +1914,14 @@ what changed.
   differs, since a signal takes it on two of the three before it can say
   anything.
 
+  Ending is `Hostkit.Process.End_Now` rather than a return, and that is not
+  fussiness: returning runs finalization, finalization closes the standard
+  files, closing them flushes them, the flush fails for the same reason, and an
+  exception in a finalizer is `PROGRAM_ERROR` and a stack trace -- printed on
+  the stream that has been refusing everything. The first version of this fix
+  reported the failure properly and then traced anyway, and the new test is
+  what caught it.
+
 - **Writing to a reader that has gone no longer prints a traceback.** On
   Windows `put_line` into a closed pipe raises where POSIX raises a signal the
   shell refuses, and unhandled it reached the last-chance handler: fifteen lines
