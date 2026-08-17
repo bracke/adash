@@ -3315,9 +3315,30 @@ without `.` and `..`, so a loop sees a place that is not changing under it. Two
 functions rather than one that answers with a list, because a String and an
 Integer are what this language's values are.
 
-There is still no pattern expansion and there will not be: `"*.c"` is a string,
-and a listing with `Ends_With` beside it is how a script picks what it wants.
-That is the same rule that keeps arguments from being re-scanned.
+There is still no pattern *expansion* and there will not be: `"*.c"` is a
+string, and nothing rewrites an argument list from the filesystem -- the same
+rule that keeps arguments from being re-scanned. What was missing beside it was
+the question: a script could not ask whether a name matched a pattern either,
+so "every file ending in .log" was `Ends_With` and anything less regular was
+written by hand. `Matches (Whole, Pattern)` asks it -- `*`, `?`, `[abc]`,
+`[a-z]`, `[!abc]` -- reading nothing and expanding nothing, in the script where
+a reader can see the rule.
+
+**Two things a shell script says constantly had no spelling here.** `printf
+'%s' "$x" | tool` hands a program text the script computed, and this language
+had no way to do it: a pipeline reads from a program and a redirection reads
+from a file, and a String was neither. `run_from_text` does, through a private
+file rather than a pipe -- a pipe holds one bufferful, and a shell writing more
+than that into one waits for a program that is waiting for the shell.
+`LC_ALL=C sort` sets one variable for one program, which cost a `set`, a run
+and an `unset` that had to be right on the failure path; `run_with` does it in
+one line and takes nothing away.
+
+Building the second of those turned up a promise the shell had not been
+keeping: `set` is documented as setting "a variable children will inherit", and
+no child had ever inherited one. The session kept its own block -- `env` listed
+it, `Env_Value` answered from it -- and every program the shell started was
+handed this process's environment instead.
 
 **Nothing could unmake what a script made.** Removal was left to programs on the
 grounds that unmaking things is what programs are for, and that stopped being
