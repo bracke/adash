@@ -17,6 +17,9 @@ package body Adash_Tests.Repository is
    Key_Missing_File         : constant String := "tooling.check.missing_file";
    Key_Missing_Directory    : constant String := "tooling.check.missing_directory";
    Key_Version_Mismatch     : constant String := "tooling.check.version_mismatch";
+   Key_Version_Unreadable   : constant String := "tooling.check.version_unreadable";
+   Key_Inventory_Unreadable : constant String :=
+     "tooling.check.inventory_unreadable";
    Key_Catalog_Missing_Key  : constant String := "tooling.check.catalog_missing_key";
    Key_Catalog_Unreadable   : constant String := "tooling.check.catalog_unreadable";
    Key_Escape_Sequence      : constant String := "tooling.check.escape_sequence";
@@ -226,6 +229,13 @@ package body Adash_Tests.Repository is
       Require ("LICENSE");
 
       Require ("resources/messages/catalog.txt");
+
+      --  The bounds every benchmark figure is checked against. Required
+      --  because `adash_bench` refuses to measure without them, and CI runs it
+      --  on every push: a file that went missing would turn a check into a
+      --  failing step whose message is about a file rather than about
+      --  performance.
+      Require ("benchmarks/ceilings.toml");
    end Check_Required_Files;
 
    --------------------------------
@@ -362,13 +372,37 @@ package body Adash_Tests.Repository is
          return;
       end if;
 
+      --  The key carries its `= `, which is what this reader expects: it takes
+      --  the text after what it was given and requires a quote there, and does
+      --  not skip an assignment nobody told it about.
+      --
+      --  Asked for as `"version"` this check read nothing out of either file,
+      --  compared the two nothings, and passed -- for every version this
+      --  repository has ever had, including the ones where the two files were
+      --  made to disagree on purpose to see whether it worked. The release
+      --  guide names it as one of the things that cannot go wrong.
       declare
          From_Manifest : constant String :=
-           Project_Tools.TOML.String_Value_After (Manifest, "version", Manifest'First);
+           Project_Tools.TOML.String_Value_After
+             (Manifest, "version = ", Manifest'First);
          From_Inventory : constant String :=
-           Project_Tools.TOML.String_Value_After (Inventory, "version", Inventory'First);
+           Project_Tools.TOML.String_Value_After
+             (Inventory, "version = ", Inventory'First);
       begin
-         if From_Manifest /= From_Inventory then
+         --  Reported rather than skipped. A comparison of two values that
+         --  could not be read is the shape this check failed in, so an
+         --  unreadable one is a finding of its own now: `version="0.1.0"`
+         --  written without the spaces this reader wants would otherwise take
+         --  the check back to agreeing about nothing.
+         if From_Manifest = "" then
+            Add (Into, Key_Version_Unreadable,
+                 [1 => Msg.Named ("path", "alire.toml")]);
+
+         elsif From_Inventory = "" then
+            Add (Into, Key_Version_Unreadable,
+                 [1 => Msg.Named ("path", "repository.toml")]);
+
+         elsif From_Manifest /= From_Inventory then
             Add (Into, Key_Version_Mismatch,
                  [Msg.Named ("first", "alire.toml"),
                   Msg.Named ("first_value", From_Manifest),
@@ -402,13 +436,23 @@ package body Adash_Tests.Repository is
                exit when Position = 0;
 
                declare
+                  --  With its `= `, for the reason Check_Version_Consistency
+                  --  gives. Read as `"spec"` this said "" for every entry in
+                  --  the file and the guard below turned each one into a check
+                  --  that passed, so this direction -- everything the
+                  --  inventory names exists -- had never run.
                   Value : constant String :=
-                    Project_Tools.TOML.String_Value_After (Inventory, "spec", Position);
+                    Project_Tools.TOML.String_Value_After
+                      (Inventory, "spec = ", Position);
                begin
                   Into.Checks_Run := Into.Checks_Run + 1;
 
-                  if Value /= ""
-                    and then not Project_Tools.Files.File_Exists (Join (Root, Value))
+                  if Value = "" then
+                     Add (Into, Key_Inventory_Unreadable,
+                          [1 => Msg.Named
+                                  ("position", Natural'Image (Position))]);
+
+                  elsif not Project_Tools.Files.File_Exists (Join (Root, Value))
                   then
                      Add (Into, Key_Inventory_Missing,
                           [1 => Msg.Named ("path", Value)]);

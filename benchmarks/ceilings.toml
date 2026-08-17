@@ -1,0 +1,63 @@
+# What a measured operation may not exceed, in microseconds.
+#
+# `adash_bench` reported and nothing read it. A number in benchmarks/README.md
+# is refreshed by hand and compared by a person who thought to look, which
+# means a regression is found when somebody happens to be looking at
+# performance -- and the one regression this project has had was found that
+# way, weeks after it landed.
+#
+# So every figure the benchmark prints has a ceiling here, and a figure over
+# its ceiling fails the run. That is what lets CI run it.
+#
+# **These are deliberately an order of magnitude above what the operations
+# take.** A benchmark gate that fails on noise is a gate that gets disabled,
+# and the machines this runs on are not comparable: a shared CI runner under
+# an unknown load, a laptop on battery, three operating systems, two build
+# profiles. None of those differences is a defect, and a bound tight enough to
+# notice them would report them all as one.
+#
+# What a bound this loose can still catch is the thing worth catching: an
+# operation that became ten times slower because of what it now does -- a scan
+# added inside a loop, a cache that stopped being used, a file read per
+# keystroke. That is the shape of every performance defect this project has
+# actually had.
+#
+# A figure with no ceiling here fails the run as well. A new measurement
+# without a bound is a measurement no run can fail on, and adding one is the
+# moment to think about what it should be.
+#
+# Recorded against a development build (`-Og`), which is the slower of the two
+# profiles and therefore the one a ceiling has to accommodate.
+
+[ceiling]
+
+# The language pipeline, per typed line. Everything here is small, and the
+# floor of 100 is the clock's resolution rather than a claim about the work.
+utf8 = 100
+lex = 500
+parse = 600
+
+# Analysis is the largest figure in the pipeline and the one that has moved
+# before: it checks every declaration a submission carries, and the regression
+# that made this project measure at all was 87 of them where there had been a
+# few.
+analyse = 10000
+
+run = 200
+highlight = 500
+
+# The interactive frontend, per tab and per keystroke.
+complete = 1000
+
+# Completing a program name lists every directory on PATH and asks the host
+# whether the matching names can be run. What that costs is a fact about the
+# machine's PATH -- a CI runner carries a much longer one than a laptop -- so
+# this ceiling is looser than the rest on purpose.
+complete_program = 60000
+
+history = 100
+
+# Start-up, once per session. Nobody types while these run, but they are what
+# stands between pressing return on `adash` and seeing a prompt.
+config = 400
+session = 2500

@@ -172,3 +172,26 @@ jobs:
       - name: Check the repository invariants
         working-directory: Ada/adash/adash_tests
         run: ./bin/adash_check${{ matrix.suffix }}
+
+      # Benchmarks, and they can fail the job.
+      #
+      # For as long as this tool existed it only reported, and its numbers were
+      # refreshed by hand in benchmarks/README.md and compared by whoever
+      # thought to look -- which is how the one performance regression this
+      # project has had went unnoticed for weeks. Every figure has a ceiling in
+      # benchmarks/ceilings.toml now, and a figure over its ceiling exits
+      # non-zero.
+      #
+      # Runnable here because those ceilings are an order of magnitude above
+      # what the operations take. A shared runner under an unknown load is not
+      # comparable with a developer machine and the bounds do not pretend
+      # otherwise; what they still catch is an operation that became ten times
+      # slower because of what it now does, which is the shape of every
+      # performance defect this project has actually had.
+      #
+      # Fewer repetitions than the default, because a median of fifty separates
+      # that from noise as well as a median of two hundred does and this runs
+      # three times per push.
+      - name: Run the benchmarks against their ceilings
+        working-directory: Ada/adash/adash_tests
+        run: ./bin/adash_bench${{ matrix.suffix }} 50

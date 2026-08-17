@@ -1,6 +1,7 @@
 with Ada.Command_Line;
 with Ada.Real_Time;
 with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
 with Adash.Configuration;
@@ -21,7 +22,12 @@ with Adash.Persistence.History;
 with Adash.Source;
 with Adash.Messages;
 with Adash.Messages.Rendering;
+with Adash.Persistence;
 with Adash.Version;
+
+with Tomllib.Documents;
+with Tomllib.Errors;
+with Tomllib.Parsers;
 
 --  adash_bench: how long the things a session does most often take.
 --
@@ -51,17 +57,37 @@ with Adash.Version;
 --  reasoning every hard-coded string starts from, and the rule says otherwise
 --  for release tools and test runners as much as for the shell.
 --
+--  **Every figure has a ceiling, and a figure over it fails the run.** That is
+--  in benchmarks/ceilings.toml, which says why the bounds are an order of
+--  magnitude above what the operations take, and it is what lets CI run this
+--  at all: a report nobody reads catches nothing, and the one performance
+--  regression this project has had was found weeks late by a person who
+--  happened to look.
+--
 --  A catalog it cannot read leaves the invariant fallback form -- the key in
 --  bangs -- which still names every figure. That is a legible report about a
 --  broken catalog rather than a broken report.
 procedure Adash_Bench_Main is
 
    package CLI renames Ada.Command_Line;
+   package Doc renames Tomllib.Documents;
    package IO renames Ada.Text_IO;
    package RT renames Ada.Real_Time;
    package Render renames Adash.Messages.Rendering;
 
    Catalog : Render.Catalog;
+
+   --  Beside the catalog, and found the same way: from where this is run,
+   --  which the guide says is the adash_tests directory.
+   Ceilings_Path : constant String := "../benchmarks/ceilings.toml";
+
+   Ceilings : Doc.Document;
+
+   --  Set by any figure over its bound, or by a figure with no bound at all.
+   --  Collected rather than thrown: a run that stopped at the first one would
+   --  hide the others, and what a reader wants when something got slower is
+   --  the whole shape of it.
+   Over_A_Ceiling : Boolean := False;
 
    --  One rendered line, by key.
    function Say (Key : String) return String;
@@ -86,9 +112,37 @@ procedure Adash_Bench_Main is
    --  minutes. A benchmark nobody waits for is a benchmark nobody runs.
    Default_Repetitions : constant := 200;
 
+   --  A bound on what may be asked for, because the samples are an array on
+   --  the stack. `adash_bench 100000000` raised Storage_Error out of the
+   --  elaboration of a declaration, which is a report about this tool rather
+   --  than about the shell.
+   Most_Repetitions : constant := 100_000;
+
+   What_Was_Asked : constant String :=
+     (if CLI.Argument_Count >= 1 then CLI.Argument (1) else "");
+
+   --  Read without raising. `Positive'Value` on `--help` left a caller looking
+   --  at a Constraint_Error and a traceback through GNAT, which is the answer
+   --  to a different question than the one they asked.
+   function Asked_For (Text : String) return Integer;
+   function Asked_For (Text : String) return Integer is
+   begin
+      return Integer'Value (Text);
+   exception
+      when others =>
+         return -1;
+   end Asked_For;
+
+   Asked : constant Integer :=
+     (if What_Was_Asked = "" then Default_Repetitions
+      else Asked_For (What_Was_Asked));
+
+   Understood : constant Boolean := Asked in 1 .. Most_Repetitions;
+
+   --  Falls back so that the declarations below are well-formed whatever was
+   --  typed; a run that was not understood ends before it uses them.
    Repetitions : constant Positive :=
-     (if CLI.Argument_Count >= 1
-      then Positive'Value (CLI.Argument (1)) else Default_Repetitions);
+     (if Understood then Asked else Default_Repetitions);
 
    --  The line a session repeats. Short, because typed lines are short: a
    --  benchmark built on a thousand-line program would measure something
@@ -121,6 +175,40 @@ procedure Adash_Bench_Main is
 
       return RT.To_Duration (Samples ((Samples'Last + 1) / 2));
    end Median;
+
+   --  What this operation may not exceed, in microseconds.
+   --
+   --  @param What The measurement's name, as in the ceilings file.
+   --  @return The bound, or -1 when the file records none -- which is a
+   --          failure rather than a licence, since a figure nothing bounds is
+   --          a figure no run can fail on.
+   function Ceiling_For (What : String) return Long_Long_Integer;
+
+   function Ceiling_For (What : String) return Long_Long_Integer is
+      use type Doc.Node;
+      use type Doc.Value_Kind;
+
+      Table : constant Doc.Node :=
+        Doc.Value (Ceilings, Doc.Root (Ceilings), "ceiling");
+   begin
+      if Table = Doc.No_Node
+        or else Doc.Kind (Ceilings, Table) /= Doc.Table_Value
+      then
+         return -1;
+      end if;
+
+      declare
+         Bound : constant Doc.Node := Doc.Value (Ceilings, Table, What);
+      begin
+         if Bound = Doc.No_Node
+           or else Doc.Kind (Ceilings, Bound) /= Doc.Integer_Value
+         then
+            return -1;
+         end if;
+
+         return Doc.As_Integer (Ceilings, Bound);
+      end;
+   end Ceiling_For;
 
    procedure Report (What : String; Samples : in out Sample_Array);
 
@@ -155,6 +243,8 @@ procedure Adash_Bench_Main is
 
       Figure : String (1 .. 10);
       Best   : String (1 .. 10);
+
+      Bound : constant Long_Long_Integer := Ceiling_For (What);
    begin
       Ada.Strings.Fixed.Move
         (Whole & "." & Fraction, Figure,
@@ -165,6 +255,28 @@ procedure Adash_Bench_Main is
 
       IO.Put_Line ("  " & Ada.Strings.Fixed.Head (Named (What), 34)
                    & Figure & "  " & Best);
+
+      --  The median, not the fastest run: the fastest is what the machine
+      --  managed once, and a bound on it would be a bound on the machine.
+      if Bound < 0 then
+         Over_A_Ceiling := True;
+         IO.Put_Line
+           ("  " & Catalog.Text
+              ("tooling.bench.no_ceiling",
+               [Adash.Messages.Named ("what", Named (What)),
+                Adash.Messages.Named ("path", Ceilings_Path)]));
+
+      elsif Tenths / 10 > Bound then
+         Over_A_Ceiling := True;
+         IO.Put_Line
+           ("  " & Catalog.Text
+              ("tooling.bench.over_ceiling",
+               [Adash.Messages.Named ("what", Named (What)),
+                Adash.Messages.Named
+                  ("measured", Counted (Integer (Tenths / 10))),
+                Adash.Messages.Named
+                  ("ceiling", Counted (Integer (Bound)))]));
+      end if;
    end Report;
 
    Samples : Sample_Array;
@@ -175,6 +287,61 @@ begin
    --  from beside the binary: this tool is run from the adash_tests directory,
    --  which is the same place adash_check is run from and for the same reason.
    Catalog.Open (Catalog_Path => "../resources/messages/catalog.txt");
+
+   if not Understood then
+      IO.Put_Line
+        (Catalog.Text
+           ("tooling.bench.bad_count",
+            [Adash.Messages.Named ("given", What_Was_Asked)]));
+      IO.Put_Line
+        (Catalog.Text
+           ("tooling.bench.usage",
+            [Adash.Messages.Named ("most", Counted (Most_Repetitions))]));
+      Catalog.Close;
+      CLI.Set_Exit_Status (2);
+      return;
+   end if;
+
+   --  The bounds, before anything is measured. A run that discovered at the
+   --  end that it had nothing to compare against would have spent the time
+   --  and answered nothing, and this tool exists to be run by CI, where an
+   --  answer nobody can act on is the failure mode to avoid.
+   declare
+      Text    : Adash.Persistence.Contents;
+      Outcome : Adash.Persistence.Outcome;
+      Error   : Tomllib.Errors.Error_Info;
+   begin
+      Adash.Persistence.Read (Ceilings_Path, Text, Outcome);
+
+      if not Adash.Persistence.Succeeded (Outcome) then
+         IO.Put_Line
+           (Catalog.Text
+              ("tooling.bench.ceilings_unreadable",
+               [Adash.Messages.Named ("path", Ceilings_Path),
+                Adash.Messages.Named
+                  ("reason", Adash.Persistence.Outcome'Image (Outcome))]));
+         Catalog.Close;
+         CLI.Set_Exit_Status (2);
+         return;
+      end if;
+
+      Tomllib.Parsers.Parse
+        (Ada.Strings.Unbounded.To_String (Text), Ceilings, Error);
+
+      if Tomllib.Errors.Failed (Error) then
+         IO.Put_Line
+           (Catalog.Text
+              ("tooling.bench.ceilings_malformed",
+               [Adash.Messages.Named ("path", Ceilings_Path),
+                Adash.Messages.Named
+                  ("line", Counted (Error.At_Position.Line)),
+                Adash.Messages.Named
+                  ("reason", Tomllib.Errors.Identifier (Error.Code))]));
+         Catalog.Close;
+         CLI.Set_Exit_Status (2);
+         return;
+      end if;
+   end;
 
    IO.Put_Line (Say ("tooling.bench.header"));
    IO.Put_Line
@@ -407,6 +574,21 @@ begin
    end;
 
    IO.New_Line;
+
+   --  The verdict, which is the whole reason a machine can run this.
+   if Over_A_Ceiling then
+      IO.Put_Line
+        (Catalog.Text
+           ("tooling.bench.over_some_ceiling",
+            [Adash.Messages.Named ("path", Ceilings_Path)]));
+   else
+      IO.Put_Line
+        (Catalog.Text
+           ("tooling.bench.within_ceilings",
+            [Adash.Messages.Named ("path", Ceilings_Path)]));
+   end if;
+
+   IO.New_Line;
    IO.Put_Line (Say ("tooling.bench.drift"));
    IO.New_Line;
    IO.Put_Line
@@ -414,5 +596,6 @@ begin
         ("tooling.bench.methodology",
          [Adash.Messages.Named ("count", Counted (Repetitions))]));
 
-   CLI.Set_Exit_Status (CLI.Success);
+   CLI.Set_Exit_Status
+     (if Over_A_Ceiling then CLI.Failure else CLI.Success);
 end Adash_Bench_Main;

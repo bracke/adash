@@ -5,6 +5,24 @@ test crate and run it:
 
     cd adash_tests && alr build && ./bin/adash_bench [repetitions]
 
+## Ceilings
+
+Every figure has a ceiling in [ceilings.toml](ceilings.toml), and a figure over
+its ceiling makes `adash_bench` exit non-zero — which is what lets CI run the
+benchmarks on all three hosts on every push. A figure with *no* ceiling fails
+too: a measurement nothing bounds is a measurement no run can fail on.
+
+The bounds are deliberately an order of magnitude above what the operations
+take. A shared CI runner under an unknown load is not comparable with a
+developer machine, and a bound tight enough to notice the difference would
+report it as a defect on every run. What a bound this loose still catches is
+the thing worth catching: an operation that became ten times slower because of
+what it now does.
+
+The table below is what this project's machine measures. It is *not* what the
+ceilings are, and the two should not be conflated — one is a measurement, the
+other is a limit chosen so that only a real regression trips it.
+
 ## Methodology
 
 Each figure is the **median and the fastest** of N consecutive in-process runs

@@ -11,6 +11,29 @@ what changed.
 
 ### Added
 
+- `benchmarks/ceilings.toml` — a ceiling for every figure `adash_bench`
+  measures. A figure over its ceiling, or a figure with no ceiling at all,
+  makes the tool exit non-zero, which is what lets CI run the benchmarks on
+  all three hosts on every push. The bounds are an order of magnitude above
+  what the operations take, because a gate that fails on a loaded CI runner is
+  a gate somebody disables.
+- `Hostkit.Pty.Write_Fails_When_Unheld` (in hostkit) — whether writing to a
+  terminal fails once nothing holds the device side. macOS refuses the write;
+  Linux and Windows take the bytes into a buffer nobody reads. Adash's terminal
+  tests had been reading that refusal as a keystroke that never arrived.
+
+### Fixed
+
+- `adash_check` verifies that `alire.toml` and `repository.toml` agree about
+  the version, which the release guide has always claimed and which had never
+  been true: both reads returned nothing and two nothings compare equal. The
+  same reader bug had disabled the half of the inventory check that says every
+  spec named in `repository.toml` exists. A value that cannot be read is now a
+  finding rather than a silent agreement.
+- `adash_bench` reports a bad repetition count instead of raising
+  `Constraint_Error` with a traceback, and refuses a count large enough to
+  exhaust the stack.
+
 - Repository bootstrap: Alire manifests for the `adash` binary crate and the
   `adash_tests` child crate, GPR project files, the directory layout, and
   `repository.toml` as the package inventory.

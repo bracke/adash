@@ -1369,6 +1369,10 @@ package body Adash_Tests.Interactive_Cases is
             Assert (False,
                     "could not type into the terminal (the shell had "
                     & (if Gone (Item) then "already gone" else "not gone")
+                    & ", and on this host a refused write "
+                    & (if Hostkit.Pty.Write_Fails_When_Unheld
+                       then "is what a terminal nothing holds does"
+                       else "is not how this host reports a child that left")
                     & ", "
                     & Ada.Streams.Stream_Element_Offset'Image (Last)
                     & " of"
@@ -2966,7 +2970,11 @@ package body Adash_Tests.Interactive_Cases is
       --
       --  What was different about that host is a pty rule rather than a shell:
       --  a write to the terminal is refused once nothing holds the far end,
-      --  where the other two accept it into a buffer nobody will read.
+      --  where the other two accept it into a buffer nobody will read. That
+      --  now has a name in the crate that owns platform differences --
+      --  Hostkit.Pty.Write_Fails_When_Unheld -- and a case there that measures
+      --  it, so the next caller to meet it reads an answer rather than a
+      --  symptom.
       Close_Without_Typing (Session, Ended);
 
       Assert (Ended,
