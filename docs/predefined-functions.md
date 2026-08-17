@@ -75,6 +75,7 @@ two apart. The shape every filter has is therefore
 | `Output_Of (Program, Argument_1, Argument_2, Argument_3)` | `String` | runs a program and answers with what it wrote to standard output |
 | `Error_Of (Program : String; ...) return String` | what a program complained about |
 | `All_Of (Program : String; ...) return String` | everything it wrote, in the order it wrote it |
+| `Last_Job` | `Integer` | the job this session started most recently, or 0 |
 | `Output_Of_Pipe` | `String` | what the pipeline built so far wrote |
 | `Error_Of_Pipe` | `String` | what its last stage complained about |
 | `All_Of_Pipe` | `String` | everything its last stage wrote |

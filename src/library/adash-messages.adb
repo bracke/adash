@@ -420,6 +420,10 @@ package body Adash.Messages is
             return "predefined.error_of.doc";
          when Msg_Predefined_All_Of_Doc      =>
             return "predefined.all_of.doc";
+         when Msg_Predefined_Last_Job_Doc =>
+            return "predefined.last_job.doc";
+         when Msg_Predefined_Last_Job_Hint =>
+            return "predefined.last_job.hint";
          when Msg_Predefined_Output_Of_Pipe_Doc =>
             return "predefined.output_of_pipe.doc";
          when Msg_Predefined_Error_Of_Pipe_Doc =>
@@ -859,6 +863,7 @@ package body Adash.Messages is
             | Msg_Predefined_Output_Of_Doc | Msg_Predefined_Output_Of_Hint
             | Msg_Predefined_Error_Of_Doc | Msg_Predefined_Error_Of_Hint
             | Msg_Predefined_All_Of_Doc | Msg_Predefined_All_Of_Hint
+            | Msg_Predefined_Last_Job_Doc | Msg_Predefined_Last_Job_Hint
             | Msg_Predefined_Output_Of_Pipe_Doc | Msg_Predefined_Output_Of_Pipe_Hint
             | Msg_Predefined_Error_Of_Pipe_Doc | Msg_Predefined_Error_Of_Pipe_Hint
             | Msg_Predefined_All_Of_Pipe_Doc | Msg_Predefined_All_Of_Pipe_Hint

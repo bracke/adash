@@ -306,6 +306,8 @@ package Adash.Messages is
       Msg_Predefined_Output_Of_Doc,
    Msg_Predefined_Error_Of_Doc,
    Msg_Predefined_All_Of_Doc,
+   Msg_Predefined_Last_Job_Doc,
+   Msg_Predefined_Last_Job_Hint,
    Msg_Predefined_Output_Of_Pipe_Doc,
    Msg_Predefined_Error_Of_Pipe_Doc,
    Msg_Predefined_All_Of_Pipe_Doc,

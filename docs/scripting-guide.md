@@ -77,16 +77,27 @@ becomes of it:
     pipe ("head", "-20");
     pipe_into ("recent.txt");
 
-That is more words than a `|`, and it says what a `|` cannot: `pipe_from` gives
-the pipeline its input and runs nothing, `pipe_start` leaves it running as a job,
-and the nine `pipe_*` forms place its output exactly as the `run_*` forms place a
-single program's. `Output_Of_Pipe`, `Error_Of_Pipe` and `All_Of_Pipe` read it
-back as a value instead.
+    pipe ("git", "log", "--oneline");
+    pipe_from ("history.txt");
+    pipe_all_into ("recent.log");
+    pipe_start;
+
+    Mine : Integer := Last_Job;
+
+Saying and running are two things, so they are two commands: `pipe_from` and the
+nine placement forms say, and `pipe_run` or `pipe_start` runs. That is what lets
+one pipeline read a file, write a log and be left running at once — the
+commonest reason to background anything. `Last_Job` is the number the shell just
+gave it, in a form a script can hold; guessing means counting every job the
+session has run, foreground ones included.
+
+`Output_Of_Pipe`, `Error_Of_Pipe` and `All_Of_Pipe` read a pipeline back as a
+value instead of placing it.
 
 Input is attached to the **first** stage and output to the **last** — every
-other stage is joined to its neighbour, and redirecting one of those would cut
-the pipeline in half. Each running form empties the pipeline, so a script that
-wants two of them builds it twice.
+other stage is joined to its neighbour, and attaching to one of those would cut
+the pipeline in half. Running empties the pipeline, so a script that wants two
+of them builds it twice.
 
 `examples/pipelines.adash` runs all of this.
 

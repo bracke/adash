@@ -1325,6 +1325,7 @@ script = """
 pipe ("{emit}", "one", "--error=noise", "two");
 pipe ("{upcase}");
 pipe_all_into ("{store}/piped.txt");
+pipe_run;
 put_line ("[" & Read_File ("{store}/piped.txt") & "]");
 quit (0);"""
 exit_status = 0
@@ -1402,5 +1403,38 @@ output = [
   "!line.job_started{id=1,what=pipeline}!",
   "!line.job_finished{id=1,status=3}!",
   " 3",
+]
+diagnostics = []
+
+[[case]]
+id = "pipelines.saying-where-it-goes-is-not-running-it"
+requirement = """
+The placement forms say where a pipeline's streams go and run nothing, as
+`pipe_from` says where its input comes from. That is what lets one pipeline
+read a file, write a log, and be left running -- which is the commonest reason
+to put anything in the background, and could not be said while placing and
+running were one command.
+
+`Last_Job` is the other half: the number the shell just gave it, in a form a
+script can hold. Guessing would mean counting every job the session has run,
+foreground ones included.
+"""
+script = """
+write_file ("b" & Character'Val (10) & "a" & Character'Val (10), "{store}/two.txt");
+pipe ("sort");
+pipe_from ("{store}/two.txt");
+pipe_all_into ("{store}/sorted.log");
+pipe_start;
+wait (Last_Job);
+put_line ("[" & Read_File ("{store}/sorted.log") & "]");
+quit (0);"""
+platforms = ["linux", "macos"]
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what=pipeline}!",
+  "!line.job_finished{id=1,status=0}!",
+  "[a",
+  "b",
+  "]",
 ]
 diagnostics = []

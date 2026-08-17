@@ -61,6 +61,7 @@ package Adash.Predefined is
       Entity_Output_Of,
       Entity_Error_Of,
       Entity_All_Of,
+      Entity_Last_Job,
       Entity_Output_Of_Pipe,
       Entity_Error_Of_Pipe,
       Entity_All_Of_Pipe,

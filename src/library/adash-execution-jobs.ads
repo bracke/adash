@@ -78,6 +78,23 @@ package Adash.Execution.Jobs is
    --         nothing in it to translate.
    --  @param Placement Whether the shell will wait for it.
    --  @return The new job's number.
+   --  The number of the job most recently added.
+   --
+   --  For a script that has just started something and wants to wait for it:
+   --  `start` and `pipe_start` say the number on the shell's output, which is
+   --  where a person reads it and nowhere a script can. Guessing is what the
+   --  alternative amounts to -- the numbers count every job the session has
+   --  run, foreground ones included, so the answer is knowable only by having
+   --  counted along.
+   --
+   --  Still answered after the job has been forgotten: what a caller asked is
+   --  which number was given out, and a job that has already ended is a
+   --  reasonable thing to have missed.
+   --
+   --  @param Item The table.
+   --  @return The number, or 0 where nothing has been started.
+   function Most_Recent (Item : Table) return Natural;
+
    function Add
      (Item        : in out Table;
       Pipeline    : Adash.Execution.Pipelines.Running;
@@ -249,6 +266,12 @@ private
 
       --  Never decreases, so a number is not reused within a session.
       Next_Id : Job_Id := 1;
+
+      --  The last one handed out, so a caller can name what it just started.
+      --
+      --  A count rather than a Job_Id, because a Job_Id starts at one and the
+      --  honest answer before anything has run is none at all.
+      Last_Given : Natural := 0;
    end record;
 
 end Adash.Execution.Jobs;

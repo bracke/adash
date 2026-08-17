@@ -197,6 +197,20 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_All_Of_Hint,
        Status => Available),
 
+      --  Which job the shell last started.
+      --
+      --  A question rather than a statement, and one whose answer moves as a
+      --  session runs things -- which is Status's property too, and no more a
+      --  side effect here than it is there.
+      (Id => Entity_Last_Job, Name => Named ("Last_Job"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_Integer, Parameter_Count => 0,
+       Parameters => No_Parameters,
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Last_Job_Doc,
+       Description => Adash.Messages.Msg_Predefined_Last_Job_Hint,
+       Status => Available),
+
       --  The reading half of the pipe_* family: the pipeline a script has
       --  built, run for what it wrote rather than for where it wrote it.
       --

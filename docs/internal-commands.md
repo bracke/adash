@@ -106,14 +106,14 @@ reads as the empty string rather than failing.
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
 | `pipe_start` | 0 | runs the pipeline in the background and names the job |
 | `pipe_from (File : String)` | 1 | takes the pipeline's input from a file; does not run it |
-| `pipe_into (File : String)` | 1 | runs the pipeline with its output written to a file |
-| `pipe_append (File : String)` | 1 | adds its output to the end of a file |
+| `pipe_into (File : String)` | 1 | says its output goes to a file; does not run it |
+| `pipe_append (File : String)` | 1 | says its output is added to the end of a file |
 | `pipe_new (File : String)` | 1 | as `pipe_into`, refusing a file that is already there |
-| `pipe_errors_into (File : String)` | 1 | writes what the last stage complains about to a file |
-| `pipe_errors_append (File : String)` | 1 | adds what it complains about to the end of a file |
+| `pipe_errors_into (File : String)` | 1 | says what the last stage complains about goes to a file |
+| `pipe_errors_append (File : String)` | 1 | says it is added to the end of a file |
 | `pipe_errors_new (File : String)` | 1 | as `pipe_errors_into`, refusing a file that is there |
-| `pipe_all_into (File : String)` | 1 | everything the last stage writes, in one file |
-| `pipe_all_append (File : String)` | 1 | adds everything it writes to the end of one file |
+| `pipe_all_into (File : String)` | 1 | says everything the last stage writes goes to one file |
+| `pipe_all_append (File : String)` | 1 | says it is added to the end of one file |
 | `pipe_all_new (File : String)` | 1 | as `pipe_all_into`, refusing a file that is there |
 
 The redirection file comes **first**, because it is what distinguishes these
@@ -171,11 +171,18 @@ would otherwise be two commands each insisting on running, and only one could.
 Its file is attached to the **first** stage, as the others are attached to the
 last.
 
-The nine `pipe_*` forms are the nine `run_*` forms, for a pipeline: the same
+**Saying and running are two things, so they are two commands.** `pipe_from` and
+the nine placement forms say; `pipe_run` and `pipe_start` run. That is what lets
+one pipeline read a file, write a log and be left running — which could not be
+said while placing and running were one command, and which is the commonest
+reason to put anything in the background.
+
+The nine placement forms are the nine `run_*` forms, for a pipeline: the same
 names, the same order of arguments, and the same three ways of meeting a file.
-They redirect the **last** stage, which is the one whose output is the
-pipeline's — the others are attached to the stage after them, and redirecting
-one of those would cut the pipeline in half.
+They attach to the **last** stage, which is the one whose output is the
+pipeline's — the others are attached to the stage after them, and attaching to
+one of those would cut the pipeline in half. Running is what empties a pipeline,
+so a script that wants two of them builds it twice.
 
 The `run_all_*` three are what a build log wants: the error stream follows the
 output stream into the **same open file** rather than opening a second one, so

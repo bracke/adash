@@ -343,30 +343,89 @@ package body Adash.Commands.Builtins is
                return Adash.Execution.Success;
             end;
 
-         when Command_Pipe_Run | Command_Pipe_Start | Command_Pipe_Into
-            | Command_Pipe_Append
-            | Command_Pipe_New | Command_Pipe_Errors_Into
-            | Command_Pipe_Errors_Append | Command_Pipe_Errors_New
-            | Command_Pipe_All_Into | Command_Pipe_All_Append
-            | Command_Pipe_All_New =>
+         when Command_Pipe_Into | Command_Pipe_Append | Command_Pipe_New
+            | Command_Pipe_Errors_Into | Command_Pipe_Errors_Append
+            | Command_Pipe_Errors_New | Command_Pipe_All_Into
+            | Command_Pipe_All_Append | Command_Pipe_All_New =>
+            --  Recorded, not run, as pipe_from is.
+            --
+            --  These said where the output goes *and* ran the pipeline, which
+            --  meant a pipeline could be given a file to read or a file to
+            --  write and never both, and could not be placed and left running
+            --  at the same time -- `pipe_start` took no file, so "run this in
+            --  the background with its output in a log", which is the
+            --  commonest reason to background anything, could not be said.
+            --
+            --  Saying and running are two things, so they are two commands:
+            --  these say, and `pipe_run` or `pipe_start` runs.
             declare
-               Running : Adash.Execution.Pipelines.Running;
-               Error   : Adash.Errors.Error_Info;
+               Asked : constant Adash.Execution.Redirection.Redirection :=
+                 (Role =>
+                    (if Id in Command_Pipe_Errors_Into
+                            | Command_Pipe_Errors_Append
+                            | Command_Pipe_Errors_New
+                     then Adash.Execution.Streams.Role_Error
+                     else Adash.Execution.Streams.Role_Output),
+                  Kind =>
+                    (case Id is
+                        when Command_Pipe_Append
+                           | Command_Pipe_Errors_Append
+                           | Command_Pipe_All_Append =>
+                          Adash.Execution.Redirection.Redirect_Append_File,
+                        when Command_Pipe_New | Command_Pipe_Errors_New
+                           | Command_Pipe_All_New =>
+                          Adash.Execution.Redirection.Redirect_To_New_File,
+                        when others =>
+                          Adash.Execution.Redirection.Redirect_To_File),
+                  Path =>
+                    Ada.Strings.Unbounded.To_Unbounded_String
+                      (Argument (Arguments, 1)));
 
-               --  Where the pipeline's own output goes, when the command says.
-               --  Nothing is opened until the plan is applied, so a pipeline
-               --  refused for being empty has not touched the file.
-               Attach : Adash.Execution.Redirection.Plan;
-
-               Places : constant Boolean :=
-                 Id not in Command_Pipe_Run | Command_Pipe_Start;
-
-               --  Waited for, unless it was started into the background.
-               Waits : constant Boolean := Id /= Command_Pipe_Start;
+               Joined : constant Adash.Execution.Redirection.Redirection :=
+                 (Role => Adash.Execution.Streams.Role_Error,
+                  Kind => Adash.Execution.Redirection.Redirect_Join_Output,
+                  Path => Ada.Strings.Unbounded.Null_Unbounded_String);
 
                Both : constant Boolean :=
                  Id in Command_Pipe_All_Into | Command_Pipe_All_Append
                      | Command_Pipe_All_New;
+
+               Attach  : Adash.Execution.Redirection.Plan;
+               Refused : Adash.Errors.Error_Info;
+            begin
+               if Adash.Execution.Pipelines.Length (Shell.Pending) = 0 then
+                  return Failed (Adash.Errors.Error_Empty_Pipeline,
+                                 M.No_Arguments);
+               end if;
+
+               if not Adash.Execution.Redirection.Add (Attach, Asked, Refused)
+                 or else (Both
+                          and then not Adash.Execution.Redirection.Add
+                                         (Attach, Joined, Refused))
+                 or else not Adash.Execution.Pipelines.Redirect_Last
+                               (Shell.Pending, Attach, Refused)
+               then
+                  Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
+
+                  Report.Emit
+                    (Adash.Diagnostics.From_Error
+                       (Refused, Adash.Diagnostics.Severity_Error,
+                        Adash.Diagnostics.Category_Execution,
+                        Adash.Diagnostics.Owner_Commands));
+
+                  return Adash.Execution.From_Start_Error (Refused.Code);
+               end if;
+
+               return Adash.Execution.Success;
+            end;
+
+         when Command_Pipe_Run | Command_Pipe_Start =>
+            declare
+               Running : Adash.Execution.Pipelines.Running;
+               Error   : Adash.Errors.Error_Info;
+
+               --  Waited for, unless it was started into the background.
+               Waits : constant Boolean := Id /= Command_Pipe_Start;
             begin
                if Adash.Execution.Pipelines.Length (Shell.Pending) = 0
                then
@@ -375,63 +434,6 @@ package body Adash.Commands.Builtins is
                   --  had run something.
                   return Failed (Adash.Errors.Error_Empty_Pipeline,
                                  M.No_Arguments);
-               end if;
-
-               if Places then
-                  declare
-                     Asked : constant Adash.Execution.Redirection.Redirection :=
-                       (Role =>
-                          (if Id in Command_Pipe_Errors_Into
-                                  | Command_Pipe_Errors_Append
-                                  | Command_Pipe_Errors_New
-                           then Adash.Execution.Streams.Role_Error
-                           else Adash.Execution.Streams.Role_Output),
-                        Kind =>
-                          (case Id is
-                              when Command_Pipe_Append
-                                 | Command_Pipe_Errors_Append
-                                 | Command_Pipe_All_Append =>
-                                Adash.Execution.Redirection.Redirect_Append_File,
-                              when Command_Pipe_New | Command_Pipe_Errors_New
-                                 | Command_Pipe_All_New =>
-                                Adash.Execution.Redirection.Redirect_To_New_File,
-                              when others =>
-                                Adash.Execution.Redirection.Redirect_To_File),
-                        Path =>
-                          Ada.Strings.Unbounded.To_Unbounded_String
-                            (Argument (Arguments, 1)));
-
-                     Joined : constant Adash.Execution.Redirection.Redirection :=
-                       (Role => Adash.Execution.Streams.Role_Error,
-                        Kind =>
-                          Adash.Execution.Redirection.Redirect_Join_Output,
-                        Path => Ada.Strings.Unbounded.Null_Unbounded_String);
-
-                     Refused : Adash.Errors.Error_Info;
-                  begin
-                     if (Both
-                         and then not Adash.Execution.Redirection.Add
-                                        (Attach, Joined, Refused))
-                       or else not Adash.Execution.Redirection.Add
-                                     (Attach, Asked, Refused)
-                       or else not Adash.Execution.Pipelines.Redirect_Last
-                                     (Shell.Pending, Attach, Refused)
-                     then
-                        --  Cleared, as a pipeline that would not start is:
-                        --  stages left behind would be at the front of
-                        --  whatever the user built next.
-                        Shell.Pending :=
-                          Adash.Execution.Pipelines.Empty_Plan;
-
-                        Report.Emit
-                          (Adash.Diagnostics.From_Error
-                             (Refused, Adash.Diagnostics.Severity_Error,
-                              Adash.Diagnostics.Category_Execution,
-                              Adash.Diagnostics.Owner_Commands));
-
-                        return Adash.Execution.From_Start_Error (Refused.Code);
-                     end if;
-                  end;
                end if;
 
                if not Waits then

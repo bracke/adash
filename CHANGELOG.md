@@ -1832,6 +1832,16 @@ what changed.
   is not there, for the same reason; `Exists` and `Is_Directory` tell them
   apart.
 
+- **Saying where a pipeline's streams go is no longer the same thing as running
+  it, and `Last_Job` says what was started.** The nine placement forms ran the
+  pipeline as well as placing it, so a pipeline could be given a file to read or
+  a file to write and never both -- and `pipe_start` took no file, which meant
+  "run this in the background with its output in a log", the commonest reason to
+  background anything, could not be said at all. They record now, as `pipe_from`
+  does, and `pipe_run` or `pipe_start` runs. `Last_Job` is the number the shell
+  just gave a job: `start` and `pipe_start` print it, which is where a person
+  reads it and nowhere a script could.
+
 - **The scripting guide and an example teach the three families.** Twenty-odd
   commands and six functions had existed only as rows in a reference table:
   `examples/pipelines.adash` runs a pipeline into a file, into a value, into a

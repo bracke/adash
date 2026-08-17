@@ -80,6 +80,15 @@ package body Adash.Execution.Jobs is
    -- Add --
    ---------
 
+   -------------------
+   -- Most_Recent --
+   -------------------
+
+   function Most_Recent (Item : Table) return Natural is
+   begin
+      return Item.Last_Given;
+   end Most_Recent;
+
    function Add
      (Item        : in out Table;
       Pipeline    : P.Running;
@@ -100,6 +109,7 @@ package body Adash.Execution.Jobs is
       --  Never reused, even after Reap. A user who backgrounds a job, waits,
       --  and then names it by number must not reach a different job that has
       --  taken the number since.
+      Item.Last_Given := Natural (New_Job.Id);
       Item.Next_Id := Item.Next_Id + 1;
 
       return New_Job.Id;

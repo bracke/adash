@@ -7,6 +7,7 @@ with Hostkit;
 with Adash.Errors;
 with Adash.Execution.Commands;
 with Adash.Execution.Pipelines;
+with Adash.Execution.Jobs;
 with Adash.Execution.Signals;
 with Adash.Execution.Streams;
 with Adash.Filesystem;
@@ -183,6 +184,12 @@ package body Adash.Engine is
                     (Adash.Commands.Element (Sink.Shell.Arguments, Position));
                end if;
             end;
+
+         when Adash.Predefined.Entity_Last_Job =>
+            --  What `start` and `pipe_start` said on the way past, in a form a
+            --  script can hold.
+            Answer := Adash.Language.Values.To_Value
+              (Integer (Adash.Execution.Jobs.Most_Recent (Sink.Shell.Jobs)));
 
          when Adash.Predefined.Entity_Output_Of
             | Adash.Predefined.Entity_Error_Of
