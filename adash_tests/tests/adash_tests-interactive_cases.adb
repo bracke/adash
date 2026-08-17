@@ -6,6 +6,7 @@ with Ada.Text_IO;
 with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Fs;
+with Hostkit.Host;
 with Hostkit.Pty;
 with Hostkit.Signals;
 with Hostkit.Spawn;
@@ -2760,6 +2761,7 @@ package body Adash_Tests.Interactive_Cases is
       Written : Adash.Filesystem.Written;
 
       use type Adash.Filesystem.Written;
+      use type Hostkit.Host.Kind;
    begin
       Adash.Filesystem.Write
         (Script,
@@ -2774,8 +2776,17 @@ package body Adash_Tests.Interactive_Cases is
               "the script was not written");
 
       if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt)
+        or else Hostkit.Host.Current = Hostkit.Host.MacOS
       then
          --  Where this stops, and what has been ruled out.
+         --
+         --  macOS answers differently again: the line the script prints
+         --  arrives, and by the time the interrupt is typed the child is gone
+         --  -- the write to the terminal is refused, which is what a pty says
+         --  when nothing holds the other end. Whether the shell ended early or
+         --  something ended it is not known, and the probe below now runs the
+         --  same looping script so that whoever picks this up has the bytes
+         --  from all three hosts rather than two.
          --
          --  On Windows nothing arrives on this terminal while the script runs.
          --  The probe below showed the same shell, given a script that prints
@@ -2845,6 +2856,10 @@ package body Adash_Tests.Interactive_Cases is
 
       use type Adash.Filesystem.Written;
    begin
+      --  Two scripts, because the difference between them is the question: one
+      --  that says something and stops, and one that says something and keeps
+      --  running. The second is the shape the interrupted-script case needs
+      --  and the shape that comes back empty on Windows.
       Adash.Filesystem.Write
         (Script,
          "put_line (To_Upper (""spoken""));" & Ada.Characters.Latin_1.LF
@@ -2890,6 +2905,62 @@ package body Adash_Tests.Interactive_Cases is
       end;
 
       Finish (Session, Ended);
+
+      --  And the same question of a script that does not stop.
+      declare
+         Busy : constant String :=
+           Ada.Directories.Compose
+             (Ada.Directories.Current_Directory, "adash-test-busy.adash");
+
+         Second : Terminal_Session;
+         Over   : Boolean;
+      begin
+         Adash.Filesystem.Write
+           (Busy,
+            "put_line (To_Upper (""spoken""));" & Ada.Characters.Latin_1.LF
+            & "loop null; end loop;" & Ada.Characters.Latin_1.LF,
+            Written);
+
+         if Written = Adash.Filesystem.Write_Ok
+           and then Start_On_A_Terminal (Second, Busy)
+         then
+            for Attempt in 1 .. 60 loop
+               exit when not Drained (Second);
+               delay 0.05;
+            end loop;
+
+            declare
+               Whole : constant String :=
+                 Ada.Strings.Unbounded.To_String (Second.Seen);
+
+               Shown : Ada.Strings.Unbounded.Unbounded_String;
+            begin
+               for Index in Whole'Range loop
+                  if Whole (Index) in ' ' .. '~' then
+                     Ada.Strings.Unbounded.Append (Shown, Whole (Index));
+                  else
+                     Ada.Strings.Unbounded.Append
+                       (Shown,
+                        "<" & Ada.Strings.Fixed.Trim
+                                (Natural'Image (Character'Pos (Whole (Index))),
+                                 Ada.Strings.Both) & ">");
+                  end if;
+               end loop;
+
+               Ada.Text_IO.Put_Line
+                 ("busy-script-on-a-terminal: ["
+                  & Ada.Strings.Unbounded.To_String (Shown) & "]");
+            end;
+
+            Finish (Second, Over);
+
+            Ada.Text_IO.Put_Line
+              ("busy-script-on-a-terminal: ended=" & Boolean'Image (Over));
+         end if;
+
+         Ada.Directories.Delete_File (Busy);
+      end;
+
       Ada.Directories.Delete_File (Script);
    end What_A_Shell_Given_A_Script_Says_On_A_Terminal;
 
