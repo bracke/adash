@@ -6,7 +6,6 @@ with Ada.Text_IO;
 with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Fs;
-with Hostkit.Host;
 with Hostkit.Process;
 with Hostkit.Pty;
 with Hostkit.Signals;
@@ -2794,7 +2793,6 @@ package body Adash_Tests.Interactive_Cases is
       Written : Adash.Filesystem.Written;
 
       use type Adash.Filesystem.Written;
-      use type Hostkit.Host.Kind;
    begin
       Adash.Filesystem.Write
         (Script,
@@ -2808,26 +2806,18 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Written = Adash.Filesystem.Write_Ok,
               "the script was not written");
 
-      if Hostkit.Host.Current = Hostkit.Host.MacOS then
-         --  Where this stops, and why only here.
-         --
-         --  macOS: the line the script prints arrives, and by the time the
-         --  interrupt is typed the child is gone -- the write to the terminal
-         --  is refused, which is what a pty says when nothing holds the other
-         --  end. Whether the shell ended early or something ended it is not
-         --  known, and the probe below runs the same looping script on every
-         --  host so that whoever picks this up has the bytes rather than a
-         --  description of them.
-         --
-         --  Windows was here too, and is not any more: nothing arrived on that
-         --  terminal while a script ran, which the probe showed was buffering
-         --  -- the same shell said everything at the moment it exited. A line
-         --  written to a terminal is pushed out as it is written now, the
-         --  probe sees the running script speak there, and this case asks its
-         --  question on that host again.
-         Ada.Directories.Delete_File (Script);
-         return;
-      end if;
+      --  Ungated, after two hosts had to be excluded for reasons that turned
+      --  out to be the case's own.
+      --
+      --  Windows was excluded because nothing arrived on the terminal while a
+      --  script ran: that was the shell's output waiting in a block buffer,
+      --  and a line written to a terminal is pushed out as it is written now.
+      --  macOS was excluded because the child was gone by the time the
+      --  interrupt was typed -- and between then and now the wait here stopped
+      --  giving up on the first quiet drain, and the transcript stopped being
+      --  read with the console's window title spliced through it. The probe
+      --  below says that host's script speaks and its shell is still there
+      --  when the terminal closes, so the question is asked again everywhere.
 
       if not Start_On_A_Terminal (Session, Script) then
          Ada.Directories.Delete_File (Script);
