@@ -1926,6 +1926,11 @@ what changed.
   differs, since a signal takes it on two of the three before it can say
   anything.
 
+  The two failures are not the same failure, which writing the tests made
+  plain: a script whose `put_line` fails is a script that failed, and the shell
+  exits as it does for any of those; 74 is for the shell's own lines having
+  nowhere to go, where nothing is running and there is nobody to report to.
+
   Ending is `Hostkit.Process.End_Now` rather than a return, and that is not
   fussiness: returning runs finalization, finalization closes the standard
   files, closing them flushes them, the flush fails for the same reason, and an

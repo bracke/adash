@@ -1339,16 +1339,19 @@ package body Adash_Tests.Execution_Cases is
          Assert (Ended and then Result.State /= Hostkit.Spawn.Wait_Running,
                  "the shell did not end when its reader left");
 
-         --  And how it ended, in the two shapes a host has for it. Where the
-         --  terminal signals a writer whose reader has gone, that signal takes
-         --  the shell before it can decide anything -- 74 is what it decides
-         --  when it is left to decide, and asserting only one of the two would
-         --  be asserting which host this ran on.
+         --  And how it ended, in the two shapes a host has for it.
+         --
+         --  Where the terminal signals a writer whose reader has gone, that
+         --  signal takes the shell before it can decide anything. Where it
+         --  does not, the failure is the *script's*: the machine catches it,
+         --  the submission fails, and the shell exits as it does for any
+         --  script that failed. Not 74 -- that is the shell's own number for
+         --  having nowhere to write its own lines, which the case below is
+         --  about -- and asserting either number here would be asserting which
+         --  host this ran on.
          if Result.State = Hostkit.Spawn.Wait_Exited then
-            Assert (Result.Exit_Code = 74,
-                    "a shell with nowhere to write exited with"
-                    & Integer'Image (Result.Exit_Code)
-                    & " rather than 74");
+            Assert (Result.Exit_Code /= 0,
+                    "a script that could not write reported success");
          else
             Assert (Result.State = Hostkit.Spawn.Wait_Signalled,
                     "a shell with nowhere to write neither exited nor was "
@@ -1371,6 +1374,82 @@ package body Adash_Tests.Execution_Cases is
 
       Ada.Directories.Delete_File (Script);
    end A_Shell_Whose_Reader_Left_Says_No_Stack_Trace;
+
+   --  The shell's own writing, with nowhere to go: status 74.
+   --
+   --  `adash --help | head -1` is the ordinary way to meet it. Nothing is
+   --  running, so there is no script to fail and no failure to report to one:
+   --  what fails is the shell writing its own lines, and the only thing left
+   --  is to end with the number for an input/output error and say nothing --
+   --  the place a complaint would go is the place that just failed.
+   --
+   --  Where the host signals a writer whose reader has gone, the signal takes
+   --  it first, and that is asserted as the other shape rather than papered
+   --  over.
+   procedure A_Shell_That_Cannot_Write_Its_Own_Lines_Ends_With_74
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Shell_That_Cannot_Write_Its_Own_Lines_Ends_With_74
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Binary : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Compose
+             (Ada.Directories.Containing_Directory
+                (Ada.Directories.Containing_Directory
+                   (Ada.Directories.Containing_Directory
+                      (Ada.Directories.Full_Name
+                         (Ada.Command_Line.Command_Name)))),
+              "bin"),
+           "adash" & Hostkit.Fs.Executable_Suffix);
+
+      Told    : Hostkit.String_Vectors.Vector;
+      Options : Hostkit.Spawn.Options;
+      Child   : Hostkit.Spawn.Process_Handle;
+      Result  : Hostkit.Spawn.Status;
+
+      Outs : Hostkit.Descriptors.Pipe_Ends;
+
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Spawn.Wait_State;
+   begin
+      if not Ada.Directories.Exists (Binary) then
+         return;
+      end if;
+
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String ("--help"));
+
+      Assert (Hostkit.Descriptors.Create_Pipe (Outs), "no pipe for the shell");
+      Assert (Hostkit.Descriptors.Set_Inheritable (Outs.Write_End, True),
+              "the shell's output would not travel to it");
+
+      Options.Output := Outs.Write_End;
+
+      Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start");
+
+      --  Both ends closed before it writes a line: the reader that took what
+      --  it wanted and left, without even the taking.
+      Hostkit.Descriptors.Close (Outs.Write_End);
+      Hostkit.Descriptors.Close (Outs.Read_End);
+
+      Assert (Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Block, Result),
+              "the shell was not waited for");
+
+      if Result.State = Hostkit.Spawn.Wait_Exited then
+         Assert (Result.Exit_Code = 74,
+                 "a shell that could not write its own lines exited with"
+                 & Integer'Image (Result.Exit_Code) & " rather than 74");
+      else
+         Assert (Result.State = Hostkit.Spawn.Wait_Signalled,
+                 "a shell that could not write its own lines neither exited "
+                 & "nor was signalled: "
+                 & Hostkit.Spawn.Wait_State'Image (Result.State));
+      end if;
+   end A_Shell_That_Cannot_Write_Its_Own_Lines_Ends_With_74;
 
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
@@ -1432,6 +1511,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, A_Line_Longer_Than_The_Limit_Arrives_In_Pieces'Access,
          "execution : a line longer than the limit arrives in pieces");
+      Register_Routine
+        (T, A_Shell_That_Cannot_Write_Its_Own_Lines_Ends_With_74'Access,
+         "execution : a shell that cannot write its own lines ends with 74");
       Register_Routine
         (T, A_Shell_Whose_Reader_Left_Says_No_Stack_Trace'Access,
          "execution : a shell whose reader left says no stack trace");
