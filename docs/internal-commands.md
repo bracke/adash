@@ -104,6 +104,7 @@ reads as the empty string rather than failing.
 | `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
+| `pipe_start` | 0 | runs the pipeline in the background and names the job |
 | `pipe_from (File : String)` | 1 | takes the pipeline's input from a file; does not run it |
 | `pipe_into (File : String)` | 1 | runs the pipeline with its output written to a file |
 | `pipe_append (File : String)` | 1 | adds its output to the end of a file |
@@ -158,6 +159,11 @@ which is the order `run_into` does not use — those two are named after what ru
 and these after what is written. Appending to a file that is not there makes it,
 because the first turn of a loop that collects lines is not an error. A write
 that worked says nothing; `Status` says what became of it.
+
+`pipe_start` is `start` for a pipeline: it does not wait, it reports the job
+number, and — like any background job on a host where the shell watches its own
+terminal — the pipeline is given nothing to read rather than the keyboard the
+shell is holding, unless `pipe_from` already said where it reads from.
 
 `pipe_from` records where the input comes from and runs nothing, which is the
 one difference from `run_from`: a pipeline reading one file and writing another

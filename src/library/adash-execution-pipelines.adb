@@ -458,6 +458,24 @@ package body Adash.Execution.Pipelines is
           (D.Standard_Input, Group);
    end Take_The_Terminal_Back;
 
+   --------------------------------
+   -- Take_Background_Input --
+   --------------------------------
+
+   procedure Take_Background_Input (Item : in out Plan) is
+   begin
+      if Natural (Item.Stages.Length) = 0 then
+         return;
+      end if;
+
+      declare
+         First : C.Invocation := Item.Stages.Element (1);
+      begin
+         First.Input := S.Background_Input (First.Input);
+         Item.Stages.Replace_Element (1, First);
+      end;
+   end Take_Background_Input;
+
    ----------------------
    -- Redirect_First --
    ----------------------

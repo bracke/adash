@@ -1374,3 +1374,33 @@ output = [
   " 0",
 ]
 diagnostics = []
+
+[[case]]
+id = "pipelines.a-pipeline-can-be-left-running"
+requirement = """
+`start` puts one program in the background and there was no way to put a
+pipeline there, so a script that built one had to wait for it. That was the
+last direction this family left open: a pipeline could be given files to read
+and write, and could not be left running while the script got on with
+something else.
+
+It is a job like any other afterwards -- named by a number, waited for, and
+reported when it ends -- which is what the lines below are.
+
+The program writes nothing and exits with a number, so what is asserted is the
+job and its status rather than a race between a background program's output and
+the shell's own lines.
+"""
+script = """
+pipe ("{emit}", "--exit=3");
+pipe_start;
+wait (1);
+put_line (Integer'Image (Status));
+quit (0);"""
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what=pipeline}!",
+  "!line.job_finished{id=1,status=3}!",
+  " 3",
+]
+diagnostics = []

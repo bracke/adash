@@ -158,6 +158,16 @@ package Adash.Execution.Pipelines is
       Attach : Adash.Execution.Redirection.Plan;
       Error  : out Adash.Errors.Error_Info) return Boolean;
 
+   --  Give the first stage the input a background job should have.
+   --
+   --  The rule is Adash.Execution.Streams.Background_Input's; this is where a
+   --  pipeline applies it, to the first stage, since that is the only one
+   --  whose input is the pipeline's. A pipeline told where to read from keeps
+   --  what it was told.
+   --
+   --  @param Item The plan, changed in place.
+   procedure Take_Background_Input (Item : in out Plan);
+
    --  Start every stage, waiting for none of them.
    --
    --  Waiting on the first before starting the second would deadlock the moment

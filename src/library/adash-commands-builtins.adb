@@ -343,7 +343,8 @@ package body Adash.Commands.Builtins is
                return Adash.Execution.Success;
             end;
 
-         when Command_Pipe_Run | Command_Pipe_Into | Command_Pipe_Append
+         when Command_Pipe_Run | Command_Pipe_Start | Command_Pipe_Into
+            | Command_Pipe_Append
             | Command_Pipe_New | Command_Pipe_Errors_Into
             | Command_Pipe_Errors_Append | Command_Pipe_Errors_New
             | Command_Pipe_All_Into | Command_Pipe_All_Append
@@ -357,7 +358,11 @@ package body Adash.Commands.Builtins is
                --  refused for being empty has not touched the file.
                Attach : Adash.Execution.Redirection.Plan;
 
-               Places : constant Boolean := Id /= Command_Pipe_Run;
+               Places : constant Boolean :=
+                 Id not in Command_Pipe_Run | Command_Pipe_Start;
+
+               --  Waited for, unless it was started into the background.
+               Waits : constant Boolean := Id /= Command_Pipe_Start;
 
                Both : constant Boolean :=
                  Id in Command_Pipe_All_Into | Command_Pipe_All_Append
@@ -429,6 +434,14 @@ package body Adash.Commands.Builtins is
                   end;
                end if;
 
+               if not Waits then
+                  --  A background pipeline does not share the keyboard, for
+                  --  the reason a background program does not: see
+                  --  Adash.Execution.Streams.Background_Input.
+                  Adash.Execution.Pipelines.Take_Background_Input
+                    (Shell.Pending);
+               end if;
+
                if not Adash.Execution.Pipelines.Start
                         (Shell.Pending, Running, Error)
                then
@@ -453,7 +466,9 @@ package body Adash.Commands.Builtins is
                   Started : constant Adash.Execution.Jobs.Job_Id :=
                     Adash.Execution.Jobs.Add
                       (Shell.Jobs, Running, "pipeline",
-                       Adash.Execution.Jobs.Placement_Foreground);
+                       (if Waits
+                        then Adash.Execution.Jobs.Placement_Foreground
+                        else Adash.Execution.Jobs.Placement_Background));
 
                   Wait_Error : Adash.Errors.Error_Info;
 
@@ -465,6 +480,16 @@ package body Adash.Commands.Builtins is
 
                   Finished : Boolean;
                begin
+                  if not Waits then
+                     --  Said, as `start` says it: a job nobody is waiting for
+                     --  is one the user has to be able to name afterwards.
+                     Say (Produced, M.Msg_Line_Job_Started,
+                          [M.Named ("id", Trim (Integer (Started))),
+                           M.Named ("what", "pipeline")]);
+
+                     return Adash.Execution.Success;
+                  end if;
+
                   Adash.Execution.Signals.Hand_Over_Terminal;
                   Adash.Execution.Pipelines.Hand_The_Terminal_To
                     (Adash.Execution.Pipelines.Group (Running), Ours);

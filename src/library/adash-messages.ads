@@ -379,6 +379,7 @@ package Adash.Messages is
    Msg_Command_Run_All_Into_Doc,
    Msg_Command_Run_All_Append_Doc,
    Msg_Command_Run_All_New_Doc, Msg_Command_Pipe_Doc,
+   Msg_Command_Pipe_Start_Doc,
    Msg_Command_Pipe_From_Doc,
    Msg_Command_Pipe_Into_Doc,
    Msg_Command_Pipe_Append_Doc,

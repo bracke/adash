@@ -1832,6 +1832,12 @@ what changed.
   is not there, for the same reason; `Exists` and `Is_Directory` tell them
   apart.
 
+- **`pipe_start`.** `start` put one program in the background and nothing put a
+  pipeline there, so a script that built one had to wait for it -- the last
+  direction this family left open. It is a job like any other afterwards, and it
+  takes the background input rule with it: nothing to read rather than the
+  keyboard the shell is holding, unless `pipe_from` said otherwise.
+
 - **`pipe_from`, and `Output_Of_Pipe` with its two companions.** The nine forms
   below cover where a pipeline's output goes and neither where it comes from nor
   how a script reads it. `pipe_from` attaches a file to the first stage and runs

@@ -172,6 +172,16 @@ package body Adash.Commands is
       --  The last stage is the one redirected. The others are attached to the
       --  stage after them, and redirecting one of those would cut the pipeline
       --  in half.
+      --  A pipeline into the background, as `start` puts one program there.
+      --
+      --  Without it a script that built a pipeline had to wait for it, which
+      --  is the one direction the rest of this family left open: a pipeline
+      --  could be given files to read and write and could not be left running
+      --  while the script got on with something else.
+      (Command_Pipe_Start, Named ("pipe_start"), 0, 0, No_Parameters,
+       Changes_State,
+       M.Msg_Command_Pipe_Start_Doc, M.Msg_Command_Hint, Available),
+
       --  Where the pipeline reads from, said while it is being built rather
       --  than when it runs.
       --

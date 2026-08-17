@@ -94,6 +94,7 @@ package Adash.Commands is
       Command_Run_All_New,
       Command_Pipe,
       Command_Pipe_Run,
+      Command_Pipe_Start,
       Command_Pipe_From,
       Command_Pipe_Into,
       Command_Pipe_Append,
