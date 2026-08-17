@@ -1993,10 +1993,12 @@ what changed.
   the probe printed every byte -- which showed the same script *did* say
   everything, at the moment it exited.
 
-  It did **not** fix that host: a script that keeps running on a pseudo-console
-  is still silent there, so the interrupted-script case stays on the two hosts
-  with signals. The theory was tested rather than assumed, and what it ruled
-  out is written where the next person will be standing.
+  It **did** fix that host, which took one more run to see: the probe now
+  watches a script that keeps running, and on a pseudo-console it speaks as it
+  goes. The interrupted-script case asks its question there again. macOS is
+  where it stops now, for a different reason -- the child is gone by the time
+  the interrupt is typed -- and that is written in the case with the probe
+  beside it.
 
 - **Ending after a failed write no longer runs a finalizer over it.** The
   machine reports a failed write to the program that made it and lets the

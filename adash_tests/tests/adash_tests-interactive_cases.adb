@@ -2776,29 +2776,23 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Written = Adash.Filesystem.Write_Ok,
               "the script was not written");
 
-      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt)
-        or else Hostkit.Host.Current = Hostkit.Host.MacOS
-      then
-         --  Where this stops, and what has been ruled out.
+      if Hostkit.Host.Current = Hostkit.Host.MacOS then
+         --  Where this stops, and why only here.
          --
-         --  macOS answers differently again: the line the script prints
-         --  arrives, and by the time the interrupt is typed the child is gone
-         --  -- the write to the terminal is refused, which is what a pty says
-         --  when nothing holds the other end. Whether the shell ended early or
-         --  something ended it is not known, and the probe below now runs the
-         --  same looping script so that whoever picks this up has the bytes
-         --  from all three hosts rather than two.
+         --  macOS: the line the script prints arrives, and by the time the
+         --  interrupt is typed the child is gone -- the write to the terminal
+         --  is refused, which is what a pty says when nothing holds the other
+         --  end. Whether the shell ended early or something ended it is not
+         --  known, and the probe below runs the same looping script on every
+         --  host so that whoever picks this up has the bytes rather than a
+         --  description of them.
          --
-         --  On Windows nothing arrives on this terminal while the script runs.
-         --  The probe below showed the same shell, given a script that prints
-         --  one line and stops, saying all of it at the moment it exits -- so
-         --  buffering was the obvious explanation, and buffering was tested:
-         --  a line written to a terminal is pushed out as it is written now,
-         --  which changed nothing here. That fix is worth keeping on its own
-         --  account and it is not the answer to this.
-         --
-         --  So what is left is something about a shell that keeps running on a
-         --  pseudo-console, and the probe below is where to add to the record.
+         --  Windows was here too, and is not any more: nothing arrived on that
+         --  terminal while a script ran, which the probe showed was buffering
+         --  -- the same shell said everything at the moment it exited. A line
+         --  written to a terminal is pushed out as it is written now, the
+         --  probe sees the running script speak there, and this case asks its
+         --  question on that host again.
          Ada.Directories.Delete_File (Script);
          return;
       end if;
