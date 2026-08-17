@@ -1903,6 +1903,18 @@ what changed.
 
 ### Fixed
 
+- **The two statuses the shell exits with on its own are written down**, in the
+  table and in the two pages that repeat the model: 2 for a usage error, 74 for
+  having nowhere left to write. Neither ever reaches `Status` -- one happens
+  before a session and the other ends it -- and a status nobody can look up is a
+  status nobody can act on.
+
+- **How to background a program with its output placed is written down.**
+  `start` takes no file, and the answer is a one-stage pipeline: `pipe`,
+  `pipe_all_into`, `pipe_start`. That is the whole reason placing and running
+  became separate commands, and why `start` was left alone rather than growing
+  nine file forms of its own.
+
 - **Nor does anything else the shell writes.** The machine's `put_line` was
   guarded and every other line the shell prints for itself was not -- a listing,
   a prompt, a diagnostic, the usage text -- so `adash --help | head -1` could

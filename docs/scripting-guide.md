@@ -94,6 +94,13 @@ session has run, foreground ones included.
 `Output_Of_Pipe`, `Error_Of_Pipe` and `All_Of_Pipe` read a pipeline back as a
 value instead of placing it.
 
+**A single program backgrounded with its output placed** is a one-stage
+pipeline, because `start` takes no file:
+
+    pipe ("make", "all");
+    pipe_all_into ("build.log");
+    pipe_start;
+
 Input is attached to the **first** stage and output to the **last** — every
 other stage is joined to its neighbour, and attaching to one of those would cut
 the pipeline in half. Running empties the pipeline, so a script that wants two

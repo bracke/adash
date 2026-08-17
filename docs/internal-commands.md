@@ -160,6 +160,18 @@ and these after what is written. Appending to a file that is not there makes it,
 because the first turn of a loop that collects lines is not an error. A write
 that worked says nothing; `Status` says what became of it.
 
+**`start` takes no file**, and neither does `pipe_start`, so "run this in the
+background with its output in a log" is said by building a one-stage pipeline:
+
+    pipe ("make", "all");
+    pipe_all_into ("build.log");
+    pipe_start;
+
+    Mine : Integer := Last_Job;
+
+That is the whole reason placing and running are separate commands, and it is
+why `start` was left as it is rather than growing nine file forms of its own.
+
 `pipe_start` is `start` for a pipeline: it does not wait, it reports the job
 number, and — like any background job on a host where the shell watches its own
 terminal — the pipeline is given nothing to read rather than the keyboard the
@@ -229,7 +241,9 @@ command line is written.
 Every command reports through `Status`, on the one exit-status model the shell
 itself exits with: 0 for success, what an external program chose, 126 for
 something found and not executable, 127 for something not found, 128 + n for a
-program a signal killed.
+program a signal killed. The shell has two numbers of its own on the way out —
+2 for a usage error and 74 for having nowhere left to write — and neither ever
+reaches `Status`, since one happens before a session and the other ends it.
 
 Commands write **structured lines**, not text: what you see at the prompt is a
 message identifier rendered through the catalog. That is why a conformance case

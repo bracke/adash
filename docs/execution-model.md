@@ -88,6 +88,12 @@ One model, which the shell itself exits with:
 | 127 | not found |
 | 128 + n | killed by signal n |
 
+Two of them are the shell's own and never a program's. **2** is a usage error —
+an option it does not know, a script it was not given. **74** is the one failure
+a shell cannot report by writing about it: there was nowhere left to write, so
+it exits with the number for an input/output error and says nothing at all. See
+*When there is nowhere to write* below.
+
 `Status` is 0 before anything has run. A script forwarding a status does not
 have to translate it: `quit (Status);` is the whole of it.
 

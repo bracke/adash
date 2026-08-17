@@ -343,7 +343,9 @@ reported a failure, and neither does `sh -c`.
 
 `Status` is what the last program or command reported: 0, what an external
 program chose, 126 for something found and not executable, 127 for something not
-found, 128 + n for a program a signal killed.
+found, 128 + n for a program a signal killed. The shell exits with the same
+numbers, plus two of its own: 2 for a usage error, and 74 where it had nowhere
+left to write — which no program can see, because the session ends there.
 
 Predefined entities: `Put`, `Put_Line`, `New_Line`, `Read_Line`, `Input_Ended`,
 `Output_Of`, `Status`, `Argument`, `Argument_Count`, `Env_Value`, `Exists`,
