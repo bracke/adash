@@ -31,26 +31,47 @@ would be quoted long after anybody remembered that.
 ## What this build does
 
 On a development build (`-Og`), 200 repetitions, on a sixteen-core machine
-carrying a load average of about 2.8 while the figures were taken. One run of
-five, all of which agreed: analysis fell between 840 and 910 us across them and
-every other row within about three percent, so a reader should take the
+carrying a load average of about 1.5 while the figures were taken. One run of
+three, all of which agreed: analysis fell between 1607 and 1634 us across them
+and every other row within about three percent, so a reader should take the
 row-to-row *shape* from this and not the last digit.
 
 | Operation | Median | Fastest |
 |---|---:|---:|
-| load and validate UTF-8 | 0.5 us | 0.5 us |
-| lex | 21.8 us | 21.6 us |
-| parse | 28.0 us | 27.4 us |
-| **analyse** | **910.2 us** | **780.9 us** |
-| lower and run | 6.1 us | 5.9 us |
-| highlight (per keystroke) | 12.8 us | 12.7 us |
-| complete a command prefix | 24.3 us | 24.1 us |
-| complete a program name | 3147.7 us | 2761.9 us |
+| load and validate UTF-8 | 0.4 us | 0.4 us |
+| lex | 21.0 us | 20.3 us |
+| parse | 26.1 us | 25.4 us |
+| **analyse** | **1620.5 us** | **1511.3 us** |
+| lower and run | 5.9 us | 5.7 us |
+| highlight (per keystroke) | 18.5 us | 18.3 us |
+| complete a command prefix | 34.4 us | 34.0 us |
+| complete a program name | 2780.9 us | 2681.5 us |
 | encode a history entry | 0.7 us | 0.7 us |
-| parse a configuration file | 12.4 us | 11.4 us |
-| open an engine session | 112.3 us | 104.4 us |
+| parse a configuration file | 11.7 us | 11.5 us |
+| open an engine session | 109.5 us | 101.0 us |
 
-**The cost has inverted since the first run.** Lowering and running a
+**Three rows moved together since the last record, and they are the three that
+scan the tables.** Analysis went from 910 us to 1620, highlighting from 12.8 to
+18.5, completing a command prefix from 24.3 to 34.4 -- while lexing, parsing,
+lowering and running, encoding a history entry and opening a session did not
+move at all. In the same period the tables those three consult grew from 61
+entries to 87: the command registry from 33 to 51 and the predefined registry
+from 28 to 36, as the stream families, the pipeline forms and their functions
+were added.
+
+Both lookups are a linear scan of a registry, and each of the three operations
+does one per name it meets. That is consistent with what moved and with what did
+not, and it is where anybody making this faster should look first -- but it is an
+inference from which rows moved, not something anybody has measured directly,
+and a sorted or hashed lookup should be tried against a measurement rather than
+against this paragraph.
+
+Nothing else added since the last record touches these paths: the bounds checks
+are one comparison per chunk read, the write handler costs nothing until a write
+fails, and the terminal look between instructions returns on a descriptor test
+where the shell is not watching, which is every host but one.
+
+**The cost had already inverted before that.** Lowering and running a
 submission was 1.7 ms and is 6 us; analysis was 14 us and is the dominant cost
 by two orders of magnitude. Both follow from the same change: the machine is
 Adash's own now, so nothing rebuilds a compiler's tables per submission, and

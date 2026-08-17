@@ -1901,6 +1901,15 @@ what changed.
   by `read.limit` exactly as `Output_Of` is, which a case now runs past the end
   to show.
 
+- **The benchmark record was re-run.** It described a build from before the
+  stream families, the readers' bounds and the write handling. Three rows moved
+  and they are the three that scan the command and predefined registries --
+  analysis 910 to 1620 us, highlighting 12.8 to 18.5, completing a command
+  prefix 24.3 to 34.4 -- while lexing, parsing, lowering, running and opening a
+  session did not move at all. Those registries grew from 61 entries to 87 in
+  the same period, and both lookups are a linear scan. The record says so, and
+  says it is an inference from which rows moved rather than a measurement.
+
 ### Fixed
 
 - **The two statuses the shell exits with on its own are written down**, in the
