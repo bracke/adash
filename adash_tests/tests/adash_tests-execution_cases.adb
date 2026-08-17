@@ -976,6 +976,22 @@ package body Adash_Tests.Execution_Cases is
    --  something else reaches the stream first. A case cannot assert what
    --  differs between hosts, so this prints the bytes and lets the run say.
    --
+   --  **What it says on Windows is not the blank line but something else**, and
+   --  what that is remains open. The child there exits 1 with nothing on
+   --  either stream -- not even the line it prints before anything can go
+   --  wrong -- while the same child says everything on the other two. Five
+   --  runs have ruled out, one at a time: a shell running a shell (a case
+   --  asserts it), a child filling a pipe and being drained of it (another
+   --  does), the streams being pipes rather than files, the third stream being
+   --  left unset, and the paths being written into the script as literals with
+   --  backslashes in them.
+   --
+   --  What is left is a difference between this test spawning the shell and
+   --  the conformance runner spawning it, and the runner curates an
+   --  environment where this inherits one. Whoever picks this up next starts
+   --  there. The probe stays because it costs one run of one program and it
+   --  will keep saying what it finds.
+   --
    --  The arrangement is the one that shows it: a shell reading a script that
    --  captures a second shell past `read.limit`, so the capture is refused and
    --  the child is stopped by the closing pipe. Its error stream is a pipe
