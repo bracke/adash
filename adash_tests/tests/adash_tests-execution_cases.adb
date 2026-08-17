@@ -1199,6 +1199,158 @@ package body Adash_Tests.Execution_Cases is
       Ada.Directories.Delete_File (Script);
    end What_A_Stopped_Child_Leaves_On_A_Shells_Error_Stream;
 
+   --  A shell whose reader goes away says nothing rather than a stack trace.
+   --
+   --  `adash script | head -1` is the ordinary way to meet this: the reader
+   --  takes its line and closes the pipe, and every write after that fails.
+   --  On POSIX the shell refuses the signal, so the write raises; on Windows
+   --  there is no signal and it raises too. Unhandled it reaches the
+   --  last-chance handler, which prints fifteen lines of addresses -- on the
+   --  standard error, which is a stream somebody else may be reading, and in
+   --  place of a shell saying one sentence or nothing at all.
+   --
+   --  What is asserted is the absence of that trace, which is true on every
+   --  host: what the shell says instead differs -- a signal takes it on two of
+   --  them before it can say anything -- and a case asserting the message
+   --  would be asserting which host it was run on.
+   procedure A_Shell_Whose_Reader_Left_Says_No_Stack_Trace
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Shell_Whose_Reader_Left_Says_No_Stack_Trace
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Shell : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Directories.Containing_Directory
+                (Ada.Directories.Containing_Directory
+                   (Ada.Directories.Full_Name
+                      (Ada.Command_Line.Command_Name)))),
+           "bin");
+
+      Binary : constant String :=
+        Ada.Directories.Compose
+          (Shell, "adash" & Hostkit.Fs.Executable_Suffix);
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-spew.adash");
+
+      Told : Hostkit.String_Vectors.Vector;
+
+      Options : Hostkit.Spawn.Options;
+      Child   : Hostkit.Spawn.Process_Handle;
+      Result  : Hostkit.Spawn.Status;
+
+      Ends : Hostkit.Descriptors.Pipe_Ends;
+      Outs : Hostkit.Descriptors.Pipe_Ends;
+
+      Said : Ada.Strings.Unbounded.Unbounded_String;
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      if not Ada.Directories.Exists (Binary) then
+         return;
+      end if;
+
+      --  More lines than any pipe holds, so the writing is still going on when
+      --  the reading stops.
+      Adash.Filesystem.Write
+        (Script,
+         "for Line in 1 .. 200_000 loop" & Ada.Characters.Latin_1.LF
+         & "put_line (""x"");" & Ada.Characters.Latin_1.LF
+         & "end loop;" & Ada.Characters.Latin_1.LF
+         & "quit (0);" & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the spewing script was not written");
+
+      Assert (Hostkit.Descriptors.Create_Pipe (Ends)
+              and then Hostkit.Descriptors.Create_Pipe (Outs),
+              "no pipes for the shell");
+
+      Assert (Hostkit.Descriptors.Set_Inheritable (Ends.Write_End, True)
+              and then Hostkit.Descriptors.Set_Inheritable
+                         (Outs.Write_End, True),
+              "the child's streams would not travel to it");
+
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
+
+      Options.Output := Outs.Write_End;
+      Options.Error_Output := Ends.Write_End;
+
+      Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start on the spewing script");
+
+      Hostkit.Descriptors.Close (Ends.Write_End);
+      Hostkit.Descriptors.Close (Outs.Write_End);
+
+      --  One read, and then the reader leaves -- which is the whole of what
+      --  `| head -1` does.
+      declare
+         Chunk : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Last  : Ada.Streams.Stream_Element_Offset;
+
+         Ignored : constant Hostkit.Descriptors.Transfer_Outcome :=
+           Hostkit.Descriptors.Read (Outs.Read_End, Chunk, Last);
+         pragma Unreferenced (Ignored);
+      begin
+         Hostkit.Descriptors.Close (Outs.Read_End);
+      end;
+
+      loop
+         declare
+            Chunk : Ada.Streams.Stream_Element_Array (1 .. 4_096);
+            Last  : Ada.Streams.Stream_Element_Offset;
+         begin
+            exit when Hostkit.Descriptors.Read (Ends.Read_End, Chunk, Last)
+                      /= Hostkit.Descriptors.Transfer_Ok;
+
+            for Index in Chunk'First .. Last loop
+               Ada.Strings.Unbounded.Append
+                 (Said, Character'Val (Natural (Chunk (Index))));
+            end loop;
+         end;
+      end loop;
+
+      Hostkit.Descriptors.Close (Ends.Read_End);
+
+      declare
+         Ended : constant Boolean :=
+           Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Block, Result);
+
+         use type Hostkit.Spawn.Wait_State;
+      begin
+         --  Ended at all, which is the other half of not hanging: a shell that
+         --  ignored the failure would go on writing into a pipe nobody holds
+         --  for another hundred and ninety-nine thousand lines.
+         Assert (Ended and then Result.State /= Hostkit.Spawn.Wait_Running,
+                 "the shell did not end when its reader left");
+      end;
+
+      --  The two lines a GNAT traceback always has. Either of them means the
+      --  shell fell out of its own bottom rather than ending.
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Said), "Load address") = 0,
+              "a shell whose reader left printed a stack trace: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Said), "Call stack") = 0,
+              "a shell whose reader left printed a call stack: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+
+      Ada.Directories.Delete_File (Script);
+   end A_Shell_Whose_Reader_Left_Says_No_Stack_Trace;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -1259,6 +1411,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, A_Line_Longer_Than_The_Limit_Arrives_In_Pieces'Access,
          "execution : a line longer than the limit arrives in pieces");
+      Register_Routine
+        (T, A_Shell_Whose_Reader_Left_Says_No_Stack_Trace'Access,
+         "execution : a shell whose reader left says no stack trace");
       Register_Routine
         (T, What_A_Stopped_Child_Leaves_On_A_Shells_Error_Stream'Access,
          "execution : what a stopped child leaves on a shell's error stream");

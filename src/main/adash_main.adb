@@ -1,4 +1,5 @@
 with Ada.Command_Line;
+with Ada.IO_Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
 
@@ -53,6 +54,13 @@ procedure Adash_Main is
    --  give them.
    Exit_Success : constant := 0;
    Exit_Usage   : constant := 2;
+
+   --  What a shell exits with when it cannot write at all.
+   --
+   --  74 is the convention for an input/output error -- sysexits' EX_IOERR --
+   --  and this is the one failure a shell cannot report by writing about it.
+   --  Nothing is printed on the way out for the same reason.
+   Exit_Cannot_Write : constant := 74;
 
    --  Indent for an option line in the usage block.
    Option_Indent : constant String := "  ";
@@ -457,4 +465,24 @@ begin
 
    Catalog.Close;
    CLI.Set_Exit_Status (CLI.Exit_Status (Exit_Success));
+
+exception
+   when Ada.IO_Exceptions.Device_Error | Ada.IO_Exceptions.Status_Error
+      | Ada.IO_Exceptions.Use_Error =>
+      --  Somewhere to write went away.
+      --
+      --  `adash --help | head -1`, a session whose terminal closed, a script
+      --  writing into a capture that has stopped reading: on POSIX the shell
+      --  refuses the signal and the write raises here, and on Windows there is
+      --  no signal and it raises here too. Unhandled it reaches the last-chance
+      --  handler, which prints a stack trace -- fifteen lines of addresses
+      --  where a shell should say nothing at all, because the place it would
+      --  say it is the place that just failed.
+      --
+      --  The machine catches this for a program's own writing and turns it
+      --  into a failure the program can see. This is the other half: every
+      --  line the shell writes for itself -- a listing, a prompt, a
+      --  diagnostic, this file's own usage text -- and there is no reporting
+      --  it, only ending with a status that says what happened.
+      CLI.Set_Exit_Status (CLI.Exit_Status (Exit_Cannot_Write));
 end Adash_Main;

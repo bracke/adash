@@ -1903,6 +1903,17 @@ what changed.
 
 ### Fixed
 
+- **Nor does anything else the shell writes.** The machine's `put_line` was
+  guarded and every other line the shell prints for itself was not -- a listing,
+  a prompt, a diagnostic, the usage text -- so `adash --help | head -1` could
+  still end in a stack trace from a different line of the same program. A
+  shell that cannot write ends with status 74, the convention for an
+  input/output error, and says nothing: the place it would say it is the place
+  that just failed. A test asserts the absence of the trace on every host,
+  which is the part that is true everywhere -- what the shell says instead
+  differs, since a signal takes it on two of the three before it can say
+  anything.
+
 - **Writing to a reader that has gone no longer prints a traceback.** On
   Windows `put_line` into a closed pipe raises where POSIX raises a signal the
   shell refuses, and unhandled it reached the last-chance handler: fifteen lines

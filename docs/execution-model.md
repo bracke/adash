@@ -3,6 +3,25 @@
 How a submission becomes work: what runs a program, what a pipeline is, where
 redirection happens, and what a status means.
 
+
+## When there is nowhere to write
+
+A reader that takes what it wants and leaves — `adash script | head -1` — closes
+the pipe under the shell. The next write fails: on POSIX the shell has refused
+the signal that would otherwise kill it, so the write raises, and on Windows
+there is no such signal and it raises too.
+
+What a *program* the shell runs writes is that program's business, and a shell
+whose own write fails has run out of ways to say so. So a write inside a
+submission is reported to the program as a stream failure, and a write the shell
+makes for itself ends the session with status **74** — the convention for an
+input/output error — with nothing printed, because the place a complaint would
+go is the place that just failed.
+
+Neither prints a stack trace. That is worth saying because it used to: fifteen
+lines of addresses on the standard error, which is a stream something else may
+be reading.
+
 ## One submission, one program
 
 A submission is lexed, analysed as a whole, lowered to instructions and run by
