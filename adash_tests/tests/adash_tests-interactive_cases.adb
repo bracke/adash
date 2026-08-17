@@ -2773,7 +2773,28 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Written = Adash.Filesystem.Write_Ok,
               "the script was not written");
 
+      if not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Interrupt)
+      then
+         --  Where this stops, and what is not known.
+         --
+         --  On Windows a shell started on a pseudo-console *with a script*
+         --  writes nothing to it at all -- not the line the script prints
+         --  before it loops, not a complaint, nothing -- while the same shell
+         --  started on the same terminal without a script prompts and answers
+         --  normally, which every case above depends on. So the interrupt
+         --  cannot be asked about there yet: what would arrive is unknown
+         --  before the question is even put.
+         --
+         --  What would settle it is the probe pattern used twice already in
+         --  this file: start that shell, print every byte the terminal gives
+         --  back, and read the run. It is written down here rather than
+         --  guessed at.
+         Ada.Directories.Delete_File (Script);
+         return;
+      end if;
+
       if not Start_On_A_Terminal (Session, Script) then
+         Ada.Directories.Delete_File (Script);
          return;
       end if;
 

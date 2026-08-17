@@ -1981,6 +1981,12 @@ what changed.
   interrupt is *recorded*, and nothing was recording it for a script. Found by
   writing the case for the thing `on_exit` exists for.
 
+  That case runs on the two hosts with signals. On Windows a shell started on a
+  pseudo-console **with a script** writes nothing to it at all -- not the line
+  the script prints before it loops, not a complaint -- while the same shell on
+  the same terminal without a script prompts and answers normally. That is a
+  new unknown, written into the case rather than guessed at.
+
 - **The two statuses the shell exits with on its own are written down**, in the
   table and in the two pages that repeat the model: 2 for a usage error, 74 for
   having nowhere left to write. Neither ever reaches `Status` -- one happens
