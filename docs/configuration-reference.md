@@ -19,12 +19,19 @@ the setting keeps what it had.
 | `history.enabled` | true or false | `true` | `Adash.Interactive.History` |
 | `history.limit` | 1 .. 1 000 000 | `1000` | `Adash.Interactive.History` |
 | `read.limit` | 1 .. 4 096 (MiB) | `16` | `Adash.Filesystem`, `Adash.Execution.Pipelines`, `Adash.Execution.Streams` |
+| `trace.commands` | true or false | `false` | `Adash.Commands.Builtins` |
 | `history.per-session` | true or false | `false` | `Adash.Persistence.History` |
 | `history.ignore-space` | true or false | `true` | `Adash.Interactive.Session` |
 | `prompt.directory` | true or false | `true` | `Adash.Interactive.Prompt` |
 | `prompt.failure` | true or false | `true` | `Adash.Interactive.Prompt` |
 | `editing.enabled` | true or false | `true` | `Adash.Interactive.Editing` |
 | `startup.session` | true or false | `true` | `Adash.Scripting.Startup` |
+
+`trace.commands` announces each internal command before it runs — what `set -x`
+is for elsewhere. On **standard error** and as a note, so what a script writes is
+still what a script writes: tracing that wrote into a pipeline's data is a thing
+every shell user has been bitten by once. The command that turns it on is not
+traced, because it was not on when it ran.
 
 `read.limit` is in **mebibytes**, and is the most any one read will hold: a file
 for `Read_File`, a program's output for `Output_Of`, a line for `Read_Line`. The

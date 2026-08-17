@@ -2812,6 +2812,89 @@ package body Adash_Tests.Interactive_Cases is
       Ada.Directories.Delete_File (Script);
    end An_Interrupted_Script_Still_Tidies_Up;
 
+   --  What a shell on a terminal says when it is given a script.
+   --
+   --  A record rather than an assertion, and the third time this file has
+   --  needed one. The case above cannot ask its question on Windows because a
+   --  shell started on a pseudo-console *with a script* writes nothing to that
+   --  terminal at all -- not the line the script prints before it loops, not a
+   --  complaint -- while the same shell on the same terminal without a script
+   --  prompts and answers, which every other terminal case here depends on.
+   --
+   --  So this starts that shell over a script that prints one line and stops,
+   --  drains the terminal for as long as it takes, and prints every byte:
+   --  printable ones as themselves and the rest as their number, because what
+   --  is being looked for may be something that does not print. On the two
+   --  hosts that answer, the record says what the answer looks like -- which
+   --  is what makes the third host's silence readable when somebody comes back
+   --  to it.
+   procedure What_A_Shell_Given_A_Script_Says_On_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure What_A_Shell_Given_A_Script_Says_On_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-said.adash");
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+   begin
+      Adash.Filesystem.Write
+        (Script,
+         "put_line (To_Upper (""spoken""));" & Ada.Characters.Latin_1.LF
+         & "quit (0);" & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the script was not written");
+
+      if not Start_On_A_Terminal (Session, Script) then
+         Ada.Directories.Delete_File (Script);
+         return;
+      end if;
+
+      --  Drained for a fixed while rather than waited for a marker: the point
+      --  is to record whatever arrives, including nothing.
+      for Attempt in 1 .. 60 loop
+         exit when not Drained (Session);
+         delay 0.05;
+      end loop;
+
+      declare
+         Whole : constant String :=
+           Ada.Strings.Unbounded.To_String (Session.Seen);
+
+         Shown : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         for Index in Whole'Range loop
+            if Whole (Index) in ' ' .. '~' then
+               Ada.Strings.Unbounded.Append (Shown, Whole (Index));
+            else
+               Ada.Strings.Unbounded.Append
+                 (Shown,
+                  "<" & Ada.Strings.Fixed.Trim
+                          (Natural'Image (Character'Pos (Whole (Index))),
+                           Ada.Strings.Both) & ">");
+            end if;
+         end loop;
+
+         Ada.Text_IO.Put_Line
+           ("script-on-a-terminal: ["
+            & Ada.Strings.Unbounded.To_String (Shown) & "]");
+      end;
+
+      Finish (Session, Ended);
+      Ada.Directories.Delete_File (Script);
+   end What_A_Shell_Given_A_Script_Says_On_A_Terminal;
+
    --------------------
 
    overriding procedure Register_Tests (T : in out Case_Type) is
@@ -2887,6 +2970,8 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine (T, A_Program_In_A_Submission_Can_Read_A_Line'Access,
                         "a program in a submission can read a line typed at "
                         & "the terminal");
+      Register_Routine (T, What_A_Shell_Given_A_Script_Says_On_A_Terminal'Access,
+                        "what a shell on a terminal says when given a script");
       Register_Routine (T, An_Interrupted_Script_Still_Tidies_Up'Access,
                         "a script interrupted still runs what it registered");
       Register_Routine (T, A_Job_Waited_For_Gets_The_Terminal'Access,
