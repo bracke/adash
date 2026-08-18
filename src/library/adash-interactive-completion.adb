@@ -341,6 +341,124 @@ package body Adash.Interactive.Completion is
    -- Complete --
    --------------
 
+   ------------------
+   -- Word_Bounds --
+   ------------------
+
+   procedure Word_Bounds
+     (Line   : String;
+      Cursor : Positive;
+      First  : out Natural;
+      Last   : out Natural)
+   is
+   begin
+      Word_At (Line, Cursor, First, Last);
+   end Word_Bounds;
+
+   ---------------------------
+   -- Program_Being_Argued --
+   ---------------------------
+
+   --  The same reading of the line that Naming_A_Program does, asked for the
+   --  other position: not "is the cursor in the string that says which program
+   --  to run" but "which program did that string name, when the cursor is in a
+   --  later argument of the same call".
+   function Program_Being_Argued
+     (Line   : String;
+      Cursor : Positive;
+      Word   : out Adash.Messages.Argument) return String
+   is
+      First, Last : Natural;
+
+      Inside   : Boolean := False;
+      Depth    : Natural := 0;
+      Commas   : Natural := 0;
+
+      --  The first string of the innermost open call, which is the program.
+      Program_First : Natural := 0;
+      Program_Last  : Natural := 0;
+
+      Stop : Natural;
+   begin
+      Word := M.Named ("word", "");
+      Word_At (Line, Cursor, First, Last);
+
+      if First < Line'First then
+         return "";
+      end if;
+
+      Stop := Natural'Min (Cursor - 1, Line'Length);
+
+      for Index in Line'First .. Stop loop
+         if Line (Index) = '"' then
+            Inside := not Inside;
+
+            --  The first string after the parenthesis is the program's name.
+            if Inside and then Depth > 0 and then Commas = 0
+              and then Program_First = 0
+            then
+               Program_First := Index + 1;
+            elsif not Inside and then Program_First > 0
+              and then Program_Last = 0
+            then
+               Program_Last := Index - 1;
+            end if;
+
+         elsif not Inside then
+            if Line (Index) = '(' then
+               Depth := Depth + 1;
+               Commas := 0;
+               Program_First := 0;
+               Program_Last := 0;
+
+            elsif Line (Index) = ')' then
+               if Depth > 0 then
+                  Depth := Depth - 1;
+               end if;
+               Program_First := 0;
+               Program_Last := 0;
+
+            elsif Line (Index) = ',' and then Depth > 0 then
+               Commas := Commas + 1;
+            end if;
+         end if;
+      end loop;
+
+      --  In an argument of a call that named a program: past the first comma,
+      --  inside a string, with a program name behind it.
+      if Depth = 0 or else Commas = 0
+        or else Program_First = 0 or else Program_Last < Program_First
+      then
+         return "";
+      end if;
+
+      if Last >= First and then First >= Line'First and then Last <= Line'Last
+      then
+         Word := M.Named ("word", Line (First .. Last));
+      end if;
+
+      return Line (Program_First .. Program_Last);
+   end Program_Being_Argued;
+
+   -------------------------
+   -- Offer_From_Caller --
+   -------------------------
+
+   procedure Offer_From_Caller
+     (Item      : in out Candidate_List;
+      Insertion : String;
+      Replaces  : Adash.Source.Span)
+   is
+   begin
+      Item.Items.Append
+        (Candidate'(Insertion   => To_Unbounded_String (Insertion),
+                    Display     => To_Unbounded_String (Insertion),
+                    Source      => From_Caller,
+                    Replaces    => Replaces,
+                    Description => M.Msg_Completion_Program,
+                    Role        => Adash.Terminal.Role_Plain));
+   end Offer_From_Caller;
+
    function Complete (For_Request : Request) return Candidate_List is
       Line   : constant String := M.Value (For_Request.Line);
       Result : Candidate_List;

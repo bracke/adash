@@ -53,7 +53,11 @@ package Adash.Interactive.Completion is
       From_Program,
 
       --  A file or directory.
-      From_Path);
+      From_Path,
+
+      --  Something the caller worked out: what a user's own subprogram said
+      --  when asked what may follow this program.
+      From_Caller);
 
    --  What the user is completing.
    type Request is record
@@ -149,6 +153,50 @@ package Adash.Interactive.Completion is
      (Line        : String;
       Cursor      : Positive;
       Search_Path : String := "") return Request;
+
+   --  Which program's argument the cursor is in, and how much of it is typed.
+   --
+   --  For a caller that can offer more than this package can: the programs a
+   --  machine has are a question about the filesystem, and what `git ` may be
+   --  followed by is a question only the program -- or the person who wrote a
+   --  subprogram saying so -- can answer. This says *whose* argument is being
+   --  completed so that a caller can go and ask.
+   --
+   --  @param Line The line as typed.
+   --  @param Cursor Byte offset of the cursor, from one.
+   --  @param Word What has been typed of the argument so far.
+   --  @return The program named by the call the cursor is inside, or "" when
+   --          the cursor is not in an argument of one.
+   function Program_Being_Argued
+     (Line   : String;
+      Cursor : Positive;
+      Word   : out Adash.Messages.Argument) return String;
+
+   --  Where the word under the cursor begins and ends.
+   --
+   --  A caller adding its own candidates needs the same span the built-in ones
+   --  replace, or Tab would insert beside what the user typed rather than over
+   --  it.
+   --
+   --  @param Line The line as typed.
+   --  @param Cursor Byte offset of the cursor, from one.
+   --  @param First Where the word starts; zero when there is none.
+   --  @param Last Where it ends.
+   procedure Word_Bounds
+     (Line   : String;
+      Cursor : Positive;
+      First  : out Natural;
+      Last   : out Natural);
+
+   --  Add a candidate a caller worked out for itself.
+   --
+   --  @param Item The list to add to.
+   --  @param Insertion What Tab should insert.
+   --  @param Replaces What it replaces, which is the word already typed.
+   procedure Offer_From_Caller
+     (Item      : in out Candidate_List;
+      Insertion : String;
+      Replaces  : Adash.Source.Span);
 
 private
 

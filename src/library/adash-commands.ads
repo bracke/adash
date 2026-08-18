@@ -89,6 +89,10 @@ package Adash.Commands is
       Command_Run_From,
       Command_Run_From_Text,
       Command_Run_With,
+      Command_Start_With,
+      Command_Time,
+      Command_Umask,
+      Command_Complete_With,
       Command_Run_Append,
       Command_Run_New,
       Command_Run_Errors_Into,
@@ -461,6 +465,15 @@ package Adash.Commands is
       --  and silently not for the second, which is the shape of a bug nobody
       --  reports.
       Interrupt_Handlers : Hostkit.String_Vectors.Vector;
+
+      --  What `complete_with` asked for: pairs of a program name and the
+      --  subprogram that says what may follow it, one after the other.
+      --
+      --  A vector of pairs rather than a map, because the shell has no map
+      --  type of its own and this list is short: a user teaches Tab about the
+      --  handful of programs they use most, not about every program on the
+      --  machine.
+      Completions : Hostkit.String_Vectors.Vector;
 
       --  The user's settings, as this session is running with them.
       --

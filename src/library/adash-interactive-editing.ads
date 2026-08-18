@@ -312,12 +312,23 @@ package Adash.Interactive.Editing is
    --         ("PATH=...")` changes what a child is started with, and a
    --         completion that read its own environment would offer the programs
    --         of a path the shell no longer uses. "" offers none.
+   --  What a caller can add to what Tab offers.
+   --
+   --  Asked with the line and the cursor, and answering with one candidate per
+   --  line. A line is the unit because that is what a user's own subprogram
+   --  can produce with `put_line` -- and asking the caller rather than
+   --  reaching for the engine here keeps the editor a thing that edits: it
+   --  knows about keys and cells, not about how a language evaluates a call.
+   type Candidate_Supplier is
+     access function (Line : String; Cursor : Positive) return String;
+
    function Read_Line
      (Prompt       : String;
       Prompt_Width : Natural;
       Recall       : Adash.Interactive.History.Log;
       Allow_Editing : Boolean := True;
       Search_Path  : String := "";
+      Ask_Caller   : Candidate_Supplier := null;
       Into         : out String;
       Last         : out Natural) return Read_Outcome;
 

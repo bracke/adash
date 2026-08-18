@@ -1,6 +1,7 @@
 with Ada.Directories;
 with Ada.IO_Exceptions;
 with Ada.Strings.Fixed;
+with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 
 with Adash.Errors;
@@ -41,6 +42,77 @@ package body Adash.Commands.Builtins is
    --  everything else, which would turn `quit (3)` into `quit ("")` silently.
    --  Image is the canonical text of any value, and a String images as its own
    --  contents without quotes.
+
+   --  Where the `=` is in an assignment, or zero when there is none.
+   --
+   --  `set` decides what an assignment looks like -- NAME=VALUE, with a name
+   --  before the first `=` -- and this is the same question asked twice, so it
+   --  is asked in one place.
+   function Assignment_Split (Text : String) return Natural;
+
+   function Assignment_Split (Text : String) return Natural is
+   begin
+      for Index in Text'Range loop
+         if Text (Index) = '=' then
+            return (if Index > Text'First then Index else 0);
+         end if;
+      end loop;
+
+      return 0;
+   end Assignment_Split;
+
+   --  Whether an argument is an assignment rather than a program or one of its
+   --  arguments. What separates the two in `run_with ("A=1", "B=2", "sort")`.
+   function Is_An_Assignment (Text : String) return Boolean
+   is (Assignment_Split (Text) > 0);
+
+   --  A mask as a shell writes one: octal, no prefix.
+   function Octal (Value : Natural) return String;
+
+   function Octal (Value : Natural) return String is
+      Digits_Held : String (1 .. 8) := [others => '0'];
+      Left        : Natural := Value;
+      At_Position : Natural := Digits_Held'Last;
+      First_Kept  : Natural := Digits_Held'Last;
+   begin
+      while Left > 0 and then At_Position >= Digits_Held'First loop
+         Digits_Held (At_Position) :=
+           Character'Val (Character'Pos ('0') + (Left mod 8));
+         First_Kept := At_Position;
+         Left := Left / 8;
+         At_Position := At_Position - 1;
+      end loop;
+
+      --  A mask of zero is written as one digit rather than as nothing.
+      return Digits_Held (First_Kept .. Digits_Held'Last);
+   end Octal;
+
+   --  Read one, refusing anything that is not octal digits.
+   --
+   --  A shell that read `0o22` or `22x` as twenty-two would set a mask nobody
+   --  asked for, and a mask is the one setting whose mistake is invisible
+   --  until somebody else reads a file they should not have been able to.
+   function Octal_Value (Text : String; Value : out Natural) return Boolean;
+
+   function Octal_Value (Text : String; Value : out Natural) return Boolean is
+   begin
+      Value := 0;
+
+      if Text'Length = 0 or else Text'Length > 7 then
+         return False;
+      end if;
+
+      for Index in Text'Range loop
+         if Text (Index) not in '0' .. '7' then
+            return False;
+         end if;
+
+         Value := Value * 8
+           + (Character'Pos (Text (Index)) - Character'Pos ('0'));
+      end loop;
+
+      return True;
+   end Octal_Value;
    function Argument
      (Arguments : Argument_Set; Index : Positive) return String
    is (if Index <= Arguments.Count
@@ -623,13 +695,15 @@ package body Adash.Commands.Builtins is
             end;
 
          when Command_Run | Command_Run_Into | Command_Run_From
-            | Command_Run_From_Text | Command_Run_With
+            | Command_Run_From_Text | Command_Run_With | Command_Start_With
+            | Command_Time
             | Command_Run_Append | Command_Run_New | Command_Run_Errors_Into
             | Command_Run_Errors_Append | Command_Run_Errors_New
             | Command_Run_All_Into | Command_Run_All_Append
             | Command_Run_All_New | Command_Start =>
             declare
-               Waits : constant Boolean := Id /= Command_Start;
+               Waits : constant Boolean :=
+                 Id not in Command_Start | Command_Start_With;
 
                --  The first argument names a file when one of the program's
                --  streams is going to it, so the program starts one later.
@@ -641,11 +715,44 @@ package body Adash.Commands.Builtins is
                      | Command_Run_Errors_New | Command_Run_All_Into
                      | Command_Run_All_Append | Command_Run_All_New;
 
-               --  Where the program's own name starts. Every command here
-               --  that carries something of its own -- a file, the text, an
-               --  assignment -- carries it first, so the program follows it.
-               First_Word : constant Positive :=
-                 (if Redirects or else Id = Command_Run_With then 2 else 1);
+               Sets_Variables : constant Boolean :=
+                 Id in Command_Run_With | Command_Start_With;
+
+               --  When this program started, for the one command that reports
+               --  it. Read before anything is opened or resolved, so what is
+               --  reported is what a user waited for rather than what the
+               --  spawn took.
+               Began : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+
+               --  Where an assignment stops and the program begins.
+               --
+               --  Every command here that carries something of its own -- a
+               --  file, the text -- carries exactly one of it, so the program
+               --  is the second word. Assignments are the exception: a caller
+               --  may write several, and what ends them is the first argument
+               --  that is not one. The rule is stated where the command is
+               --  registered, together with its single exception.
+               function Program_Starts_At return Positive;
+
+               function Program_Starts_At return Positive is
+               begin
+                  if not Sets_Variables then
+                     return (if Redirects then 2 else 1);
+                  end if;
+
+                  for Position in 1 .. Given loop
+                     if not Is_An_Assignment (Argument (Arguments, Position))
+                     then
+                        return Position;
+                     end if;
+                  end loop;
+
+                  --  Nothing but assignments. Refused below; the value here
+                  --  only has to be in range.
+                  return Given;
+               end Program_Starts_At;
+
+               First_Word : constant Positive := Program_Starts_At;
 
                --  What the file is attached as, said in the terms the
                --  redirection subsystem uses rather than in open modes. That
@@ -673,37 +780,35 @@ package body Adash.Commands.Builtins is
                --  failure and the one where the user interrupted the program.
                Input : Adash.Filesystem.Held_Text;
 
-               --  Where the `=` is in the assignment, for run_with.
-               Assigns_At : Natural := 0;
-
                Put_There : Adash.Filesystem.Written :=
                  Adash.Filesystem.Write_Ok;
 
                use type Adash.Filesystem.Written;
             begin
-               if Id = Command_Run_With then
-                  --  Checked before anything runs, and spelled exactly as
-                  --  `set` spells an assignment: a command that took `LC_ALL`
-                  --  and quietly ran without it would be worse than one that
-                  --  refuses.
-                  declare
-                     Text : constant String := Argument (Arguments, 1);
-                  begin
-                     Assigns_At := 0;
+               if Sets_Variables then
+                  --  Checked before anything runs: a command that took
+                  --  `LC_ALL` and quietly ran without it would be worse than
+                  --  one that refuses.
+                  --
+                  --  The first argument must be an assignment, or the caller
+                  --  wrote `run_with ("sort")` and meant `run`. Everything up
+                  --  to the program is one by construction -- that is what
+                  --  chose the program -- so what is left to refuse is a call
+                  --  that is nothing but assignments.
+                  if not Is_An_Assignment (Argument (Arguments, 1)) then
+                     return Failed
+                       (Adash.Errors.Error_Command_Bad_Assignment,
+                        [1 => M.Named ("text", Argument (Arguments, 1))]);
+                  end if;
 
-                     for Index in Text'Range loop
-                        if Text (Index) = '=' then
-                           Assigns_At := Index;
-                           exit;
-                        end if;
-                     end loop;
-
-                     if Assigns_At <= Text'First then
-                        return Failed
-                          (Adash.Errors.Error_Command_Bad_Assignment,
-                           [1 => M.Named ("text", Text)]);
-                     end if;
-                  end;
+                  if First_Word > Given
+                    or else Is_An_Assignment (Argument (Arguments, First_Word))
+                  then
+                     return Failed
+                       (Adash.Errors.Error_Command_Bad_Assignment,
+                        [1 => M.Named
+                                ("text", Argument (Arguments, Given))]);
+                  end if;
                end if;
 
                if Id = Command_Run_From_Text then
@@ -847,14 +952,18 @@ package body Adash.Commands.Builtins is
                   --  needs its PATH, and a shell that answered a request for
                   --  one variable by taking away the rest would be answering a
                   --  question nobody asked.
-                  if Id = Command_Run_With then
-                     declare
-                        Text : constant String := Argument (Arguments, 1);
-                     begin
-                        Env.Set (Stage.Environment,
-                                 Text (Text'First .. Assigns_At - 1),
-                                 Text (Assigns_At + 1 .. Text'Last));
-                     end;
+                  if Sets_Variables then
+                     for Position in 1 .. First_Word - 1 loop
+                        declare
+                           Text  : constant String :=
+                             Argument (Arguments, Position);
+                           Split : constant Natural := Assignment_Split (Text);
+                        begin
+                           Env.Set (Stage.Environment,
+                                    Text (Text'First .. Split - 1),
+                                    Text (Split + 1 .. Text'Last));
+                        end;
+                     end loop;
                   end if;
 
                   --  A background job does not share the keyboard. What it
@@ -951,6 +1060,38 @@ package body Adash.Commands.Builtins is
 
                      Ended := Adash.Execution.Jobs.Result
                        (Shell.Jobs, Started).Status;
+
+                     if Id = Command_Time then
+                        declare
+                           use type Ada.Real_Time.Time;
+
+                           Took : constant Duration :=
+                             Ada.Real_Time.To_Duration
+                               (Ada.Real_Time.Clock - Began);
+
+                           --  Milliseconds, printed as seconds with three
+                           --  decimals. Ada's image of a Duration carries nine,
+                           --  and six of them here are the clock rather than
+                           --  anything a user waited for.
+                           Thousandths : constant Long_Long_Integer :=
+                             Long_Long_Integer (Took * 1000);
+                        begin
+                           Say (Produced, M.Msg_Line_Took,
+                                [M.Named ("what",
+                                          Ada.Strings.Unbounded.To_String
+                                            (Told)),
+                                 M.Named
+                                   ("seconds",
+                                    Trim (Integer (Thousandths / 1000))
+                                    & "."
+                                    & (if Thousandths mod 1000 < 100
+                                       then "0" else "")
+                                    & (if Thousandths mod 1000 < 10
+                                       then "0" else "")
+                                    & Trim
+                                        (Integer (Thousandths mod 1000)))]);
+                        end;
+                     end if;
 
                      --  Forgotten once its status has been taken. A foreground
                      --  program is not a job a user tracks, and leaving it in
@@ -1118,6 +1259,65 @@ package body Adash.Commands.Builtins is
                         return Ended;
                      end;
                   end;
+               end;
+            end;
+
+         when Command_Complete_With =>
+            declare
+               Program : constant String := Argument (Arguments, 1);
+               Name    : constant String := Argument (Arguments, 2);
+            begin
+               if Program = "" or else Name = "" then
+                  return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
+                                 [M.Named ("name", "complete_with"),
+                                  M.Named ("found", Trim (Given))]);
+               end if;
+
+               --  Prepended as a pair, so the most recent registration for a
+               --  program is the one found: teaching Tab something new about
+               --  a program should not require unteaching the old thing first.
+               Shell.Completions.Prepend
+                 (Ada.Strings.Unbounded.To_Unbounded_String (Name));
+               Shell.Completions.Prepend
+                 (Ada.Strings.Unbounded.To_Unbounded_String (Program));
+
+               return Adash.Execution.Success;
+            end;
+
+         when Command_Umask =>
+            declare
+               Held : Natural;
+            begin
+               if Given = 0 then
+                  if not Hostkit.Fs.Creation_Mask (Held) then
+                     return Failed (Adash.Errors.Error_No_Creation_Mask,
+                                    M.No_Arguments);
+                  end if;
+
+                  Say (Produced, M.Msg_Line_Creation_Mask,
+                       [1 => M.Named ("mask", Octal (Held))]);
+                  return Adash.Execution.Success;
+               end if;
+
+               declare
+                  Text   : constant String := Argument (Arguments, 1);
+                  Wanted : Natural;
+                  Before : Natural;
+               begin
+                  --  Octal, because that is how a mask is written everywhere
+                  --  and a shell that read 22 as twenty-two would set
+                  --  something nobody asked for.
+                  if not Octal_Value (Text, Wanted) then
+                     return Failed (Adash.Errors.Error_Mask_Not_Octal,
+                                    [1 => M.Named ("text", Text)]);
+                  end if;
+
+                  if not Hostkit.Fs.Set_Creation_Mask (Wanted, Before) then
+                     return Failed (Adash.Errors.Error_No_Creation_Mask,
+                                    M.No_Arguments);
+                  end if;
+
+                  return Adash.Execution.Success;
                end;
             end;
 

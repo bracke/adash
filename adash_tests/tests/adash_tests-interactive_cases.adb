@@ -1798,6 +1798,79 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after completing a word");
    end Completion_Finishes_A_Word_Through_A_Terminal;
 
+   --  Tab offers what a user taught it, through the terminal.
+   --
+   --  `complete_with` names a subprogram that says what may follow a program,
+   --  and nothing else in this shell can answer that question: what may follow
+   --  `git` is not in the vocabulary and not on the filesystem. So the whole
+   --  path has to work -- the word under the cursor read, the program it
+   --  belongs to found, the subprogram run, and what it printed offered -- and
+   --  a unit test of any one piece would not say that it does.
+   --
+   --  Only one candidate matches `com`, so Tab has an unambiguous answer and
+   --  the line that runs afterwards is what says it arrived.
+   procedure Completion_Offers_What_A_User_Taught_It
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure Completion_Offers_What_A_User_Taught_It
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := (1 => Character'Val (13));
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      --  The subprogram, and the registration, typed as a user would.
+      Type_Into
+        (Session,
+         "procedure Git_Words (Word : String) is begin "
+         & "if Starts_With (""commit"", Word) then put_line (""commit""); "
+         & "end if; end Git_Words;" & Return_Key);
+      Type_Into (Session, "complete_with (""git"", ""Git_Words"");" & Return_Key);
+
+      --  Wait for the prompt to come back, so the Tab below is typed at a
+      --  shell that has both of those and not at one still reading them.
+      declare
+         Ready : Boolean := False;
+      begin
+         for Attempt in 1 .. 200 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Ready := Ada.Strings.Fixed.Index
+                          (Plainly (Session), "complete_with") > 0;
+            end;
+
+            exit when Ready;
+            delay 0.05;
+         end loop;
+
+         Assert (Ready,
+                 "the shell never took the registration: ["
+                 & Plainly (Session) & "]");
+      end;
+
+      --  `com` names one of the candidates the subprogram prints, and nothing
+      --  in the shell's own vocabulary, so Tab has exactly one answer.
+      Type_Into (Session, "put_line (Output_Of (""git"", ""com");
+      Type_Into (Session, String'(1 => Character'Val (9)));
+      Type_Into (Session, """));" & Return_Key);
+
+      Assert (Waited_For_Plainly (Session, "commit", 400),
+              "Tab did not offer what the user taught it: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after completing a word");
+   end Completion_Offers_What_A_User_Taught_It;
+
    --  Up recalls what was typed, through the terminal.
    procedure History_Recalls_A_Line_Through_A_Terminal
      (T : in out AUnit.Test_Cases.Test_Case'Class)
@@ -3430,6 +3503,8 @@ package body Adash_Tests.Interactive_Cases is
                         "the common prefix is shared by every candidate");
       Register_Routine (T, Highlighting_Covers_Unparsable_Input'Access,
                         "highlighting works on input that does not parse");
+      Register_Routine (T, Completion_Offers_What_A_User_Taught_It'Access,
+                        "Tab offers what a user taught it");
       Register_Routine (T, Completion_Finishes_A_Word_Through_A_Terminal'Access,
                         "Tab completes a word through a terminal");
       Register_Routine (T, History_Recalls_A_Line_Through_A_Terminal'Access,

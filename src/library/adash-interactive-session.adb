@@ -10,6 +10,7 @@ with Adash.Errors;
 with Adash.Execution;
 with Adash.Execution.Environment;
 with Adash.Execution.Signals;
+with Adash.Interactive.Completion;
 with Adash.Interactive.Editing;
 with Adash.Interactive.History;
 with Adash.Interactive.Notifications;
@@ -40,6 +41,103 @@ package body Adash.Interactive.Session is
    -- Run --
    ---------
 
+
+   --  The session a completion question is asked of.
+   --
+   --  A body-level reference, because the editor is handed an access to a
+   --  function and a function cannot carry a session with it. Set while a line
+   --  is being read and cleared afterwards, so that a supplier called at any
+   --  other time answers nothing rather than reaching into a session that has
+   --  gone.
+   Asking_Session : access Adash.Engine.Session := null;
+
+   --  And the catalog to render what it printed. What a command produces is an
+   --  identifier and its arguments; a candidate has to be the text a user would
+   --  have seen, and turning one into the other is the catalog's job.
+   Asking_Catalog : access Adash.Messages.Rendering.Catalog := null;
+
+   --  What a user's own subprogram says may follow a program.
+   --
+   --  Runs the subprogram `complete_with` named, with the word typed so far,
+   --  and collects what it printed: one candidate per line, which is what a
+   --  subprogram can produce with `put_line` and nothing more exotic.
+   --
+   --  Quiet about failure on purpose. A completion is a keystroke, and a
+   --  diagnostic printed into a line being edited would tear the display apart
+   --  to say something about a subprogram the user can run themselves and see.
+   function What_The_Session_Knows
+     (Line : String; Cursor : Positive) return String;
+
+   function What_The_Session_Knows
+     (Line : String; Cursor : Positive) return String
+   is
+      Word : Adash.Messages.Argument;
+
+      Program : constant String :=
+        Adash.Interactive.Completion.Program_Being_Argued (Line, Cursor, Word);
+
+      Gathered : Ada.Strings.Unbounded.Unbounded_String;
+
+      --  A sink that keeps what the subprogram printed instead of showing it.
+      --
+      --  Rendered through the catalog, like the console does, because what a
+      --  command produces is an identifier and its arguments rather than text
+      --  -- and a candidate has to be the text a user would have seen.
+      type Collector is limited new Adash.Engine.Output_Sink with null record;
+
+      overriding procedure Write
+        (Sink : in out Collector; Item : Adash.Commands.Line);
+
+      overriding procedure Write
+        (Sink : in out Collector; Item : Adash.Commands.Line)
+      is
+         pragma Unreferenced (Sink);
+      begin
+         Ada.Strings.Unbounded.Append
+           (Gathered,
+            Asking_Catalog.Text (Adash.Commands.Message (Item),
+                                 Adash.Commands.Arguments (Item),
+                                 Adash.Commands.Detail (Item),
+                                 Adash.Commands.Detail_Placeholder (Item))
+            & Ada.Characters.Latin_1.LF);
+      end Write;
+
+      Keeping : aliased Collector;
+
+   begin
+      if Asking_Session = null or else Asking_Catalog = null
+        or else Program = ""
+      then
+         return "";
+      end if;
+
+      declare
+         Handler : constant String :=
+           Adash.Engine.Completion_For (Asking_Session.all, Program);
+      begin
+         if Handler = "" then
+            return "";
+         end if;
+
+         declare
+            Quiet   : Adash.Diagnostics.List;
+            Outcome : Adash.Engine.Result;
+         begin
+            --  Submitted as a call with the word so far, which is what a
+            --  subprogram asked "what may follow this" needs to know.
+            Adash.Engine.Submit
+              (Asking_Session.all,
+               Handler & " (""" & Adash.Messages.Value (Word) & """);",
+               Name      => "complete_with",
+               Kind      => Adash.Source.Origin_Interactive,
+               Outcome   => Outcome,
+               Report    => Quiet,
+               On_Output => Keeping'Unchecked_Access);
+         end;
+      end;
+
+      return Ada.Strings.Unbounded.To_String (Gathered);
+   end What_The_Session_Knows;
    function Run (Catalog : in out Adash.Messages.Rendering.Catalog)
                  return Natural
    is
@@ -786,6 +884,12 @@ package body Adash.Interactive.Session is
    begin
       Adash.Engine.Open (Shell);
       Adash.Engine.Use_Script_Runner (Shell, Sourcing'Unchecked_Access);
+
+      --  What a completion question is asked of, while this session is the one
+      --  reading lines. Cleared when it ends, so a supplier called afterwards
+      --  answers nothing rather than reaching into a session that has gone.
+      Asking_Session := Shell'Unchecked_Access;
+      Asking_Catalog := Catalog'Unchecked_Access;
       Adash.Engine.Use_History (Shell, Reporting'Unchecked_Access);
 
       --  The shell takes its signal dispositions before it runs anything.
@@ -995,6 +1099,10 @@ package body Adash.Interactive.Session is
                  Search_Path  =>
                    Adash.Execution.Environment.Value
                      (Adash.Engine.Environment (Shell), "PATH"),
+
+                 --  What a user taught Tab, asked through the engine because
+                 --  answering means running their subprogram.
+                 Ask_Caller   => What_The_Session_Knows'Access,
                  Into         => Typed,
                  Last         => Last);
 
@@ -1224,6 +1332,10 @@ package body Adash.Interactive.Session is
       end;
 
       Merge_Session_History;
+
+      --  Nothing may ask this session anything after here.
+      Asking_Session := null;
+      Asking_Catalog := null;
 
       if Adash.Engine.Exit_Requested (Shell) then
          return Adash.Execution.Numeric (Adash.Engine.Exit_Status (Shell));

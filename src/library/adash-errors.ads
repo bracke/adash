@@ -93,6 +93,17 @@ package Adash.Errors is
       --  this: guessing between "gone" and "not yours" would be a claim.
       Error_Process_Would_Not_Stop,
 
+      --  This host has no creation mask to read or to set. Windows decides
+      --  permissions from the ACL a directory hands down, and there is no
+      --  per-process subtraction there at all -- so the shell says so rather
+      --  than reporting a number that means nothing.
+      Error_No_Creation_Mask,
+
+      --  A mask that is not octal digits. `umask 9` and `umask 0o22` are both
+      --  somebody expecting another shell's spelling, and a mask read wrongly
+      --  is a mistake nobody sees until a file somebody else can read.
+      Error_Mask_Not_Octal,
+
       --  A suspended job, where the caller wanted one that would end.
       Error_Job_Is_Suspended,
       Error_Cancelled,

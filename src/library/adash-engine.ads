@@ -235,6 +235,14 @@ package Adash.Engine is
    function Interrupt_Handlers
      (Item : Session) return Hostkit.String_Vectors.Vector;
 
+   --  The subprogram `complete_with` named for this program, or "".
+   --
+   --  @param Item The session.
+   --  @param Program The program whose argument is being completed.
+   --  @return The subprogram's name, or "" when nobody taught Tab about it.
+   function Completion_For
+     (Item : Session; Program : String) return String;
+
    function Exit_Requested (Item : Session) return Boolean;
 
    --  The status the session should end with.

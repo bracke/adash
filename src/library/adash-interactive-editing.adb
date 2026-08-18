@@ -1,3 +1,4 @@
+with Ada.Characters.Latin_1;
 with Ada.Strings.Unbounded;
 
 with Hostkit.Descriptors;
@@ -739,6 +740,7 @@ package body Adash.Interactive.Editing is
       Recall       : Adash.Interactive.History.Log;
       Allow_Editing : Boolean := True;
       Search_Path  : String := "";
+      Ask_Caller   : Candidate_Supplier := null;
       Into         : out String;
       Last         : out Natural) return Read_Outcome
    is
@@ -979,12 +981,64 @@ package body Adash.Interactive.Editing is
       procedure Complete_Here is
          Text : constant String := Line.Text;
 
-         Candidates : constant Adash.Interactive.Completion.Candidate_List :=
+         Candidates : Adash.Interactive.Completion.Candidate_List :=
            Adash.Interactive.Completion.Complete
              (Adash.Interactive.Completion.Make_Request
                 (Text, Positive (Line.Cursor + 1), Search_Path));
 
          Ignored : Boolean;
+
+         --  What the caller has to add, if it was given a way to be asked.
+         --
+         --  After the shell's own vocabulary rather than before it: what this
+         --  shell provides is fixed and what a user's subprogram answers is
+         --  not, and a list whose first entries moved between keystrokes would
+         --  be a list nobody could learn.
+         procedure Add_What_The_Caller_Knows;
+
+         procedure Add_What_The_Caller_Knows is
+            From  : Natural;
+            To    : Natural;
+         begin
+            if Ask_Caller = null then
+               return;
+            end if;
+
+            declare
+               Offered : constant String :=
+                 Ask_Caller (Text, Positive (Line.Cursor + 1));
+
+               Word_First, Word_Last : Natural;
+            begin
+               if Offered'Length = 0 then
+                  return;
+               end if;
+
+               Adash.Interactive.Completion.Word_Bounds
+                 (Text, Positive (Line.Cursor + 1), Word_First, Word_Last);
+
+               From := Offered'First;
+               while From <= Offered'Last loop
+                  To := From;
+                  while To <= Offered'Last
+                    and then Offered (To) /= Ada.Characters.Latin_1.LF
+                  loop
+                     To := To + 1;
+                  end loop;
+
+                  if To > From then
+                     Adash.Interactive.Completion.Offer_From_Caller
+                       (Candidates,
+                        Offered (From .. To - 1),
+                        (First => Adash.Source.Byte_Offset
+                                    (Positive'Max (Word_First, 1)),
+                         Last  => Adash.Source.Byte_Offset (Word_Last)));
+                  end if;
+
+                  From := To + 1;
+               end loop;
+            end;
+         end Add_What_The_Caller_Knows;
 
          procedure Replace (Span : Adash.Source.Span; With_Text : String);
          --  Put With_Text where Span was, and leave the cursor after it.
@@ -1005,6 +1059,8 @@ package body Adash.Interactive.Editing is
          end Replace;
 
       begin
+         Add_What_The_Caller_Knows;
+
          if Candidates.Count = 0 then
             return;
          end if;

@@ -28,6 +28,8 @@ package body Adash.Errors is
             | Error_Output_Too_Large
             | Error_Job_Unknown
             | Error_Process_Would_Not_Stop
+            | Error_No_Creation_Mask
+            | Error_Mask_Not_Octal
             | Error_Job_Is_Suspended
             | Error_Cancelled
             | Error_Directory_Not_Found
@@ -192,6 +194,8 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Output_Too_Large;
          when Error_Job_Unknown            => return Adash.Messages.Msg_Job_Unknown;
          when Error_Process_Would_Not_Stop => return Adash.Messages.Msg_Process_Would_Not_Stop;
+         when Error_No_Creation_Mask       => return Adash.Messages.Msg_No_Creation_Mask;
+         when Error_Mask_Not_Octal         => return Adash.Messages.Msg_Mask_Not_Octal;
          when Error_Job_Is_Suspended       =>
             return Adash.Messages.Msg_Job_Is_Suspended;
          when Error_Cancelled              => return Adash.Messages.Msg_Execution_Cancelled;

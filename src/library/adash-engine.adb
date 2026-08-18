@@ -1499,6 +1499,31 @@ package body Adash.Engine is
       return Item.Shell.Interrupt_Handlers;
    end Interrupt_Handlers;
 
+   ---------------------
+   -- Completion_For --
+   ---------------------
+
+   function Completion_For
+     (Item : Session; Program : String) return String
+   is
+      Held : Hostkit.String_Vectors.Vector renames Item.Shell.Completions;
+
+      Position : Natural := 1;
+   begin
+      --  Pairs, program first. Walked rather than looked up because the list
+      --  is short and a map would be a container this shell does not have.
+      while Position + 1 <= Natural (Held.Length) loop
+         if Ada.Strings.Unbounded.To_String (Held.Element (Position)) = Program
+         then
+            return Ada.Strings.Unbounded.To_String (Held.Element (Position + 1));
+         end if;
+
+         Position := Position + 2;
+      end loop;
+
+      return "";
+   end Completion_For;
+
    function Exit_Requested (Item : Session) return Boolean is
    begin
       return Item.Shell.Exit_Requested;

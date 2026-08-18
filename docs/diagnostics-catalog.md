@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 525 messages in 22 groups.
+There are 533 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -119,6 +119,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.output_too_large` | {program} wrote more than this shell will hold at once |
 | `error.stream_write_failed` | could not write to {stream} |
 | `error.stream_read_failed` | could not read from {stream} |
+| `error.mask_not_octal` | {text} is not a mask: a mask is octal digits, as every shell writes one |
+| `error.no_creation_mask` | this host has no creation mask: permissions here come from the directory a file is made in, not from a per-process mask |
 | `error.process_would_not_stop` | process {process} would not take the request to stop: it may have ended already, or it may not be yours to signal |
 | `error.job_unknown` | no such job: {job} |
 | `error.job_is_suspended` | job {job} is suspended; resume it before waiting for it |
@@ -241,6 +243,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `line.diagnostic_at` | {path}:{line}:{column}: {text} |
 | `note.declared_here` | declared here |
 | `note.first_here` | the first one is here |
+| `line.creation_mask` | umask {mask} |
+| `line.took` | {what} took {seconds} seconds |
 | `line.job_started` | [{id}] started {what} |
 | `line.job_finished` | [{id}] finished with status {status} |
 | `line.job_signalled` | [{id}] was ended by {signal} |
@@ -269,7 +273,11 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.run.doc` | Run a program and wait for it to finish. |
 | `command.run_into.doc` | Run a program with its output written to a file, replacing what was there. |
 | `command.run_from.doc` | Run a program with its input read from a file. |
-| `command.run_with.doc` | Run a program with one variable set for it alone, written NAME=VALUE as set writes one. The assignment comes first; what follows is the program and its arguments. |
+| `command.complete_with.doc` | Name a subprogram that says what may follow a program, one candidate per line, for Tab to offer. |
+| `command.umask.doc` | Show the permissions this host takes away from a new file, or set them, in octal. Windows has none. |
+| `command.time.doc` | Run a program and report how long it took, in wall-clock seconds. |
+| `command.run_with.doc` | Run a program with variables set for it alone, each written NAME=VALUE as set writes one. The assignments come first; the program is the first argument that is not one. |
+| `command.start_with.doc` | As run_with, without waiting: the job is named and the shell goes on. |
 | `command.run_from_text.doc` | Run a program with its input read from text this script computed. The text comes first; what follows is the program and its arguments. |
 | `command.run_append.doc` | Run a program with its output added to the end of a file. |
 | `command.run_new.doc` | Run a program with its output written to a file that must not already exist. |

@@ -11,6 +11,25 @@ what changed.
 
 ### Added
 
+- `run_with` takes as many assignments as you write, and `start_with` does the
+  same without waiting. The boundary is the first argument that is not of the
+  form `NAME=VALUE`, which has exactly one exception, written down where the
+  command is registered: a program whose own name contains an `=` must be run
+  by `run` with the variables `set`.
+- `time (Program, …)` — runs a program and reports how long it took, in
+  wall-clock seconds. Only wall time: a user time and a system time are a
+  different measurement the host reports for a process it has reaped, and
+  reporting a number the shell has not got would be worse than one honest one.
+- `umask` — what the host takes away from the permissions of a new file, shown
+  or set in octal. Windows has no per-process mask at all, and says so rather
+  than reporting a zero a script would act on; the capability is
+  `Hostkit.Fs.Creation_Mask`, added for this.
+- `complete_with (Program, Name)` — teaches Tab what may follow a program. The
+  shell knows its own vocabulary and what the filesystem holds; it cannot know
+  that `git ` is followed by `commit`, and nothing it could read would tell it.
+  A subprogram prints one candidate per line and Tab offers them, after the
+  shell's own candidates so that the list does not move under the user's
+  finger.
 - **A script may begin with `#!`.** The line the host reads to decide what runs
   a file is blanked rather than removed, so every position after it is
   unchanged and a diagnostic still names the line a reader is looking at. Until

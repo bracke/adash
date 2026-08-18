@@ -103,8 +103,12 @@ reads as the empty string rather than failing.
 | `run_all_new (File : String; Program : String; ...)` | 2 or more | as `run_all_into`, refusing a file that is already there |
 | `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
 | `run_from_text (Input : String; Program : String…)` | 2 .. any | runs it with its input read from text this script computed |
-| `run_with (Assignment : String; Program : String…)` | 2 .. any | runs it with one variable set for it alone, written `NAME=VALUE` |
+| `run_with (Assignment : String; Program : String…)` | 2 .. any | runs it with variables set for it alone, each written `NAME=VALUE`; the program is the first argument that is not one |
 | `stop_process (Process : Integer)` | 1 | asks a process this session did not start to stop, by its id |
+| `start_with (Assignment : String; Program : String…)` | 2 .. any | as `run_with`, without waiting |
+| `time (Program : String; Argument : String…)` | 1 .. any | runs it and reports how long it took, in wall-clock seconds |
+| `umask (Mask : String)` | 0 or 1 | shows what the host takes away from a new file's permissions, or sets it, in octal; Windows has none |
+| `complete_with (Program : String; Name : String)` | 2 | names a subprogram that says what may follow a program, one candidate per line, for Tab |
 | `on_interrupt (Name : String)` | 1 | names a subprogram to run when the user interrupts; stays registered |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |

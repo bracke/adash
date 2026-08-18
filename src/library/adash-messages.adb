@@ -299,6 +299,8 @@ package body Adash.Messages is
          when Msg_Output_Too_Large           => return "error.output_too_large";
          when Msg_Job_Unknown                => return "error.job_unknown";
          when Msg_Process_Would_Not_Stop      => return "error.process_would_not_stop";
+         when Msg_No_Creation_Mask           => return "error.no_creation_mask";
+         when Msg_Mask_Not_Octal             => return "error.mask_not_octal";
          when Msg_Job_Is_Suspended           => return "error.job_is_suspended";
          when Msg_Execution_Cancelled        => return "error.execution_cancelled";
          when Msg_Capability_Unavailable     => return "error.capability_unavailable";
@@ -563,6 +565,10 @@ package body Adash.Messages is
          when Msg_Command_Run_From_Text_Doc  =>
             return "command.run_from_text.doc";
          when Msg_Command_Run_With_Doc       => return "command.run_with.doc";
+         when Msg_Command_Start_With_Doc     => return "command.start_with.doc";
+         when Msg_Command_Time_Doc           => return "command.time.doc";
+         when Msg_Command_Umask_Doc          => return "command.umask.doc";
+         when Msg_Command_Complete_With_Doc  => return "command.complete_with.doc";
          when Msg_Command_Run_Append_Doc     => return "command.run_append.doc";
          when Msg_Command_Run_New_Doc        => return "command.run_new.doc";
          when Msg_Command_Run_Errors_Into_Doc =>
@@ -635,6 +641,8 @@ package body Adash.Messages is
          when Msg_Note_Declared_Here       => return "note.declared_here";
          when Msg_Note_First_Here          => return "note.first_here";
          when Msg_Line_Job_Started           => return "line.job_started";
+         when Msg_Line_Took                  => return "line.took";
+         when Msg_Line_Creation_Mask         => return "line.creation_mask";
          when Msg_Line_Job_Finished          => return "line.job_finished";
          when Msg_Line_Job_Signalled         => return "line.job_signalled";
          when Msg_Command_Source_Doc         => return "command.source.doc";
@@ -981,6 +989,10 @@ package body Adash.Messages is
             | Msg_Command_Source_Doc
             | Msg_Command_Run_Doc | Msg_Command_Run_Into_Doc
             | Msg_Command_Run_From_Text_Doc
+            | Msg_Command_Complete_With_Doc
+            | Msg_Command_Umask_Doc
+            | Msg_Command_Time_Doc
+            | Msg_Command_Start_With_Doc
             | Msg_Command_Run_With_Doc
             | Msg_Command_Run_From_Doc | Msg_Command_Run_Append_Doc
             | Msg_Command_Run_New_Doc | Msg_Command_Run_Errors_Into_Doc
@@ -1029,6 +1041,12 @@ package body Adash.Messages is
 
          when Msg_Line_Job_Started =>
             return [N ("id"), N ("what")];
+
+         when Msg_Line_Took =>
+            return [N ("what"), N ("seconds")];
+
+         when Msg_Line_Creation_Mask =>
+            return [1 => N ("mask")];
 
          when Msg_Line_Job_Finished =>
             return [N ("id"), N ("status")];
@@ -1333,6 +1351,12 @@ package body Adash.Messages is
 
          when Msg_Process_Would_Not_Stop =>
             return [1 => N ("process")];
+
+         when Msg_No_Creation_Mask =>
+            return No_Placeholders;
+
+         when Msg_Mask_Not_Octal =>
+            return [1 => N ("text")];
 
          when Msg_Capability_Unavailable =>
             return [1 => N ("capability")];

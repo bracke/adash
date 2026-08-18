@@ -119,17 +119,85 @@ package body Adash.Commands is
       --  program had to set it, run, and unset it -- and get that right on the
       --  path where the program failed, which is the path nobody writes.
       --
-      --  One assignment, spelled the way `set` spells one, and the first
-      --  argument for the same reason a file is: what follows is the program
-      --  and its arguments, and a boundary a reader cannot see is worse than a
-      --  limit they can. A command needing two variables sets one in the
-      --  session; a rule that read assignments until something without an `=`
-      --  in it would be a rule with an exception waiting for the first path
-      --  that has one.
+      --  As many assignments as the caller writes, each spelled the way `set`
+      --  spells one, and then the program.
+      --
+      --  It took one at first, because the boundary between assignments and a
+      --  program has to come from somewhere and `LC_ALL=C sort` needs only one
+      --  -- but `LC_ALL=C LANG=C sort` is just as ordinary, and answering it
+      --  with "set one in the session and unset it afterwards" is answering a
+      --  different question.
+      --
+      --  So the boundary is the first argument that is not of the form
+      --  NAME=VALUE. That rule has one exception and it is written down here
+      --  rather than discovered: a program whose *own name* contains an `=`
+      --  cannot be run this way, and has to be run by `run` with the
+      --  variables `set` in the session. Nothing else is ambiguous -- an
+      --  argument for the program comes after the program, where no rule looks
+      --  at it -- and a call with nothing but assignments is refused rather
+      --  than run.
       (Command_Run_With, Named ("run_with"), 2, Any_Number,
        [1 => Text ("Assignment"), others => Text ("Argument")],
        Changes_State,
        M.Msg_Command_Run_With_Doc, M.Msg_Command_Hint, Available),
+
+      --  The same, without waiting. `start` is to `run` what this is to
+      --  `run_with`: a shell that could give one variable to a program it
+      --  waited for and not to one it placed in the background would be a
+      --  shell whose two halves disagreed about what a variable is for.
+      (Command_Start_With, Named ("start_with"), 2, Any_Number,
+       [1 => Text ("Assignment"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Start_With_Doc, M.Msg_Command_Hint, Available),
+
+      --  How long a program took.
+      --
+      --  A shell is where somebody finds out that a build takes four minutes,
+      --  and this language could compute a duration -- `Clock` is there -- but
+      --  only around something it ran itself, which is not the same as asking
+      --  the shell to time a program for you.
+      --
+      --  Wall time, and only wall time. A user time and a system time are a
+      --  different measurement that the host reports separately for a process
+      --  it has reaped, and reporting a number this shell has not got would be
+      --  worse than reporting one number honestly.
+      (Command_Time, Named ("time"), 1, Any_Number,
+       [1 => Text ("Program"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Time_Doc, M.Msg_Command_Hint, Available),
+
+      --  What the host takes away from the permissions of a new file.
+      --
+      --  Asked with no argument and set with one, in octal as every shell
+      --  writes it. It is per process and inherited, so setting it here is
+      --  what makes the files a script writes -- and the files the programs it
+      --  runs write -- private or not.
+      --
+      --  Windows has no such thing: permissions there come from the ACL a
+      --  directory hands down, and there is no per-process subtraction to read
+      --  or to set. This says so rather than reporting a zero that a script
+      --  would act on.
+      (Command_Umask, Named ("umask"), 0, 1,
+       [1 => Text ("Mask"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Umask_Doc, M.Msg_Command_Hint, Available),
+
+      --  Teach Tab what may follow a program.
+      --
+      --  The shell knows its own vocabulary and what the filesystem holds; it
+      --  cannot know that `git ` is followed by `commit`, and nothing it could
+      --  read would tell it. What can tell it is a subprogram somebody writes,
+      --  so this names one: given the word typed so far, it puts each
+      --  candidate on its own line, and Tab offers what it printed.
+      --
+      --  Registered per program, and after the shell's own candidates rather
+      --  than before them: what this shell provides is fixed and what a
+      --  subprogram answers is not, and a list whose first entries moved
+      --  between keystrokes would be a list nobody could learn.
+      (Command_Complete_With, Named ("complete_with"), 2, 2,
+       [1 => Text ("Program"), 2 => Text ("Name"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Complete_With_Doc, M.Msg_Command_Hint, Available),
 
       (Command_Run_Append, Named ("run_append"), 2, Any_Number,
        [1 => Text ("File"), others => Text ("Argument")],
