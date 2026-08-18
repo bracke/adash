@@ -220,6 +220,21 @@ package Adash.Engine is
    function Take_Cleanups
      (Item : in out Session) return Hostkit.String_Vectors.Vector;
 
+   --  What `on_interrupt` asked to have run, most recently asked first.
+   --
+   --  Read rather than taken: an interrupt can happen again, and a handler
+   --  that disappeared after the first one would run for the first Ctrl-C of a
+   --  session and not for the second.
+   --
+   --  Not run here, for the reason Take_Cleanups gives: running them means
+   --  submitting a call, and where a caller puts that in its own handling of
+   --  an interrupt is the caller's decision.
+   --
+   --  @param Item The session.
+   --  @return The names, in the order to run them.
+   function Interrupt_Handlers
+     (Item : Session) return Hostkit.String_Vectors.Vector;
+
    function Exit_Requested (Item : Session) return Boolean;
 
    --  The status the session should end with.

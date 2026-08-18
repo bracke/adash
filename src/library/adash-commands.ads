@@ -114,6 +114,8 @@ package Adash.Commands is
       Command_Start,
       Command_Wait,
       Command_Stop,
+      Command_Stop_Process,
+      Command_On_Interrupt,
       Command_Suspend,
       Command_Resume,
       Command_Foreground,
@@ -450,6 +452,15 @@ package Adash.Commands is
       --  declared is a script written in an order the shell has no business
       --  refusing.
       Cleanups : Hostkit.String_Vectors.Vector;
+
+      --  What `on_interrupt` asked for, most recently asked first.
+      --
+      --  Kept rather than taken, unlike Cleanups: a cleanup runs once because
+      --  a session ends once, and an interrupt can happen again. A handler
+      --  that unregistered itself would run for the first Ctrl-C of a session
+      --  and silently not for the second, which is the shape of a bug nobody
+      --  reports.
+      Interrupt_Handlers : Hostkit.String_Vectors.Vector;
 
       --  The user's settings, as this session is running with them.
       --

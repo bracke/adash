@@ -9,6 +9,7 @@ with Adash.Language.Values;
 with Adash.Version;
 
 with Hostkit;
+with Hostkit.Process;
 with Hostkit.Fs;
 with Adash.Configuration;
 with Adash.Configuration.Files;
@@ -1120,6 +1121,31 @@ package body Adash.Commands.Builtins is
                end;
             end;
 
+         when Command_Stop_Process =>
+            declare
+               Wanted : Integer;
+            begin
+               if not Whole_Argument (Arguments, 1, Wanted)
+                 or else Wanted <= 0
+               then
+                  return Failed
+                    (Adash.Errors.Error_Process_Would_Not_Stop,
+                     [1 => M.Named ("process", Trim (Wanted))]);
+               end if;
+
+               --  Asked of the host, which is the only thing that knows what
+               --  a process id means here. A refusal is not told apart from a
+               --  process that has already gone: the host does not say which,
+               --  and inventing the difference would be a claim.
+               if not Hostkit.Process.Request_Stop (Wanted) then
+                  return Failed
+                    (Adash.Errors.Error_Process_Would_Not_Stop,
+                     [1 => M.Named ("process", Trim (Wanted))]);
+               end if;
+
+               return Adash.Execution.Success;
+            end;
+
          when Command_Stop | Command_Suspend | Command_Resume =>
             declare
                Wanted : Integer;
@@ -1381,6 +1407,23 @@ package body Adash.Commands.Builtins is
                      --  a failure says so on standard error.
                      return Adash.Execution.Success;
                end case;
+            end;
+
+         when Command_On_Interrupt =>
+            declare
+               Name : constant String := Argument (Arguments, 1);
+            begin
+               if Name = "" then
+                  return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
+                                 [1 => M.Named ("name", "on_interrupt")]);
+               end if;
+
+               --  Most recent first, as cleanups are, and for the same
+               --  reason: what was set up last is undone first.
+               Shell.Interrupt_Handlers.Prepend
+                 (Ada.Strings.Unbounded.To_Unbounded_String (Name));
+
+               return Adash.Execution.Success;
             end;
 
          when Command_On_Exit =>

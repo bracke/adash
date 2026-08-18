@@ -1,3 +1,4 @@
+with Ada.Characters.Latin_1;
 with Ada.Directories;
 with Ada.IO_Exceptions;
 with Ada.Streams.Stream_IO;
@@ -75,6 +76,9 @@ package body Adash.Scripting is
    --  the script's own text would point at whatever happened to be there.
    Name_Of_Cleanups : constant String := "on_exit";
 
+   --  What a handler run for an interrupt is called in a diagnostic about it.
+   Name_Of_Handlers : constant String := "on_interrupt";
+
    procedure Run_Text
      (Session : in out Adash.Engine.Session;
       Text    : String;
@@ -117,7 +121,42 @@ package body Adash.Scripting is
       --  Put back before anything else runs, so the terminal a script leaves
       --  behind is the terminal it was given.
       Adash.Execution.Signals.Stop_Watching;
-      Adash.Execution.Signals.Acknowledge_Interrupt;
+
+      --  Whether this script was interrupted, asked before the pending
+      --  interrupt is cleared -- because clearing it is what makes the
+      --  question unanswerable.
+      declare
+         Interrupted : constant Boolean :=
+           Adash.Execution.Signals.Interrupt_Pending;
+      begin
+         Adash.Execution.Signals.Acknowledge_Interrupt;
+
+         --  What `on_interrupt` asked for, and only where there was one.
+         --
+         --  After the acknowledgement, like the cleanups below and for the
+         --  same reason: a handler runs *because* the script was interrupted,
+         --  and one that inherited the pending interrupt would be stopped
+         --  before it could do anything.
+         if Interrupted then
+            declare
+               Handlers : constant Hostkit.String_Vectors.Vector :=
+                 Adash.Engine.Interrupt_Handlers (Session);
+
+               Ran_It : Adash.Engine.Result;
+            begin
+               for Name of Handlers loop
+                  Adash.Engine.Submit
+                    (Session,
+                     Ada.Strings.Unbounded.To_String (Name) & ";",
+                     Name    => Name_Of_Handlers,
+                     Kind    => Adash.Source.Origin_Interactive,
+                     Outcome => Ran_It,
+                     Report  => Report,
+                     On_Output => On_Output);
+               end loop;
+            end;
+         end if;
+      end;
 
       --  What `on_exit` asked for, before this text is done with.
       --
@@ -225,6 +264,38 @@ package body Adash.Scripting is
       return False;
    end Already_Reading;
 
+   --  Blank a leading `#!` line, in place.
+   --
+   --  A script is a file, and a file a user made executable begins with the
+   --  line the host reads to decide what runs it. That line is not Ada, so
+   --  without this a script with `#!/usr/bin/env adash` at the top is a script
+   --  whose first line is a syntax error -- which is what stood between this
+   --  shell and being usable the way every other shell's scripts are.
+   --
+   --  Blanked rather than removed, and the newline kept, so that every byte
+   --  after it stays where it was: a diagnostic still names the line the
+   --  reader is looking at, and a span still covers what a reader would
+   --  highlight. Dropping the line would move every position in the file by
+   --  its length and quietly misplace every message about it.
+   --
+   --  Only at the very start, and only `#!`. A `#` anywhere else in this
+   --  language is not a comment and must not be treated as one.
+   procedure Blank_A_Shebang (Text : in out Unbounded_String);
+
+   procedure Blank_A_Shebang (Text : in out Unbounded_String) is
+   begin
+      if Length (Text) < 2
+        or else Slice (Text, 1, 2) /= "#!"
+      then
+         return;
+      end if;
+
+      for Index in 1 .. Length (Text) loop
+         exit when Element (Text, Index) = Ada.Characters.Latin_1.LF;
+         Replace_Element (Text, Index, ' ');
+      end loop;
+   end Blank_A_Shebang;
+
    --  Read what a script asks for into its text.
    --
    --  Never reports anything. A file that does not parse, a name that resolves
@@ -306,6 +377,9 @@ package body Adash.Scripting is
          end;
 
          Ada.Streams.Stream_IO.Close (File);
+
+         --  A module can be a script somebody also made executable.
+         Blank_A_Shebang (Result);
          return To_String (Result);
 
       exception
@@ -728,6 +802,9 @@ package body Adash.Scripting is
                Complain (Report, Adash.Errors.Error_Source_Unreadable, Path);
                return;
          end;
+
+         --  The line the host read to find this shell, if there is one.
+         Blank_A_Shebang (Content);
 
          --  On the chain while it runs, off it afterwards. A script that
          --  loaded another which loaded the first would otherwise be a hang

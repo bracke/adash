@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 522 messages in 22 groups.
+There are 525 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -119,6 +119,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.output_too_large` | {program} wrote more than this shell will hold at once |
 | `error.stream_write_failed` | could not write to {stream} |
 | `error.stream_read_failed` | could not read from {stream} |
+| `error.process_would_not_stop` | process {process} would not take the request to stop: it may have ended already, or it may not be yours to signal |
 | `error.job_unknown` | no such job: {job} |
 | `error.job_is_suspended` | job {job} is suspended; resume it before waiting for it |
 | `error.execution_cancelled` | cancelled |
@@ -294,6 +295,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.pipe_run.doc` | Run the pipeline that pipe has built, and wait for it. |
 | `command.start.doc` | Start a program in the background and record it as a job. |
 | `command.wait.doc` | Wait for a job to finish and report how it ended. |
+| `command.stop_process.doc` | Ask a process this session did not start to stop, by its id. POSIX sends SIGTERM; Windows terminates it. |
 | `command.stop.doc` | Ask a job to stop. |
 | `command.suspend.doc` | Suspend a running job, leaving it able to be resumed. |
 | `command.resume.doc` | Resume a suspended job, in the background. |
@@ -304,6 +306,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.remove_directory.doc` | Take an empty directory away: remove_directory (DIRECTORY). |
 | `command.rename.doc` | Give something another name or place: rename (FROM, TO). Refuses to replace what is there. |
 | `command.copy_file.doc` | Copy a file: copy_file (FROM, TO). Refuses to replace what is there. |
+| `command.on_interrupt.doc` | Name a subprogram to run when the user interrupts. It stays registered; on_exit cleanups still run afterwards. |
 | `command.on_exit.doc` | Run a subprogram before this session ends: on_exit (SUBPROGRAM). |
 | `command.append_file.doc` | Add text to the end of a file: append_file (TEXT, FILE). |
 | `command.forget.doc` | Forget history, in this session and in the file: forget (COUNT) or forget ("LINE"). |

@@ -298,6 +298,7 @@ package body Adash.Messages is
          when Msg_File_Too_Large             => return "error.file_too_large";
          when Msg_Output_Too_Large           => return "error.output_too_large";
          when Msg_Job_Unknown                => return "error.job_unknown";
+         when Msg_Process_Would_Not_Stop      => return "error.process_would_not_stop";
          when Msg_Job_Is_Suspended           => return "error.job_is_suspended";
          when Msg_Execution_Cancelled        => return "error.execution_cancelled";
          when Msg_Capability_Unavailable     => return "error.capability_unavailable";
@@ -605,6 +606,8 @@ package body Adash.Messages is
          when Msg_Command_Start_Doc          => return "command.start.doc";
          when Msg_Command_Wait_Doc           => return "command.wait.doc";
          when Msg_Command_Stop_Doc           => return "command.stop.doc";
+         when Msg_Command_Stop_Process_Doc   => return "command.stop_process.doc";
+         when Msg_Command_On_Interrupt_Doc   => return "command.on_interrupt.doc";
          when Msg_Command_Suspend_Doc      => return "command.suspend.doc";
          when Msg_Command_Foreground_Doc     => return "command.foreground.doc";
          when Msg_Command_Resume_Doc       => return "command.resume.doc";
@@ -1000,6 +1003,8 @@ package body Adash.Messages is
             | Msg_Command_Pipe_All_New_Doc
             | Msg_Command_Pipe_Run_Doc
             | Msg_Command_Start_Doc | Msg_Command_Wait_Doc
+            | Msg_Command_On_Interrupt_Doc
+            | Msg_Command_Stop_Process_Doc
             | Msg_Command_Stop_Doc
             | Msg_Command_Suspend_Doc | Msg_Command_Resume_Doc
             | Msg_Command_Foreground_Doc
@@ -1325,6 +1330,9 @@ package body Adash.Messages is
 
          when Msg_Job_Unknown =>
             return [1 => N ("job")];
+
+         when Msg_Process_Would_Not_Stop =>
+            return [1 => N ("process")];
 
          when Msg_Capability_Unavailable =>
             return [1 => N ("capability")];

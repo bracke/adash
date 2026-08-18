@@ -296,6 +296,25 @@ package body Adash.Commands is
       (Command_Stop, Named ("stop"), 1, 1, [1 => Whole ("Job"), others => Nothing],
        Changes_State,
        M.Msg_Command_Stop_Doc, M.Msg_Command_Hint, Available),
+
+      --  Ask a process this session did not start to stop.
+      --
+      --  `stop` takes a job: something this shell started and still knows
+      --  about. A user who wants to stop anything else -- a build they left
+      --  running in another window, a program that has stopped answering --
+      --  has a process id and no job, and had nothing to type.
+      --
+      --  A separate command rather than a second meaning for `stop`, because
+      --  job 3 and process 3 are both plausible and a shell that guessed
+      --  between them would eventually stop the wrong thing.
+      --
+      --  What "ask" means is the host's: POSIX sends SIGTERM, Windows has no
+      --  signal to send and terminates the process, which is the only way to
+      --  say it there. Neither is a promise that the process ends.
+      (Command_Stop_Process, Named ("stop_process"), 1, 1,
+       [1 => Whole ("Process"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Stop_Process_Doc, M.Msg_Command_Hint, Available),
       (Command_Suspend, Named ("suspend"), 1, 1,
        [1 => Whole ("Job"), others => Nothing],
        Changes_State,
@@ -373,6 +392,22 @@ package body Adash.Commands is
        [1 => Text ("Subprogram"), others => Nothing],
        Changes_State,
        M.Msg_Command_On_Exit_Doc, M.Msg_Command_Hint, Available),
+
+      --  What to run when the user interrupts.
+      --
+      --  `on_exit` covers the end of a session; this covers the other way a
+      --  script stops being the thing it was: somebody pressed Ctrl-C. Until
+      --  now a script could tidy up after itself only if it was allowed to
+      --  finish, which is the case that needs it least.
+      --
+      --  Registered rather than taken: an interrupt can happen twice, and a
+      --  handler that ran for the first Ctrl-C and not the second would be a
+      --  bug nobody would report. `on_exit` cleanups still run afterwards, so
+      --  a script that registers both gets both, in that order.
+      (Command_On_Interrupt, Named ("on_interrupt"), 1, 1,
+       [1 => Text ("Name"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_On_Interrupt_Doc, M.Msg_Command_Hint, Available),
       (Command_Append_File, Named ("append_file"), 2, 2,
        [1 => Text ("Text"), 2 => Text ("File"), others => Nothing],
        Changes_State,

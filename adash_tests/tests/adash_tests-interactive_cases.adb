@@ -2984,6 +2984,120 @@ package body Adash_Tests.Interactive_Cases is
       Ada.Directories.Delete_File (Script);
    end An_Interrupted_Script_Still_Tidies_Up;
 
+   --  A script interrupted runs what `on_interrupt` asked for, and then what
+   --  `on_exit` did.
+   --
+   --  The case beside this one asserts the cleanup; this asserts the other
+   --  half, which is newer: until `on_interrupt` a script could tidy up after
+   --  itself only if it was allowed to finish, which is the case that needs it
+   --  least. Both, in that order, because a cleanup that ran first would tidy
+   --  away what the handler was about to look at.
+   procedure An_Interrupted_Script_Runs_Its_Handler
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure An_Interrupted_Script_Runs_Its_Handler
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-handler.adash");
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+   begin
+      Adash.Filesystem.Write
+        (Script,
+         "procedure Note is begin put_line (To_Upper (""noted"")); end Note;"
+         & Ada.Characters.Latin_1.LF
+         & "procedure Tidy is begin put_line (To_Upper (""tidied"")); end Tidy;"
+         & Ada.Characters.Latin_1.LF
+         & "on_interrupt (""Note"");" & Ada.Characters.Latin_1.LF
+         & "on_exit (""Tidy"");" & Ada.Characters.Latin_1.LF
+         & "put_line (To_Upper (""running""));" & Ada.Characters.Latin_1.LF
+         & "loop null; end loop;" & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the script was not written");
+
+      if not Start_On_A_Terminal (Session, Script) then
+         Ada.Directories.Delete_File (Script);
+         return;
+      end if;
+
+      declare
+         Seen : Boolean := False;
+      begin
+         for Attempt in 1 .. 200 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Seen := Ada.Strings.Fixed.Index
+                         (Plainly (Session), "RUNNING") > 0;
+            end;
+
+            exit when Seen;
+            delay 0.05;
+         end loop;
+
+         Assert (Seen,
+                 "the script never started: [" & Plainly (Session) & "]");
+      end;
+
+      Assert (Try_Interrupt (Session),
+              "the terminal refused the interrupt: ["
+              & Plainly (Session) & "]");
+
+      declare
+         Noted  : Boolean := False;
+         Tidied : Boolean := False;
+      begin
+         for Attempt in 1 .. 300 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Noted := Ada.Strings.Fixed.Index
+                          (Plainly (Session), "NOTED") > 0;
+               Tidied := Ada.Strings.Fixed.Index
+                           (Plainly (Session), "TIDIED") > 0;
+            end;
+
+            exit when Noted and then Tidied;
+            delay 0.05;
+         end loop;
+
+         Assert (Noted,
+                 "an interrupted script did not run what on_interrupt asked "
+                 & "for: [" & Plainly (Session) & "]");
+
+         Assert (Tidied,
+                 "an interrupted script did not run its cleanup after its "
+                 & "handler: [" & Plainly (Session) & "]");
+
+         Assert (Ada.Strings.Fixed.Index (Plainly (Session), "NOTED")
+                 < Ada.Strings.Fixed.Index (Plainly (Session), "TIDIED"),
+                 "the cleanup ran before the handler: ["
+                 & Plainly (Session) & "]");
+      end;
+
+      Close_Without_Typing (Session, Ended);
+
+      Assert (Ended,
+              "an interrupted script left a shell behind: ["
+              & Plainly (Session) & "]");
+
+      Ada.Directories.Delete_File (Script);
+   end An_Interrupted_Script_Runs_Its_Handler;
+
+
    procedure Close_Without_Typing
      (Item : in out Terminal_Session; Ended : out Boolean)
    is
@@ -3342,6 +3456,8 @@ package body Adash_Tests.Interactive_Cases is
                         "what a shell on a terminal says when given a script");
       Register_Routine (T, An_Interrupted_Script_Still_Tidies_Up'Access,
                         "a script interrupted still runs what it registered");
+      Register_Routine (T, An_Interrupted_Script_Runs_Its_Handler'Access,
+                        "a script interrupted runs its handler, then its cleanup");
       Register_Routine (T, A_Job_Waited_For_Gets_The_Terminal'Access,
                         "a job waited for gets the terminal");
       Register_Routine (T, A_Background_Job_Is_Given_Nothing_To_Read'Access,

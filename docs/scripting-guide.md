@@ -172,3 +172,31 @@ each. A script is a *program*, and the thing that makes it worth writing in this
 shell rather than another is that it can be read as one.
 
 `language-reference.md` is the subset it is written in.
+
+## A script as a program
+
+A script may begin with the line the host reads to decide what runs it:
+
+    #!/usr/bin/env adash
+    put_line ("this file is executable");
+
+`chmod +x` it and it runs like any other program. The line is not Ada, so the
+shell blanks it — leaving its newline in place, so that every position after it
+is unchanged and a diagnostic still names the line you are looking at.
+
+Only at the very start, and only `#!`. A `#` anywhere else is not a comment in
+this language and is not treated as one.
+
+## When somebody interrupts
+
+`on_exit` names what to run when a session ends. `on_interrupt` names what to
+run when the user interrupts — the case a script most needs and could not
+express, because until it existed a script could tidy up after itself only if
+it was allowed to finish.
+
+    procedure Put_It_Back is begin remove_file ("lock"); end Put_It_Back;
+    on_interrupt ("Put_It_Back");
+
+A handler stays registered: an interrupt can happen twice. Cleanups registered
+with `on_exit` still run afterwards, so a script that registers both gets both,
+handler first.

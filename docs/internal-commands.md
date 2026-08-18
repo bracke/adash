@@ -104,6 +104,8 @@ reads as the empty string rather than failing.
 | `run_from (File : String; Program : String…)` | 2 .. any | runs it with its input read from a file |
 | `run_from_text (Input : String; Program : String…)` | 2 .. any | runs it with its input read from text this script computed |
 | `run_with (Assignment : String; Program : String…)` | 2 .. any | runs it with one variable set for it alone, written `NAME=VALUE` |
+| `stop_process (Process : Integer)` | 1 | asks a process this session did not start to stop, by its id |
+| `on_interrupt (Name : String)` | 1 | names a subprogram to run when the user interrupts; stays registered |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
 | `pipe_start` | 0 | runs the pipeline in the background and names the job |

@@ -87,6 +87,12 @@ package Adash.Errors is
       --  Execution: jobs and cancellation.
       Error_Job_Unknown,
 
+      --  A process this session did not start would not take the request to
+      --  stop: it has already gone, its id names something else, or this user
+      --  may not signal it. The host does not say which, and neither does
+      --  this: guessing between "gone" and "not yours" would be a claim.
+      Error_Process_Would_Not_Stop,
+
       --  A suspended job, where the caller wanted one that would end.
       Error_Job_Is_Suspended,
       Error_Cancelled,

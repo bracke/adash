@@ -170,6 +170,7 @@ output = [
   "!line.command_entry{name=start,summary=!command.start.doc!}!",
   "!line.command_entry{name=wait,summary=!command.wait.doc!}!",
   "!line.command_entry{name=stop,summary=!command.stop.doc!}!",
+  "!line.command_entry{name=stop_process,summary=!command.stop_process.doc!}!",
   "!line.command_entry{name=suspend,summary=!command.suspend.doc!}!",
   "!line.command_entry{name=resume,summary=!command.resume.doc!}!",
   "!line.command_entry{name=foreground,summary=!command.foreground.doc!}!",
@@ -180,10 +181,99 @@ output = [
   "!line.command_entry{name=rename,summary=!command.rename.doc!}!",
   "!line.command_entry{name=copy_file,summary=!command.copy_file.doc!}!",
   "!line.command_entry{name=on_exit,summary=!command.on_exit.doc!}!",
+  "!line.command_entry{name=on_interrupt,summary=!command.on_interrupt.doc!}!",
   "!line.command_entry{name=append_file,summary=!command.append_file.doc!}!",
   "!line.command_entry{name=settings,summary=!command.settings.doc!}!",
   "!line.command_entry{name=save_settings,summary=!command.save_settings.doc!}!",
 ]
+diagnostics = []
+
+[[case]]
+id = "scripts.a-shebang-line-is-not-a-statement"
+requirement = """
+A script is a file, and a file somebody made executable begins with the line
+the host reads to decide what runs it. That line is not Ada, so without this a
+script starting `#!/usr/bin/env adash` is a script whose first line is a syntax
+error -- which is what stood between this shell and being used the way every
+other shell's scripts are.
+
+The line is blanked rather than removed, and its newline kept, so that every
+byte after it stays where it was: a diagnostic still names the line the reader
+is looking at. This case proves the first half; the second is proved by the
+one below it, which puts a mistake on a known line and checks where the shell
+says it is.
+
+Only at the very start, and only `#!`. A `#` anywhere else in this language is
+not a comment and is not treated as one.
+"""
+script = """
+write_file ("#!/usr/bin/env adash" & Character'Val (10) & "put_line (To_Upper (\"\"ran\"\"));" & Character'Val (10), "{store}/shebang.adash");
+run ("{shell}", "{store}/shebang.adash");
+quit (0);"""
+exit_status = 0
+output = ["RAN"]
+diagnostics = []
+
+[[case]]
+id = "scripts.a-shebang-does-not-move-what-follows-it"
+requirement = """
+The other half of blanking rather than removing. The mistake below is on line
+three of the file, and the shell must say line three: dropping the shebang
+would move every position after it and quietly misplace every message about
+the file.
+"""
+script = """
+write_file ("#!/usr/bin/env adash" & Character'Val (10) & "put_line (To_Upper (\"\"first\"\"));" & Character'Val (10) & "put_line (Nope);" & Character'Val (10), "{store}/moved.adash");
+run ("{shell}", "{store}/moved.adash");
+quit (0);"""
+exit_status = 0
+output = []
+diagnostics = [
+  "!line.diagnostic_at{path={store}/moved.adash,line=3,column=11,text=!error.name_undeclared{name=Nope}!}!",
+  "put_line (Nope);",
+  "          ^~~~",
+]
+
+[[case]]
+id = "jobs.a-process-this-session-did-not-start-can-be-asked-to-stop"
+requirement = """
+`stop` takes a job: something this shell started and still knows about. A user
+who wants to stop anything else -- a build left running in another window, a
+program that has stopped answering -- has a process id and no job, and had
+nothing to type.
+
+A separate command rather than a second meaning for `stop`, because job 3 and
+process 3 are both plausible and a shell that guessed between them would
+eventually stop the wrong thing.
+
+What is asserted here is the refusal, because it is the half that is the same
+everywhere: a process id nothing answers to is reported by number, and the
+reason is not guessed at -- the host does not say whether it has already gone
+or was never ours to signal, and neither does this.
+"""
+script = "stop_process (2147483647); quit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.process_would_not_stop{process=2147483647}!"]
+
+[[case]]
+id = "scripts.an-interrupt-handler-does-not-run-when-nothing-interrupts"
+requirement = """
+`on_interrupt` registers what to run when the user interrupts, and a script
+that is never interrupted must not run it. The interrupted case is asserted in
+the terminal suite, where there is a terminal to type Ctrl-C at; what belongs
+here is that registering one is not the same as running it, and that `on_exit`
+still runs on the ordinary path.
+"""
+script = """
+procedure Note is begin put_line (To_Upper ("interrupted")); end Note;
+procedure Tidy is begin put_line (To_Upper ("tidied")); end Tidy;
+on_interrupt ("Note");
+on_exit ("Tidy");
+put_line (To_Upper ("done"));
+quit (0);"""
+exit_status = 0
+output = ["DONE", "TIDIED"]
 diagnostics = []
 
 [[case]]

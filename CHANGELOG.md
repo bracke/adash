@@ -11,6 +11,17 @@ what changed.
 
 ### Added
 
+- **A script may begin with `#!`.** The line the host reads to decide what runs
+  a file is blanked rather than removed, so every position after it is
+  unchanged and a diagnostic still names the line a reader is looking at. Until
+  now an executable script's first line was a syntax error.
+- `on_interrupt (Name)` — what to run when the user interrupts, beside
+  `on_exit`'s what to run when a session ends. It stays registered, because an
+  interrupt can happen twice; cleanups still run afterwards, handler first.
+- `stop_process (Process)` — asks a process this session did not start to stop.
+  `stop` takes a job; a user who wants to stop a build left running in another
+  window has a process id and had nothing to type. A separate command, because
+  job 3 and process 3 are both plausible.
 - `Matches (Whole, Pattern)` — pattern matching over strings: `*`, `?`,
   `[abc]`, `[a-z]`, `[!abc]`. Glob *expansion* remains refused — nothing
   rewrites an argument list from the filesystem — but a script can now ask

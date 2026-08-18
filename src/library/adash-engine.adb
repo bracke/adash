@@ -1489,6 +1489,16 @@ package body Adash.Engine is
       return Taken;
    end Take_Cleanups;
 
+   -------------------------
+   -- Interrupt_Handlers --
+   -------------------------
+
+   function Interrupt_Handlers
+     (Item : Session) return Hostkit.String_Vectors.Vector is
+   begin
+      return Item.Shell.Interrupt_Handlers;
+   end Interrupt_Handlers;
+
    function Exit_Requested (Item : Session) return Boolean is
    begin
       return Item.Shell.Exit_Requested;
