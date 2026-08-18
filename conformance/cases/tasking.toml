@@ -2643,8 +2643,18 @@ diagnostics = []
 
 [[case]]
 id = "select.and-the-wait-still-runs-out-when-nobody-comes"
-requirement = "The clock is still the other thing it waits for: nobody calls, and the delay alternative is taken at the time it said."
-script = "task Napper is entry Knock; end Napper; task body Napper is begin select accept Knock; or delay 0.1; put_line (\"the wait ran out, as it should when nobody comes\"); end select; end Napper; delay 0.3; put_line (\"and the program carries on\");\nquit (0);"
+requirement = """
+The clock is still the other thing it waits for: nobody calls, and the delay
+alternative is taken at the time it said.
+
+The margin between the two delays is a second rather than the fifth it was. What
+this asserts is an order -- the alternative fires, and then the program that
+outlives it carries on -- and on a loaded runner a fifth of a second is not a
+margin, it is a race that this case lost on macOS while the machine was busy
+with the terminal suites. A case whose claim is about ordering should not be
+measuring the scheduler.
+"""
+script = "task Napper is entry Knock; end Napper; task body Napper is begin select accept Knock; or delay 0.1; put_line (\"the wait ran out, as it should when nobody comes\"); end select; end Napper; delay 1.0; put_line (\"and the program carries on\");\nquit (0);"
 exit_status = 0
 output = ["the wait ran out, as it should when nobody comes", "and the program carries on"]
 diagnostics = []
