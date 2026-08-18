@@ -182,6 +182,38 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Umask_Doc, M.Msg_Command_Hint, Available),
 
+      --  What this host will let this shell use.
+      --
+      --  Asked with no argument it lists every limit; with a resource name it
+      --  reports that one; with a name and a number it sets it. `unlimited`
+      --  is a value like any other where the host allows one.
+      --
+      --  This sets the soft limit, which is the one the host enforces and the
+      --  one a caller may move freely below the ceiling. It is per process and
+      --  inherited, which is the point: a script lowers a limit and everything
+      --  it starts afterwards runs under it.
+      --
+      --  Windows has none of this. Its job objects are a different shape --
+      --  attached to a set of processes rather than inherited by them, and not
+      --  something a process lowers on itself -- so this says the host has no
+      --  limits rather than reporting numbers a script would then act on.
+      (Command_Resource_Limit, Named ("resource_limit"), 0, 2,
+       [1 => Text ("Resource"), 2 => Text ("Value"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Resource_Limit_Doc, M.Msg_Command_Hint, Available),
+
+      --  How far a limit may be raised.
+      --
+      --  The ceiling, which is the second number the host keeps per resource.
+      --  Anybody may lower it and only privilege raises it again, so a script
+      --  that lowers one has closed a door for every process that follows --
+      --  which is what makes it worth a command of its own rather than a flag
+      --  on the one above.
+      (Command_Resource_Ceiling, Named ("resource_ceiling"), 1, 2,
+       [1 => Text ("Resource"), 2 => Text ("Value"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Resource_Ceiling_Doc, M.Msg_Command_Hint, Available),
+
       --  Teach Tab what may follow a program.
       --
       --  The shell knows its own vocabulary and what the filesystem holds; it

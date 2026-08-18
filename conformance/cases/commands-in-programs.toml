@@ -148,6 +148,8 @@ output = [
   "!line.command_entry{name=start_with,summary=!command.start_with.doc!}!",
   "!line.command_entry{name=time,summary=!command.time.doc!}!",
   "!line.command_entry{name=umask,summary=!command.umask.doc!}!",
+  "!line.command_entry{name=resource_limit,summary=!command.resource_limit.doc!}!",
+  "!line.command_entry{name=resource_ceiling,summary=!command.resource_ceiling.doc!}!",
   "!line.command_entry{name=complete_with,summary=!command.complete_with.doc!}!",
   "!line.command_entry{name=run_append,summary=!command.run_append.doc!}!",
   "!line.command_entry{name=run_new,summary=!command.run_new.doc!}!",
@@ -470,3 +472,112 @@ script = "put_line (\"before\"); cd (\"{store}\"); X : Integer := 1; write_file 
 exit_status = 0
 output = ["before", " 1", "moved"]
 diagnostics = []
+
+[[case]]
+id = "resources.a-limit-is-set-and-read-back"
+requirement = """
+`resource_limit` sets what the host enforces and `resource_ceiling` sets how
+far that may be raised; reading shows both, because somebody asking what a
+limit is wants to know how far it could go.
+
+The numbers a host starts with are the runner's business, so this sets both
+before reading either -- and sets the limit before the ceiling, since a host
+refuses a ceiling below the limit already in force.
+
+Two hosts, because Windows has no per-process limits at all; the case below
+asserts what it does instead.
+"""
+script = "resource_limit (\"open_files\", \"256\"); resource_ceiling (\"open_files\", \"300\"); resource_limit (\"open_files\");\nquit (0);"
+exit_status = 0
+output = [
+  "!line.limit{resource=open_files,value=256}!",
+  "!line.limit_ceiling{resource=open_files,value=300}!",
+]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "resources.unlimited-is-a-value"
+requirement = """
+`unlimited` is what a user types for a limit with nothing behind it, and what
+the shell reports for one. A host spells infinity its own way -- every bit on
+Linux, every bit but the sign on macOS -- and neither number reaches a script:
+it would be printed as a limit, and a script comparing against it would be
+comparing against a host detail.
+
+How large a file may be written is unlimited on both of these hosts to begin
+with, so setting it so asks nothing of the runner and the case still exercises
+both spellings.
+"""
+script = "resource_ceiling (\"file_size\", \"unlimited\"); resource_limit (\"file_size\", \"unlimited\"); resource_limit (\"file_size\");\nquit (0);"
+exit_status = 0
+output = [
+  "!line.limit_unbounded{resource=file_size}!",
+  "!line.limit_ceiling_unbounded{resource=file_size}!",
+]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "resources.a-word-that-names-no-limit-is-refused"
+requirement = """
+A resource name that names nothing is refused where it stands, on every host --
+the name is checked before the host is asked, so a user who mistyped one hears
+about the typing rather than about the platform.
+
+The names are the ones `resource_limit` lists with no argument, which is where
+somebody who spelled one the way another shell spells it will look.
+"""
+script = "resource_limit (\"open_flies\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.unknown_resource{resource=open_flies}!"]
+
+[[case]]
+id = "resources.a-limit-that-is-not-a-number-is-refused"
+requirement = """
+A limit is digits or the word `unlimited`. Sizes here are bytes rather than the
+kilobytes some shells count in, so a value read wrongly would be wrong by a
+factor of a thousand rather than obviously wrong -- and a limit somebody meant
+to raise and instead lowered is a script that fails somewhere else entirely.
+"""
+script = "resource_limit (\"open_files\", \"many\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.limit_not_a_number{text=many}!"]
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "resources.a-host-without-limits-says-so"
+requirement = """
+Windows has no per-process resource limits. What it has is a job object, which
+is attached to a set of processes rather than inherited by them and which a
+process cannot lower on itself -- a different thing, and reporting one as the
+other would hand a script a number it could not act on.
+
+So the shell says the host has none, rather than printing an empty list a
+script could not tell from a host whose limits were all unset.
+"""
+script = "resource_limit ();\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.no_resource_limits!"]
+platforms = ["windows"]
+
+[[case]]
+id = "resources.a-ceiling-below-the-limit-is-refused"
+requirement = """
+A ceiling below the limit already in force is not a thing a host will hold, and
+this reports the refusal rather than reporting success and leaving the limit
+where it was.
+
+Which refusal it was is not told apart. A host refuses a ceiling below the
+limit, a raised ceiling without privilege, and a resource it will not move, and
+the three hosts do not agree on how they say which -- so the shell names the
+resource and leaves the limit to be read back.
+"""
+script = "resource_limit (\"open_files\", \"300\"); resource_ceiling (\"open_files\", \"100\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.limit_refused{resource=open_files}!"]
+platforms = ["linux", "macos"]

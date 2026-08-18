@@ -108,6 +108,8 @@ reads as the empty string rather than failing.
 | `start_with (Assignment : String; Program : String…)` | 2 .. any | as `run_with`, without waiting |
 | `time (Program : String; Argument : String…)` | 1 .. any | runs it and reports how long it took, in wall-clock seconds |
 | `umask (Mask : String)` | 0 or 1 | shows what the host takes away from a new file's permissions, or sets it, in octal; Windows has none |
+| `resource_limit (Resource : String; Value : String)` | 0 to 2 | with nothing, lists every limit this host has; with a resource, shows it and the ceiling it may be raised to; with both, sets it. Sizes are bytes, `processor_time` is seconds, the rest are counts, and `unlimited` is a value. Windows has none |
+| `resource_ceiling (Resource : String; Value : String)` | 1 or 2 | shows or sets how far a limit may be raised. Anybody may lower a ceiling; only privilege raises it again |
 | `complete_with (Program : String; Name : String)` | 2 | names a subprogram that says what may follow a program, one candidate per line, for Tab |
 | `on_interrupt (Name : String)` | 1 | names a subprogram to run when the user interrupts; stays registered |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |

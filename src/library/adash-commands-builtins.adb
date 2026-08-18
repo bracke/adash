@@ -12,6 +12,7 @@ with Adash.Version;
 with Hostkit;
 with Hostkit.Process;
 with Hostkit.Fs;
+with Hostkit.Limits;
 with Adash.Configuration;
 with Adash.Configuration.Files;
 with Adash.Persistence;
@@ -113,6 +114,112 @@ package body Adash.Commands.Builtins is
 
       return True;
    end Octal_Value;
+   --  The name a user types for a resource.
+   --
+   --  Derived from the type rather than written out, so a resource hostkit
+   --  gains is one this shell lists and accepts without a second table to keep
+   --  in step -- and there is no list here that could disagree with that one.
+   function Resource_Name (Item : Hostkit.Limits.Resource) return String;
+
+   function Resource_Name (Item : Hostkit.Limits.Resource) return String is
+      Named : constant String := Hostkit.Limits.Resource'Image (Item);
+      Lower : String := Named;
+   begin
+      for Index in Lower'Range loop
+         if Lower (Index) in 'A' .. 'Z' then
+            Lower (Index) :=
+              Character'Val (Character'Pos (Lower (Index))
+                             - Character'Pos ('A') + Character'Pos ('a'));
+         end if;
+      end loop;
+
+      return Lower;
+   end Resource_Name;
+
+   --  Which resource a word names, if any.
+   function Resource_Named
+     (Text : String; Item : out Hostkit.Limits.Resource) return Boolean;
+
+   function Resource_Named
+     (Text : String; Item : out Hostkit.Limits.Resource) return Boolean is
+   begin
+      Item := Hostkit.Limits.Resource'First;
+
+      for Candidate in Hostkit.Limits.Resource loop
+         if Resource_Name (Candidate) = Text then
+            Item := Candidate;
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Resource_Named;
+
+   --  The word for a limit with nothing behind it.
+   --
+   --  Typed rather than printed: what a user sees for an absent limit comes
+   --  from the catalog like every other line, and this is only what they may
+   --  type. It is spelled the way every other shell spells it.
+   Unlimited_Word : constant String := "unlimited";
+
+   --  A limit as a user writes one: digits, or the word above.
+   function Limit_Value
+     (Text : String; Value : out Hostkit.Limits.Amount) return Boolean;
+
+   function Limit_Value
+     (Text : String; Value : out Hostkit.Limits.Amount) return Boolean
+   is
+      use type Hostkit.Limits.Amount;
+   begin
+      Value := 0;
+
+      if Text = Unlimited_Word then
+         Value := Hostkit.Limits.Unbounded;
+         return True;
+      end if;
+
+      --  Twenty digits is what an unsigned 64-bit number takes, and refusing
+      --  anything longer keeps the accumulation below from wrapping round to a
+      --  small limit somebody would then be surprised by.
+      if Text'Length = 0 or else Text'Length > 20 then
+         return False;
+      end if;
+
+      for Index in Text'Range loop
+         if Text (Index) not in '0' .. '9' then
+            return False;
+         end if;
+
+         declare
+            Digit : constant Hostkit.Limits.Amount :=
+              Hostkit.Limits.Amount
+                (Character'Pos (Text (Index)) - Character'Pos ('0'));
+         begin
+            --  Refused rather than wrapped: a limit that overflowed into a
+            --  small number is a limit a script would run under.
+            if Value > (Hostkit.Limits.Amount'Last - Digit) / 10 then
+               return False;
+            end if;
+
+            Value := Value * 10 + Digit;
+         end;
+      end loop;
+
+      --  A number that happens to be Amount'Last is the value this shell uses
+      --  for "no limit", so it is not a number a user can set to mean itself.
+      --  Saying so is better than setting something else.
+      return Value /= Hostkit.Limits.Unbounded;
+   end Limit_Value;
+
+   --  A limit as a line shows one: digits, with no leading space.
+   function Amount_Image (Value : Hostkit.Limits.Amount) return String;
+
+   function Amount_Image (Value : Hostkit.Limits.Amount) return String is
+      Written : constant String := Hostkit.Limits.Amount'Image (Value);
+   begin
+      return Ada.Strings.Fixed.Trim (Written, Ada.Strings.Both);
+   end Amount_Image;
+
    function Argument
      (Arguments : Argument_Set; Index : Positive) return String
    is (if Index <= Arguments.Count
@@ -1318,6 +1425,116 @@ package body Adash.Commands.Builtins is
                   end if;
 
                   return Adash.Execution.Success;
+               end;
+            end;
+
+         when Command_Resource_Limit | Command_Resource_Ceiling =>
+            declare
+               use type Hostkit.Limits.Amount;
+
+               --  Which of the host's two numbers this command sets. Reading
+               --  shows both either way: somebody asking what a limit is
+               --  wants to know how far it could be raised, and the ceiling
+               --  is the answer to that.
+               Which : constant Hostkit.Limits.Bound :=
+                 (if Id = Command_Resource_Limit
+                  then Hostkit.Limits.Soft
+                  else Hostkit.Limits.Hard);
+
+               procedure Report (Item : Hostkit.Limits.Resource);
+
+               procedure Report (Item : Hostkit.Limits.Resource) is
+                  Value : Hostkit.Limits.Amount;
+               begin
+                  if Id = Command_Resource_Limit
+                    and then Hostkit.Limits.Limit
+                               (Item, Hostkit.Limits.Soft, Value)
+                  then
+                     if Value = Hostkit.Limits.Unbounded then
+                        Say (Produced, M.Msg_Line_Limit_Unbounded,
+                             [1 => M.Named ("resource", Resource_Name (Item))]);
+                     else
+                        Say (Produced, M.Msg_Line_Limit,
+                             [M.Named ("resource", Resource_Name (Item)),
+                              M.Named ("value", Amount_Image (Value))]);
+                     end if;
+                  end if;
+
+                  if Hostkit.Limits.Limit (Item, Hostkit.Limits.Hard, Value)
+                  then
+                     if Value = Hostkit.Limits.Unbounded then
+                        Say (Produced, M.Msg_Line_Limit_Ceiling_Unbounded,
+                             [1 => M.Named ("resource", Resource_Name (Item))]);
+                     else
+                        Say (Produced, M.Msg_Line_Limit_Ceiling,
+                             [M.Named ("resource", Resource_Name (Item)),
+                              M.Named ("value", Amount_Image (Value))]);
+                     end if;
+                  end if;
+               end Report;
+
+               Wanted : Hostkit.Limits.Resource;
+            begin
+               --  Nothing named: every limit this host has. A host with none
+               --  says so rather than printing an empty list, which a script
+               --  could not tell from a host whose limits were all unset.
+               if Given = 0 then
+                  if not Hostkit.Limits.Applies
+                           (Hostkit.Limits.Resource'First)
+                  then
+                     return Failed (Adash.Errors.Error_No_Resource_Limits,
+                                    M.No_Arguments);
+                  end if;
+
+                  for Item in Hostkit.Limits.Resource loop
+                     if Hostkit.Limits.Applies (Item) then
+                        Report (Item);
+                     end if;
+                  end loop;
+
+                  return Adash.Execution.Success;
+               end if;
+
+               declare
+                  Named : constant String := Argument (Arguments, 1);
+               begin
+                  if not Resource_Named (Named, Wanted) then
+                     return Failed (Adash.Errors.Error_Unknown_Resource,
+                                    [1 => M.Named ("resource", Named)]);
+                  end if;
+
+                  if not Hostkit.Limits.Applies (Wanted) then
+                     return Failed (Adash.Errors.Error_No_Resource_Limits,
+                                    M.No_Arguments);
+                  end if;
+
+                  if Given = 1 then
+                     Report (Wanted);
+                     return Adash.Execution.Success;
+                  end if;
+
+                  declare
+                     Text  : constant String := Argument (Arguments, 2);
+                     Value : Hostkit.Limits.Amount;
+                  begin
+                     if not Limit_Value (Text, Value) then
+                        return Failed
+                          (Adash.Errors.Error_Limit_Not_A_Number,
+                           [1 => M.Named ("text", Text)]);
+                     end if;
+
+                     --  The host refuses a soft limit above the ceiling and a
+                     --  ceiling raised without privilege, and does not say
+                     --  which -- so neither does this.
+                     if not Hostkit.Limits.Set_Limit (Wanted, Which, Value)
+                     then
+                        return Failed
+                          (Adash.Errors.Error_Limit_Refused,
+                           [1 => M.Named ("resource", Named)]);
+                     end if;
+
+                     return Adash.Execution.Success;
+                  end;
                end;
             end;
 

@@ -30,6 +30,10 @@ package body Adash.Errors is
             | Error_Process_Would_Not_Stop
             | Error_No_Creation_Mask
             | Error_Mask_Not_Octal
+            | Error_No_Resource_Limits
+            | Error_Unknown_Resource
+            | Error_Limit_Not_A_Number
+            | Error_Limit_Refused
             | Error_Job_Is_Suspended
             | Error_Cancelled
             | Error_Directory_Not_Found
@@ -196,6 +200,14 @@ package body Adash.Errors is
          when Error_Process_Would_Not_Stop => return Adash.Messages.Msg_Process_Would_Not_Stop;
          when Error_No_Creation_Mask       => return Adash.Messages.Msg_No_Creation_Mask;
          when Error_Mask_Not_Octal         => return Adash.Messages.Msg_Mask_Not_Octal;
+         when Error_No_Resource_Limits     =>
+            return Adash.Messages.Msg_No_Resource_Limits;
+         when Error_Unknown_Resource       =>
+            return Adash.Messages.Msg_Unknown_Resource;
+         when Error_Limit_Not_A_Number     =>
+            return Adash.Messages.Msg_Limit_Not_A_Number;
+         when Error_Limit_Refused          =>
+            return Adash.Messages.Msg_Limit_Refused;
          when Error_Job_Is_Suspended       =>
             return Adash.Messages.Msg_Job_Is_Suspended;
          when Error_Cancelled              => return Adash.Messages.Msg_Execution_Cancelled;

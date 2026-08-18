@@ -224,6 +224,10 @@ package Adash.Messages is
       Msg_Process_Would_Not_Stop,
       Msg_No_Creation_Mask,
       Msg_Mask_Not_Octal,
+      Msg_No_Resource_Limits,
+      Msg_Unknown_Resource,
+      Msg_Limit_Not_A_Number,
+      Msg_Limit_Refused,
       Msg_Job_Is_Suspended,
       Msg_Execution_Cancelled,
       Msg_Capability_Unavailable,
@@ -394,6 +398,7 @@ package Adash.Messages is
       Msg_Command_Run_From_Doc, Msg_Command_Run_From_Text_Doc,
       Msg_Command_Run_With_Doc, Msg_Command_Start_With_Doc,
       Msg_Command_Time_Doc, Msg_Command_Umask_Doc,
+      Msg_Command_Resource_Limit_Doc, Msg_Command_Resource_Ceiling_Doc,
       Msg_Command_Complete_With_Doc,
       Msg_Command_Run_Append_Doc,
       Msg_Command_Run_New_Doc,
@@ -456,6 +461,13 @@ package Adash.Messages is
 
       Msg_Line_Job_Started,
       Msg_Line_Took, Msg_Line_Creation_Mask,
+
+      --  A limit, and the ceiling it may be raised to. Four messages rather
+      --  than two with a word for "unlimited" in them: the word would have to
+      --  be built in Ada and handed over as a placeholder, and a translator
+      --  cannot reach a word that arrives already written.
+      Msg_Line_Limit, Msg_Line_Limit_Unbounded,
+      Msg_Line_Limit_Ceiling, Msg_Line_Limit_Ceiling_Unbounded,
       Msg_Line_Job_Finished,
       Msg_Line_Job_Signalled,
       Msg_Line_Command_Entry,

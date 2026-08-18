@@ -301,6 +301,10 @@ package body Adash.Messages is
          when Msg_Process_Would_Not_Stop      => return "error.process_would_not_stop";
          when Msg_No_Creation_Mask           => return "error.no_creation_mask";
          when Msg_Mask_Not_Octal             => return "error.mask_not_octal";
+         when Msg_No_Resource_Limits         => return "error.no_resource_limits";
+         when Msg_Unknown_Resource           => return "error.unknown_resource";
+         when Msg_Limit_Not_A_Number         => return "error.limit_not_a_number";
+         when Msg_Limit_Refused              => return "error.limit_refused";
          when Msg_Job_Is_Suspended           => return "error.job_is_suspended";
          when Msg_Execution_Cancelled        => return "error.execution_cancelled";
          when Msg_Capability_Unavailable     => return "error.capability_unavailable";
@@ -568,6 +572,8 @@ package body Adash.Messages is
          when Msg_Command_Start_With_Doc     => return "command.start_with.doc";
          when Msg_Command_Time_Doc           => return "command.time.doc";
          when Msg_Command_Umask_Doc          => return "command.umask.doc";
+         when Msg_Command_Resource_Limit_Doc          => return "command.resource_limit.doc";
+         when Msg_Command_Resource_Ceiling_Doc  => return "command.resource_ceiling.doc";
          when Msg_Command_Complete_With_Doc  => return "command.complete_with.doc";
          when Msg_Command_Run_Append_Doc     => return "command.run_append.doc";
          when Msg_Command_Run_New_Doc        => return "command.run_new.doc";
@@ -643,6 +649,11 @@ package body Adash.Messages is
          when Msg_Line_Job_Started           => return "line.job_started";
          when Msg_Line_Took                  => return "line.took";
          when Msg_Line_Creation_Mask         => return "line.creation_mask";
+         when Msg_Line_Limit                 => return "line.limit";
+         when Msg_Line_Limit_Unbounded       => return "line.limit_unbounded";
+         when Msg_Line_Limit_Ceiling         => return "line.limit_ceiling";
+         when Msg_Line_Limit_Ceiling_Unbounded =>
+            return "line.limit_ceiling_unbounded";
          when Msg_Line_Job_Finished          => return "line.job_finished";
          when Msg_Line_Job_Signalled         => return "line.job_signalled";
          when Msg_Command_Source_Doc         => return "command.source.doc";
@@ -991,6 +1002,8 @@ package body Adash.Messages is
             | Msg_Command_Run_From_Text_Doc
             | Msg_Command_Complete_With_Doc
             | Msg_Command_Umask_Doc
+            | Msg_Command_Resource_Limit_Doc
+            | Msg_Command_Resource_Ceiling_Doc
             | Msg_Command_Time_Doc
             | Msg_Command_Start_With_Doc
             | Msg_Command_Run_With_Doc
@@ -1047,6 +1060,12 @@ package body Adash.Messages is
 
          when Msg_Line_Creation_Mask =>
             return [1 => N ("mask")];
+
+         when Msg_Line_Limit | Msg_Line_Limit_Ceiling =>
+            return [N ("resource"), N ("value")];
+
+         when Msg_Line_Limit_Unbounded | Msg_Line_Limit_Ceiling_Unbounded =>
+            return [1 => N ("resource")];
 
          when Msg_Line_Job_Finished =>
             return [N ("id"), N ("status")];
@@ -1358,6 +1377,15 @@ package body Adash.Messages is
          when Msg_Mask_Not_Octal =>
             return [1 => N ("text")];
 
+         when Msg_No_Resource_Limits =>
+            return No_Placeholders;
+
+         when Msg_Unknown_Resource | Msg_Limit_Refused =>
+            return [1 => N ("resource")];
+
+         when Msg_Limit_Not_A_Number =>
+            return [1 => N ("text")];
+
          when Msg_Capability_Unavailable =>
             return [1 => N ("capability")];
 
@@ -1380,7 +1408,7 @@ package body Adash.Messages is
    ---------------------
 
    function To_Placeholder (Name : String) return Placeholder_Name is
-      Result : Placeholder_Name := (others => ' ');
+      Result : Placeholder_Name := [others => ' '];
    begin
       if Name'Length >= Placeholder_Name'Length then
          Result := Name (Name'Last - Placeholder_Name'Length + 1 .. Name'Last);

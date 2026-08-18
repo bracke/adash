@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 533 messages in 22 groups.
+There are 543 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -121,6 +121,10 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.stream_read_failed` | could not read from {stream} |
 | `error.mask_not_octal` | {text} is not a mask: a mask is octal digits, as every shell writes one |
 | `error.no_creation_mask` | this host has no creation mask: permissions here come from the directory a file is made in, not from a per-process mask |
+| `error.no_resource_limits` | this host has no resource limits: what it has instead is attached to a set of processes rather than inherited by them, and a process cannot lower its own |
+| `error.unknown_resource` | no limit here is called {resource}; resource_limit with no argument lists the ones there are |
+| `error.limit_not_a_number` | {text} is not a limit: a limit is digits -- bytes for the sizes, seconds for processor_time, a count for the rest -- or the word unlimited |
+| `error.limit_refused` | this host would not set the limit on {resource}: a limit cannot go above its ceiling, and raising a ceiling needs privilege |
 | `error.process_would_not_stop` | process {process} would not take the request to stop: it may have ended already, or it may not be yours to signal |
 | `error.job_unknown` | no such job: {job} |
 | `error.job_is_suspended` | job {job} is suspended; resume it before waiting for it |
@@ -245,6 +249,10 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `note.first_here` | the first one is here |
 | `line.creation_mask` | umask {mask} |
 | `line.took` | {what} took {seconds} seconds |
+| `line.limit` | {resource} is {value} |
+| `line.limit_unbounded` | {resource} is unlimited |
+| `line.limit_ceiling` | {resource} may be raised to {value} |
+| `line.limit_ceiling_unbounded` | {resource} may be raised without limit |
 | `line.job_started` | [{id}] started {what} |
 | `line.job_finished` | [{id}] finished with status {status} |
 | `line.job_signalled` | [{id}] was ended by {signal} |
@@ -276,6 +284,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.complete_with.doc` | Name a subprogram that says what may follow a program, one candidate per line, for Tab to offer. |
 | `command.umask.doc` | Show the permissions this host takes away from a new file, or set them, in octal. Windows has none. |
 | `command.time.doc` | Run a program and report how long it took, in wall-clock seconds. |
+| `command.resource_limit.doc` | Show what this host will let this shell use, or set one of the limits. Sizes are bytes; unlimited is a value. Windows has none. |
+| `command.resource_ceiling.doc` | Show or set how far a limit may be raised. Anybody may lower a ceiling and only privilege raises it again. |
 | `command.run_with.doc` | Run a program with variables set for it alone, each written NAME=VALUE as set writes one. The assignments come first; the program is the first argument that is not one. |
 | `command.start_with.doc` | As run_with, without waiting: the job is named and the shell goes on. |
 | `command.run_from_text.doc` | Run a program with its input read from text this script computed. The text comes first; what follows is the program and its arguments. |

@@ -92,6 +92,8 @@ package Adash.Commands is
       Command_Start_With,
       Command_Time,
       Command_Umask,
+      Command_Resource_Limit,
+      Command_Resource_Ceiling,
       Command_Complete_With,
       Command_Run_Append,
       Command_Run_New,

@@ -16,6 +16,19 @@ what changed.
   form `NAME=VALUE`, which has exactly one exception, written down where the
   command is registered: a program whose own name contains an `=` must be run
   by `run` with the variables `set`.
+- `resource_limit` and `resource_ceiling` — what the host will let this shell
+  use, which every other shell exposes as `ulimit`. With no argument the first
+  lists every limit; with a resource it shows the limit and the ceiling it may
+  be raised to; with both it sets one. Sizes are bytes, `processor_time` is
+  seconds, the rest are counts, and `unlimited` is a value. Limits are
+  inherited, so a script that lowers one has lowered it for everything it
+  starts afterwards — which is the point. Windows has no per-process limits of
+  this kind (a job object is attached to a set of processes rather than
+  inherited by them, and a process cannot lower its own), so the shell says the
+  host has none rather than printing numbers a script could not act on. Named
+  `resource_limit` rather than `limit`: a command name cannot be redeclared, and
+  `Limit` is a variable somebody has already written — one of the conformance
+  cases here declares it.
 - `time (Program, …)` — runs a program and reports how long it took, in
   wall-clock seconds. Only wall time: a user time and a system time are a
   different measurement the host reports for a process it has reaped, and

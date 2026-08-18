@@ -621,7 +621,6 @@ package body Adash.Filesystem is
          Result := Write_Failed;
    end Append;
 
-
    ----------
    -- Hold --
    ----------
@@ -702,6 +701,5 @@ package body Adash.Filesystem is
          Item.Room := Null_Unbounded_String;
       end if;
    end Finalize;
-
 
 end Adash.Filesystem;

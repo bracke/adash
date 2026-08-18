@@ -104,6 +104,29 @@ package Adash.Errors is
       --  is a mistake nobody sees until a file somebody else can read.
       Error_Mask_Not_Octal,
 
+      --  This host has no resource limits to read or to set. Windows has job
+      --  objects, which are attached to a set of processes rather than
+      --  inherited by them and which a process cannot lower on itself -- a
+      --  different thing, and reporting one as the other would hand a script a
+      --  number it could not act on.
+      Error_No_Resource_Limits,
+
+      --  A word that names no resource this shell knows. The names are the
+      --  ones `limit` lists with no argument, which is where somebody who
+      --  spelled one the way another shell spells it will look.
+      Error_Unknown_Resource,
+
+      --  A limit that is not a number and is not `unlimited`. Sizes are bytes
+      --  here, not the kilobytes some shells count in, so a number read wrongly
+      --  would be wrong by a factor of a thousand rather than obviously wrong.
+      Error_Limit_Not_A_Number,
+
+      --  The host refused the limit. A soft limit above the ceiling, a ceiling
+      --  raised without privilege, or a resource this host will not move: the
+      --  hosts do not agree on how they say which, so this does not guess --
+      --  the limit can be read back and seen.
+      Error_Limit_Refused,
+
       --  A suspended job, where the caller wanted one that would end.
       Error_Job_Is_Suspended,
       Error_Cancelled,
