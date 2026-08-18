@@ -1924,10 +1924,39 @@ package body Adash_Tests.Interactive_Cases is
                  & Plainly (Session) & "]");
       end;
 
-      Type_Into (Session, "loop null; end loop;" & Return_Key);
+      --  The line says when it is running, and the interrupt waits for it to
+      --  say so.
+      --
+      --  A fixed pause was here, and on a loaded runner it expired while the
+      --  line was still being echoed: the editor redraws the whole line for
+      --  every keystroke, which on a slow pty is a great many bytes, so the
+      --  Ctrl-C arrived before there was anything to interrupt and the loop
+      --  then ran until the case gave up. What the case wants is a running
+      --  line, and a running line can say so.
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""running"")); loop null; end loop;"
+         & Return_Key);
 
-      --  Long enough that the line is running rather than still being read.
-      delay 1.0;
+      declare
+         Running : Boolean := False;
+      begin
+         for Attempt in 1 .. 400 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Running := Ada.Strings.Fixed.Index
+                            (Plainly (Session), "RUNNING") > 0;
+            end;
+
+            exit when Running;
+            delay 0.05;
+         end loop;
+
+         Assert (Running,
+                 "the line never started: [" & Plainly (Session) & "]");
+      end;
 
       Assert (Try_Interrupt (Session),
               "the terminal refused the interrupt: ["
