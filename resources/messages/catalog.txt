@@ -571,6 +571,9 @@ en.tooling.check.passed = {count, plural, =0 {no checks ran} one {# check passed
 en.tooling.check.failed = {count, plural, =0 {no failures} one {# check failed} other {# checks failed}}
 en.tooling.check.missing_file = required file is missing: {path}
 en.tooling.check.missing_directory = required directory is missing: {path}
+en.tooling.check.catalogued_message_missing = docs/diagnostics-catalog.md has no row for {key}, and says it is the catalog
+en.tooling.check.catalogued_message_differs = docs/diagnostics-catalog.md words {key} differently from the catalog
+en.tooling.check.catalogued_message_unknown = docs/diagnostics-catalog.md has a row for {key}, which the catalog does not have
 en.tooling.check.catalog_key_unused = the catalog carries {key} and no source names it, so nothing can ever show it
 en.tooling.check.catalog_key_absent = a tool names {key} and the catalog does not carry it, so a user gets the fallback form
 en.tooling.check.version_unreadable = the version could not be read from {path}; two files that both read as nothing compare equal, which is how this check passed for years

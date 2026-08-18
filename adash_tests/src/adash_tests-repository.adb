@@ -24,6 +24,12 @@ package body Adash_Tests.Repository is
    Key_Catalog_Missing_Key  : constant String := "tooling.check.catalog_missing_key";
    Key_Catalog_Key_Unused   : constant String := "tooling.check.catalog_key_unused";
    Key_Catalog_Key_Absent   : constant String := "tooling.check.catalog_key_absent";
+   Key_Catalogued_Missing   : constant String :=
+     "tooling.check.catalogued_message_missing";
+   Key_Catalogued_Differs   : constant String :=
+     "tooling.check.catalogued_message_differs";
+   Key_Catalogued_Unknown   : constant String :=
+     "tooling.check.catalogued_message_unknown";
    Key_Catalog_Unreadable   : constant String := "tooling.check.catalog_unreadable";
    Key_Escape_Sequence      : constant String := "tooling.check.escape_sequence";
    Key_Silent_Truncation    : constant String :=
@@ -158,6 +164,28 @@ package body Adash_Tests.Repository is
       end if;
       return Project_Tools.Files.List_Tree (Tree, "*.ad?");
    end Tooling_Files;
+
+   ---------------
+   -- Test_Files --
+   ---------------
+
+   --  The suite's own sources.
+   --
+   --  Read only by the catalog check, and only for the direction that asks
+   --  whether anything names a key. A case may assert about a message by its
+   --  key -- `Repo.Key (Finding) = "tooling.check.missing_file"` is how the
+   --  checker's own tests are written -- and a key named nowhere but there
+   --  would have been reported as one nothing can reach.
+   function Test_Files (Root : String) return Project_Tools.Files.Path_List;
+
+   function Test_Files (Root : String) return Project_Tools.Files.Path_List is
+      Tree : constant String := Join (Join (Root, "adash_tests"), "tests");
+   begin
+      if not Project_Tools.Files.Directory_Exists (Tree) then
+         return [1 .. 0 => <>];
+      end if;
+      return Project_Tools.Files.List_Tree (Tree, "*.ad?");
+   end Test_Files;
 
    ---------
    -- Key --
@@ -1161,6 +1189,10 @@ package body Adash_Tests.Repository is
          US.Append (Sources, Read_If_Present (US.To_String (Path)));
       end loop;
 
+      for Path of Test_Files (Root) loop
+         US.Append (Sources, Read_If_Present (US.To_String (Path)));
+      end loop;
+
       --  Direction one: every key the catalog carries is reachable from code.
       declare
          From : Positive := Catalog'First;
@@ -1259,6 +1291,166 @@ package body Adash_Tests.Repository is
       end;
    end Check_Catalog_Keys_Are_Used;
 
+   ------------------------------------
+   -- Check_The_Documented_Catalogue --
+   ------------------------------------
+
+   --  docs/diagnostics-catalog.md says what it is: "This document is the
+   --  catalog, grouped. The catalog file is the source; if the two disagree,
+   --  the file is right and this is stale."
+   --
+   --  Nothing checked it, and it was stale by 87 of 519 messages -- most of
+   --  everything added since the spring, including two rows edited by hand
+   --  three times in one day while this check was being written. A table that
+   --  claims to be the catalog and is missing a sixth of it is worse than no
+   --  table: a reader who finds an entry believes the ones they cannot find
+   --  are not there.
+   --
+   --  Both directions and the text between them. A row that names a message
+   --  the catalog does not have is a message that was renamed or removed; a
+   --  message with no row is one nobody reading the documentation will find;
+   --  and a row whose words are not the catalog's is the drift that matters
+   --  most, because it is the one a reader cannot see.
+   --
+   --  Rows are read as `| `key` | text |`, which is the shape the whole
+   --  table is written in.
+   procedure Check_The_Documented_Catalogue
+     (Root : String; Into : in out Report);
+
+   procedure Check_The_Documented_Catalogue
+     (Root : String; Into : in out Report)
+   is
+      Catalog_Path : constant String :=
+        Join (Root, "resources/messages/catalog.txt");
+      Document_Path : constant String :=
+        Join (Root, "docs/diagnostics-catalog.md");
+
+      Catalog  : constant String := Read_If_Present (Catalog_Path);
+      Document : constant String := Read_If_Present (Document_Path);
+
+      Locale : constant String := "en.";
+
+      --  One line of a document or catalog, without its terminator.
+      function Line_At (Text : String; From : Positive; Ends : out Natural)
+        return String;
+
+      function Line_At (Text : String; From : Positive; Ends : out Natural)
+        return String
+      is
+         Stop : Natural := From;
+      begin
+         while Stop <= Text'Last
+           and then Text (Stop) /= Ada.Characters.Latin_1.LF
+         loop
+            Stop := Stop + 1;
+         end loop;
+
+         Ends := Stop;
+         return Text (From .. Stop - 1);
+      end Line_At;
+
+      --  The row a message should have.
+      function Row_For (Key : String; Says : String) return String
+      is ("| `" & Key & "` | " & Says & " |");
+
+   begin
+      if Catalog = "" or else Document = "" then
+         --  Both are required elsewhere; saying so twice would make one
+         --  missing file look like two defects.
+         return;
+      end if;
+
+      --  Direction one: every message has a row saying exactly what it says.
+      declare
+         From : Positive := Catalog'First;
+      begin
+         while From <= Catalog'Last loop
+            declare
+               Ends : Natural;
+               Line : constant String := Line_At (Catalog, From, Ends);
+            begin
+               if Line'Length > Locale'Length
+                 and then Line (Line'First .. Line'First + Locale'Length - 1)
+                          = Locale
+               then
+                  declare
+                     Marker : constant Natural :=
+                       Ada.Strings.Fixed.Index (Line, " = ");
+                  begin
+                     if Marker > Line'First + Locale'Length then
+                        declare
+                           Key : constant String :=
+                             Line (Line'First + Locale'Length .. Marker - 1);
+                           Says : constant String :=
+                             Line (Marker + 3 .. Line'Last);
+                        begin
+                           Into.Checks_Run := Into.Checks_Run + 1;
+
+                           if Project_Tools.Text.Contains
+                                (Document, Row_For (Key, Says))
+                           then
+                              null;
+
+                           elsif Project_Tools.Text.Contains
+                                   (Document, "| `" & Key & "` |")
+                           then
+                              Add (Into, Key_Catalogued_Differs,
+                                   [1 => Msg.Named ("key", Key)]);
+                           else
+                              Add (Into, Key_Catalogued_Missing,
+                                   [1 => Msg.Named ("key", Key)]);
+                           end if;
+                        end;
+                     end if;
+                  end;
+               end if;
+
+               From := Ends + 1;
+            end;
+         end loop;
+      end;
+
+      --  Direction two: every row names a message the catalog has.
+      declare
+         From : Positive := Document'First;
+      begin
+         while From <= Document'Last loop
+            declare
+               Ends : Natural;
+               Line : constant String := Line_At (Document, From, Ends);
+            begin
+               if Line'Length > 3
+                 and then Line (Line'First .. Line'First + 2) = "| `"
+               then
+                  declare
+                     Closes : constant Natural :=
+                       Ada.Strings.Fixed.Index
+                         (Line (Line'First + 3 .. Line'Last), "`");
+                  begin
+                     if Closes > 0 then
+                        declare
+                           Key : constant String :=
+                             Line (Line'First + 3 .. Closes - 1);
+                        begin
+                           Into.Checks_Run := Into.Checks_Run + 1;
+
+                           if not Project_Tools.Text.Contains
+                                    (Catalog, Locale & Key & " = ")
+                           then
+                              Add (Into, Key_Catalogued_Unknown,
+                                   [1 => Msg.Named ("key", Key)]);
+                           end if;
+                        end;
+                     end if;
+                  end;
+               end if;
+
+               From := Ends + 1;
+            end;
+         end loop;
+      end;
+   end Check_The_Documented_Catalogue;
+
    procedure Check_No_Forbidden_Units (Root : String; Into : in out Report) is
    begin
       for Path of Source_Files (Root) loop
@@ -1291,6 +1483,7 @@ package body Adash_Tests.Repository is
       Check_Required_Directories (Root, Into);
       Check_Version_Consistency (Root, Into);
       Check_Catalog_Keys_Are_Used (Root, Into);
+      Check_The_Documented_Catalogue (Root, Into);
       Check_Package_Inventory (Root, Into);
       Check_Message_Catalog (Root, Into);
       Check_No_Terminal_Escapes (Root, Into);

@@ -29,7 +29,7 @@ verdict.
 
 | Check | Fails when |
 |---|---|
-| `adash_check` | A package has no owner in `repository.toml`, a required file is missing, `alire.toml` and `repository.toml` disagree about the version, a message is in the catalog and not in the code (or the reverse), an escape sequence appears in Ada source, or a forbidden unit is used |
+| `adash_check` | `docs/diagnostics-catalog.md` and the message catalog disagree about a message, a package has no owner in `repository.toml`, a required file is missing, `alire.toml` and `repository.toml` disagree about the version, a message is in the catalog and not in the code (or the reverse), an escape sequence appears in Ada source, or a forbidden unit is used |
 | `adash_tests` | Any unit or integration test fails, or the conformance suite or examples do |
 | `adash_conformance` | The built shell no longer behaves as `conformance/cases` says, or an example no longer produces its `.expected` output |
 | `adash_bench` | A measured operation exceeds its ceiling in `benchmarks/ceilings.toml`, gets slower as it repeats (a median more than four times its own fastest run), or has no ceiling or drift rule recorded there. The bounds are an order of magnitude above what the operations take, so a failure is a change in what the operation does and not a slow machine. It still reports every figure — compare those against `benchmarks/README.md` and update that file when a number moves for a reason |

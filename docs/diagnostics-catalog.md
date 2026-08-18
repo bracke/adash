@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 432 messages in 22 groups.
+There are 522 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -45,8 +45,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.command_denied` | permission denied: {command} |
 | `error.command_start_failed` | could not start {command}: {reason} |
 | `error.redirection_open_failed` | could not open {path} for redirection |
-| `error.redirection_conflict` | more than one redirection targets {stream} |
 | `error.input_text_not_held` | the text could not be put where the program could read it ({reason}); this host has no temporary space this process may write in |
+| `error.redirection_conflict` | more than one redirection targets {stream} |
 | `error.pipe_creation_failed` | could not create a pipe for the pipeline |
 | `error.machine.stack_full` | the expression stack is full |
 | `error.machine.stack_empty` | the expression stack is empty |
@@ -114,9 +114,9 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.cannot_write` | {name} cannot write a {found}: a record or an array is its parts, and each of those has a text form where the whole has none |
 | `error.result_not_simple` | {name} returns a {found}; a function here returns a simple value, and an out parameter is how a program hands back a record or an array |
 | `error.file_not_writable` | nothing can be written at {path} |
-| `error.output_too_large` | {program} wrote more than this shell will hold at once |
-| `error.file_too_large` | {path} holds more than this shell will read at once |
 | `error.file_write_failed` | writing to {path} did not finish |
+| `error.file_too_large` | {path} holds more than this shell will read at once |
+| `error.output_too_large` | {program} wrote more than this shell will hold at once |
 | `error.stream_write_failed` | could not write to {stream} |
 | `error.stream_read_failed` | could not read from {stream} |
 | `error.job_unknown` | no such job: {job} |
@@ -126,12 +126,12 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.directory_not_found` | no such directory: {path} |
 | `error.directory_denied` | permission denied for directory: {path} |
 | `error.module_not_found` | no script called {name}: {where} |
-| `error.source_too_large` | {source} holds more source than this shell will read at once |
 | `error.source_unreadable` | could not read source: {source} |
+| `error.source_too_large` | {source} holds more source than this shell will read at once |
 | `error.source_invalid_encoding` | {source} is not valid UTF-8; the first bad byte is at offset {offset} |
 | `error.type_mismatch` | expected {expected}, found {found} |
 | `error.name_undeclared` | {name} is not declared here |
-| `error.name_already_declared` | {name} is already declared in this scope, on line {line} |
+| `error.name_already_declared` | {name} is already declared in this scope |
 | `error.lexical.stray_character` | {character} does not begin anything the language recognises |
 | `error.lexical.unterminated_string` | this string literal is not closed before the end of the line |
 | `error.lexical.unterminated_character` | this character literal is not closed |
@@ -183,14 +183,13 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.return_without_value` | a function must return a value |
 | `error.return_with_value` | a procedure cannot return a value |
 | `error.condition_not_boolean` | a condition must be Boolean, not {found} |
-| `error.operator_not_defined` | operator {operator} is not defined for {left} and {right} |
 | `error.procedure_has_no_value` | {name} is a procedure and yields no value |
 | `error.operand_has_no_value` | {operator} was given something that yields no value |
+| `error.operator_not_defined` | operator {operator} is not defined for {left} and {right} |
 | `error.statement_among_declarations` | only declarations may appear before begin |
 | `error.string_index_malformed` | a String is taken apart by one position or one range of them |
-| `error.needs_bounds` | a variable of {name} says how long it is, as {name} (1 .. 4), and its first index is one |
-| `error.too_many_at_once` | at most {limit} {what} in one of these, and this has more |
 | `error.too_many_parameters` | {name} takes more parameters than this build carries, which is {limit} |
+| `error.too_many_at_once` | at most {limit} {what} in one of these, and this has more |
 | `list.alternatives` | alternatives |
 | `list.parameters` | parameters |
 | `list.components` | components |
@@ -201,6 +200,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `list.choices` | choices |
 | `list.handlers` | handlers |
 | `error.open_by_element` | {name} is as long as what was passed to it, so the whole of it is not replaced: assign a slice of it, or one element at a time |
+| `error.needs_bounds` | a variable of {name} says how long it is, as {name} (1 .. 4), and its first index is one |
 | `error.no_such_slice` | {name} has no elements {first} .. {last} |
 | `error.not_taken_apart` | a {found} is not taken apart that way; a String takes a position or a range, an array a position |
 | `error.case.not_discrete` | a case examines a discrete value; {found} is not one |
@@ -234,6 +234,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 
 | Identifier | Says |
 |---|---|
+| `line.traced` | + {command} |
 | `line.history_entry` | {number}  {line} |
 | `line.forgotten` | {count} forgotten |
 | `line.diagnostic_at` | {path}:{line}:{column}: {text} |
@@ -264,22 +265,48 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.help.doc` | List the internal commands, or describe one. |
 | `command.version.doc` | Report which build this is. |
 | `command.history.doc` | List what has been typed this session. |
-| `command.forget.doc` | Forget history, in this session and in the file: forget (COUNT) or forget ("LINE"). |
 | `command.run.doc` | Run a program and wait for it to finish. |
 | `command.run_into.doc` | Run a program with its output written to a file, replacing what was there. |
 | `command.run_from.doc` | Run a program with its input read from a file. |
+| `command.run_with.doc` | Run a program with one variable set for it alone, written NAME=VALUE as set writes one. The assignment comes first; what follows is the program and its arguments. |
+| `command.run_from_text.doc` | Run a program with its input read from text this script computed. The text comes first; what follows is the program and its arguments. |
 | `command.run_append.doc` | Run a program with its output added to the end of a file. |
 | `command.run_new.doc` | Run a program with its output written to a file that must not already exist. |
+| `command.run_errors_into.doc` | Run a program with what it complains about written to a file, replacing what was there. |
+| `command.run_errors_append.doc` | Run a program with what it complains about added to the end of a file. |
+| `command.run_errors_new.doc` | Run a program with what it complains about written to a file that must not already exist. |
+| `command.run_all_into.doc` | Run a program with everything it writes, output and complaints, in one file. |
+| `command.run_all_append.doc` | Run a program with everything it writes added to the end of one file. |
+| `command.run_all_new.doc` | Run a program with everything it writes in one file that must not already exist. |
 | `command.pipe.doc` | Add a program to the pipeline being built. |
+| `command.pipe_start.doc` | Run the pipeline in the background, without waiting for it. |
+| `command.pipe_from_text.doc` | Take the pipeline's input from text this script computed. Does not run it. |
+| `command.pipe_from.doc` | Take the pipeline's input from a file, which must exist. Does not run it. |
+| `command.pipe_into.doc` | Say that the pipeline's output goes to a file, replacing what was there. |
+| `command.pipe_append.doc` | Say that the pipeline's output is added to the end of a file. |
+| `command.pipe_new.doc` | Say that the pipeline's output goes to a file that must not already exist. |
+| `command.pipe_errors_into.doc` | Say that what the pipeline's last stage complains about goes to a file. |
+| `command.pipe_errors_append.doc` | Say that what it complains about is added to the end of a file. |
+| `command.pipe_errors_new.doc` | Say that what it complains about goes to a file that must not already exist. |
+| `command.pipe_all_into.doc` | Say that everything the pipeline's last stage writes goes to one file. |
+| `command.pipe_all_append.doc` | Say that everything it writes is added to the end of one file. |
+| `command.pipe_all_new.doc` | Say that everything it writes goes to one file that must not already exist. |
 | `command.pipe_run.doc` | Run the pipeline that pipe has built, and wait for it. |
 | `command.start.doc` | Start a program in the background and record it as a job. |
 | `command.wait.doc` | Wait for a job to finish and report how it ended. |
 | `command.stop.doc` | Ask a job to stop. |
 | `command.suspend.doc` | Suspend a running job, leaving it able to be resumed. |
 | `command.resume.doc` | Resume a suspended job, in the background. |
-| `command.make_directory.doc` | Make a directory, and any above it that is missing: make_directory (DIRECTORY). |
+| `command.foreground.doc` | Resume a stopped job in front and wait for it: foreground (JOB). |
 | `command.write_file.doc` | Write text to a file, replacing what was there: write_file (TEXT, FILE). |
+| `command.make_directory.doc` | Make a directory, and any above it that is missing: make_directory (DIRECTORY). |
+| `command.remove_file.doc` | Take a file away: remove_file (FILE). A file that is not there is not an error. |
+| `command.remove_directory.doc` | Take an empty directory away: remove_directory (DIRECTORY). |
+| `command.rename.doc` | Give something another name or place: rename (FROM, TO). Refuses to replace what is there. |
+| `command.copy_file.doc` | Copy a file: copy_file (FROM, TO). Refuses to replace what is there. |
+| `command.on_exit.doc` | Run a subprogram before this session ends: on_exit (SUBPROGRAM). |
 | `command.append_file.doc` | Add text to the end of a file: append_file (TEXT, FILE). |
+| `command.forget.doc` | Forget history, in this session and in the file: forget (COUNT) or forget ("LINE"). |
 | `command.settings.doc` | List the settings, or change one: settings (NAME, VALUE). |
 | `command.save_settings.doc` | Write the current settings to the configuration file. |
 | `command.source.doc` | Read and run a script in this session. |
@@ -308,6 +335,16 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.read_file.hint` | what a file holds |
 | `predefined.current_directory.doc` | Current_Directory is where the session is, which cd moves. |
 | `predefined.current_directory.hint` | where the session is |
+| `predefined.file_count.doc` | File_Count (DIRECTORY) is how many names a directory holds, or 0 where there is no such directory. |
+| `predefined.file_count.hint` | how many names a directory holds |
+| `predefined.file_at.doc` | File_At (DIRECTORY, POSITION) is one of the names in a directory, sorted, counting from one. |
+| `predefined.file_at.hint` | one name in a directory |
+| `predefined.program_path.doc` | Program_Path (PROGRAM) is where the host would find that program, or nothing when it would not. |
+| `predefined.program_path.hint` | where a program is |
+| `predefined.stage_count.doc` | Stage_Count is how many stages the last pipeline had. |
+| `predefined.stage_count.hint` | how many stages the last pipeline had |
+| `predefined.stage_status.doc` | Stage_Status (POSITION) is what that stage of the last pipeline reported. |
+| `predefined.stage_status.hint` | what one stage of a pipeline reported |
 | `predefined.is_executable.doc` | Whether a program at this path could be run, as this host judges it. |
 | `predefined.is_executable.hint` | whether a path is something to run |
 | `predefined.index.doc` | Where one text starts inside another, counting from one, or zero when it is not there at all. |
@@ -320,6 +357,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.to_lower.hint` | the text in small letters |
 | `predefined.starts_with.doc` | Whether the text begins with that piece. |
 | `predefined.starts_with.hint` | whether text begins with a piece |
+| `predefined.matches.doc` | Whether the text matches the pattern: * for any run of characters, ? for one, [abc] or [a-z] for one of a set, [!abc] for one outside it. Nothing is read from the filesystem and no argument is expanded; a script asks about a name it already has. |
+| `predefined.matches.hint` | whether text matches a pattern |
 | `predefined.ends_with.doc` | Whether the text ends with that piece. |
 | `predefined.ends_with.hint` | whether text ends with a piece |
 | `predefined.output_of.doc` | Run a program and answer with what it wrote to standard output, without the newline it ended with. What it writes to standard error is not collected and reaches the user. |
@@ -328,6 +367,18 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.input_ended.doc` | Whether the last Read_Line found the end of the input rather than a line. An empty line is a line a file may contain, so the two are asked separately. |
 | `predefined.input_ended.hint` | whether the input has run out |
 | `predefined.output_of.hint` | run a program and read what it wrote |
+| `predefined.error_of.doc` | Error_Of (PROGRAM, ...) runs a program and answers with what it complained about. |
+| `predefined.error_of.hint` | what a program complained about |
+| `predefined.all_of.doc` | All_Of (PROGRAM, ...) runs a program and answers with everything it wrote, in the order it wrote it. |
+| `predefined.all_of.hint` | everything a program wrote |
+| `predefined.last_job.doc` | Last_Job is the number of the job this session started most recently, or 0. |
+| `predefined.last_job.hint` | the job most recently started |
+| `predefined.output_of_pipe.doc` | Output_Of_Pipe runs the pipeline built so far and answers with what it wrote. |
+| `predefined.output_of_pipe.hint` | what a pipeline wrote |
+| `predefined.error_of_pipe.doc` | Error_Of_Pipe runs the pipeline built so far and answers with what its last stage complained about. |
+| `predefined.error_of_pipe.hint` | what a pipeline complained about |
+| `predefined.all_of_pipe.doc` | All_Of_Pipe runs the pipeline built so far and answers with everything its last stage wrote. |
+| `predefined.all_of_pipe.hint` | everything a pipeline wrote |
 | `predefined.argument_count.doc` | How many arguments the script was given, after its own path. Zero in an interactive session. |
 | `predefined.argument_count.hint` | how many arguments the script was given |
 | `predefined.argument.doc` | One of the arguments the script was given, counting from one, or the empty string when it was not given that many. |
@@ -354,6 +405,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `config.syntax` | {path}: line {line}, column {column}: {detail} |
 | `config.unreadable` | {path} could not be read; the defaults are in force. |
 | `config.not-text` | {path} is not valid UTF-8; the defaults are in force. |
+| `config.too-large` | {path} holds more than this shell will read at once; the defaults are in force. |
 | `config.newer-schema` | {path} was written by a newer Adash (schema {detail}); unknown settings were ignored. |
 | `config.migrated` | {path} was written for schema {detail} and has been brought forward. |
 
@@ -363,8 +415,9 @@ a registry that can name something it cannot yet run needs a way to say so.
 |---|---|
 | `setting.color` | When coloured output is produced: auto, always or never. |
 | `setting.history-enabled` | Whether commands are recorded in the history file. |
-| `setting.read-limit` | The most one read will hold, in mebibytes. |
 | `setting.history-limit` | How many history entries are kept. |
+| `setting.read-limit` | The most one read will hold, in mebibytes. |
+| `setting.trace` | Whether each command is announced before it runs. |
 | `setting.prompt-directory` | Whether the prompt shows the working directory. |
 | `setting.prompt-failure` | Whether the prompt marks that the last command failed. |
 | `setting.editing` | Whether lines are edited in place rather than read whole. |
@@ -518,6 +571,17 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `tooling.bench.no_sample` | the sample line did not load; nothing measured |
 | `tooling.bench.drift` | A fastest run far below the median means the operation gets slower as it repeats, which is a defect rather than noise. See docs/benchmark-guide.md. |
 | `tooling.bench.methodology` | Methodology: each figure is the median of {count} consecutive in-process runs of the named operation, timed with Ada.Real_Time on the machine this was run on. No process is spawned, so these do not include the operating system cost of starting a shell. Comparisons between machines, or between builds at different optimization levels, are not meaningful. |
+| `tooling.bench.usage` | usage: adash_bench [repetitions], run from the adash_tests directory, where repetitions is between 1 and {most} |
+| `tooling.bench.bad_count` | "{given}" is not a number of repetitions |
+| `tooling.bench.ceilings_unreadable` | the ceilings could not be read from {path} ({reason}); this tool is run from the adash_tests directory |
+| `tooling.bench.ceilings_malformed` | the ceilings in {path} are not readable TOML: line {line}, {reason} |
+| `tooling.bench.no_ceiling` | ^ {what} has no ceiling in {path}. A figure nothing bounds is a figure no run can fail on |
+| `tooling.bench.over_ceiling` | ^ {what} took {measured} us, over its ceiling of {ceiling} us |
+| `tooling.bench.drifted` | ^ {what} has a median of {measured} us against a fastest run of {fastest} us, more than {ratio} times: it gets slower as it repeats |
+| `tooling.bench.no_drift_rule` | {path} records no drift rule, and a report the tool calls a defect that nothing can fail on is a report |
+| `tooling.bench.some_drift` | An operation got slower while it was being measured. A loaded machine moves every figure together; this moves one figure away from its own fastest run, so look for what accumulates -- a cache nothing evicts, a list rescanned from the start, a handle opened per call. |
+| `tooling.bench.over_some_ceiling` | Over a ceiling. A bound in {path} is an order of magnitude above what the operation takes, so this is a change in what the operation does rather than a slow machine. Find what it now does that it did not, or say in that file why the bound moved. |
+| `tooling.bench.within_ceilings` | Every figure is within its ceiling, as recorded in {path}. |
 | `tooling.bench.what.utf8` | load and validate UTF-8 |
 | `tooling.bench.what.lex` | lex |
 | `tooling.bench.what.parse` | parse |
@@ -534,6 +598,13 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `tooling.check.failed` | {count, plural, =0 {no failures} one {# check failed} other {# checks failed}} |
 | `tooling.check.missing_file` | required file is missing: {path} |
 | `tooling.check.missing_directory` | required directory is missing: {path} |
+| `tooling.check.catalogued_message_missing` | docs/diagnostics-catalog.md has no row for {key}, and says it is the catalog |
+| `tooling.check.catalogued_message_differs` | docs/diagnostics-catalog.md words {key} differently from the catalog |
+| `tooling.check.catalogued_message_unknown` | docs/diagnostics-catalog.md has a row for {key}, which the catalog does not have |
+| `tooling.check.catalog_key_unused` | the catalog carries {key} and no source names it, so nothing can ever show it |
+| `tooling.check.catalog_key_absent` | a tool names {key} and the catalog does not carry it, so a user gets the fallback form |
+| `tooling.check.version_unreadable` | the version could not be read from {path}; two files that both read as nothing compare equal, which is how this check passed for years |
+| `tooling.check.inventory_unreadable` | repository.toml has a spec entry at character {position} whose path could not be read |
 | `tooling.check.version_mismatch` | version disagreement: {first} says {first_value}, {second} says {second_value} |
 | `tooling.check.catalog_missing_key` | message identifier {id} names key {key}, which the catalog does not carry |
 | `tooling.check.inventory_missing` | repository.toml lists {path}, which does not exist |
@@ -541,12 +612,12 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `tooling.check.catalog_unreadable` | could not read the message catalog at {path} |
 | `tooling.check.prose_as_text` | {path} writes a sentence in Ada source: {text} |
 | `tooling.check.identifier_as_text` | {path} passes an identifier where a message argument must be text: {text} |
+| `tooling.check.pin_not_cloned` | the CI workflow does not check out {name}, which the manifests pin; a pin Alire cannot follow stops the build before anything is checked |
 | `tooling.check.silent_truncation` | {path} stops collecting at the end of a fixed-size list without saying so; a construct that does not fit is refused where it is written |
 | `tooling.check.escape_sequence` | {path} contains a literal terminal escape sequence; styling belongs to terminal_styles by way of Adash.Terminal |
-| `tooling.check.forbidden_dependency` | {path} depends on {unit}, which Adash may not use directly; see AI.md |
 | `tooling.check.grammar_missing` | the grammar reference has no production naming {name}, which the parser can build |
 | `tooling.check.grammar_unknown` | the grammar reference names {name}, which the syntax has no such node for |
-| `tooling.check.pin_not_cloned` | the CI workflow does not check out {name}, which the manifests pin; a pin Alire cannot follow stops the build before anything is checked |
+| `tooling.check.forbidden_dependency` | {path} depends on {unit}, which Adash may not use directly; see AI.md |
 | `tooling.check.result_pass` | PASS |
 | `tooling.check.result_fail` | FAIL |
 
@@ -570,6 +641,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | Identifier | Says |
 |---|---|
 | `completion.keyword` | keyword |
+| `completion.program` | a program on the search path |
 | `completion.path` | file |
 
 ## prompt

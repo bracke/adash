@@ -52,6 +52,11 @@ what changed.
 
 ### Fixed
 
+- `adash_check` checks `docs/diagnostics-catalog.md` against the catalog it
+  claims to be — a row for every message, a message for every row, and the same
+  words in both. That document said of itself "the catalog file is the source;
+  if the two disagree, the file is right and this is stale", and it was stale
+  by 87 of 519 messages. The table is regenerated and the check keeps it true.
 - **A refused submission always says why.** A procedure written where a value
   belongs — `X : String := "a" & New_Line;` — printed *nothing at all* and
   exited 2. The analyser noted the operand's type as unknown, the rule that
