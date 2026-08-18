@@ -1038,6 +1038,15 @@ package body Adash.Language.Semantics is
 
       Legal : Boolean := True;
 
+      --  Whether this analysis has reported anything yet.
+      --
+      --  For the suppressions: a rule that stays quiet to avoid repeating a
+      --  complaint has to know that the complaint was made. Without this one
+      --  the analyser could refuse a submission and say nothing, which is the
+      --  worst answer a shell can give -- the user sees an exit status and no
+      --  reason for it.
+      Said_Something : Boolean := False;
+
       --  What a callable name accepts, whoever declared it.
       --
       --  A user's subprogram and a predefined one are checked by the same code
@@ -1109,9 +1118,14 @@ package body Adash.Language.Semantics is
       --         a name that denotes several subprograms differing in what they
       --         return can be settled no other way, and where the context
       --         expects nothing such a call is ambiguous.
+      --  @param For_Statement True where the caller is a statement rather than
+      --         an expression. A statement calls a procedure, so a callee that
+      --         yields nothing is what it wants; anywhere else it is a mistake
+      --         nobody was told about -- see the report inside.
       function Analyse_Expression
-        (Node     : S.Node_Id;
-         Expected : Types.Type_Kind := Types.Type_None) return Types.Type_Kind;
+        (Node          : S.Node_Id;
+         Expected      : Types.Type_Kind := Types.Type_None;
+         For_Statement : Boolean := False) return Types.Type_Kind;
       procedure Analyse_Statement (Node : S.Node_Id);
       procedure Analyse_Sequence (Node : S.Node_Id);
 
@@ -2374,6 +2388,7 @@ package body Adash.Language.Semantics is
                 Message => Also_Says));
          end if;
 
+         Said_Something := True;
          Report.Emit (Said);
       end Complain;
 
@@ -2429,6 +2444,7 @@ package body Adash.Language.Semantics is
             end if;
          end loop;
 
+         Said_Something := True;
          Report.Emit (Said);
       end Complain_Of_Candidates;
 
@@ -2537,6 +2553,7 @@ package body Adash.Language.Semantics is
                 Message => Adash.Messages.Msg_Note_Declared_Here));
          end if;
 
+         Said_Something := True;
          Report.Emit (Said);
       end Refuse_Declaration;
 
@@ -2550,7 +2567,22 @@ package body Adash.Language.Semantics is
       is
       begin
          if Left = Types.Type_None or else Right = Types.Type_None then
+            --  A cascade only where there was something to cascade from.
+            --
+            --  The rule is right: one unknown type produces a complaint about
+            --  every operator it flows through, and the first of them is the
+            --  only one worth reading. What it did not check is whether
+            --  anything had been said at all -- and where nothing had, this
+            --  refused the submission in silence. `X : String := "a" &
+            --  New_Line;` printed nothing and exited 2.
             Legal := False;
+
+            if not Said_Something then
+               Complain (Adash.Errors.Error_Operand_Has_No_Value, Node,
+                         [1 => Adash.Messages.Named
+                                 ("operator", S.Spelling (Op))]);
+            end if;
+
             return;
          end if;
 
@@ -2565,9 +2597,32 @@ package body Adash.Language.Semantics is
       ------------------------
 
       function Analyse_Expression
-        (Node     : S.Node_Id;
-         Expected : Types.Type_Kind := Types.Type_None) return Types.Type_Kind
+        (Node          : S.Node_Id;
+         Expected      : Types.Type_Kind := Types.Type_None;
+         For_Statement : Boolean := False) return Types.Type_Kind
       is
+         --  Say that a procedure was written where a value was wanted.
+         --
+         --  The mistake nobody was told about. A bare `New_Line` or a call to
+         --  a procedure resolves, yields Type_None, and was noted as such
+         --  without a word -- and what happened next depended on where it
+         --  stood. Alone, the lowering refused it and named a construct with
+         --  an empty type. Inside an operator, the analyser suppressed the
+         --  operator complaint on the ground that a cascade from an unknown
+         --  type tells a user nothing, the submission was refused, and the
+         --  shell exited 2 having printed *nothing at all*.
+         --
+         --  So it is said here, where what is wrong is known: the name, and
+         --  that it is a procedure.
+         procedure Complain_Of_A_Procedure (At_Node : S.Node_Id; Name : String);
+
+         procedure Complain_Of_A_Procedure (At_Node : S.Node_Id; Name : String)
+         is
+         begin
+            Complain (Adash.Errors.Error_Procedure_Has_No_Value, At_Node,
+                      [1 => Adash.Messages.Named ("name", Name)]);
+         end Complain_Of_A_Procedure;
+
       begin
          case S.Kind (Tree, Node) is
             when S.Node_Integer_Literal =>
@@ -2691,6 +2746,14 @@ package body Adash.Language.Semantics is
                                       Offered, Fitting, Taken);
 
                         if Fitting = 1 then
+                           if not For_Statement
+                             and then Symbols.Of_Type (Taken) = Types.Type_None
+                           then
+                              Complain_Of_A_Procedure (Node, Name);
+                              Note (Node, Types.Type_None);
+                              return Types.Type_None;
+                           end if;
+
                            Note (Node, Symbols.Of_Type (Taken), Taken);
                            return Symbols.Of_Type (Taken);
                         end if;
@@ -5204,6 +5267,15 @@ package body Adash.Language.Semantics is
                         end;
                      end if;
                   end;
+
+                  if not For_Statement
+                    and then Symbols.Is_Callable (Found)
+                    and then Symbols.Of_Type (Found) = Types.Type_None
+                  then
+                     Complain_Of_A_Procedure (Node, Name);
+                     Note (Node, Types.Type_None);
+                     return Types.Type_None;
+                  end if;
 
                   Note (Prefix, Symbols.Of_Type (Found), Found);
                   Note (Node, Symbols.Of_Type (Found));
@@ -8461,7 +8533,7 @@ package body Adash.Language.Semantics is
                declare
                   Callee : constant S.Node_Id := S.First (Tree, Node);
                   Yields : constant Types.Type_Kind :=
-                    Analyse_Expression (Callee);
+                    Analyse_Expression (Callee, For_Statement => True);
 
                   --  The name at the head of the call, whichever form it
                   --  took: `F;` puts it directly under the statement, `F (2);`

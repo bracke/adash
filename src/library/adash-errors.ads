@@ -221,6 +221,16 @@ package Adash.Errors is
       Error_Condition_Not_Boolean,
       Error_Operator_Not_Defined,
 
+      --  A procedure was written where a value was wanted. Said about the
+      --  name, because that is what the user has to change.
+      Error_Procedure_Has_No_Value,
+
+      --  An operator was given an operand that yields nothing, and nothing
+      --  else had been reported. The backstop on the rule that suppresses a
+      --  cascade of operator complaints: quiet is right after a first
+      --  complaint and wrong before one.
+      Error_Operand_Has_No_Value,
+
       --  Language: lowering.
       Error_Not_Lowerable,
 

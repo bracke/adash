@@ -91,6 +91,8 @@ package body Adash.Errors is
             | Error_Return_Without_Value
             | Error_Return_With_Value
             | Error_Condition_Not_Boolean
+            | Error_Procedure_Has_No_Value
+            | Error_Operand_Has_No_Value
             | Error_Operator_Not_Defined
             | Error_Not_Lowerable
             | Error_Program_Raised
@@ -276,6 +278,8 @@ package body Adash.Errors is
          when Error_Return_With_Value   => return Adash.Messages.Msg_Return_With_Value;
          when Error_Condition_Not_Boolean  => return Adash.Messages.Msg_Condition_Not_Boolean;
          when Error_Operator_Not_Defined   => return Adash.Messages.Msg_Operator_Not_Defined;
+         when Error_Procedure_Has_No_Value  => return Adash.Messages.Msg_Procedure_Has_No_Value;
+         when Error_Operand_Has_No_Value    => return Adash.Messages.Msg_Operand_Has_No_Value;
          when Error_Not_Lowerable          => return Adash.Messages.Msg_Not_Lowerable;
          when Error_Program_Raised         => return Adash.Messages.Msg_Program_Raised;
          when Error_Program_Raised_With_Detail =>

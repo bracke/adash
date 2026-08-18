@@ -47,6 +47,15 @@ what changed.
 
 ### Fixed
 
+- **A refused submission always says why.** A procedure written where a value
+  belongs — `X : String := "a" & New_Line;` — printed *nothing at all* and
+  exited 2. The analyser noted the operand's type as unknown, the rule that
+  keeps one unknown type from producing a complaint per operator it flows
+  through kept quiet, and the submission was refused in silence. Two fixes: a
+  procedure used as a value is reported where it is written, by name, in all
+  three of its forms; and the rule that suppresses a cascade now suppresses
+  only *after* something has been said, so an analyser that refuses a
+  submission can no longer refuse it without a reason.
 - **A child now inherits what `set` set.** The catalog has described `set` as
   "a variable children will inherit" since the command existed, and no child
   ever inherited one: the session kept its own block — `env` listed it,

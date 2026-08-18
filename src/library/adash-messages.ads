@@ -264,6 +264,8 @@ package Adash.Messages is
       Msg_Return_With_Value,
       Msg_Condition_Not_Boolean,
       Msg_Operator_Not_Defined,
+      Msg_Procedure_Has_No_Value,
+      Msg_Operand_Has_No_Value,
       Msg_Statement_Among_Declarations,
       Msg_String_Index_Malformed,
       Msg_Not_Taken_Apart,

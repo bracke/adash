@@ -292,3 +292,50 @@ diagnostics = [
   "put_line (Missing);",
   "          ^~~~~~~",
 ]
+
+[[case]]
+id = "diagnostics.a-procedure-where-a-value-was-wanted"
+requirement = """
+A procedure yields nothing, so a program that writes one where a value belongs
+has made a mistake -- and for as long as this language existed it was told so
+only when the procedure stood alone. Written inside an operator it was told
+nothing at all: the analyser noted the operand's type as unknown, the rule that
+keeps one unknown type from producing a complaint per operator it flows through
+kept quiet, the submission was refused, and the shell exited 2 having printed
+nothing. An exit status with no reason beside it is the worst answer a shell can
+give.
+
+Said about the name, because that is what a user has to change, and at the name
+rather than at the operator.
+"""
+script = "X : String := \"a\" & New_Line;"
+exit_status = 0
+output = []
+diagnostics = ["!error.procedure_has_no_value{name=New_Line}!"]
+
+[[case]]
+id = "diagnostics.a-procedure-called-where-a-value-was-wanted"
+requirement = """
+The same mistake in its other form, where the procedure is given arguments. The
+answer is the same and names the same thing.
+
+A statement is where a procedure belongs, and `put_line ("x");` is not this: a
+call as a statement is analysed knowing that a callee yielding nothing is what
+it wants, which is why the check reads the context rather than the call.
+"""
+script = "X : Integer := 1 + Put_Line (\"x\");"
+exit_status = 0
+output = []
+diagnostics = ["!error.procedure_has_no_value{name=Put_Line}!"]
+
+[[case]]
+id = "diagnostics.a-procedure-alone-says-the-same-thing"
+requirement = """
+And standing by itself, which used to reach the lowering and come back as a
+construct this build could not lower, naming an empty type. What is wrong with
+the program is the same thing in all three places, so it is said the same way.
+"""
+script = "X : String := New_Line;"
+exit_status = 0
+output = []
+diagnostics = ["!error.procedure_has_no_value{name=New_Line}!"]

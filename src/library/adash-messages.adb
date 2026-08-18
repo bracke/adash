@@ -351,6 +351,8 @@ package body Adash.Messages is
          when Msg_Return_With_Value          => return "error.return_with_value";
          when Msg_Condition_Not_Boolean      => return "error.condition_not_boolean";
          when Msg_Operator_Not_Defined       => return "error.operator_not_defined";
+         when Msg_Procedure_Has_No_Value => return "error.procedure_has_no_value";
+         when Msg_Operand_Has_No_Value   => return "error.operand_has_no_value";
          when Msg_Statement_Among_Declarations =>
             return "error.statement_among_declarations";
          when Msg_String_Index_Malformed   =>
@@ -882,6 +884,12 @@ package body Adash.Messages is
 
          when Msg_Operator_Not_Defined =>
             return [N ("operator"), N ("left"), N ("right")];
+
+         when Msg_Procedure_Has_No_Value =>
+            return [1 => N ("name")];
+
+         when Msg_Operand_Has_No_Value =>
+            return [1 => N ("operator")];
 
          when Msg_Program_Raised =>
             return [1 => N ("exception")];

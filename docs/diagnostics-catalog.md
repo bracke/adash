@@ -184,6 +184,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.return_with_value` | a procedure cannot return a value |
 | `error.condition_not_boolean` | a condition must be Boolean, not {found} |
 | `error.operator_not_defined` | operator {operator} is not defined for {left} and {right} |
+| `error.procedure_has_no_value` | {name} is a procedure and yields no value |
+| `error.operand_has_no_value` | {operator} was given something that yields no value |
 | `error.statement_among_declarations` | only declarations may appear before begin |
 | `error.string_index_malformed` | a String is taken apart by one position or one range of them |
 | `error.needs_bounds` | a variable of {name} says how long it is, as {name} (1 .. 4), and its first index is one |
