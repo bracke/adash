@@ -740,7 +740,7 @@ package body Adash.Interactive.Editing is
       Recall       : Adash.Interactive.History.Log;
       Allow_Editing : Boolean := True;
       Search_Path  : String := "";
-      Ask_Caller   : Candidate_Supplier := null;
+      Ask_Caller   : access Candidate_Supplier'Class := null;
       Into         : out String;
       Last         : out Natural) return Read_Outcome
    is
@@ -1006,7 +1006,7 @@ package body Adash.Interactive.Editing is
 
             declare
                Offered : constant String :=
-                 Ask_Caller (Text, Positive (Line.Cursor + 1));
+                 Ask_Caller.Candidates (Text, Positive (Line.Cursor + 1));
 
                Word_First, Word_Last : Natural;
             begin
@@ -1030,9 +1030,8 @@ package body Adash.Interactive.Editing is
                      Adash.Interactive.Completion.Offer_From_Caller
                        (Candidates,
                         Offered (From .. To - 1),
-                        (First => Adash.Source.Byte_Offset
-                                    (Positive'Max (Word_First, 1)),
-                         Last  => Adash.Source.Byte_Offset (Word_Last)));
+                        (First => Positive'Max (Word_First, 1),
+                         Last  => Word_Last));
                   end if;
 
                   From := To + 1;

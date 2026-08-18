@@ -1820,7 +1820,7 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
 
-      Return_Key : constant String := (1 => Character'Val (13));
+      Return_Key : constant String := [1 => Character'Val (13)];
    begin
       if not Start_On_A_Terminal (Session) then
          return;
@@ -1889,7 +1889,7 @@ package body Adash_Tests.Interactive_Cases is
       Session : Terminal_Session;
       Ended   : Boolean;
 
-      Return_Key : constant String := (1 => Character'Val (13));
+      Return_Key : constant String := [1 => Character'Val (13)];
    begin
       if not Start_On_A_Terminal (Session) then
          return;
@@ -3285,7 +3285,6 @@ package body Adash_Tests.Interactive_Cases is
 
       Ada.Directories.Delete_File (Script);
    end An_Interrupted_Script_Runs_Its_Handler;
-
 
    procedure Close_Without_Typing
      (Item : in out Terminal_Session; Ended : out Boolean)

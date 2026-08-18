@@ -319,8 +319,21 @@ package Adash.Interactive.Editing is
    --  can produce with `put_line` -- and asking the caller rather than
    --  reaching for the engine here keeps the editor a thing that edits: it
    --  knows about keys and cells, not about how a language evaluates a call.
-   type Candidate_Supplier is
-     access function (Line : String; Cursor : Positive) return String;
+   --  An object rather than an access to a function, because what answers the
+   --  question has to know which session was asked. A function on its own
+   --  cannot carry one, so the session had to be left where the function could
+   --  find it -- and a second shell in the same process would then have been
+   --  answered by the first one's. The caller passes the thing that knows.
+   type Candidate_Supplier is limited interface;
+
+   --  @param Supplier Whatever the caller gave, which knows where to look.
+   --  @param Line The line as typed.
+   --  @param Cursor Where the cursor is in it, one-based.
+   --  @return One candidate per line, empty for none.
+   function Candidates
+     (Supplier : Candidate_Supplier;
+      Line     : String;
+      Cursor   : Positive) return String is abstract;
 
    function Read_Line
      (Prompt       : String;
@@ -328,7 +341,7 @@ package Adash.Interactive.Editing is
       Recall       : Adash.Interactive.History.Log;
       Allow_Editing : Boolean := True;
       Search_Path  : String := "";
-      Ask_Caller   : Candidate_Supplier := null;
+      Ask_Caller   : access Candidate_Supplier'Class := null;
       Into         : out String;
       Last         : out Natural) return Read_Outcome;
 

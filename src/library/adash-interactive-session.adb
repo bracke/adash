@@ -41,20 +41,20 @@ package body Adash.Interactive.Session is
    -- Run --
    ---------
 
-
-   --  The session a completion question is asked of.
+   --  What a completion question is asked of: a session, and the catalog to
+   --  render what its commands produced.
    --
-   --  A body-level reference, because the editor is handed an access to a
-   --  function and a function cannot carry a session with it. Set while a line
-   --  is being read and cleared afterwards, so that a supplier called at any
-   --  other time answers nothing rather than reaching into a session that has
-   --  gone.
-   Asking_Session : access Adash.Engine.Session := null;
-
-   --  And the catalog to render what it printed. What a command produces is an
-   --  identifier and its arguments; a candidate has to be the text a user would
-   --  have seen, and turning one into the other is the catalog's job.
-   Asking_Catalog : access Adash.Messages.Rendering.Catalog := null;
+   --  An object handed to the editor rather than a pair of body-level
+   --  variables. The editor used to be given an access to a function, which
+   --  cannot carry a session with it, so the session had to be left where the
+   --  function could find it -- and a second shell in the same process would
+   --  have been answered by the first one's. This one is declared beside the
+   --  session it speaks for and goes out of scope with it.
+   type Session_Knowledge is limited
+     new Adash.Interactive.Editing.Candidate_Supplier with record
+      Shell   : access Adash.Engine.Session;
+      Catalog : access Adash.Messages.Rendering.Catalog;
+   end record;
 
    --  What a user's own subprogram says may follow a program.
    --
@@ -65,11 +65,15 @@ package body Adash.Interactive.Session is
    --  Quiet about failure on purpose. A completion is a keystroke, and a
    --  diagnostic printed into a line being edited would tear the display apart
    --  to say something about a subprogram the user can run themselves and see.
-   function What_The_Session_Knows
-     (Line : String; Cursor : Positive) return String;
+   overriding function Candidates
+     (Supplier : Session_Knowledge;
+      Line     : String;
+      Cursor   : Positive) return String;
 
-   function What_The_Session_Knows
-     (Line : String; Cursor : Positive) return String
+   overriding function Candidates
+     (Supplier : Session_Knowledge;
+      Line     : String;
+      Cursor   : Positive) return String
    is
       Word : Adash.Messages.Argument;
 
@@ -95,7 +99,7 @@ package body Adash.Interactive.Session is
       begin
          Ada.Strings.Unbounded.Append
            (Gathered,
-            Asking_Catalog.Text (Adash.Commands.Message (Item),
+            Supplier.Catalog.Text (Adash.Commands.Message (Item),
                                  Adash.Commands.Arguments (Item),
                                  Adash.Commands.Detail (Item),
                                  Adash.Commands.Detail_Placeholder (Item))
@@ -105,7 +109,7 @@ package body Adash.Interactive.Session is
       Keeping : aliased Collector;
 
    begin
-      if Asking_Session = null or else Asking_Catalog = null
+      if Supplier.Shell = null or else Supplier.Catalog = null
         or else Program = ""
       then
          return "";
@@ -113,7 +117,7 @@ package body Adash.Interactive.Session is
 
       declare
          Handler : constant String :=
-           Adash.Engine.Completion_For (Asking_Session.all, Program);
+           Adash.Engine.Completion_For (Supplier.Shell.all, Program);
       begin
          if Handler = "" then
             return "";
@@ -145,7 +149,7 @@ package body Adash.Interactive.Session is
                   accept Done;
                or
                   delay Patience;
-                  Adash.Engine.Request_Cancellation (Asking_Session.all);
+                  Adash.Engine.Request_Cancellation (Supplier.Shell.all);
                   accept Done;
                end select;
             end Stopwatch;
@@ -156,7 +160,7 @@ package body Adash.Interactive.Session is
                --  Submitted as a call with the word so far, which is what a
                --  subprogram asked "what may follow this" needs to know.
                Adash.Engine.Submit
-                 (Asking_Session.all,
+                 (Supplier.Shell.all,
                   Handler & " (""" & Adash.Messages.Value (Word) & """);",
                   Name      => "complete_with",
                   Kind      => Adash.Source.Origin_Interactive,
@@ -171,12 +175,12 @@ package body Adash.Interactive.Session is
             --  user types is not stopped by a completion. A Ctrl-C pressed
             --  while a handler was running is lost with it, which is the right
             --  way round: the user was interrupting the completion.
-            Adash.Engine.Clear_Cancellation (Asking_Session.all);
+            Adash.Engine.Clear_Cancellation (Supplier.Shell.all);
          end;
       end;
 
       return Ada.Strings.Unbounded.To_String (Gathered);
-   end What_The_Session_Knows;
+   end Candidates;
    function Run (Catalog : in out Adash.Messages.Rendering.Catalog)
                  return Natural
    is
@@ -918,17 +922,18 @@ package body Adash.Interactive.Session is
       Typed : String (1 .. Adash.Interactive.Editing.Max_Line);
       Last  : Natural;
 
+      --  What Tab asks when it wants what a user taught it. Declared with the
+      --  session, so there is no moment at which it names one that has gone.
+      Knowing : aliased Session_Knowledge :=
+        (Shell   => Shell'Unchecked_Access,
+         Catalog => Catalog'Unchecked_Access);
+
       use type Adash.Persistence.Outcome;
 
    begin
       Adash.Engine.Open (Shell);
       Adash.Engine.Use_Script_Runner (Shell, Sourcing'Unchecked_Access);
 
-      --  What a completion question is asked of, while this session is the one
-      --  reading lines. Cleared when it ends, so a supplier called afterwards
-      --  answers nothing rather than reaching into a session that has gone.
-      Asking_Session := Shell'Unchecked_Access;
-      Asking_Catalog := Catalog'Unchecked_Access;
       Adash.Engine.Use_History (Shell, Reporting'Unchecked_Access);
 
       --  The shell takes its signal dispositions before it runs anything.
@@ -1141,7 +1146,7 @@ package body Adash.Interactive.Session is
 
                  --  What a user taught Tab, asked through the engine because
                  --  answering means running their subprogram.
-                 Ask_Caller   => What_The_Session_Knows'Access,
+                 Ask_Caller   => Knowing'Unchecked_Access,
                  Into         => Typed,
                  Last         => Last);
 
@@ -1406,10 +1411,6 @@ package body Adash.Interactive.Session is
       end;
 
       Merge_Session_History;
-
-      --  Nothing may ask this session anything after here.
-      Asking_Session := null;
-      Asking_Catalog := null;
 
       if Adash.Engine.Exit_Requested (Shell) then
          return Adash.Execution.Numeric (Adash.Engine.Exit_Status (Shell));
