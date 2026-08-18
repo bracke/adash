@@ -70,5 +70,8 @@ awklib = { path = "../../awklib" }
 [[pins]]
 regexp = { path = "../../regexp" }
 
+[[pins]]
+tarlib = { path = "../../tarlib" }
+
 [build-profiles]
 "*" = "development"

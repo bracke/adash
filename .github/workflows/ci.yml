@@ -83,7 +83,7 @@ jobs:
           # network.
           for crate in hostkit messages terminal_styles project_tools \
                        jsonlib tomllib i18n httpclient ssllib cryptolib \
-                       truststores zlib awklib regexp; do
+                       truststores zlib awklib regexp tarlib; do
             for attempt in 1 2 3; do
               if git clone --depth 1 \
                    "https://github.com/bracke/${crate}.git" "${crate}"; then

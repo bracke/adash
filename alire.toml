@@ -81,6 +81,13 @@ awklib = { path = "../awklib" }
 [[pins]]
 regexp = { path = "../regexp" }
 
+# The same tooling untars what it downloads. tarlib was the one crate of that
+# graph nobody named here, and it went unnoticed because i18n's regeneration
+# was silently doing nothing: once it ran, a build of adash stopped at
+# "Pin path is not a valid directory: .../Ada/tarlib" on all three hosts.
+[[pins]]
+tarlib = { path = "../tarlib" }
+
 # Build dependencies in the development profile (-Og) too, not the default
 # release (-O3). Keeping every root on the same profile lets them share object
 # files instead of forcing a rebuild whenever a different root is built.
