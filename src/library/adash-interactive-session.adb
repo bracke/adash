@@ -122,17 +122,56 @@ package body Adash.Interactive.Session is
          declare
             Quiet   : Adash.Diagnostics.List;
             Outcome : Adash.Engine.Result;
+
+            --  How long a keystroke may take.
+            --
+            --  A completion runs inside the editor, which is where the user is
+            --  typing: a handler that loops would not be a slow completion, it
+            --  would be a shell that had stopped. Half a second is longer than
+            --  any answer worth waiting for and short enough that a user who
+            --  hits it presses Tab again rather than wondering.
+            Patience : constant Duration := 0.5;
+
+            --  Asked for from another task, because the submission is what
+            --  would have to notice -- and it is this task that is inside it.
+            --  The engine's token is protected, which is what makes that safe.
+            task type Stopwatch is
+               entry Done;
+            end Stopwatch;
+
+            task body Stopwatch is
+            begin
+               select
+                  accept Done;
+               or
+                  delay Patience;
+                  Adash.Engine.Request_Cancellation (Asking_Session.all);
+                  accept Done;
+               end select;
+            end Stopwatch;
          begin
-            --  Submitted as a call with the word so far, which is what a
-            --  subprogram asked "what may follow this" needs to know.
-            Adash.Engine.Submit
-              (Asking_Session.all,
-               Handler & " (""" & Adash.Messages.Value (Word) & """);",
-               Name      => "complete_with",
-               Kind      => Adash.Source.Origin_Interactive,
-               Outcome   => Outcome,
-               Report    => Quiet,
-               On_Output => Keeping'Unchecked_Access);
+            declare
+               Watching : Stopwatch;
+            begin
+               --  Submitted as a call with the word so far, which is what a
+               --  subprogram asked "what may follow this" needs to know.
+               Adash.Engine.Submit
+                 (Asking_Session.all,
+                  Handler & " (""" & Adash.Messages.Value (Word) & """);",
+                  Name      => "complete_with",
+                  Kind      => Adash.Source.Origin_Interactive,
+                  Outcome   => Outcome,
+                  Report    => Quiet,
+                  On_Output => Keeping'Unchecked_Access);
+
+               Watching.Done;
+            end;
+
+            --  Cleared whether or not the stopwatch fired, so the next line a
+            --  user types is not stopped by a completion. A Ctrl-C pressed
+            --  while a handler was running is lost with it, which is the right
+            --  way round: the user was interrupting the completion.
+            Adash.Engine.Clear_Cancellation (Asking_Session.all);
          end;
       end;
 
@@ -1284,13 +1323,48 @@ package body Adash.Interactive.Session is
                   --  be two readers of one keyboard.
                   Adash.Execution.Signals.Stop_Watching;
 
-                  --  Acknowledged once the submission has ended, whether it
-                  --  ended because of the interrupt or in spite of it. An
-                  --  interrupt that stays outstanding would stop the next line
-                  --  the moment it started, and the user would have no way to
-                  --  get a working prompt back.
-                  Adash.Execution.Signals.Acknowledge_Interrupt;
-                  Adash.Engine.Clear_Cancellation (Shell);
+                  --  Whether this line was interrupted, asked before the
+                  --  acknowledgement below clears the answer.
+                  declare
+                     Interrupted : constant Boolean :=
+                       Adash.Execution.Signals.Interrupt_Pending;
+                  begin
+                     --  Acknowledged once the submission has ended, whether it
+                     --  ended because of the interrupt or in spite of it. An
+                     --  interrupt that stays outstanding would stop the next
+                     --  line the moment it started, and the user would have no
+                     --  way to get a working prompt back.
+                     Adash.Execution.Signals.Acknowledge_Interrupt;
+                     Adash.Engine.Clear_Cancellation (Shell);
+
+                     --  And what `on_interrupt` asked for.
+                     --
+                     --  A session is where a user meets this first -- they
+                     --  register a handler and then press Ctrl-C at the prompt
+                     --  -- and it ran only for scripts, which is the half a
+                     --  user meets second. After the acknowledgement, like the
+                     --  script path and for the same reason: a handler that
+                     --  inherited the pending interrupt would be stopped
+                     --  before it could do anything.
+                     if Interrupted then
+                        for Name of Adash.Engine.Interrupt_Handlers (Shell) loop
+                           declare
+                              Ran_It : Adash.Engine.Result;
+                           begin
+                              Adash.Engine.Submit
+                                (Shell,
+                                 Ada.Strings.Unbounded.To_String (Name) & ";",
+                                 Name      => "on_interrupt",
+                                 Kind      => Adash.Source.Origin_Interactive,
+                                 Outcome   => Ran_It,
+                                 Report    => Report,
+                                 On_Output => Output_To'Unchecked_Access);
+                           end;
+                        end loop;
+
+                        Render_Diagnostics;
+                     end if;
+                  end;
 
                   Last_Failed :=
                     Answer.Kind = Adash.Engine.Not_Understood

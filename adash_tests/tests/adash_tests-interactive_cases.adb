@@ -1871,6 +1871,93 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after completing a word");
    end Completion_Offers_What_A_User_Taught_It;
 
+   --  A line interrupted at the prompt runs what `on_interrupt` asked for.
+   --
+   --  The script case beside this one covers a file; this covers the session,
+   --  which is where a user meets the feature first: they register a handler
+   --  and then press Ctrl-C at the prompt. It ran only for scripts at first --
+   --  the half a user meets second -- and nothing said so, because the case
+   --  that existed was about the other half.
+   procedure An_Interrupted_Line_Runs_Its_Handler
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure An_Interrupted_Line_Runs_Its_Handler
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := (1 => Character'Val (13));
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into
+        (Session,
+         "procedure Note is begin put_line (To_Upper (""noted"")); end Note;"
+         & Return_Key);
+      Type_Into (Session, "on_interrupt (""Note"");" & Return_Key);
+
+      --  Wait for the registration to be taken, so the loop below is typed at
+      --  a shell that has the handler rather than at one still reading it.
+      declare
+         Ready : Boolean := False;
+      begin
+         for Attempt in 1 .. 200 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Ready := Ada.Strings.Fixed.Index
+                          (Plainly (Session), "on_interrupt") > 0;
+            end;
+
+            exit when Ready;
+            delay 0.05;
+         end loop;
+
+         Assert (Ready,
+                 "the shell never took the registration: ["
+                 & Plainly (Session) & "]");
+      end;
+
+      Type_Into (Session, "loop null; end loop;" & Return_Key);
+
+      --  Long enough that the line is running rather than still being read.
+      delay 1.0;
+
+      Assert (Try_Interrupt (Session),
+              "the terminal refused the interrupt: ["
+              & Plainly (Session) & "]");
+
+      declare
+         Noted : Boolean := False;
+      begin
+         for Attempt in 1 .. 300 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Noted := Ada.Strings.Fixed.Index
+                          (Plainly (Session), "NOTED") > 0;
+            end;
+
+            exit when Noted;
+            delay 0.05;
+         end loop;
+
+         Assert (Noted,
+                 "an interrupted line did not run what on_interrupt asked "
+                 & "for: [" & Plainly (Session) & "]");
+      end;
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after an interrupted line");
+   end An_Interrupted_Line_Runs_Its_Handler;
+
    --  Up recalls what was typed, through the terminal.
    procedure History_Recalls_A_Line_Through_A_Terminal
      (T : in out AUnit.Test_Cases.Test_Case'Class)
@@ -3503,6 +3590,8 @@ package body Adash_Tests.Interactive_Cases is
                         "the common prefix is shared by every candidate");
       Register_Routine (T, Highlighting_Covers_Unparsable_Input'Access,
                         "highlighting works on input that does not parse");
+      Register_Routine (T, An_Interrupted_Line_Runs_Its_Handler'Access,
+                        "a line interrupted at the prompt runs its handler");
       Register_Routine (T, Completion_Offers_What_A_User_Taught_It'Access,
                         "Tab offers what a user taught it");
       Register_Routine (T, Completion_Finishes_A_Word_Through_A_Terminal'Access,

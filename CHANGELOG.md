@@ -24,6 +24,14 @@ what changed.
   or set in octal. Windows has no per-process mask at all, and says so rather
   than reporting a zero a script would act on; the capability is
   `Hostkit.Fs.Creation_Mask`, added for this.
+- `on_interrupt` fires at the prompt as well as in a script. It was wired into
+  the script path only, which is the half a user meets second: they register a
+  handler and then press Ctrl-C at a prompt.
+- A completion handler is bounded. It runs inside the editor, where the user is
+  typing, so a handler that loops would not be a slow completion — it would be
+  a shell that had stopped. Half a second, asked for from a stopwatch task
+  because the submission is what has to notice and the editor's task is inside
+  it.
 - `complete_with (Program, Name)` — teaches Tab what may follow a program. The
   shell knows its own vocabulary and what the filesystem holds; it cannot know
   that `git ` is followed by `commit`, and nothing it could read would tell it.

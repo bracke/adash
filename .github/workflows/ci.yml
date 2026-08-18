@@ -141,23 +141,31 @@ jobs:
         working-directory: Ada/adash/adash_tests
         run: |
           set -eu
-          # A watchdog, because five of these cases drive the shell through a
+          # A watchdog, because eight of these cases drive the shell through a
           # terminal and a case that waits for a byte that never comes would
           # otherwise hold the job until the six-hour limit -- with no output,
           # since a killed job prints nothing. Killed here instead, the step
           # fails, the log survives, and the last test AUnit printed names the
           # one that did not finish. Written out rather than `timeout`, which
           # macOS does not have.
+          #
+          # Twenty-five minutes rather than ten. Each terminal case waits
+          # patiently for a shell that may be slow to start on a loaded runner,
+          # and there are more of them than there were; the macOS job now takes
+          # about half an hour in total. The bound is here to turn a hang into
+          # a report, not to police how long a healthy run takes -- and a bound
+          # that a healthy run approaches will one day kill one, which reads as
+          # a hang and sends somebody looking in the wrong place.
           ./bin/adash_tests${{ matrix.suffix }} &
           suite=$!
 
-          for _ in $(seq 1 600); do
+          for _ in $(seq 1 1500); do
             kill -0 "$suite" 2>/dev/null || break
             sleep 1
           done
 
           if kill -0 "$suite" 2>/dev/null; then
-            echo "the suite was still running after ten minutes; killing it"
+            echo "the suite was still running after twenty-five minutes; killing it"
             kill -9 "$suite" 2>/dev/null || true
             wait "$suite" 2>/dev/null || true
             exit 1
