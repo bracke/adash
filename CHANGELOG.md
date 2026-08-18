@@ -22,6 +22,11 @@ what changed.
   holds one bufferful, and a shell writing more than that into one waits for a
   program that is waiting for the shell. The file is removed however the
   command ends, including when it is refused or interrupted.
+- `pipe_from_text (Input)` — takes a pipeline's input from text the script
+  computed, which with `Output_Of_Pipe` after it makes `printf '%s' "$x" | tool
+  | other` expressible with the answer handed back. The file belongs to the
+  session, so it outlives the submission that built the pipeline and a job
+  placed in the background.
 - `run_with (Assignment, Program, …)` — runs a program with one variable set
   for it alone, written `NAME=VALUE` as `set` writes one. It adds to what the
   child would have had rather than replacing it.

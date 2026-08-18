@@ -627,6 +627,47 @@ output = ["one", "two"]
 diagnostics = []
 
 [[case]]
+id = "pipelines.a-pipeline-reads-text-a-script-computed"
+requirement = """
+`printf '%s' "$x" | tool | other` -- the last of the shape that had no spelling
+here. `run_from_text` hands one program what a script worked out; this hands it
+to a pipeline, and with `Output_Of_Pipe` after it the script gets the answer
+back, which is the whole idiom rather than half of it.
+
+Named after the first stage, as `pipe_from` is: input named before any program
+is a line in the wrong order, and a shell that quietly applied it to whatever
+came next would be guessing.
+
+The file the text goes into belongs to the *session*, not to this command. A
+pipeline is built by one submission and run by another -- three lines at a
+prompt -- so a file removed when this returned would be gone before anything
+read it. It lasts until the next `pipe_from_text` replaces it or the session
+ends, which is also what a pipeline placed in the background needs.
+"""
+script = """
+pipe ("{emit}", "--input");
+pipe_from_text ("one" & Character'Val (10) & "two" & Character'Val (10));
+pipe_run;
+pipe ("{emit}", "--input");
+pipe_from_text ("captured" & Character'Val (10));
+put_line ("[" & Output_Of_Pipe & "]");
+quit (0);"""
+exit_status = 0
+output = ["one", "two", "[captured]"]
+diagnostics = []
+
+[[case]]
+id = "pipelines.text-before-a-stage-is-refused"
+requirement = """
+The same refusal `pipe_from` makes, for the same reason: what a pipeline reads
+is a property of its first stage, and there is no first stage yet.
+"""
+script = "pipe_from_text (\"nothing to read this\"); quit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.empty_pipeline!"]
+
+[[case]]
 id = "text.matches-a-pattern"
 requirement = """
 The pattern language every user of a shell already has in their fingers: `*`

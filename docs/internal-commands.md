@@ -108,6 +108,7 @@ reads as the empty string rather than failing.
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
 | `pipe_start` | 0 | runs the pipeline in the background and names the job |
 | `pipe_from (File : String)` | 1 | takes the pipeline's input from a file; does not run it |
+| `pipe_from_text (Input : String)` | 1 | takes the pipeline's input from text this script computed; does not run it |
 | `pipe_into (File : String)` | 1 | says its output goes to a file; does not run it |
 | `pipe_append (File : String)` | 1 | says its output is added to the end of a file |
 | `pipe_new (File : String)` | 1 | as `pipe_into`, refusing a file that is already there |

@@ -232,6 +232,19 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Pipe_From_Doc, M.Msg_Command_Hint, Available),
 
+      --  The same, with the text this script computed rather than a file it
+      --  has. `printf '%s' "$x" | tool | other` written here.
+      --
+      --  What `run_from_text` is for one program, this is for a pipeline --
+      --  and with `Output_Of_Pipe` after it, for a pipeline whose answer the
+      --  script wants back. Those three were the last of the shape: a script
+      --  could compute a value and hand it to one program, and had to go
+      --  through a file of its own making to hand it to two.
+      (Command_Pipe_From_Text, Named ("pipe_from_text"), 1, 1,
+       [1 => Text ("Input"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pipe_From_Text_Doc, M.Msg_Command_Hint, Available),
+
       (Command_Pipe_Into, Named ("pipe_into"), 1, 1,
        [1 => Text ("File"), others => Nothing],
        Changes_State,

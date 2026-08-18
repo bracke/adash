@@ -12,6 +12,7 @@ with Adash.Execution.Cancellation;
 with Adash.Execution.Environment;
 with Adash.Execution.Jobs;
 with Adash.Execution.Pipelines;
+with Adash.Filesystem;
 with Adash.Messages;
 
 --  Commands the shell runs itself.
@@ -100,6 +101,7 @@ package Adash.Commands is
       Command_Pipe_Run,
       Command_Pipe_Start,
       Command_Pipe_From,
+      Command_Pipe_From_Text,
       Command_Pipe_Into,
       Command_Pipe_Append,
       Command_Pipe_New,
@@ -405,6 +407,21 @@ package Adash.Commands is
    procedure Append (Item : in out Text_List; Value : String);
 
    type State is limited record
+      --  The text the pipeline being built is to read, in a file of its own.
+      --
+      --  Held by the session rather than by the command, because a pipeline is
+      --  built over several submissions and run by a later one: `pipe_from_text
+      --  (X); pipe ("tool"); pipe_run;` is three lines at a prompt, and a file
+      --  removed when the first of them returned would be gone before anything
+      --  read it.
+      --
+      --  So it lasts until the next `pipe_from_text` replaces it or the session
+      --  ends, which is also what a background pipeline needs -- a job started
+      --  by `pipe_start` is still reading when the command that started it has
+      --  returned. One file at a time, in a private temporary directory, and
+      --  the type removes it.
+      Pipeline_Input : Adash.Filesystem.Held_Text;
+
       --  What children inherit. Separate from the process's own environment,
       --  so `set` for the session does not alter the shell's.
       Environment : Adash.Execution.Environment.Block :=

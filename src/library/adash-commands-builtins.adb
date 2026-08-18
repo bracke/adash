@@ -359,15 +359,20 @@ package body Adash.Commands.Builtins is
                return Adash.Execution.Success;
             end;
 
-         when Command_Pipe_From =>
+         when Command_Pipe_From | Command_Pipe_From_Text =>
             --  Recorded, not run. See the note where this is registered.
             declare
-               Asked : constant Adash.Execution.Redirection.Redirection :=
-                 (Role => Adash.Execution.Streams.Role_Input,
-                  Kind => Adash.Execution.Redirection.Redirect_From_File,
-                  Path =>
-                    Ada.Strings.Unbounded.To_Unbounded_String
-                      (Argument (Arguments, 1)));
+               --  The text goes into a file the session holds. Held there
+               --  rather than here because a pipeline is built by one
+               --  submission and run by another, and a file removed when this
+               --  command returned would be gone before anything read it; the
+               --  session's copy lasts until the next `pipe_from_text` or the
+               --  end of the session, which is also what a pipeline placed in
+               --  the background needs.
+               Put_There : Adash.Filesystem.Written :=
+                 Adash.Filesystem.Write_Ok;
+
+               use type Adash.Filesystem.Written;
 
                Attach  : Adash.Execution.Redirection.Plan;
                Refused : Adash.Errors.Error_Info;
@@ -381,20 +386,44 @@ package body Adash.Commands.Builtins is
                                  M.No_Arguments);
                end if;
 
-               if not Adash.Execution.Redirection.Add (Attach, Asked, Refused)
-                 or else not Adash.Execution.Pipelines.Redirect_First
-                               (Shell.Pending, Attach, Refused)
-               then
-                  Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
+               if Id = Command_Pipe_From_Text then
+                  Adash.Filesystem.Hold
+                    (Shell.Pipeline_Input, Argument (Arguments, 1), Put_There);
 
-                  Report.Emit
-                    (Adash.Diagnostics.From_Error
-                       (Refused, Adash.Diagnostics.Severity_Error,
-                        Adash.Diagnostics.Category_Execution,
-                        Adash.Diagnostics.Owner_Commands));
-
-                  return Adash.Execution.From_Start_Error (Refused.Code);
+                  if Put_There /= Adash.Filesystem.Write_Ok then
+                     return Failed
+                       (Adash.Errors.Error_Input_Text_Not_Held,
+                        [1 => M.Named
+                                ("reason",
+                                 Adash.Filesystem.Written'Image (Put_There))]);
+                  end if;
                end if;
+
+               declare
+                  Asked : constant Adash.Execution.Redirection.Redirection :=
+                    (Role => Adash.Execution.Streams.Role_Input,
+                     Kind => Adash.Execution.Redirection.Redirect_From_File,
+                     Path =>
+                       Ada.Strings.Unbounded.To_Unbounded_String
+                         (if Id = Command_Pipe_From_Text
+                          then Adash.Filesystem.Path (Shell.Pipeline_Input)
+                          else Argument (Arguments, 1)));
+               begin
+                  if not Adash.Execution.Redirection.Add (Attach, Asked, Refused)
+                    or else not Adash.Execution.Pipelines.Redirect_First
+                                  (Shell.Pending, Attach, Refused)
+                  then
+                     Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
+
+                     Report.Emit
+                       (Adash.Diagnostics.From_Error
+                          (Refused, Adash.Diagnostics.Severity_Error,
+                           Adash.Diagnostics.Category_Execution,
+                           Adash.Diagnostics.Owner_Commands));
+
+                     return Adash.Execution.From_Start_Error (Refused.Code);
+                  end if;
+               end;
 
                return Adash.Execution.Success;
             end;

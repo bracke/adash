@@ -45,7 +45,16 @@ the top of that for one program, and takes nothing away — a program run with
 `LC_ALL=C` still needs its PATH.
 
 **A program's input** comes from the shell's own, from a file (`run_from`), or
-from text the script computed (`run_from_text`). The last of those is what
+from text the script computed (`run_from_text`) — and a *pipeline's* input from
+the same three, the last of them through `pipe_from_text`, which with
+`Output_Of_Pipe` after it is `printf '%s' "$x" | tool | other` with the answer
+handed back. Input is named after the first stage, as `pipe_from` requires: a
+file named before any program is a line in the wrong order.
+
+The file the text goes into belongs to the session rather than to the command,
+because a pipeline is built by one submission and run by another; it lasts until
+the next `pipe_from_text` replaces it or the session ends, which is what a
+pipeline placed in the background needs. The last of those is what
 `printf %s "$x" | tool` says elsewhere; the text goes through a file of its own
 rather than a pipe, because a pipe holds one bufferful and a shell writing more
 than that into one waits for a program that is waiting for the shell.

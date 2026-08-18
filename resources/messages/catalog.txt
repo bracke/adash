@@ -385,6 +385,7 @@ en.command.run_all_append.doc = Run a program with everything it writes added to
 en.command.run_all_new.doc = Run a program with everything it writes in one file that must not already exist.
 en.command.pipe.doc = Add a program to the pipeline being built.
 en.command.pipe_start.doc = Run the pipeline in the background, without waiting for it.
+en.command.pipe_from_text.doc = Take the pipeline's input from text this script computed. Does not run it.
 en.command.pipe_from.doc = Take the pipeline's input from a file, which must exist. Does not run it.
 en.command.pipe_into.doc = Say that the pipeline's output goes to a file, replacing what was there.
 en.command.pipe_append.doc = Say that the pipeline's output is added to the end of a file.
