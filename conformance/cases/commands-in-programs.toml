@@ -142,6 +142,7 @@ output = [
   "!line.command_entry{name=source,summary=!command.source.doc!}!",
   "!line.command_entry{name=run,summary=!command.run.doc!}!",
   "!line.command_entry{name=run_matching,summary=!command.run_matching.doc!}!",
+  "!line.command_entry{name=run_instead,summary=!command.run_instead.doc!}!",
   "!line.command_entry{name=run_into,summary=!command.run_into.doc!}!",
   "!line.command_entry{name=run_from,summary=!command.run_from.doc!}!",
   "!line.command_entry{name=run_from_text,summary=!command.run_from_text.doc!}!",
@@ -885,3 +886,123 @@ output = [
   "!line.job_finished{id=1,status=0}!",
 ]
 diagnostics = []
+
+[[case]]
+id = "matching.braces-say-what-strings-to-make"
+requirement = """
+`{lib,test}` is two strings and `{1..4}` counts, and two groups multiply. This
+touches no filesystem and refuses nothing for not existing: braces say what
+strings to make, and whether anything is called that is a separate question,
+asked afterwards by whatever wanted the names.
+
+Left to right, leftmost varying slowest -- the order every other shell produces
+and the one a reader expects when they see the result.
+"""
+script = "for I in 1 .. Braces_Count (\"{a,b}{1,2}\") loop put (Braces_At (\"{a,b}{1,2}\", I) & \" \"); end loop; put_line (\"\");\nfor I in 1 .. Braces_Count (\"v{1..3}\") loop put (Braces_At (\"v{1..3}\", I) & \" \"); end loop; put_line (\"\");\nquit (0);"
+exit_status = 0
+output = ["a1 a2 b1 b2 ", "v1 v2 v3 "]
+diagnostics = []
+
+[[case]]
+id = "matching.a-group-that-says-nothing-is-text"
+requirement = """
+A group with neither a comma nor a range in it says nothing, and stays as it was
+written -- `{a}` is `{a}`, which is what somebody who typed one and meant one
+gets. Text with no group at all stands for itself, so a caller never has to ask
+whether there was a group before using what comes back.
+"""
+script = "put_line (Braces_At (\"{a}\", 1) & \" \" & Trim (Braces_Count (\"{a}\")'Image)); put_line (Braces_At (\"plain\", 1) & \" \" & Trim (Braces_Count (\"plain\")'Image));\nquit (0);"
+exit_status = 0
+output = ["{a} 1", "plain 1"]
+diagnostics = []
+
+[[case]]
+id = "matching.run_matching-makes-the-strings-braces-name"
+requirement = """
+The expanding form of `run` expands braces before patterns: `{lib,test}` says
+what words to make, and each of them is then a word that may or may not hold a
+pattern. Doing it the other way round would ask the filesystem about a name
+nobody had finished writing.
+
+Braces name strings rather than files, so a word made this way is passed along
+whether or not anything is called that -- which is the difference between them
+and a pattern, and the reason `run_matching ("mkdir", "-p", "src/{lib,test}")`
+works at all.
+"""
+script = "cd (\"{store}\");\nrun_matching (\"{emit}\", \"src/{lib,test}\");\nquit (0);"
+exit_status = 0
+output = ["src/lib", "src/test"]
+diagnostics = []
+
+[[case]]
+id = "failure.stop-on-failure-ends-the-submission"
+requirement = """
+`stop.on-failure` is what `set -e` is elsewhere: a submission stops at the first
+command that fails, and the shell reports that failure rather than success. A
+script run under it that failed half way and then exited 0 would be worse than
+one that carried on -- the carrying on is visible, and the zero is what a build
+system believes.
+
+Off by default, because a shell that stopped on the first failure would break
+every script written against this one.
+
+What it stops is the submission, which is why this case has no `quit` after it:
+a `quit (0)` on the next line would run as its own submission and hand back the
+zero the setting exists to prevent. In a script file the whole text is one
+submission, so a stopped script stops.
+
+A command whose failure a script means to inspect must therefore not run under
+this -- the same trap `set -e` has, and the reason it is a setting somebody
+turns on rather than the way the shell works.
+"""
+script = "settings (\"stop.on-failure\", \"true\"); put_line (To_Upper (\"first\")); run (\"{emit}\", \"--exit=3\"); put_line (To_Upper (\"never\"));"
+exit_status = 3
+output = [
+  "!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!",
+  "FIRST",
+]
+diagnostics = []
+
+[[case]]
+id = "failure.a-failure-carries-on-by-default"
+requirement = """
+The other half: with the setting off, which is how the shell comes, a failing
+command is a status and the next statement runs. This is asserted beside the
+case above so that neither can be changed without the other being seen.
+"""
+script = "put_line (To_Upper (\"first\")); run (\"{emit}\", \"--exit=3\"); put_line (To_Upper (\"second\"));\nquit (0);"
+exit_status = 0
+output = ["FIRST", "SECOND"]
+diagnostics = []
+
+[[case]]
+id = "exec.a-host-without-the-call-says-so"
+requirement = """
+Windows has no call that replaces a running image. What it has -- CreateProcess
+-- makes a *new* process, so anything built on it changes the process id and
+leaves the original waiting or gone, which is precisely what a caller reaching
+for `run_instead` is trying to avoid.
+
+So it refuses there and names the capability, rather than emulating something
+that would look right from the outside and be wrong in every way that matters.
+The other two hosts are covered by the unit suite, which starts a shell, has it
+become another program, and finds the same process id running it.
+"""
+script = "run_instead (\"{emit}\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.capability_unavailable{capability=BECOMING_A_PROGRAM}!"]
+platforms = ["windows"]
+
+[[case]]
+id = "exec.a-program-that-is-not-there-is-refused"
+requirement = """
+A program this host cannot find is refused before anything is replaced. The
+order matters: a shell that had already given up its image and then discovered
+the program was missing would have nothing left to report it with.
+"""
+script = "run_instead (\"adash-no-such-program-anywhere\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.command_not_found{command=adash-no-such-program-anywhere}!"]
+platforms = ["linux", "macos"]

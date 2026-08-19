@@ -239,6 +239,16 @@ package body Adash.Interactive.Session is
       --  there to remove.
       This_Line_Recorded : Boolean := False;
 
+      --  Whether a person is typing. A session fed a script on its input ends
+      --  at a failing command when the setting asks for it; one with somebody
+      --  at a keyboard does not.
+      Reading_From_A_Terminal : constant Boolean :=
+        Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Input);
+
+      --  Set when that happened, and the status it happened with.
+      Stopped_By_A_Failure : Boolean := False;
+      Failing_Status : Adash.Execution.Exit_Status := Adash.Execution.Success;
+
       Stdout_Is_Terminal : constant Boolean :=
         Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Output);
       Stderr_Is_Terminal : constant Boolean :=
@@ -1419,6 +1429,27 @@ package body Adash.Interactive.Session is
                                and then not Adash.Execution.Succeeded
                                               (Answer.Status));
 
+                  --  A failure under stop.on-failure ends a session that is
+                  --  reading a script rather than a person.
+                  --
+                  --  Only when nobody is typing: at a prompt the setting stops
+                  --  the submission and the shell reads the next line, because
+                  --  a shell that ended the session over a mistyped command is
+                  --  a shell nobody could use. Fed a script on its input it is
+                  --  the other way round -- carrying on past a failure is what
+                  --  the setting was turned on to prevent, and the status has
+                  --  to leave with it or a build system reads the zero.
+                  if Last_Failed
+                    and then not Reading_From_A_Terminal
+                    and then Adash.Configuration.Boolean_Value
+                               (Adash.Engine.Settings (Shell),
+                                Adash.Configuration.Stop_On_Failure_Setting)
+                  then
+                     Stopped_By_A_Failure := True;
+                     Failing_Status := Answer.Status;
+                     exit;
+                  end if;
+
                   exit when Adash.Engine.Exit_Requested (Shell);
                end;
             end if;
@@ -1456,6 +1487,11 @@ package body Adash.Interactive.Session is
 
       if Adash.Engine.Exit_Requested (Shell) then
          return Adash.Execution.Numeric (Adash.Engine.Exit_Status (Shell));
+      end if;
+
+      --  Stopped at a failing command, with the setting that asks for it on.
+      if Stopped_By_A_Failure then
+         return Adash.Execution.Numeric (Failing_Status);
       end if;
 
       --  Ended by end of input rather than by asking. That is a successful

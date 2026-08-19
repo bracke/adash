@@ -1,3 +1,4 @@
+with Hostkit.Host;
 with Hostkit.Pty;
 with Hostkit.Signals;
 with Hostkit.Terminal_Control;
@@ -23,6 +24,8 @@ package body Adash.Platform is
             return Adash.Messages.Msg_Capability_Pseudo_Terminal;
          when Capability_Advisory_Locks =>
             return Adash.Messages.Msg_Capability_Advisory_Locks;
+         when Capability_Becoming_A_Program =>
+            return Adash.Messages.Msg_Capability_Becoming_A_Program;
       end case;
    end Message;
 
@@ -55,6 +58,16 @@ package body Adash.Platform is
             --  handle Lock_Unsupported from an actual Acquire regardless --
             --  which it would have to do even if this answered False.
             return True;
+
+         when Capability_Becoming_A_Program =>
+            --  Asked of the host rather than of this shell: POSIX has execvp
+            --  and Windows has nothing that replaces a running image, which
+            --  is a fact about the host and is where hostkit keeps it.
+            declare
+               use type Hostkit.Host.Kind;
+            begin
+               return Hostkit.Host.Current /= Hostkit.Host.Windows;
+            end;
       end case;
    end Is_Available;
 
@@ -69,6 +82,8 @@ package body Adash.Platform is
          when Capability_Job_Control     => return "JOB_CONTROL";
          when Capability_Pseudo_Terminal => return "PSEUDO_TERMINAL";
          when Capability_Advisory_Locks  => return "ADVISORY_LOCKS";
+         when Capability_Becoming_A_Program =>
+            return "BECOMING_A_PROGRAM";
       end case;
    end Name;
 

@@ -339,6 +339,8 @@ package Adash.Messages is
    Msg_Predefined_File_At_Doc,
    Msg_Predefined_Previous_Directory_Doc,
    Msg_Predefined_Job_Process_Doc,
+   Msg_Predefined_Braces_Count_Doc,
+   Msg_Predefined_Braces_At_Doc,
    Msg_Predefined_Match_Count_Doc,
    Msg_Predefined_Match_At_Doc,
    Msg_Predefined_Program_Path_Doc,
@@ -377,6 +379,8 @@ package Adash.Messages is
    Msg_Predefined_File_At_Hint,
    Msg_Predefined_Previous_Directory_Hint,
    Msg_Predefined_Job_Process_Hint,
+   Msg_Predefined_Braces_Count_Hint,
+   Msg_Predefined_Braces_At_Hint,
    Msg_Predefined_Match_Count_Hint,
    Msg_Predefined_Match_At_Hint,
    Msg_Predefined_Program_Path_Hint,
@@ -413,6 +417,7 @@ package Adash.Messages is
       Msg_Command_Run_From_Doc, Msg_Command_Run_From_Text_Doc,
       Msg_Command_Run_With_Doc, Msg_Command_Start_With_Doc,
       Msg_Command_Run_Matching_Doc,
+      Msg_Command_Run_Instead_Doc,
       Msg_Command_On_Signal_Doc, Msg_Command_Signal_Process_Doc,
       Msg_Command_Time_Doc, Msg_Command_Umask_Doc,
       Msg_Command_Resource_Limit_Doc, Msg_Command_Resource_Ceiling_Doc,
@@ -530,6 +535,7 @@ package Adash.Messages is
       Msg_Capability_Job_Control,
       Msg_Capability_Pseudo_Terminal,
       Msg_Capability_Advisory_Locks,
+      Msg_Capability_Becoming_A_Program,
       Msg_Start_Reason_Host_Refused,
       Msg_Start_Reason_Stream_Setup,
 
@@ -562,6 +568,7 @@ package Adash.Messages is
       Msg_Setting_History_Per_Session,
       Msg_Setting_History_Ignore_Space,
       Msg_Setting_Prompt_Format,
+      Msg_Setting_Stop_On_Failure,
 
       --  Reading a configuration file.
       Msg_Config_Unknown_Key,

@@ -471,6 +471,10 @@ package body Adash.Messages is
             return "predefined.previous_directory.doc";
          when Msg_Predefined_Job_Process_Doc =>
             return "predefined.job_process.doc";
+         when Msg_Predefined_Braces_Count_Doc =>
+            return "predefined.braces_count.doc";
+         when Msg_Predefined_Braces_At_Doc =>
+            return "predefined.braces_at.doc";
          when Msg_Predefined_Match_Count_Doc =>
             return "predefined.match_count.doc";
          when Msg_Predefined_Match_At_Doc =>
@@ -491,6 +495,10 @@ package body Adash.Messages is
             return "predefined.previous_directory.hint";
          when Msg_Predefined_Job_Process_Hint =>
             return "predefined.job_process.hint";
+         when Msg_Predefined_Braces_Count_Hint =>
+            return "predefined.braces_count.hint";
+         when Msg_Predefined_Braces_At_Hint =>
+            return "predefined.braces_at.hint";
          when Msg_Predefined_Match_Count_Hint =>
             return "predefined.match_count.hint";
          when Msg_Predefined_Match_At_Hint =>
@@ -598,6 +606,7 @@ package body Adash.Messages is
          when Msg_Command_Time_Doc           => return "command.time.doc";
          when Msg_Command_Umask_Doc          => return "command.umask.doc";
          when Msg_Command_Run_Matching_Doc   => return "command.run_matching.doc";
+         when Msg_Command_Run_Instead_Doc    => return "command.run_instead.doc";
          when Msg_Command_On_Signal_Doc      => return "command.on_signal.doc";
          when Msg_Command_Signal_Process_Doc =>
             return "command.signal_process.doc";
@@ -725,6 +734,8 @@ package body Adash.Messages is
          when Msg_Capability_Job_Control   => return "capability.job_control";
          when Msg_Capability_Pseudo_Terminal => return "capability.pseudo_terminal";
          when Msg_Capability_Advisory_Locks => return "capability.advisory_locks";
+         when Msg_Capability_Becoming_A_Program =>
+            return "capability.becoming_a_program";
          when Msg_Start_Reason_Host_Refused => return "start.reason.host_refused";
          when Msg_Start_Reason_Stream_Setup => return "start.reason.stream_setup";
          when Msg_Completion_Keyword         => return "completion.keyword";
@@ -750,6 +761,8 @@ package body Adash.Messages is
             return "setting.history-per-session";
          when Msg_Setting_Prompt_Format =>
             return "setting.prompt.format";
+         when Msg_Setting_Stop_On_Failure =>
+            return "setting.stop-on-failure";
          when Msg_Setting_History_Ignore_Space =>
             return "setting.history-ignore-space";
          when Msg_Config_Unknown_Key         => return "config.unknown-key";
@@ -825,6 +838,7 @@ package body Adash.Messages is
             | Msg_Capability_Job_Control
             | Msg_Capability_Pseudo_Terminal
             | Msg_Capability_Advisory_Locks
+            | Msg_Capability_Becoming_A_Program
             | Msg_Start_Reason_Host_Refused
             | Msg_Start_Reason_Stream_Setup
 
@@ -987,6 +1001,9 @@ package body Adash.Messages is
             | Msg_Predefined_Previous_Directory_Doc
             | Msg_Predefined_Previous_Directory_Hint
             | Msg_Predefined_Job_Process_Doc | Msg_Predefined_Job_Process_Hint
+            | Msg_Predefined_Braces_Count_Doc
+            | Msg_Predefined_Braces_Count_Hint
+            | Msg_Predefined_Braces_At_Doc | Msg_Predefined_Braces_At_Hint
             | Msg_Predefined_Match_Count_Doc | Msg_Predefined_Match_Count_Hint
             | Msg_Predefined_Match_At_Doc | Msg_Predefined_Match_At_Hint
             | Msg_Predefined_Program_Path_Doc
@@ -1041,6 +1058,7 @@ package body Adash.Messages is
             | Msg_Command_Complete_With_Doc
             | Msg_Command_Umask_Doc
             | Msg_Command_Run_Matching_Doc
+            | Msg_Command_Run_Instead_Doc
             | Msg_Command_On_Signal_Doc
             | Msg_Command_Signal_Process_Doc
             | Msg_Command_Resource_Limit_Doc
@@ -1181,7 +1199,8 @@ package body Adash.Messages is
             | Msg_Setting_Session_File
             | Msg_Setting_History_Per_Session
             | Msg_Setting_History_Ignore_Space
-            | Msg_Setting_Prompt_Format =>
+            | Msg_Setting_Prompt_Format
+            | Msg_Setting_Stop_On_Failure =>
             return No_Placeholders;
 
          when Msg_Setting_Unknown =>

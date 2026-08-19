@@ -95,6 +95,23 @@ A file that cannot be read leaves the defaults in place and says so once. An
 unknown key warns and the rest of the file is still read — a setting this build
 does not know is likely to be one a later build does.
 
+## Stopping at a failure
+
+`stop.on-failure` is what `set -e` is elsewhere: a submission stops at the first
+command that fails, and reports that failure instead of success. Off by default,
+because a shell that stopped on the first failure would break every script
+written against this one.
+
+What it stops is the *submission*. A script file is one submission, so a script
+stops; at a prompt the shell reads the next line, because a session that ended
+over a mistyped command would be one nobody could use; and a script fed in on
+standard input stops being read, which is what makes the exit status mean
+something to whatever ran it.
+
+A command whose failure a script means to inspect must not run under it -- the
+same trap `set -e` has everywhere, and the reason this is a setting somebody
+turns on rather than the way the shell works.
+
 ## The prompt
 
 `prompt.directory` and `prompt.failure` shape the built-in prompt. `prompt.format`

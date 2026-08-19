@@ -87,6 +87,8 @@ package Adash.Predefined is
 
       --  Expanding a pattern into the paths it names, which is what a shell
       --  does to `*.log` before a program ever sees it.
+      Entity_Braces_Count,
+      Entity_Braces_At,
       Entity_Match_Count,
       Entity_Match_At,
       Entity_Program_Path,

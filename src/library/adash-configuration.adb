@@ -27,6 +27,7 @@ package body Adash.Configuration is
          when History_Per_Session_Setting => return "history.per-session";
          when History_Ignore_Space_Setting => return "history.ignore-space";
          when Prompt_Format_Setting    => return "prompt.format";
+         when Stop_On_Failure_Setting  => return "stop.on-failure";
       end case;
    end Key;
 
@@ -77,6 +78,8 @@ package body Adash.Configuration is
             return Adash.Messages.Msg_Setting_History_Ignore_Space;
          when Prompt_Format_Setting =>
             return Adash.Messages.Msg_Setting_Prompt_Format;
+         when Stop_On_Failure_Setting =>
+            return Adash.Messages.Msg_Setting_Stop_On_Failure;
       end case;
    end Description;
 

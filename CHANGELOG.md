@@ -16,6 +16,32 @@ what changed.
   form `NAME=VALUE`, which has exactly one exception, written down where the
   command is registered: a program whose own name contains an `=` must be run
   by `run` with the variables `set`.
+- **Brace expansion.** `{lib,test}` is two strings, `{1..4}` counts, two groups
+  multiply, and groups nest. `run_matching` expands braces before patterns —
+  `run_matching ("mkdir", "-p", "src/{lib,test}")` works — and `Braces_Count` /
+  `Braces_At` are the same expansion as a question. Braces touch no filesystem
+  and refuse nothing for not existing: they say what strings to make, and
+  whether anything is called that is asked afterwards by whatever wanted the
+  names. A group with neither a comma nor a range says nothing and stays as it
+  was written, so `{a}` is `{a}`.
+- **`stop.on-failure`**, which is what `set -e` is elsewhere: a submission stops
+  at the first command that fails and reports that failure instead of success. A
+  script file is one submission, so a script stops; a script fed in on standard
+  input stops being read, which is what makes the exit status mean something to
+  whatever ran it; at a prompt the shell reads the next line, because a session
+  that ended over a mistyped command would be one nobody could use. Off by
+  default — a shell that stopped on the first failure would break every script
+  written against this one — and a command whose failure a script means to
+  inspect must not run under it, the same trap `set -e` has everywhere.
+- **`run_instead`**, which is `exec`: become the program, keeping the process,
+  its open files and its place in the terminal. Nothing runs after it, including
+  what `on_exit` asked for — there is no exit, this process does not end, it
+  becomes something else. The refusals come first, in order: a host with no such
+  call says which capability is missing (Windows, whose CreateProcess would make
+  a *new* process and change the very thing this exists to keep), and a program
+  that cannot be found is refused while there is still a shell to report it
+  with. The unit case starts a shell, has it become another program, and reaps
+  the process id it started — the part no conformance case can see.
 - **`cd ("-")` goes back to where the last `cd` came from**, and twice in a row
   returns to where it started, because going back is itself a move. A session
   that has not moved says so rather than treating the dash as the home

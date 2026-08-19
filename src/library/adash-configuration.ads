@@ -95,7 +95,10 @@ package Adash.Configuration is
 
       --  What the prompt looks like. Empty means the built-in one, which the
       --  two prompt switches above shape.
-      Prompt_Format_Setting);
+      Prompt_Format_Setting,
+
+      --  Whether a submission stops at the first command that fails.
+      Stop_On_Failure_Setting);
 
    --  What sort of value a setting holds.
    type Setting_Kind is

@@ -27,6 +27,7 @@ output = [
   "!line.setting{key=history.per-session,value=false,summary=!setting.history-per-session!}!",
   "!line.setting{key=history.ignore-space,value=true,summary=!setting.history-ignore-space!}!",
   "!line.setting{key=prompt.format,value=,summary=!setting.prompt.format!}!",
+  "!line.setting{key=stop.on-failure,value=false,summary=!setting.stop-on-failure!}!",
 ]
 diagnostics = []
 

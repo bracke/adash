@@ -44,7 +44,13 @@ package Adash.Platform is
 
       --  Advisory file locks are available, so two sessions do not overwrite
       --  each other's persistent state.
-      Capability_Advisory_Locks);
+      Capability_Advisory_Locks,
+
+      --  Whether this host can replace a running program with another,
+      --  keeping the process. POSIX has execvp; Windows has no such call at
+      --  all, and what it does have makes a new process -- which is the one
+      --  thing a caller reaching for this is trying to avoid.
+      Capability_Becoming_A_Program);
 
    --  Whether this host has a capability.
    --

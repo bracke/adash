@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 564 messages in 22 groups.
+There are 571 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -292,6 +292,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.complete_with.doc` | Name a subprogram that says what may follow a program, one candidate per line, for Tab to offer. |
 | `command.on_signal.doc` | Run a subprogram when a signal arrives: terminate, hangup, quit, continue and the rest, by the host's own name in lower case. kill and stop cannot be caught anywhere and are refused. |
 | `command.signal_process.doc` | Send a signal to a process by id, naming the signal rather than numbering it. |
+| `command.run_instead.doc` | Become a program: run it instead of this shell, keeping the process, its files and its place in the terminal. Nothing comes after it, and what on_exit asked for does not run. Windows has no such call. |
 | `command.run_matching.doc` | Run a program, expanding the arguments that hold a pattern into the paths they name. An argument with no * ? or [ is passed along untouched, and a pattern that names nothing refuses the command. |
 | `command.umask.doc` | Show the permissions this host takes away from a new file, or set them, in octal. Windows has none. |
 | `command.time.doc` | Run a program and report how long it took, in wall-clock seconds. |
@@ -375,6 +376,10 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.previous_directory.hint` | where the last cd came from |
 | `predefined.job_process.doc` | Job_Process (JOB) is the process id of a job this session started, for handing to a program or to signal_process. Zero for a job that is not there, one that has been reaped, or a host with no process ids. |
 | `predefined.job_process.hint` | the process id of a job |
+| `predefined.braces_count.doc` | Braces_Count (TEXT) is how many strings a text with brace groups stands for: a group of two alternatives is two, a range counts, and two groups multiply. Text with no group stands for itself. |
+| `predefined.braces_count.hint` | how many strings braces stand for |
+| `predefined.braces_at.doc` | Braces_At (TEXT, POSITION) is one of the strings a text with brace groups stands for, counting from one, in the order they are written. |
+| `predefined.braces_at.hint` | one string braces stand for |
 | `predefined.match_count.doc` | Match_Count (PATTERN) is how many paths a pattern names, with * ? and [class] in the last segment. Nothing is expanded unless a script asks for it. |
 | `predefined.match_count.hint` | how many paths a pattern names |
 | `predefined.match_at.doc` | Match_At (PATTERN, POSITION) is one of the paths a pattern names, sorted, counting from one. |
@@ -464,6 +469,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `setting.editing` | Whether lines are edited in place rather than read whole. |
 | `setting.history-per-session` | keep this session's history in a file of its own and merge it in when the session ends |
 | `setting.history-ignore-space` | Whether a line typed with a space in front of it is left out of the history. |
+| `setting.stop-on-failure` | Whether a submission stops at the first command that fails, rather than carrying on to the next statement. |
 | `setting.prompt.format` | What the prompt looks like: your own text, with the words directory, path, status and failed in braces standing for the parts the shell fills in. Empty means the built-in prompt. |
 | `setting.session-file` | Whether the per-session startup file runs. |
 
@@ -569,6 +575,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `capability.signals` | sending signals |
 | `capability.job_control` | job control |
 | `capability.pseudo_terminal` | pseudo-terminals |
+| `capability.becoming_a_program` | replacing this program with another |
 | `capability.advisory_locks` | advisory file locks |
 
 ## application

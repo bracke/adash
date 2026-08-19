@@ -124,6 +124,8 @@ either way.
 | `File_At (Directory; Position)` | `String` | one of them, sorted, counting from one |
 | `Match_Count (Pattern)` | `Integer` | how many paths a pattern names: `*`, `?` and `[class]` in the last segment, sorted, dot files only when the pattern starts with a dot |
 | `Match_At (Pattern, Position)` | `String` | one of them, counting from one, with the pattern's own directory part still on it |
+| `Braces_Count (Text)` | `Integer` | how many strings a text with brace groups stands for: two alternatives are two, a range counts, two groups multiply, and text with no group stands for itself |
+| `Braces_At (Text, Position)` | `String` | one of them, counting from one, in the order they are written |
 | `Job_Process (Job)` | `Integer` | the process id of a job this session started, for handing to a program or to `signal_process`; zero for a job that is not there or has been reaped |
 | `Program_Path (Program)` | `String` | where the host would find that program, or nothing |
 

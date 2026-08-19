@@ -12,6 +12,7 @@ with Adash.Execution.Jobs;
 with Adash.Execution.Signals;
 with Adash.Execution.Streams;
 with Adash.Filesystem;
+with Adash.Patterns;
 with Adash.Execution.Internal_Commands;
 with Adash.Language.Evaluation;
 with Adash.Language.Lexer;
@@ -487,6 +488,38 @@ package body Adash.Engine is
                   else "");
             end;
 
+         when Adash.Predefined.Entity_Braces_Count
+            | Adash.Predefined.Entity_Braces_At =>
+            declare
+               Pieces : Adash.Patterns.Text_Lists.Vector;
+               Beyond : Boolean;
+
+               Position : Integer := 0;
+            begin
+               Adash.Patterns.Expand (Text_At (1), Pieces, Beyond);
+
+               if Which = Adash.Predefined.Entity_Braces_Count then
+                  --  Zero for a text that would make more than the bound
+                  --  allows, as a pattern naming too much counts zero: both
+                  --  are "this does not have an answer you can act on".
+                  Answer := Adash.Language.Values.To_Value
+                    (if Beyond then 0 else Integer (Pieces.Length));
+               else
+                  if Count >= 2
+                    and then not Adash.Language.Values.Get
+                                   (Arguments (2), Position)
+                  then
+                     Position := 0;
+                  end if;
+
+                  Answer := Adash.Language.Values.To_Value
+                    (if not Beyond
+                       and then Position >= 1
+                       and then Position <= Integer (Pieces.Length)
+                     then Pieces.Element (Position) else "");
+               end if;
+            end;
+
          when Adash.Predefined.Entity_Match_Count =>
             Answer := Adash.Language.Values.To_Value
               (Integer (Adash.Filesystem.Match_Count (Text_At (1))));
@@ -693,7 +726,19 @@ package body Adash.Engine is
       --  `quit` is the command that ends a session, and it says so by setting
       --  this rather than by being named here: a second command that ended a
       --  session would otherwise have to be added in two places.
-      Halt := Sink.Shell.Exit_Requested;
+      --
+      --  And a failure, where the user asked for one to stop the submission.
+      --  Off by default: a shell that stopped on the first failure would break
+      --  every script written against this one, and the setting is how a
+      --  script says it wants what `set -e` gives elsewhere. What it stops is
+      --  the submission -- a session goes on to read the next line, because a
+      --  prompt that ended the session over a mistyped command would be a
+      --  shell nobody could use.
+      Halt := Sink.Shell.Exit_Requested
+        or else (Failed
+                 and then Adash.Configuration.Boolean_Value
+                            (Sink.Shell.Chosen,
+                             Adash.Configuration.Stop_On_Failure_Setting));
    end Invoke;
 
    use type Ev.Outcome;
@@ -1470,7 +1515,20 @@ package body Adash.Engine is
             case Ran is
                when Ev.Evaluated =>
                   Outcome.Ran := True;
-                  Outcome.Status := Adash.Execution.Success;
+
+                  --  A submission stopped by a failing command reports that
+                  --  failure. A script run under stop.on-failure that failed
+                  --  half way and then exited 0 would be worse than one that
+                  --  carried on: the carrying on is visible, and the zero is
+                  --  what a build system believes.
+                  Outcome.Status :=
+                    (if Adash.Configuration.Boolean_Value
+                          (Item.Shell.Chosen,
+                           Adash.Configuration.Stop_On_Failure_Setting)
+                       and then not Adash.Execution.Succeeded
+                                      (Item.Shell.Last_Status)
+                     then Item.Shell.Last_Status
+                     else Adash.Execution.Success);
 
                when Ev.Cancelled =>
                   --  Stopped from outside while it was running. Not a failure of

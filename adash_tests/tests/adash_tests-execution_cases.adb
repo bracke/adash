@@ -1620,6 +1620,149 @@ package body Adash_Tests.Execution_Cases is
               & Ada.Strings.Unbounded.To_String (Said) & "]");
    end A_Signal_Reaches_The_Handler_It_Was_Registered_For;
 
+   ------------------------------------------------------------------
+   --  Becoming another program
+   ------------------------------------------------------------------
+
+   --  `run_instead` keeps the process and replaces what is running in it.
+   --
+   --  The point of the feature, and the part a conformance case cannot see:
+   --  what it asserts is that the process id the shell was started with is
+   --  still there afterwards, running something else. A shell that started a
+   --  child and exited with its status would print the same output and fail
+   --  this.
+   --
+   --  Nothing to do on a host with no such call, which is Windows -- where the
+   --  command refuses instead, as the conformance case gated to that host says.
+   procedure Becoming_A_Program_Keeps_The_Process
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure Becoming_A_Program_Keeps_The_Process
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Shell : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Directories.Containing_Directory
+                (Ada.Directories.Containing_Directory
+                   (Ada.Directories.Full_Name
+                      (Ada.Command_Line.Command_Name)))),
+           "bin");
+
+      Binary : constant String :=
+        Ada.Directories.Compose
+          (Shell, "adash" & Hostkit.Fs.Executable_Suffix);
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-become.adash");
+
+      Told    : Hostkit.String_Vectors.Vector;
+      Options : Hostkit.Spawn.Options;
+      Child   : Hostkit.Spawn.Process_Handle;
+      Result  : Hostkit.Spawn.Status;
+
+      Outs : Hostkit.Descriptors.Pipe_Ends;
+      Said : Ada.Strings.Unbounded.Unbounded_String;
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      if not Ada.Directories.Exists (Binary)
+        or else not Adash.Platform.Is_Available
+                      (Adash.Platform.Capability_Becoming_A_Program)
+      then
+         return;
+      end if;
+
+      --  The shell says its own name for the process, becomes a program that
+      --  says something else, and the case reads both from one pipe: two
+      --  markers from one process id is what "kept the process" looks like
+      --  from outside.
+      Adash.Filesystem.Write
+        (Script,
+         "put_line (To_Upper (""shell here""));" & Ada.Characters.Latin_1.LF
+         & "run_instead (""echo"", ""became something else"");"
+         & Ada.Characters.Latin_1.LF
+         & "put_line (To_Upper (""never""));" & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the probe script was not written");
+
+      Assert (Hostkit.Descriptors.Create_Pipe (Outs),
+              "no pipe for the shell's output");
+      Assert (Hostkit.Descriptors.Set_Inheritable (Outs.Write_End, True),
+              "the child's output would not travel to it");
+
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
+      Options.Output := Outs.Write_End;
+
+      Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start on the probe script");
+
+      declare
+         Started_As : constant Integer := Hostkit.Spawn.Process_Id (Child);
+      begin
+         Hostkit.Descriptors.Close (Outs.Write_End);
+
+         loop
+            declare
+               Chunk : Ada.Streams.Stream_Element_Array (1 .. 1_024);
+               Last  : Ada.Streams.Stream_Element_Offset;
+            begin
+               exit when Hostkit.Descriptors.Read (Outs.Read_End, Chunk, Last)
+                         /= Hostkit.Descriptors.Transfer_Ok;
+
+               for Index in Chunk'First .. Last loop
+                  Ada.Strings.Unbounded.Append
+                    (Said, Character'Val (Natural (Chunk (Index))));
+               end loop;
+            end;
+         end loop;
+
+         --  Waited for by the handle the shell was started with. That it can
+         --  be reaped at all is the assertion: what this process became is
+         --  still this process, so the parent's wait is answered by the
+         --  program that took over.
+         Assert (Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Block, Result),
+                 "the process the shell was started as could not be reaped:"
+                 & Integer'Image (Started_As));
+
+         Hostkit.Descriptors.Close (Outs.Read_End);
+      end;
+
+      begin
+         Ada.Directories.Delete_File (Script);
+      exception
+         when others =>
+            null;
+      end;
+
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Said), "SHELL HERE") > 0,
+              "the shell did not run before becoming something else: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Said),
+                 "became something else") > 0,
+              "the program it became did not run: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+
+      --  And nothing after it. There is no shell left to run that line.
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Said), "NEVER") = 0,
+              "the shell went on running after it was replaced: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+   end Becoming_A_Program_Keeps_The_Process;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -1686,6 +1829,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, A_Shell_Whose_Reader_Left_Says_No_Stack_Trace'Access,
          "execution : a shell whose reader left says no stack trace");
+      Register_Routine
+        (T, Becoming_A_Program_Keeps_The_Process'Access,
+         "execution : becoming a program keeps the process");
       Register_Routine
         (T, A_Signal_Reaches_The_Handler_It_Was_Registered_For'Access,
          "execution : a signal reaches the handler registered for it");

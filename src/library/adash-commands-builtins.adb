@@ -1081,8 +1081,33 @@ package body Adash.Commands.Builtins is
 
                for Position in First_Word + 1 .. Given loop
                   declare
-                     Word : constant String := Argument (Arguments, Position);
+                     Written : constant String := Argument (Arguments, Position);
 
+                     --  Braces first, and only for the one command that
+                     --  expands: `{lib,test}` says what strings to make, and
+                     --  each of them is then a word that may or may not hold a
+                     --  pattern. Doing it the other way round would ask the
+                     --  filesystem about a name nobody had finished writing.
+                     Pieces : Adash.Patterns.Text_Lists.Vector;
+                     Too_Many : Boolean := False;
+                  begin
+                     if Id = Command_Run_Matching then
+                        Adash.Patterns.Expand (Written, Pieces, Too_Many);
+
+                        if Too_Many then
+                           return Failed
+                             (Adash.Errors.Error_Too_Many_Matches,
+                              [M.Named ("pattern", Written),
+                               M.Named
+                                 ("limit",
+                                  Trim (Adash.Patterns.Maximum_Expansions))]);
+                        end if;
+                     else
+                        Pieces.Append (Written);
+                     end if;
+
+                     for Word of Pieces loop
+                  declare
                      --  Only one command expands, and only an argument that
                      --  holds a pattern. Everything else is passed along as
                      --  the caller wrote it, which is what lets a flag and a
@@ -1133,6 +1158,8 @@ package body Adash.Commands.Builtins is
                            end loop;
                         end;
                      end if;
+                  end;
+                     end loop;
                   end;
                end loop;
 
@@ -2064,6 +2091,50 @@ package body Adash.Commands.Builtins is
 
                   return Adash.Execution.Success;
                end;
+            end;
+
+         when Command_Run_Instead =>
+            declare
+               Named_As : constant String := Argument (Arguments, 1);
+
+               Told : Hostkit.String_Vectors.Vector;
+            begin
+               --  Asked before anything else, so that a host without the call
+               --  says so rather than reporting a program it could not find.
+               if not Adash.Platform.Is_Available
+                        (Adash.Platform.Capability_Becoming_A_Program)
+               then
+                  return Failed
+                    (Adash.Errors.Error_Capability_Unavailable,
+                     [1 => M.Named
+                             ("capability",
+                              Adash.Platform.Name
+                                (Adash.Platform.Capability_Becoming_A_Program))]);
+               end if;
+
+               if Named_As = "" or else Hostkit.Process.Locate (Named_As) = ""
+               then
+                  return Failed (Adash.Errors.Error_Command_Not_Found,
+                                 [1 => M.Named ("command", Named_As)]);
+               end if;
+
+               for Position in 2 .. Given loop
+                  Told.Append
+                    (Ada.Strings.Unbounded.To_Unbounded_String
+                       (Argument (Arguments, Position)));
+               end loop;
+
+               --  On success there is nothing after this line: the process is
+               --  the other program by the time it would have run. A return
+               --  means the host refused, which after the two checks above is
+               --  a program that exists and would not start -- a directory, a
+               --  file without the bit, a binary for another architecture.
+               if not Hostkit.Process.Become (Named_As, Told) then
+                  return Failed (Adash.Errors.Error_Command_Not_Executable,
+                                 [1 => M.Named ("command", Named_As)]);
+               end if;
+
+               return Adash.Execution.Success;
             end;
 
          when Command_On_Exit =>

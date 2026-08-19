@@ -106,6 +106,28 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Run_Matching_Doc, M.Msg_Command_Hint, Available),
 
+      --  Become this program: run it *instead of* this shell.
+      --
+      --  What `exec` is elsewhere, and the reason it is not `run` with a flag:
+      --  nothing comes after it. The process id, the open files, the
+      --  terminal's foreground group and whatever is waiting for this shell
+      --  all stay pointed at the program that takes over -- which is the
+      --  whole point, and is what a shell that started a child and exited with
+      --  its status would get wrong in four ways at once.
+      --
+      --  What `on_exit` asked for does not run. There is no exit: this
+      --  process does not end, it becomes something else, and a cleanup that
+      --  ran here would run while the shell was still going to be replaced.
+      --  A script that wants both runs its cleanup itself before this.
+      --
+      --  Windows has no such call -- what it has makes a new process, which is
+      --  the thing being avoided -- so this refuses there and says which
+      --  capability is missing.
+      (Command_Run_Instead, Named ("run_instead"), 1, Any_Number,
+       [1 => Text ("Program"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_Instead_Doc, M.Msg_Command_Hint, Available),
+
       --  The same, with one of the program's streams attached to a file. The
       --  file comes first because the arguments after it belong to the program
       --  and there is no other place to put a boundary between them: this
