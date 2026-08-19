@@ -870,13 +870,18 @@ started itself.
 Zero for a job nobody has. Answering with somebody else's process id is the one
 wrong thing this could do, so a question about a job that is not there has no
 answer rather than a plausible one.
+
+The job is waited for rather than stopped, though stopping it was the obvious
+way to write this: Windows has no job control, so `stop` there reports that the
+host cannot and the job runs to completion -- and a case about process ids has
+no business asserting which of those happened.
 """
-script = "start (\"{emit}\", \"--sleep=30\"); Id : Integer := Last_Job; put_line (Job_Process (Id) > 0); put_line (Job_Process (9999) = 0); stop (Id); wait (Id);\nquit (0);"
+script = "start (\"{emit}\", \"--sleep=1\"); Id : Integer := Last_Job; put_line (Job_Process (Id) > 0); put_line (Job_Process (9999) = 0); wait (Id);\nquit (0);"
 exit_status = 0
 output = [
-  "!line.job_started{id=1,what={emit} --sleep=30}!",
+  "!line.job_started{id=1,what={emit} --sleep=1}!",
   "TRUE",
   "TRUE",
-  "!line.job_signalled{id=1,signal=!signal.terminate!}!",
+  "!line.job_finished{id=1,status=0}!",
 ]
 diagnostics = []
