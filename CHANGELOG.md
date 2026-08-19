@@ -27,6 +27,12 @@ what changed.
   `redirect_back` is why `redirect` saves what was there — once a file is
   assigned over standard output, nothing in the process remembers where it used
   to point.
+
+  The shell's own writing moves on every host. That the programs it starts
+  follow is asserted on Linux and macOS only: the first Windows run had the
+  shell's line in the file and the program's still on the console, and until
+  that is understood it is not a claim to make there. A script that must capture
+  a program's output on Windows uses `run_into`.
 - **Columns without a format string.** `Left_Aligned`, `Right_Aligned`,
   `Zero_Padded` and `Decimals` do what `printf "%-20s %06.2f"` does, as calls the
   compiler type-checks. A format string is a second language inside the first —

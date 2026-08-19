@@ -104,6 +104,13 @@ reads as the empty string rather than failing.
 | `redirect_append (Stream : String; Path : String)` | 2 | the same, adding to the end of the file |
 | `redirect_back (Stream : String)` | 1 | puts a stream back where it was |
 
+`redirect` moves the shell's own stream on every host. On Linux and macOS the
+programs it starts write there too, which is the point of it; on Windows that
+half is not yet established — the first CI run of it put the shell's line in the
+file and the program's on the console — so a script that must log a program's
+output on that host should use `run_into` for now.
+
+
 Expansion is the shell's, not the language's: nothing is expanded unless
 `run_matching` was written, and `run` hands a program exactly the arguments it
 was given. One host qualifies that last sentence — a Windows program built with
