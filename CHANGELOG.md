@@ -11,6 +11,16 @@ what changed.
 
 ### Added
 
+- **Six cases for features in combination** — stopping still runs both kinds of
+  handler and in which order; a pipeline's status is its last stage's, so a
+  failing first stage does not stop a submission and a failing last one does; a
+  job writes where it was started while the shell's reports about it follow a
+  later redirect; a pattern answers where the shell is standing after
+  `push_directory`; braces make the words and patterns then name the files; and
+  an expansion that names nothing stops a stopping script, which is the one that
+  matters because a script that expands a pattern is usually about to do
+  something irreversible with what it found.
+
 - **Unit cases for `Adash.Interactive.Prompt`** — five, asserting the model
   rather than a terminal: the built-in prompt puts a blank between its parts and
   a format does not (the spacing is the user's), a `{word}` this shell does not
@@ -344,6 +354,18 @@ what changed.
   mistake.
 
 ### Fixed
+
+- **A signal reaches its handler while the shell is waiting for a job.** `wait`
+  blocked in the host with no cancellation token, which was fine while the only
+  interruption anybody expected was Ctrl-C — that reaches the job through the
+  terminal, and the job dying is what ends the wait. It was not fine for a signal
+  sent to the *shell*: a `terminate` arriving while a script waited was recorded
+  and then ignored until the job ended on its own, so the handler the script
+  registered ran a minute late, or never. A script waiting on a long-running
+  child is exactly where a service manager's `terminate` lands. The wait takes
+  the session's token now: the job's group is ended, the wait returns, and the
+  handler runs — one second after the signal in the case, against sixty before.
+  Found by testing features in combination; each half passed alone.
 
 - **`{1..d}` keeps its braces.** A group with `..` in it was treated as a group
   even when its ends were not the same shape, so the braces came off and nothing

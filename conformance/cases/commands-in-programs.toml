@@ -1352,3 +1352,117 @@ diagnostics = [
   "!error.no_creation_mask!",
 ]
 platforms = ["windows"]
+
+[[case]]
+id = "combinations.stopping-still-runs-the-handlers"
+requirement = """
+Three features meeting: `stop.on-failure` ends the submission at the failing
+command, `on_failure` is told, and `on_exit` still runs. In that order, which is
+the only order that makes sense -- the failure is why the script is ending, so
+it is reported before the ending is cleaned up after.
+
+Each of the three has a case of its own. This one asserts that they compose,
+which no rule can check and which is where a shell usually goes wrong: a
+cleanup skipped because the submission stopped is a temporary directory left
+behind by exactly the script that was careful enough to register one.
+"""
+script = "procedure Cleanup is begin put_line (To_Upper (\"cleanup\")); end Cleanup; procedure Noticed is begin put_line (To_Upper (\"noticed\")); end Noticed; on_exit (\"Cleanup\"); on_failure (\"Noticed\"); settings (\"stop.on-failure\", \"true\"); put_line (To_Upper (\"before\")); run (\"{emit}\", \"--exit=1\"); put_line (To_Upper (\"after\"));"
+exit_status = 1
+output = [
+  "!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!",
+  "BEFORE",
+  "NOTICED",
+  "CLEANUP",
+]
+diagnostics = []
+
+[[case]]
+id = "combinations.a-pipelines-status-is-its-last-stage-under-stopping"
+requirement = """
+`stop.on-failure` acts on what the pipeline reported, and a pipeline reports its
+last stage. So a first stage that fails does not stop a submission -- the
+pipeline succeeded, as far as this shell is concerned -- and a last stage that
+fails does.
+
+That asymmetry is worth a case rather than a sentence: it is the thing somebody
+meets when a `grep` that found nothing is the middle of a pipeline that
+"worked", and the shells that answer it differently do so with a second setting
+this one does not have.
+"""
+script = "settings (\"stop.on-failure\", \"true\"); pipe (\"{emit}\", \"--exit=1\"); pipe (\"{upcase}\"); pipe_run; put_line (To_Upper (\"the first stage failed and this ran\"));"
+exit_status = 0
+output = [
+  "!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!",
+  "THE FIRST STAGE FAILED AND THIS RAN",
+]
+diagnostics = []
+
+[[case]]
+id = "combinations.a-job-writes-where-it-was-started"
+requirement = """
+A job keeps the streams it was given when it started: `redirect` moves this
+shell's own output and the output of what it starts *afterwards*, and a job
+already running writes where it always did.
+
+The shell's own reports about that job -- the line saying it finished -- do
+follow the redirect, because those are the shell writing. So one file holds the
+report and the terminal holds the job's own words, which is what the two halves
+of this case assert.
+"""
+script = "cd (\"{store}\"); start (\"{emit}\", \"--sleep=1\", \"from the job\"); redirect (\"output\", \"job.log\"); wait (Last_Job); redirect_back (\"output\"); put_line (Index (Read_File (\"job.log\"), \"finished\") > 0 and then Index (Read_File (\"job.log\"), \"from the job\") = 0);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what={emit} --sleep=1 from the job}!",
+  "from the job",
+  "TRUE",
+]
+diagnostics = []
+
+[[case]]
+id = "combinations.a-pattern-answers-where-the-shell-is-standing"
+requirement = """
+`push_directory` moves the shell, and a pattern is answered from where it is
+standing -- so the same `*.log` names two files inside and none outside. A
+pattern that resolved against where the script started would be a pattern that
+meant something different in the middle of a loop over directories, which is the
+one place scripts use both of these together.
+"""
+script = "cd (\"{store}\"); make_directory (\"inner\"); write_file (\"x\", \"inner/one.log\"); write_file (\"y\", \"inner/two.log\"); push_directory (\"inner\"); put_line (Trim (Match_Count (\"*.log\")'Image)); pop_directory; put_line (Trim (Match_Count (\"*.log\")'Image));"
+exit_status = 0
+output = ["2", "0"]
+diagnostics = []
+
+[[case]]
+id = "combinations.braces-make-the-words-and-patterns-name-the-files"
+requirement = """
+Both expansions in one argument, in the order they have to happen: braces say
+what words to make, and each word is then a pattern that names files. Doing it
+the other way round would ask the filesystem about a word nobody had finished
+writing.
+
+`{alpha,beta}*.log` is two words and four possible files; what comes back is the
+two that exist, sorted -- so the argument list a program receives is the same on
+every run, which is the property the sorting is for.
+"""
+script = "cd (\"{store}\"); write_file (\"x\", \"alpha.log\"); write_file (\"y\", \"beta.log\"); write_file (\"z\", \"gamma.log\");\nrun_matching (\"{emit}\", \"{alpha,beta}*.log\");\nquit (0);"
+exit_status = 0
+output = ["alpha.log", "beta.log"]
+diagnostics = []
+
+[[case]]
+id = "combinations.an-expansion-that-names-nothing-stops-a-stopping-script"
+requirement = """
+A pattern that names nothing refuses the command, and a refused command is a
+failure like any other -- so under `stop.on-failure` the submission ends there
+rather than carrying on to do the next thing to files that are not the ones the
+script meant.
+
+This is the composition that matters most of the four: a script that expands a
+pattern is usually about to do something irreversible with what it found.
+"""
+script = "settings (\"stop.on-failure\", \"true\"); run_matching (\"{emit}\", \"nothing*here\"); put_line (To_Upper (\"never\"));"
+exit_status = 1
+output = [
+  "!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!",
+]
+diagnostics = ["!error.no_matching_files{pattern=nothing*here}!"]

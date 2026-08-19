@@ -1480,10 +1480,22 @@ package body Adash.Commands.Builtins is
                        (Shell.Jobs, Adash.Execution.Jobs.Job_Id (Wanted)),
                      Ours);
 
+                  --  With the session's token rather than without one.
+                  --
+                  --  A blocking wait cannot be interrupted by anything, which
+                  --  was fine while the only interruption anybody expected was
+                  --  Ctrl-C -- that goes to the job through the terminal, and
+                  --  the job dying is what ends the wait. It is not fine for a
+                  --  signal sent to the shell: a `terminate` arriving while a
+                  --  script waited for a job was recorded and then ignored
+                  --  until the job ended on its own, so the handler the script
+                  --  registered for it never ran. A script waiting on a
+                  --  long-running child is exactly where a service manager's
+                  --  `terminate` lands.
                   Done :=
                     Adash.Execution.Jobs.Wait
                       (Shell.Jobs, Adash.Execution.Jobs.Job_Id (Wanted),
-                       Cancel => null, Error => Error);
+                       Cancel => Shell.Interrupt, Error => Error);
 
                   Adash.Execution.Pipelines.Take_The_Terminal_Back (Ours);
                   Adash.Execution.Signals.Take_Terminal_Back;
