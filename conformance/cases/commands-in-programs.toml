@@ -1001,14 +1001,16 @@ platforms = ["windows"]
 id = "exec.a-program-that-is-not-there-is-refused"
 requirement = """
 A program this host cannot find is refused before anything is replaced. The
-order matters: a shell that had already given up its image and then discovered
-the program was missing would have nothing left to report it with.
+order matters twice over: a shell that had already given up its image and then
+discovered the program was missing would have nothing left to report it with,
+and a host that cannot do this at all still judges the argument first -- a
+mistyped name is a mistyped name everywhere, and answering it with "this
+platform cannot" sends somebody looking in the wrong place.
 """
 script = "run_instead (\"adash-no-such-program-anywhere\");\nquit (0);"
 exit_status = 0
 output = []
 diagnostics = ["!error.command_not_found{command=adash-no-such-program-anywhere}!"]
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "redirection.the-session-can-send-its-own-output-to-a-file"

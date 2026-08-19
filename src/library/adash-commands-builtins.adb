@@ -2136,10 +2136,19 @@ package body Adash.Commands.Builtins is
                end Point;
 
             begin
-               --  Asked first, because a host that cannot do this must say so
-               --  rather than report success and move nothing -- which is what
-               --  a Windows run showed: the shell's own line on the console
-               --  with the file it had been redirected to empty.
+               --  What the caller wrote is judged before what the host can do:
+               --  a word that names no stream is a mistake on every host, and
+               --  telling somebody their platform is the problem when their
+               --  argument is would send them looking in the wrong place.
+               if not Wants_Output and then not Wants_Errors then
+                  return Failed (Adash.Errors.Error_Unknown_Stream,
+                                 [1 => M.Named ("stream", Named_As)]);
+               end if;
+
+               --  Then the host. It must say it cannot rather than report
+               --  success and move nothing, which is what a Windows run
+               --  showed: the shell's own line on the console with the file it
+               --  had been redirected to empty.
                if not Adash.Platform.Is_Available
                         (Adash.Platform.Capability_Session_Redirection)
                then
@@ -2149,11 +2158,6 @@ package body Adash.Commands.Builtins is
                              ("capability",
                               Adash.Platform.Name
                                 (Adash.Platform.Capability_Session_Redirection))]);
-               end if;
-
-               if not Wants_Output and then not Wants_Errors then
-                  return Failed (Adash.Errors.Error_Unknown_Stream,
-                                 [1 => M.Named ("stream", Named_As)]);
                end if;
 
                --  Whatever this shell has written and not yet handed to the
@@ -2249,8 +2253,16 @@ package body Adash.Commands.Builtins is
 
                Told : Hostkit.String_Vectors.Vector;
             begin
-               --  Asked before anything else, so that a host without the call
-               --  says so rather than reporting a program it could not find.
+               --  What the caller wrote first, then what the host can do: a
+               --  program that is not there is not there on any host, and a
+               --  refusal naming the platform would send somebody who mistyped
+               --  a name looking in the wrong place.
+               if Named_As = "" or else Hostkit.Process.Locate (Named_As) = ""
+               then
+                  return Failed (Adash.Errors.Error_Command_Not_Found,
+                                 [1 => M.Named ("command", Named_As)]);
+               end if;
+
                if not Adash.Platform.Is_Available
                         (Adash.Platform.Capability_Becoming_A_Program)
                then
@@ -2260,12 +2272,6 @@ package body Adash.Commands.Builtins is
                              ("capability",
                               Adash.Platform.Name
                                 (Adash.Platform.Capability_Becoming_A_Program))]);
-               end if;
-
-               if Named_As = "" or else Hostkit.Process.Locate (Named_As) = ""
-               then
-                  return Failed (Adash.Errors.Error_Command_Not_Found,
-                                 [1 => M.Named ("command", Named_As)]);
                end if;
 
                for Position in 2 .. Given loop
