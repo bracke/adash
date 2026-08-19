@@ -1115,14 +1115,15 @@ cannot do -- and is why a script walking a tree wants them.
 A `pop_directory` with nothing set aside is refused rather than treated as the
 home directory: a script that thought it had gone back would do the rest of its
 work in the wrong place.
+
+Asserted by where the shell ends up rather than by what `directories` prints. A
+path is spelled the way its host spells it -- this case had a forward slash in
+it and Windows answered with a backslash -- and where a script ends up is what
+the commands are for.
 """
-script = "cd (\"{store}\"); make_directory (\"one/two\"); Started : String := Current_Directory; push_directory (\"one\"); push_directory (\"two\"); directories; pop_directory; pop_directory; put_line (Current_Directory = Started);\npop_directory;\nquit (0);"
+script = "cd (\"{store}\"); make_directory (\"one/two\"); Started : String := Current_Directory; push_directory (\"one\"); push_directory (\"two\"); put_line (Current_Directory = Started); pop_directory; pop_directory; put_line (Current_Directory = Started);\npop_directory;\nquit (0);"
 exit_status = 0
-output = [
-  "!line.set_aside{number=1,path={store}/one}!",
-  "!line.set_aside{number=2,path={store}}!",
-  "TRUE",
-]
+output = ["FALSE", "TRUE"]
 diagnostics = ["!error.no_directory_set_aside!"]
 
 [[case]]
