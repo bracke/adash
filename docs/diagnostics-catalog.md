@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 600 messages in 22 groups.
+There are 597 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -91,7 +91,6 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.array_too_long` | {name} has more elements than this build carries, which is {limit} |
 | `error.not_a_record` | {found} has no components, so {name} does not name one |
 | `error.no_such_component` | {found} has no component called {name} |
-| `error.not_an_array` | {found} is not an array, so it cannot be indexed |
 | `error.aggregate_wrong_count` | {name} takes {expected} values, not {found} |
 | `error.aggregate_not_expected` | a list of values in parentheses builds a record or an array, and {found} is neither |
 | `error.not_a_package` | {name} is not a package |
@@ -110,7 +109,6 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.discriminants_wrong_count` | {name} takes {expected} discriminants, not {found} |
 | `error.nothing_to_constrain` | {name} takes nothing in parentheses |
 | `error.count_outside_its_unit` | {name}'Count is asked inside the task or protected body that declares the entry, where the answer keeps |
-| `error.generic_not_callable` | {name} is a generic; make one from it before calling it |
 | `error.cannot_write` | {name} cannot write a {found}: a record or an array is its parts, and each of those has a text form where the whole has none |
 | `error.result_not_simple` | {name} returns a {found}; a function here returns a simple value, and an out parameter is how a program hands back a record or an array |
 | `error.file_not_writable` | nothing can be written at {path} |
@@ -235,7 +233,6 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.parameter_not_given` | {name} was not given {parameter}, which has no default |
 | `error.default_not_literal` | the default for {name} is not a literal |
 | `error.default_not_in_mode` | {name} is written to rather than given, so it cannot have a default |
-| `error.not_runnable_yet` | {name} exists but cannot be run in this build |
 | `error.command.wrong_arguments` | {name} was given the wrong number of arguments: {found} |
 | `error.too_many_kept` | this session already carries {limit} definitions, so {name} will not be remembered |
 | `error.empty_pipeline` | nothing has been added to the pipeline |

@@ -130,7 +130,6 @@ package Adash.Messages is
       Msg_Array_Too_Long,
       Msg_Not_A_Record,
       Msg_No_Such_Component,
-      Msg_Not_An_Array,
       Msg_Aggregate_Wrong_Count,
       Msg_Aggregate_Not_Expected,
       Msg_Result_Not_Simple,
@@ -139,7 +138,6 @@ package Adash.Messages is
       Msg_Package_Not_Declared,
       Msg_Not_A_Generic,
       Msg_Generic_Wrong_Actuals,
-      Msg_Generic_Not_Callable,
       Msg_Not_A_Task,
       Msg_Not_An_Entry,
       Msg_Accept_Differs,
@@ -421,7 +419,6 @@ package Adash.Messages is
       Msg_Parameter_Not_Given,
       Msg_Default_Not_Literal,
       Msg_Default_Not_In_Mode,
-      Msg_Not_Runnable_Yet,
 
       --  Internal commands: what each is, what completion shows, and the
       --  lines they produce.

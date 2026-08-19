@@ -130,8 +130,6 @@ package body Adash.Messages is
             return "error.not_a_record";
          when Msg_No_Such_Component =>
             return "error.no_such_component";
-         when Msg_Not_An_Array =>
-            return "error.not_an_array";
          when Msg_Aggregate_Wrong_Count =>
             return "error.aggregate_wrong_count";
          when Msg_Aggregate_Not_Expected =>
@@ -148,8 +146,6 @@ package body Adash.Messages is
             return "error.not_a_generic";
          when Msg_Generic_Wrong_Actuals =>
             return "error.generic_wrong_actuals";
-         when Msg_Generic_Not_Callable =>
-            return "error.generic_not_callable";
          when Msg_Not_A_Task =>
             return "error.not_a_task";
          when Msg_Not_An_Entry =>
@@ -617,7 +613,6 @@ package body Adash.Messages is
             return "error.parameter_not_given";
          when Msg_Default_Not_Literal        => return "error.default_not_literal";
          when Msg_Default_Not_In_Mode        => return "error.default_not_in_mode";
-         when Msg_Not_Runnable_Yet           => return "error.not_runnable_yet";
          when Msg_Command_Cd_Doc             => return "command.cd.doc";
          when Msg_Command_Pwd_Doc            => return "command.pwd.doc";
          when Msg_Command_Exit_Doc           => return "command.exit.doc";
@@ -1102,9 +1097,6 @@ package body Adash.Messages is
          when Msg_Wrong_Argument_Count =>
             return [N ("name"), N ("expected"), N ("found")];
 
-         when Msg_Not_Runnable_Yet =>
-            return [1 => N ("name")];
-
          when Msg_Command_Cd_Doc | Msg_Command_Pwd_Doc | Msg_Command_Exit_Doc
             | Msg_Command_Set_Doc | Msg_Command_Unset_Doc | Msg_Command_Env_Doc
             | Msg_Command_Jobs_Doc | Msg_Command_Help_Doc
@@ -1435,9 +1427,6 @@ package body Adash.Messages is
          when Msg_No_Such_Component =>
             return [N ("name"), N ("found")];
 
-         when Msg_Not_An_Array =>
-            return [N ("found")];
-
          when Msg_Aggregate_Wrong_Count =>
             return [N ("name"), N ("expected"), N ("found")];
 
@@ -1490,7 +1479,7 @@ package body Adash.Messages is
          when Msg_Generic_Wrong_Actuals =>
             return [N ("name"), N ("expected"), N ("found")];
 
-         when Msg_Generic_Not_Callable | Msg_Not_A_Task | Msg_Not_An_Entry
+         when Msg_Not_A_Task | Msg_Not_An_Entry
             | Msg_Accept_Differs | Msg_Protected_Entry_Parameters =>
             return [N ("name")];
 

@@ -1359,17 +1359,16 @@ package body Adash_Tests.Repository is
         new String'("error.source_too_large"),
         new String'("error.too_many_matches"),
 
-        --  Reachable, and nobody has found the shape of the mistake yet: a
-        --  nested subprogram this language refuses, an operand with no value,
-        --  an array asked for what it has not got, a generic used as a
-        --  subprogram, a name registered but not runnable in this build, a
-        --  history that would not give something up.
-        new String'("error.nested_subprogram"),
+        --  A fallback that nothing reaches any more: every operand shape has
+        --  something more specific to say -- a type says it is a type, a
+        --  procedure says it has no value -- and this fires only when nothing
+        --  else did. Kept because the day something new has no value, saying
+        --  nothing would be worse.
         new String'("error.operand_has_no_value"),
-        new String'("error.array_is_empty"),
-        new String'("error.not_an_array"),
-        new String'("error.generic_not_callable"),
-        new String'("error.not_runnable_yet"),
+
+        --  A history the durable file would not give up, which needs a file
+        --  the host refuses to write where the session keeps its history.
+        new String'("error.operand_has_no_value"),
         new String'("error.history_not_forgotten")];
 
    procedure Check_Diagnostics_Are_Produced (Root : String; Into : in out Report);

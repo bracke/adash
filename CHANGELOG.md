@@ -278,6 +278,18 @@ what changed.
 
 ### Added
 
+- **Three diagnostics that nothing could ever produce are gone.**
+  `error.not_an_array`, `error.generic_not_callable` and `error.not_runnable_yet`
+  had messages, keys, catalogue rows and translations — and no line of code
+  anywhere raised them. A diagnostic nothing can produce is worse than a missing
+  one: it describes behaviour the shell does not have. Found by the rule below,
+  which asked me to justify each unproduced message and could not be answered for
+  these three.
+- **An empty array type and nesting past the floor** now have cases —
+  `array (5 .. 1)`, and a twenty-first nested subprogram. The nesting case
+  asserts all twenty-one follow-on complaints rather than the first: that wall is
+  what a user sees, and somebody who improves it will find the case and change it
+  deliberately.
 - **`adash_check` refuses a diagnostic no case produces.** A message nobody has
   produced is a message nobody has read: its placeholders have never been
   filled, its sentence has never been seen next to the mistake it describes,

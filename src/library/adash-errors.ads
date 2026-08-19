@@ -357,7 +357,6 @@ package Adash.Errors is
       Error_Array_Too_Long,
       Error_Not_A_Record,
       Error_No_Such_Component,
-      Error_Not_An_Array,
       Error_Aggregate_Wrong_Count,
       Error_Aggregate_Not_Expected,
       Error_Result_Not_Simple,
@@ -368,7 +367,6 @@ package Adash.Errors is
       Error_Package_Not_Declared,
       Error_Not_A_Generic,
       Error_Generic_Wrong_Actuals,
-      Error_Generic_Not_Callable,
       Error_Not_A_Task,
       Error_Not_An_Entry,
 

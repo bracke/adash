@@ -131,7 +131,6 @@ package body Adash.Errors is
             | Error_Array_Too_Long
             | Error_Not_A_Record
             | Error_No_Such_Component
-            | Error_Not_An_Array
             | Error_Aggregate_Wrong_Count
             | Error_Aggregate_Not_Expected
             | Error_Result_Not_Simple
@@ -140,7 +139,6 @@ package body Adash.Errors is
             | Error_Package_Not_Declared
             | Error_Not_A_Generic
             | Error_Generic_Wrong_Actuals
-            | Error_Generic_Not_Callable
             | Error_Not_A_Task
             | Error_Not_An_Entry
             | Error_Accept_Differs
@@ -364,8 +362,6 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Not_A_Record;
          when Error_No_Such_Component =>
             return Adash.Messages.Msg_No_Such_Component;
-         when Error_Not_An_Array =>
-            return Adash.Messages.Msg_Not_An_Array;
          when Error_Aggregate_Wrong_Count =>
             return Adash.Messages.Msg_Aggregate_Wrong_Count;
          when Error_Aggregate_Not_Expected =>
@@ -382,8 +378,6 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Not_A_Generic;
          when Error_Generic_Wrong_Actuals =>
             return Adash.Messages.Msg_Generic_Wrong_Actuals;
-         when Error_Generic_Not_Callable =>
-            return Adash.Messages.Msg_Generic_Not_Callable;
          when Error_Not_A_Task =>
             return Adash.Messages.Msg_Not_A_Task;
          when Error_Not_An_Entry =>

@@ -553,3 +553,61 @@ exit_status = 0
 output = []
 diagnostics = ["!error.file_write_failed{path=locked/f.txt}!"]
 platforms = ["linux", "macos"]
+
+[[case]]
+id = "types.an-array-with-no-elements-is-refused"
+requirement = """
+`array (5 .. 1)` names a type with nothing in it. Ada allows an empty range and
+this shell does not: a shell array exists to be walked, and one that cannot be
+is a mistake somebody made writing the bounds down rather than a thing they
+wanted.
+"""
+script = "type A is array (5 .. 1) of Integer;"
+exit_status = 0
+output = []
+diagnostics = ["!error.array_is_empty{name=A}!"]
+
+[[case]]
+id = "subprograms.nesting-has-a-floor-and-it-is-said"
+requirement = """
+Subprograms nest twenty deep and no further, and the twenty-first is refused by
+name rather than left to run out of stack somewhere in the analyser or the
+lowering -- both of which recurse once per level, so what a user would otherwise
+see is the shell dying without a word.
+
+The number is `Adash.Language.Max_Nesting`. This case carries twenty-two so that
+a change to the limit is a change to this case as well.
+
+The refusal stops the analysis of that subprogram where it stands, so the parser
+meets an `end` where it wanted a body -- once for every subprogram still open.
+Twenty-one complaints follow the first, and they are written out rather than
+trimmed: that wall is what a user actually sees, and somebody who improves it to
+stop after the first will find this case and change it on purpose.
+"""
+script = "procedure P0 is procedure P1 is procedure P2 is procedure P3 is procedure P4 is procedure P5 is procedure P6 is procedure P7 is procedure P8 is procedure P9 is procedure P10 is procedure P11 is procedure P12 is procedure P13 is procedure P14 is procedure P15 is procedure P16 is procedure P17 is procedure P18 is procedure P19 is procedure P20 is procedure P21 is begin null; end P21; end P20; end P19; end P18; end P17; end P16; end P15; end P14; end P13; end P12; end P11; end P10; end P9; end P8; end P7; end P6; end P5; end P4; end P3; end P2; end P1; end P0;"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.nested_subprogram{name=P19}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+  "!error.syntax.unexpected{found=end,expected=begin}!",
+]
