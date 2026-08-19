@@ -286,6 +286,16 @@ what changed.
   registered name appears there. It exists because the same hole opened three
   times in one week, always the same way: a family shared code with something
   covered, and the sharing was the argument for not testing the rest.
+- **Every diagnostic a mistyped line produces now has a case.** The whole
+  `lexical.*` family and `syntax.mixed_logical` were reachable, documented,
+  translated — and never once produced by anything that runs. Eleven cases cover
+  them, plus `return_without_value`, `not_a_record`, `no_history_here` in a
+  script, and a program this host will not run. The cascade is asserted rather
+  than trimmed: one stray character costs four complaints, because the parser
+  tries the line as an expression, as a statement and as the end of one, and a
+  case that expected only the first would let the other three change unnoticed.
+  47 of 197 error messages had never been produced; 38 remain, of which 13 are
+  the machine's own defensive checks.
 - **The eleven things nothing ran now have cases**: `umask` (and its refusal on
   the host that has no creation mask), `start_with`, the eight pipeline
   redirection forms, and `Error_Of_Pipe`. Writing them recorded a behaviour

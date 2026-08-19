@@ -339,3 +339,149 @@ script = "X : String := New_Line;"
 exit_status = 0
 output = []
 diagnostics = ["!error.procedure_has_no_value{name=New_Line}!"]
+
+[[case]]
+id = "lexical.a-character-that-belongs-to-no-token"
+requirement = """
+A character the language has no use for is named where it stands, and what
+follows it is read as best it can be -- so one stray character produces one
+complaint about the character and one about the shape of what is left, rather
+than a cascade.
+
+These are the diagnostics a user meets by mistyping, and until now none of them
+had a case: they were reachable, documented, translated, and never once produced
+by anything that runs.
+
+The tail is asserted rather than trimmed. One stray character costs four
+complaints -- the parser tries the line as an expression, as a statement, and as
+the end of one -- and a case that expected only the first would have let the
+other three change without anybody noticing.
+"""
+script = "put_line (\"a\" # \"b\");"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.lexical.stray_character{character=#}!",
+  "!error.syntax.unexpected{found=\"b\",expected=)}!",
+  "!error.syntax.unexpected{found=\"b\",expected=;}!",
+  "!error.syntax.unexpected{found=\"b\",expected=!expected.statement!}!",
+]
+
+[[case]]
+id = "lexical.a-character-literal-that-is-not-one-character"
+requirement = """
+`'ab'` is not a character literal, and saying so where it is written is better
+than reading it as a quote and then complaining about everything after it.
+"""
+script = "X : Character := 'ab';\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.lexical.unterminated_character!",
+  "!error.syntax.unexpected{found=;,expected=!expected.attribute_name!}!",
+]
+
+[[case]]
+id = "lexical.a-number-with-letters-in-it"
+requirement = """
+`12ab` is not a number and is not two tokens: a lexer that stopped at `12` would
+hand the parser an identifier `ab` and a puzzle. It is named whole, as it was
+written.
+"""
+script = "X : Integer := 12ab;\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.lexical.malformed_number{text=12ab}!",
+  "!error.syntax.unexpected{found=;,expected=!expected.expression!}!",
+]
+
+[[case]]
+id = "lexical.an-identifier-ada-would-not-accept"
+requirement = """
+A trailing underscore and a doubled one are both identifiers Ada rejects, and
+this language is Ada: accepting them here would take a program a real compiler
+refuses, which is the one thing this shell must not do.
+"""
+script = "X_ : Integer := 1;\nY__Z : Integer := 2;\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.lexical.malformed_identifier{text=X_}!",
+  "!error.syntax.unexpected{found=:,expected=!expected.statement!}!",
+  "!error.lexical.malformed_identifier{text=Y__Z}!",
+  "!error.syntax.unexpected{found=:,expected=!expected.statement!}!",
+]
+
+[[case]]
+id = "lexical.a-doubled-quote-inside-an-interpolated-literal"
+requirement = """
+Ada 2022 forbids a doubled quote inside an interpolated literal outright -- the
+escape is what puts a quote in one -- so accepting it would take a program a
+real compiler rejects.
+"""
+script = "put_line (f\"a \"\" b\");"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.lexical.quote_in_interpolation!",
+  "!error.lexical.unterminated_string!",
+  "!error.syntax.missing{expected=)}!",
+  "!error.syntax.missing{expected=;}!",
+]
+
+[[case]]
+id = "lexical.a-brace-that-closes-nothing"
+requirement = """
+A `}` in an interpolated literal that closes nothing would read as the end of an
+expression that never began.
+"""
+script = "put_line (f\"closes } nothing\");"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.lexical.brace_unescaped!",
+  "!error.lexical.unterminated_string!",
+  "!error.syntax.missing{expected=)}!",
+  "!error.syntax.missing{expected=;}!",
+]
+
+[[case]]
+id = "syntax.and-and-or-without-brackets"
+requirement = """
+`a and b or c` means different things in different languages, so Ada makes you
+say which you meant. Refusing it is not pedantry: the two readings differ, and a
+shell that picked one would be a shell whose conditions mean something other
+than they look like.
+"""
+script = "if true and false or true then null; end if;\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.syntax.mixed_logical{first=and,second=or}!",
+  "!error.syntax.unexpected{found=true,expected=then}!",
+]
+
+[[case]]
+id = "subprograms.a-function-must-return-something"
+requirement = """
+A bare `return` in a function is a function that promised a value and did not
+produce one.
+"""
+script = "function F return Integer is begin return; end F;\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.return_without_value!"]
+
+[[case]]
+id = "types.a-name-that-is-not-a-record-has-no-components"
+requirement = """
+Asking an array for a component by name is a mistake the shape of the value
+settles, and the diagnostic names both the component asked for and what was
+found instead.
+"""
+script = "type A is array (1 .. 2) of Integer; X : A; put_line (X.A'Image);\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.not_a_record{name=A,found=A}!"]
+
