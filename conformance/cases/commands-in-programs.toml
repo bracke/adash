@@ -1059,14 +1059,32 @@ The streams are named rather than numbered -- `output`, `errors`, `both` -- and
 a word that names none of them is refused where it stands. Numbers are a
 convention this shell has never used, and a shell that accepted `2` here would
 have to decide what `3` meant.
+
+On every host, because what the caller wrote is judged before what the host can
+do. The first version of this asked the host first, and on Windows a mistyped
+stream name came back as "this platform cannot" -- which sends somebody looking
+in the wrong place for a mistake that is in their own line.
 """
-script = "redirect (\"stdout\", \"nowhere.log\");\nredirect_back (\"output\");\nquit (0);"
+script = "redirect (\"stdout\", \"nowhere.log\");\nquit (0);"
 exit_status = 0
 output = []
-diagnostics = [
-  "!error.unknown_stream{stream=stdout}!",
-  "!error.stream_not_redirected{stream=output}!",
-]
+diagnostics = ["!error.unknown_stream{stream=stdout}!"]
+
+[[case]]
+id = "redirection.putting-back-what-was-never-moved-is-refused"
+requirement = """
+`redirect_back` for a stream that was never moved is said rather than quietly
+done: a script that thinks it restored something is a script whose next output
+goes somewhere it did not expect.
+
+On the two hosts that have the feature at all. Windows refuses every one of
+these commands before it gets this far, which the case gated to it asserts.
+"""
+script = "redirect_back (\"output\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.stream_not_redirected{stream=output}!"]
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "text.columns-without-a-format-string"
@@ -1094,11 +1112,16 @@ a run of the earlier version of this feature proved it -- the shell's line came
 out on the console with the file it had been redirected to empty.
 
 A command that reports success and moves nothing is the worst of the three
-possible behaviours, so this says which capability is missing. `run_into` is how
-a script captures a program's output on that host.
+possible behaviours, so this says which capability is missing -- for putting a
+stream back as much as for moving it, which is why both are here.
+
+`run_into` is how a script captures a program's output on that host.
 """
-script = "redirect (\"output\", \"nowhere.log\");\nquit (0);"
+script = "redirect (\"output\", \"nowhere.log\");\nredirect_back (\"output\");\nquit (0);"
 exit_status = 0
 output = []
-diagnostics = ["!error.capability_unavailable{capability=SESSION_REDIRECTION}!"]
+diagnostics = [
+  "!error.capability_unavailable{capability=SESSION_REDIRECTION}!",
+  "!error.capability_unavailable{capability=SESSION_REDIRECTION}!",
+]
 platforms = ["windows"]
