@@ -276,6 +276,23 @@ what changed.
   Linux and Windows take the bytes into a buffer nobody reads. Adash's terminal
   tests had been reading that refusal as a keystroke that never arrived.
 
+### Added
+
+- **`adash_check` refuses a command or function no case runs.** Being listed by
+  `help` is not being tested: that case pins the whole vocabulary in registry
+  order, so everything appears in it whether or not anything calls it. The new
+  rule reads what the cases actually run — the `script`, `arguments` and `input`
+  of every case, the fixtures they name, the unit sources — and asks whether each
+  registered name appears there. It exists because the same hole opened three
+  times in one week, always the same way: a family shared code with something
+  covered, and the sharing was the argument for not testing the rest.
+- **The eleven things nothing ran now have cases**: `umask` (and its refusal on
+  the host that has no creation mask), `start_with`, the eight pipeline
+  redirection forms, and `Error_Of_Pipe`. Writing them recorded a behaviour
+  nobody had written down: a refused placement takes the pipeline with it, so the
+  `pipe_run` after it reports an empty pipeline — two diagnostics for one
+  mistake.
+
 ### Fixed
 
 - **A variable holding a newline no longer breaks the rest of the session.** A

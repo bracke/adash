@@ -24,6 +24,10 @@ package body Adash_Tests.Repository is
    Key_Catalog_Missing_Key  : constant String := "tooling.check.catalog_missing_key";
    Key_Catalog_Key_Unused   : constant String := "tooling.check.catalog_key_unused";
    Key_Catalog_Key_Absent   : constant String := "tooling.check.catalog_key_absent";
+   Key_Command_Not_Exercised : constant String :=
+     "tooling.check.command_not_exercised";
+   Key_Entity_Not_Exercised : constant String :=
+     "tooling.check.entity_not_exercised";
    Key_Catalogued_Missing   : constant String :=
      "tooling.check.catalogued_message_missing";
    Key_Catalogued_Differs   : constant String :=
@@ -186,6 +190,39 @@ package body Adash_Tests.Repository is
       end if;
       return Project_Tools.Files.List_Tree (Tree, "*.ad?");
    end Test_Files;
+
+   -----------------
+   -- Case_Files --
+   -----------------
+
+   --  The conformance cases, whose scripts are what a case runs.
+   function Case_Files (Root : String) return Project_Tools.Files.Path_List;
+
+   function Case_Files (Root : String) return Project_Tools.Files.Path_List is
+      Tree : constant String := Join (Join (Root, "conformance"), "cases");
+   begin
+      if not Project_Tools.Files.Directory_Exists (Tree) then
+         return [1 .. 0 => <>];
+      end if;
+      return Project_Tools.Files.List_Tree (Tree, "*.toml");
+   end Case_Files;
+
+   --------------------
+   -- Fixture_Files --
+   --------------------
+
+   --  The scripts cases name rather than carry.
+   function Fixture_Files (Root : String) return Project_Tools.Files.Path_List;
+
+   function Fixture_Files (Root : String) return Project_Tools.Files.Path_List
+   is
+      Tree : constant String := Join (Join (Root, "conformance"), "fixtures");
+   begin
+      if not Project_Tools.Files.Directory_Exists (Tree) then
+         return [1 .. 0 => <>];
+      end if;
+      return Project_Tools.Files.List_Tree (Tree, "*");
+   end Fixture_Files;
 
    ---------
    -- Key --
@@ -1085,6 +1122,165 @@ package body Adash_Tests.Repository is
    --  Keys built at run time are allowed for by their prefix: a tool that says
    --  `"tooling.bench.what." & What` carries the dotted prefix as a literal,
    --  so a catalog key underneath one is counted as used.
+   --  Every command and every predefined entity is exercised by a case.
+   --
+   --  Named in the `help` listing is not exercised: that case pins the whole
+   --  vocabulary in registry order, so every command appears in it whether or
+   --  not anything ever calls it. What counts here is a case that *runs* the
+   --  thing -- a conformance script, a fixture, or a unit case.
+   --
+   --  This exists because the same hole opened three times in one week.
+   --  `Read_Key` was written, documented and shipped without a single test;
+   --  `redirect_append` shipped because `redirect` was tested; eight of the
+   --  nine pipeline redirections shipped because `run_into` was tested. Each
+   --  time the family shared code with something covered, and each time the
+   --  sharing was the argument for not testing the rest.
+   procedure Check_Every_Name_Is_Exercised (Root : String; Into : in out Report);
+
+   procedure Check_Every_Name_Is_Exercised (Root : String; Into : in out Report)
+   is
+      --  What the cases run, as one text: the value of every `script`,
+      --  `arguments` and `input` in the case files, plus the fixtures they
+      --  name and the unit sources. Requirement prose is left out on purpose
+      --  -- a name mentioned in a paragraph is a name nobody has run.
+      Exercised : US.Unbounded_String;
+
+      procedure Take_Case_Values (Path : String);
+
+      procedure Take_Case_Values (Path : String) is
+         Text : constant String := Read_If_Present (Path);
+
+         From : Positive := Text'First;
+
+         --  Whether a line opens a value this check cares about.
+         function Opens (Line : String) return Boolean
+         is (Project_Tools.Text.Starts_With (Line, "script = ")
+             or else Project_Tools.Text.Starts_With (Line, "arguments = ")
+             or else Project_Tools.Text.Starts_With (Line, "input = "));
+
+         In_Long : Boolean := False;
+      begin
+         if Text = "" then
+            return;
+         end if;
+
+         while From <= Text'Last loop
+            declare
+               Stop : Natural := From;
+            begin
+               while Stop <= Text'Last
+                 and then Text (Stop) /= Ada.Characters.Latin_1.LF
+               loop
+                  Stop := Stop + 1;
+               end loop;
+
+               declare
+                  Line : constant String := Text (From .. Stop - 1);
+               begin
+                  --  A value written across several lines, which TOML opens
+                  --  and closes with three quotation marks. Everything
+                  --  between them is what the case runs.
+                  if In_Long then
+                     US.Append (Exercised, Line & Ada.Characters.Latin_1.LF);
+
+                     if Ada.Strings.Fixed.Index (Line, """""""") > 0 then
+                        In_Long := False;
+                     end if;
+
+                  elsif Opens (Line) then
+                     US.Append (Exercised, Line & Ada.Characters.Latin_1.LF);
+
+                     if Ada.Strings.Fixed.Index (Line, """""""") > 0
+                       and then Ada.Strings.Fixed.Index
+                                  (Line, """""""",
+                                   Ada.Strings.Fixed.Index (Line, """""""") + 3)
+                                = 0
+                     then
+                        In_Long := True;
+                     end if;
+                  end if;
+               end;
+
+               From := Stop + 1;
+            end;
+         end loop;
+      end Take_Case_Values;
+
+      --  Every name a table registers, as the text between the quotes of
+      --  `Named ("...")` on a line that also names an entry of that table.
+      procedure Check_Table (Path : String; Marker : String; Key : String);
+
+      procedure Check_Table (Path : String; Marker : String; Key : String) is
+         Text : constant String := Read_If_Present (Path);
+
+         From : Positive := Text'First;
+      begin
+         if Text = "" then
+            Add (Into, Key_Inventory_Unreadable,
+                 [1 => Msg.Named ("path", Path)]);
+            return;
+         end if;
+
+         while From <= Text'Last loop
+            declare
+               At_Marker : constant Natural :=
+                 Ada.Strings.Fixed.Index (Text (From .. Text'Last), Marker);
+            begin
+               exit when At_Marker = 0;
+
+               declare
+                  Opens : constant Natural :=
+                    Ada.Strings.Fixed.Index
+                      (Text (At_Marker .. Text'Last), "Named (""");
+                  Starts : constant Natural :=
+                    (if Opens = 0 then 0 else Opens + 8);
+                  Closes : constant Natural :=
+                    (if Starts = 0 then 0
+                     else Ada.Strings.Fixed.Index
+                            (Text (Starts .. Text'Last), """"));
+               begin
+                  exit when Closes = 0;
+
+                  declare
+                     Name : constant String := Text (Starts .. Closes - 1);
+                  begin
+                     Into.Checks_Run := Into.Checks_Run + 1;
+
+                     if Name /= ""
+                       and then not Project_Tools.Text.Contains
+                                      (US.To_String (Exercised), Name)
+                     then
+                        Add (Into, Key,
+                             [1 => Msg.Named ("name", Name)]);
+                     end if;
+                  end;
+
+                  From := Closes + 1;
+               end;
+            end;
+         end loop;
+      end Check_Table;
+
+   begin
+      for Path of Case_Files (Root) loop
+         Take_Case_Values (US.To_String (Path));
+      end loop;
+
+      for Path of Fixture_Files (Root) loop
+         US.Append (Exercised, Read_If_Present (US.To_String (Path)));
+      end loop;
+
+      for Path of Test_Files (Root) loop
+         US.Append (Exercised, Read_If_Present (US.To_String (Path)));
+      end loop;
+
+      Check_Table (Join (Root, "src/library/adash-commands.adb"),
+                   "(Command_", Key_Command_Not_Exercised);
+
+      Check_Table (Join (Root, "src/library/adash-predefined.adb"),
+                   "Id => Entity_", Key_Entity_Not_Exercised);
+   end Check_Every_Name_Is_Exercised;
+
    procedure Check_Catalog_Keys_Are_Used (Root : String; Into : in out Report);
 
    procedure Check_Catalog_Keys_Are_Used (Root : String; Into : in out Report)
@@ -1483,6 +1679,7 @@ package body Adash_Tests.Repository is
       Check_Required_Directories (Root, Into);
       Check_Version_Consistency (Root, Into);
       Check_Catalog_Keys_Are_Used (Root, Into);
+      Check_Every_Name_Is_Exercised (Root, Into);
       Check_The_Documented_Catalogue (Root, Into);
       Check_Package_Inventory (Root, Into);
       Check_Message_Catalog (Root, Into);

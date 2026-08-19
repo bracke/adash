@@ -1217,3 +1217,138 @@ script = "X : String := \"a\" & Character'Val (10) & \"b\";\nput_line (Index (X,
 exit_status = 0
 output = ["TRUE"]
 diagnostics = []
+
+[[case]]
+id = "pipelines.where-a-pipeline-writes-is-said-before-it-runs"
+requirement = """
+`pipe_into` and its family say where a pipeline's streams go and leave it to
+`pipe_run` to run it -- which is what lets a pipeline be given both a file to
+read and a file to write, and what `run_into` cannot do because it does both at
+once.
+
+Three of them here in the order they differ: `pipe_into` replaces what is in the
+file, `pipe_append` adds to it, and `pipe_new` refuses a file that is already
+there. The refusal is the half nobody writes a case for, and it is the half that
+protects a file somebody still wants.
+
+A refused placement takes the pipeline with it, so the `pipe_run` that follows
+finds nothing to run and says so. Two diagnostics for one mistake, which is what
+this shell does today and is written down here rather than left to be discovered
+by somebody whose script printed it.
+"""
+script = "cd (\"{store}\"); pipe (\"{emit}\", \"one\"); pipe (\"{upcase}\"); pipe_into (\"piped.txt\"); pipe_run; pipe (\"{emit}\", \"two\"); pipe (\"{upcase}\"); pipe_append (\"piped.txt\"); pipe_run; pipe (\"{emit}\", \"three\"); pipe_new (\"piped.txt\"); pipe_run; put (Read_File (\"piped.txt\"));\nquit (0);"
+exit_status = 0
+output = ["ONE", "TWO", ""]
+diagnostics = [
+  "!error.redirection_open_failed{path=piped.txt}!",
+  "!error.empty_pipeline!",
+]
+
+[[case]]
+id = "pipelines.a-pipelines-errors-go-where-it-is-told"
+requirement = """
+The error stream of a pipeline is the last stage's, and it is placed
+separately: `pipe_errors_into` and its two siblings take it while the output
+goes wherever the output was told to go.
+
+`pipe_all_append` and `pipe_all_new` are the forms that take both at once,
+which is the same file twice rather than two files -- so what a reader sees in
+it is the order the two streams were written in.
+"""
+script = "cd (\"{store}\"); pipe (\"{emit}\", \"--error=complaint\"); pipe_errors_into (\"errors.txt\"); pipe_run; pipe (\"{emit}\", \"--error=again\"); pipe_errors_append (\"errors.txt\"); pipe_run; pipe (\"{emit}\", \"--error=third\"); pipe_errors_new (\"errors.txt\"); pipe_run; Held : String := Read_File (\"errors.txt\"); put_line (Index (Held, \"complaint\") > 0 and then Index (Held, \"again\") > 0);\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = [
+  "!error.redirection_open_failed{path=errors.txt}!",
+  "!error.empty_pipeline!",
+]
+
+[[case]]
+id = "pipelines.both-streams-into-one-file"
+requirement = """
+`pipe_all_append` and `pipe_all_new` put a pipeline's output and its errors in
+one file, the first adding to what is there and the second refusing a file that
+is already there.
+
+One file rather than two: the streams interleave the way they do on a terminal,
+which is the reason somebody asks for both at once.
+"""
+script = "cd (\"{store}\"); write_file (\"before\" & Character'Val (10), \"both.txt\"); pipe (\"{emit}\", \"said\", \"--error=complained\"); pipe_all_append (\"both.txt\"); pipe_run; Held : String := Read_File (\"both.txt\"); put_line (Index (Held, \"before\") > 0 and then Index (Held, \"said\") > 0 and then Index (Held, \"complained\") > 0); pipe (\"{emit}\", \"again\"); pipe_all_new (\"both.txt\"); pipe_run;\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = [
+  "!error.redirection_open_failed{path=both.txt}!",
+  "!error.empty_pipeline!",
+]
+
+[[case]]
+id = "pipelines.a-pipelines-errors-can-be-read-as-a-value"
+requirement = """
+`Error_Of_Pipe` is what a pipeline wrote to its error stream, as a value --
+`Output_Of_Pipe` and `All_Of_Pipe` are its two siblings and were covered while
+this one was not.
+
+A pipeline whose last stage complains is what it is for: the complaint is the
+answer, and a script that had to send it to a file and read the file back would
+be doing the shell's work.
+"""
+script = "pipe (\"{emit}\", \"--error=what went wrong\"); Said : String := Error_Of_Pipe; put_line (Index (Said, \"what went wrong\") > 0);\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "environment.start_with-sets-a-variable-and-does-not-wait"
+requirement = """
+`start_with` is `run_with` without the waiting: the assignments are for that one
+program, the job is named, and the shell goes on. `wait` is how a script asks
+what became of it.
+
+Asserted through the program's own output rather than through the job report,
+because what the assignment did is the thing this command is for.
+"""
+script = "start_with (\"GREETING=from the assignment\", \"{emit}\", \"--env=GREETING\"); Id : Integer := Last_Job; wait (Id);\nquit (0);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what={emit} --env=GREETING}!",
+  "[from the assignment]",
+  "!line.job_finished{id=1,status=0}!",
+]
+diagnostics = []
+
+[[case]]
+id = "permissions.the-creation-mask-is-read-and-set"
+requirement = """
+`umask` says what this host takes away from the permissions of a new file, and
+sets it. It is per process and inherited, so what a script sets here is what the
+programs it runs create files with -- which is why a shell has to have it at all.
+
+Octal, as every shell writes a mask, and a mask that is not octal digits is
+refused: `umask ("9")` and `umask ("0o22")` are both somebody expecting another
+shell's spelling, and a mask read wrongly is a mistake nobody sees until
+somebody else reads a file they should not have been able to.
+
+Two hosts. Windows has no creation mask -- permissions there come from the ACL a
+directory hands down -- and the case gated to it asserts the refusal.
+"""
+script = "umask (\"27\"); umask; umask (\"9\");\nquit (0);"
+exit_status = 0
+output = ["!line.creation_mask{mask=27}!"]
+diagnostics = ["!error.mask_not_octal{text=9}!"]
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "permissions.a-host-without-a-creation-mask-says-so"
+requirement = """
+Windows has no per-process creation mask: permissions come from the ACL a
+directory hands down, and there is nothing to read or to set. So both forms
+refuse rather than reporting a zero a script would then act on.
+"""
+script = "umask; umask (\"27\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.no_creation_mask!",
+  "!error.no_creation_mask!",
+]
+platforms = ["windows"]

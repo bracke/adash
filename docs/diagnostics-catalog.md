@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 596 messages in 22 groups.
+There are 598 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -675,6 +675,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `tooling.check.catalogued_message_missing` | docs/diagnostics-catalog.md has no row for {key}, and says it is the catalog |
 | `tooling.check.catalogued_message_differs` | docs/diagnostics-catalog.md words {key} differently from the catalog |
 | `tooling.check.catalogued_message_unknown` | docs/diagnostics-catalog.md has a row for {key}, which the catalog does not have |
+| `tooling.check.command_not_exercised` | the command {name} is registered and no case runs it; being listed by help is not being tested |
+| `tooling.check.entity_not_exercised` | the function {name} is registered and no case calls it; being listed is not being tested |
 | `tooling.check.catalog_key_unused` | the catalog carries {key} and no source names it, so nothing can ever show it |
 | `tooling.check.catalog_key_absent` | a tool names {key} and the catalog does not carry it, so a user gets the fallback form |
 | `tooling.check.version_unreadable` | the version could not be read from {path}; two files that both read as nothing compare equal, which is how this check passed for years |
