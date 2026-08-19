@@ -399,6 +399,15 @@ status = "complete"
 summary = "The virtual machine Adash programs run on: a stack machine with frames, static links and a call out to the shell. Its instruction set is what the lowering emits and nothing else."
 
 [[package]]
+name = "Adash.Patterns"
+subsystem = "language"
+visibility = "public"
+spec = "src/library/adash-patterns.ads"
+body = "src/library/adash-patterns.adb"
+status = "complete"
+summary = "Matching a name against a pattern, and telling a pattern from a name. A leaf, because two callers want the same answer -- Matches in the language and the expansion that turns *.log into the paths a program is given -- and two copies of a matcher are two matchers that will one day disagree."
+
+[[package]]
 name = "Adash.Filesystem"
 subsystem = "filesystem"
 visibility = "public"

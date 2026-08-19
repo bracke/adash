@@ -7,6 +7,7 @@ with Ada.IO_Exceptions;
 with Hostkit.Fs;
 
 with Adash.Errors;
+with Adash.Patterns;
 with Adash.Source;
 
 package body Adash.Filesystem is
@@ -364,6 +365,198 @@ package body Adash.Filesystem is
 
       return Snapshot.Name (Path, Position);
    end File_At;
+
+   ---------------------
+   -- Match_Count --
+   ---------------------
+
+   --  Where a pattern's directory part ends, or zero when it has none.
+   --
+   --  The last separator, and both are looked for on every host: a script that
+   --  wrote `build/*.o` on Windows meant the directory `build`, and a shell
+   --  that only knew backslashes there would have gone looking for a file with
+   --  a slash in its name.
+   function Directory_Ends (Pattern : String) return Natural;
+
+   function Directory_Ends (Pattern : String) return Natural is
+   begin
+      for Index in reverse Pattern'Range loop
+         if Pattern (Index) in '/' | '\' then
+            return Index;
+         end if;
+      end loop;
+
+      return 0;
+   end Directory_Ends;
+
+   --  The matches of one pattern, sorted, or nothing when there are too many.
+   procedure Read_Matches
+     (Pattern : String;
+      Into    : out Name_Lists.Vector;
+      Refused : out Boolean);
+
+   procedure Read_Matches
+     (Pattern : String;
+      Into    : out Name_Lists.Vector;
+      Refused : out Boolean)
+   is
+      use Ada.Strings.Unbounded;
+
+      Split : constant Natural := Directory_Ends (Pattern);
+
+      --  The directory to read, and the text that is prefixed to every match.
+      --  They differ for a pattern with no directory: the place to read is
+      --  the current one and the prefix is nothing, because a script that
+      --  wrote `*.log` wants `notes.log` rather than `./notes.log` -- what it
+      --  asked for is what it gets back.
+      Where  : constant String :=
+        (if Split = 0 then "." else Pattern (Pattern'First .. Split - 1));
+      Prefix : constant String :=
+        (if Split = 0 then "" else Pattern (Pattern'First .. Split));
+      Tail   : constant String :=
+        (if Split = 0 then Pattern else Pattern (Split + 1 .. Pattern'Last));
+
+      Names : Name_Lists.Vector;
+   begin
+      Into.Clear;
+      Refused := False;
+
+      --  A directory that is a separator and nothing else: the root, which is
+      --  a place rather than an empty name.
+      if Split = Pattern'First then
+         Read_Directory (Pattern (Pattern'First .. Split), Names);
+      else
+         Read_Directory (Where, Names);
+      end if;
+
+      for Position in Names.First_Index .. Names.Last_Index loop
+         declare
+            Called : constant String := To_String (Names.Element (Position));
+         begin
+            --  A name that begins with a dot is passed over unless the pattern
+            --  does, which is the rule every shell has: `*` is not how
+            --  anybody asks to see `.git`.
+            if Called'Length > 0
+              and then (Called (Called'First) /= '.'
+                        or else (Tail'Length > 0
+                                 and then Tail (Tail'First) = '.'))
+              and then Adash.Patterns.Matches (Called, Tail)
+            then
+               --  Refused whole rather than answered with a prefix: a script
+               --  that ran a program over the first four thousand of five
+               --  would do half a job and report that it had done it.
+               if Natural (Into.Length) >= Maximum_Matches then
+                  Into.Clear;
+                  Refused := True;
+                  return;
+               end if;
+
+               Into.Append (To_Unbounded_String (Prefix & Called));
+            end if;
+         end;
+      end loop;
+   end Read_Matches;
+
+   --  The last pattern's matches, held the way a directory listing is.
+   --
+   --  A loop from 1 to Match_Count walks the matches the count came from, so
+   --  a file made while the loop runs does not shift the ones after it.
+   protected Matched_Paths is
+      procedure Refresh (Pattern : String; Count : out Natural);
+      function Path (Pattern : String; Position : Positive) return String;
+      procedure Take_If_Missing (Pattern : String; Count : out Natural);
+      function Was_Refused (Pattern : String) return Boolean;
+   private
+      Of_Pattern : Ada.Strings.Unbounded.Unbounded_String;
+      Held       : Name_Lists.Vector;
+      Taken      : Boolean := False;
+      Overflowed : Boolean := False;
+   end Matched_Paths;
+
+   protected body Matched_Paths is
+
+      procedure Refresh (Pattern : String; Count : out Natural) is
+      begin
+         Read_Matches (Pattern, Held, Overflowed);
+         Of_Pattern := Ada.Strings.Unbounded.To_Unbounded_String (Pattern);
+         Taken := True;
+         Count := Natural (Held.Length);
+      end Refresh;
+
+      function Was_Refused (Pattern : String) return Boolean is
+         use type Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         return Taken and then Of_Pattern = Pattern and then Overflowed;
+      end Was_Refused;
+
+      function Path (Pattern : String; Position : Positive) return String is
+         use type Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         if not Taken or else Of_Pattern /= Pattern
+           or else Position > Natural (Held.Length)
+         then
+            return "";
+         end if;
+
+         return Ada.Strings.Unbounded.To_String (Held.Element (Position));
+      end Path;
+
+      procedure Take_If_Missing (Pattern : String; Count : out Natural) is
+         use type Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         if not Taken or else Of_Pattern /= Pattern then
+            Read_Matches (Pattern, Held, Overflowed);
+            Of_Pattern := Ada.Strings.Unbounded.To_Unbounded_String (Pattern);
+            Taken := True;
+         end if;
+
+         Count := Natural (Held.Length);
+      end Take_If_Missing;
+
+   end Matched_Paths;
+
+   function Match_Count (Pattern : String) return Natural is
+      Answer : Natural;
+   begin
+      --  A pattern with nothing to match is a question about one name, and
+      --  answering zero for it keeps `run_matching` honest: what it expands is
+      --  what holds a pattern, and what it passes along is everything else.
+      if not Adash.Patterns.Holds_A_Pattern (Pattern) then
+         return 0;
+      end if;
+
+      Matched_Paths.Refresh (Pattern, Answer);
+      return Answer;
+   end Match_Count;
+
+   ----------------------
+   -- Match_Refused --
+   ----------------------
+
+   function Match_Refused (Pattern : String) return Boolean is
+   begin
+      return Matched_Paths.Was_Refused (Pattern);
+   end Match_Refused;
+
+   ------------------
+   -- Match_At --
+   ------------------
+
+   function Match_At (Pattern : String; Position : Positive) return String is
+      Answer : Natural;
+   begin
+      if not Adash.Patterns.Holds_A_Pattern (Pattern) then
+         return "";
+      end if;
+
+      Matched_Paths.Take_If_Missing (Pattern, Answer);
+
+      if Position > Answer then
+         return "";
+      end if;
+
+      return Matched_Paths.Path (Pattern, Position);
+   end Match_At;
 
    -------------------
    -- Remove_File --

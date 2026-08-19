@@ -83,6 +83,11 @@ package Adash.Predefined is
       Entity_Current_Directory,
       Entity_File_Count,
       Entity_File_At,
+
+      --  Expanding a pattern into the paths it names, which is what a shell
+      --  does to `*.log` before a program ever sees it.
+      Entity_Match_Count,
+      Entity_Match_At,
       Entity_Program_Path,
       Entity_Stage_Count,
       Entity_Stage_Status,

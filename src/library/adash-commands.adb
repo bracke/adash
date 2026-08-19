@@ -81,6 +81,31 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Run_Doc, M.Msg_Command_Hint, Available),
 
+      --  Run a program, with the patterns among its arguments expanded first.
+      --
+      --  What every other shell does to `*.log` before a program sees it,
+      --  written where a user can see it happen. There is no implicit
+      --  expansion in this language: an argument is a string literal, and a
+      --  shell that quietly turned one into several would be a shell whose
+      --  quoting rules somebody has to learn before they can name a file with
+      --  a star in it. So the expanding form is a command of its own, and
+      --  `run` stays a command that passes on exactly what it was given.
+      --
+      --  An argument holding `*`, `?` or `[` is a pattern and is replaced by
+      --  the paths it names, sorted. Every other argument is passed along
+      --  untouched, which is what makes `run_matching ("rm", "-f", "*.log")`
+      --  work. The program itself is never expanded: a pattern for a program
+      --  name would be a program nobody chose.
+      --
+      --  A pattern that names nothing refuses the whole command rather than
+      --  passing the pattern along as a word. Passing it along is what sh
+      --  does, and it is how `rm *.log` in an empty directory becomes a
+      --  program asked to remove a file called `*.log`.
+      (Command_Run_Matching, Named ("run_matching"), 1, Any_Number,
+       [1 => Text ("Program"), others => Text ("Argument")],
+       Changes_State,
+       M.Msg_Command_Run_Matching_Doc, M.Msg_Command_Hint, Available),
+
       --  The same, with one of the program's streams attached to a file. The
       --  file comes first because the arguments after it belong to the program
       --  and there is no other place to put a boundary between them: this

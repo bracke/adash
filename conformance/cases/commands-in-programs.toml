@@ -141,6 +141,7 @@ output = [
   "!line.command_entry{name=forget,summary=!command.forget.doc!}!",
   "!line.command_entry{name=source,summary=!command.source.doc!}!",
   "!line.command_entry{name=run,summary=!command.run.doc!}!",
+  "!line.command_entry{name=run_matching,summary=!command.run_matching.doc!}!",
   "!line.command_entry{name=run_into,summary=!command.run_into.doc!}!",
   "!line.command_entry{name=run_from,summary=!command.run_from.doc!}!",
   "!line.command_entry{name=run_from_text,summary=!command.run_from_text.doc!}!",
@@ -581,3 +582,91 @@ exit_status = 0
 output = []
 diagnostics = ["!error.limit_refused{resource=open_files}!"]
 platforms = ["linux", "macos"]
+
+[[case]]
+id = "matching.a-pattern-becomes-the-paths-it-names"
+requirement = """
+`run_matching` expands the arguments that hold a pattern into the paths they
+name, sorted, and passes every other argument along untouched. That is what
+every other shell does to `*.log` before a program sees it, done where a script
+can see it happen and only where a script asked for it.
+
+Sorted rather than in the order the host reads a directory, so that two runs of
+the same script hand a program the same argument list.
+"""
+script = "cd (\"{store}\"); write_file (\"one\", \"b.log\"); write_file (\"two\", \"a.log\"); write_file (\"three\", \"c.txt\");\nrun_matching (\"{emit}\", \"kept\", \"*.log\");\nquit (0);"
+exit_status = 0
+output = ["kept", "a.log", "b.log"]
+diagnostics = []
+
+[[case]]
+id = "matching.run-passes-a-pattern-along-untouched"
+requirement = """
+The other half of the same rule, and the reason the expanding form is a command
+of its own: `run` hands a program exactly what it was written with. An argument
+is a string literal in this language, and a shell that quietly turned one into
+several would be a shell whose quoting rules somebody has to learn before they
+can name a file with a star in it.
+"""
+script = "cd (\"{store}\"); write_file (\"one\", \"kept.log\");\nrun (\"{emit}\", \"*.log\");\nquit (0);"
+exit_status = 0
+output = ["*.log"]
+diagnostics = []
+
+[[case]]
+id = "matching.a-pattern-that-names-nothing-refuses"
+requirement = """
+A pattern naming nothing refuses the command rather than passing the pattern on
+as a word. Passing it on is what sh does, and it is how `rm *.log` in a
+directory with no logs becomes a program asked to remove a file called `*.log`.
+
+A shell that expands on purpose can afford to say so instead, and the program is
+not started.
+"""
+script = "cd (\"{store}\");\nrun_matching (\"{emit}\", \"nothing*here\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.no_matching_files{pattern=nothing*here}!"]
+
+[[case]]
+id = "matching.a-dot-file-answers-only-a-dotted-pattern"
+requirement = """
+`*` does not name a file whose name begins with a dot, and a pattern that begins
+with one does. Every shell has this rule, and the reason is that `*` is not how
+anybody asks to see `.git`.
+"""
+script = "cd (\"{store}\"); write_file (\"seen\", \"visible.txt\"); write_file (\"hidden\", \".secret.txt\");\nrun_matching (\"{emit}\", \"*.txt\");\nrun_matching (\"{emit}\", \".*.txt\");\nquit (0);"
+exit_status = 0
+output = ["visible.txt", ".secret.txt"]
+diagnostics = []
+
+[[case]]
+id = "matching.a-script-can-count-and-walk-the-matches"
+requirement = """
+The same expansion as a question, for a script that wants the paths rather than
+a program run over them: `Match_Count` says how many, `Match_At` walks them in
+the order the count came from.
+
+A pattern with a directory keeps it, so what comes back can be handed to a
+program or opened as it is.
+"""
+script = "cd (\"{store}\"); make_directory (\"logs\"); write_file (\"one\", \"logs/b.log\"); write_file (\"two\", \"logs/a.log\");\nput_line (Trim (Match_Count (\"logs/*.log\")'Image)); for I in 1 .. Match_Count (\"logs/*.log\") loop put_line (Match_At (\"logs/*.log\", I)); end loop;\nquit (0);"
+exit_status = 0
+output = ["2", "logs/a.log", "logs/b.log"]
+diagnostics = []
+
+[[case]]
+id = "matching.a-name-with-no-pattern-in-it-names-nothing"
+requirement = """
+`Match_Count` answers zero for text holding no `*`, `?` or `[`, even when a file
+of that name is there. It is an expansion rather than a lookup, and `Exists` is
+how a script asks about one name.
+
+This is the rule `run_matching` reads its arguments by: what holds a pattern is
+expanded, and everything else is passed along -- so a flag is never a pattern
+that named nothing.
+"""
+script = "cd (\"{store}\"); write_file (\"here\", \"plain.txt\");\nput_line (Trim (Match_Count (\"plain.txt\")'Image)); put_line (Exists (\"plain.txt\")'Image);\nquit (0);"
+exit_status = 0
+output = ["0", "TRUE"]
+diagnostics = []

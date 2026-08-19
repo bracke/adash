@@ -301,6 +301,8 @@ package body Adash.Messages is
          when Msg_Process_Would_Not_Stop      => return "error.process_would_not_stop";
          when Msg_No_Creation_Mask           => return "error.no_creation_mask";
          when Msg_Mask_Not_Octal             => return "error.mask_not_octal";
+         when Msg_No_Matching_Files          => return "error.no_matching_files";
+         when Msg_Too_Many_Matches           => return "error.too_many_matches";
          when Msg_No_Resource_Limits         => return "error.no_resource_limits";
          when Msg_Unknown_Resource           => return "error.unknown_resource";
          when Msg_Limit_Not_A_Number         => return "error.limit_not_a_number";
@@ -458,6 +460,10 @@ package body Adash.Messages is
             return "predefined.file_count.doc";
          when Msg_Predefined_File_At_Doc =>
             return "predefined.file_at.doc";
+         when Msg_Predefined_Match_Count_Doc =>
+            return "predefined.match_count.doc";
+         when Msg_Predefined_Match_At_Doc =>
+            return "predefined.match_at.doc";
          when Msg_Predefined_Program_Path_Doc =>
             return "predefined.program_path.doc";
          when Msg_Predefined_Stage_Count_Doc =>
@@ -470,6 +476,10 @@ package body Adash.Messages is
             return "predefined.file_count.hint";
          when Msg_Predefined_File_At_Hint =>
             return "predefined.file_at.hint";
+         when Msg_Predefined_Match_Count_Hint =>
+            return "predefined.match_count.hint";
+         when Msg_Predefined_Match_At_Hint =>
+            return "predefined.match_at.hint";
          when Msg_Predefined_Program_Path_Hint =>
             return "predefined.program_path.hint";
          when Msg_Predefined_Stage_Count_Hint =>
@@ -572,6 +582,7 @@ package body Adash.Messages is
          when Msg_Command_Start_With_Doc     => return "command.start_with.doc";
          when Msg_Command_Time_Doc           => return "command.time.doc";
          when Msg_Command_Umask_Doc          => return "command.umask.doc";
+         when Msg_Command_Run_Matching_Doc   => return "command.run_matching.doc";
          when Msg_Command_Resource_Limit_Doc          => return "command.resource_limit.doc";
          when Msg_Command_Resource_Ceiling_Doc  => return "command.resource_ceiling.doc";
          when Msg_Command_Complete_With_Doc  => return "command.complete_with.doc";
@@ -951,6 +962,8 @@ package body Adash.Messages is
             | Msg_Predefined_Current_Directory_Hint
             | Msg_Predefined_File_Count_Doc | Msg_Predefined_File_Count_Hint
             | Msg_Predefined_File_At_Doc | Msg_Predefined_File_At_Hint
+            | Msg_Predefined_Match_Count_Doc | Msg_Predefined_Match_Count_Hint
+            | Msg_Predefined_Match_At_Doc | Msg_Predefined_Match_At_Hint
             | Msg_Predefined_Program_Path_Doc
             | Msg_Predefined_Program_Path_Hint
             | Msg_Predefined_Stage_Count_Doc | Msg_Predefined_Stage_Count_Hint
@@ -1002,6 +1015,7 @@ package body Adash.Messages is
             | Msg_Command_Run_From_Text_Doc
             | Msg_Command_Complete_With_Doc
             | Msg_Command_Umask_Doc
+            | Msg_Command_Run_Matching_Doc
             | Msg_Command_Resource_Limit_Doc
             | Msg_Command_Resource_Ceiling_Doc
             | Msg_Command_Time_Doc
@@ -1376,6 +1390,12 @@ package body Adash.Messages is
 
          when Msg_Mask_Not_Octal =>
             return [1 => N ("text")];
+
+         when Msg_No_Matching_Files =>
+            return [1 => N ("pattern")];
+
+         when Msg_Too_Many_Matches =>
+            return [N ("pattern"), N ("limit")];
 
          when Msg_No_Resource_Limits =>
             return No_Placeholders;

@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 543 messages in 22 groups.
+There are 550 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -120,6 +120,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.stream_write_failed` | could not write to {stream} |
 | `error.stream_read_failed` | could not read from {stream} |
 | `error.mask_not_octal` | {text} is not a mask: a mask is octal digits, as every shell writes one |
+| `error.no_matching_files` | nothing is called {pattern} here, and a pattern that names nothing is not passed along as a word |
+| `error.too_many_matches` | {pattern} names more than {limit} paths, which is more than one command carries; name fewer, or loop over Match_At |
 | `error.no_creation_mask` | this host has no creation mask: permissions here come from the directory a file is made in, not from a per-process mask |
 | `error.no_resource_limits` | this host has no resource limits: what it has instead is attached to a set of processes rather than inherited by them, and a process cannot lower its own |
 | `error.unknown_resource` | no limit here is called {resource}; resource_limit with no argument lists the ones there are |
@@ -282,6 +284,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.run_into.doc` | Run a program with its output written to a file, replacing what was there. |
 | `command.run_from.doc` | Run a program with its input read from a file. |
 | `command.complete_with.doc` | Name a subprogram that says what may follow a program, one candidate per line, for Tab to offer. |
+| `command.run_matching.doc` | Run a program, expanding the arguments that hold a pattern into the paths they name. An argument with no * ? or [ is passed along untouched, and a pattern that names nothing refuses the command. |
 | `command.umask.doc` | Show the permissions this host takes away from a new file, or set them, in octal. Windows has none. |
 | `command.time.doc` | Run a program and report how long it took, in wall-clock seconds. |
 | `command.resource_limit.doc` | Show what this host will let this shell use, or set one of the limits. Sizes are bytes; unlimited is a value. Windows has none. |
@@ -360,6 +363,10 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.file_count.hint` | how many names a directory holds |
 | `predefined.file_at.doc` | File_At (DIRECTORY, POSITION) is one of the names in a directory, sorted, counting from one. |
 | `predefined.file_at.hint` | one name in a directory |
+| `predefined.match_count.doc` | Match_Count (PATTERN) is how many paths a pattern names, with * ? and [class] in the last segment. Nothing is expanded unless a script asks for it. |
+| `predefined.match_count.hint` | how many paths a pattern names |
+| `predefined.match_at.doc` | Match_At (PATTERN, POSITION) is one of the paths a pattern names, sorted, counting from one. |
+| `predefined.match_at.hint` | one path a pattern names |
 | `predefined.program_path.doc` | Program_Path (PROGRAM) is where the host would find that program, or nothing when it would not. |
 | `predefined.program_path.hint` | where a program is |
 | `predefined.stage_count.doc` | Stage_Count is how many stages the last pipeline had. |

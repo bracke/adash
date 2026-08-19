@@ -121,6 +121,8 @@ either way.
 | `Current_Directory` | `String` | where the session is, which `cd` moves |
 | `File_Count (Directory)` | `Integer` | how many names a directory holds |
 | `File_At (Directory; Position)` | `String` | one of them, sorted, counting from one |
+| `Match_Count (Pattern)` | `Integer` | how many paths a pattern names: `*`, `?` and `[class]` in the last segment, sorted, dot files only when the pattern starts with a dot |
+| `Match_At (Pattern, Position)` | `String` | one of them, counting from one, with the pattern's own directory part still on it |
 | `Program_Path (Program)` | `String` | where the host would find that program, or nothing |
 
 A path nobody can reach — no such directory, nothing named at all — is not a

@@ -138,9 +138,9 @@ package Adash.Filesystem is
    --  The gap this closes is larger than it looks: nothing in this language
    --  could see what was in a directory, so the commonest loop anybody writes
    --  in a shell -- over the files in a place -- had no equivalent at all, and
-   --  a script had to run a program to find out what existed. There is no
-   --  pattern expansion here and there will not be, so a listing plus `Index`
-   --  or `Ends_With` is how a script picks the ones it wants.
+   --  a script had to run a program to find out what existed. A listing plus
+   --  `Index` or `Ends_With` is one way to pick the ones you want; `Match_Count`
+   --  below is the other, and it is the one a shell user reaches for.
    --
    --  Everything in the directory, in one order: files, directories, and
    --  whatever else the host keeps there, sorted by name so that two runs of
@@ -172,6 +172,67 @@ package Adash.Filesystem is
    --  @param Position Which one, from one.
    --  @return The name, or "" where there is no such position.
    function File_At (Path : String; Position : Positive) return String;
+
+   --  How many paths a pattern names.
+   --
+   --  What a shell does when it expands `*.log`, done where a script can see
+   --  it happen. There is no implicit expansion in this language and there
+   --  will not be: an argument is a string literal, and a shell that quietly
+   --  turned one into several would be a shell whose quoting rules a user has
+   --  to learn before they can write a filename with a star in it.
+   --
+   --  The pattern may carry a directory: `build/*.o` looks in `build`, and the
+   --  paths answered carry that directory too, so what comes back can be
+   --  handed to a program as it is. Only the last segment is a pattern -- a
+   --  star in the directory part matches a directory called `*`, and a
+   --  pattern that walked a tree is a different feature with a different cost.
+   --
+   --  A name beginning with a dot is passed over unless the pattern begins
+   --  with one, which is the rule every shell has: `*` is not how anybody asks
+   --  to see `.git`.
+   --
+   --  Sorted by name, so two runs of the same script do the same thing, and
+   --  bounded by Maximum_Matches: a pattern in a directory somebody else fills
+   --  is not a licence to build an argument list without end.
+   --
+   --  Zero where nothing matches, where the directory cannot be read, and
+   --  where the pattern holds no pattern character at all -- that last is a
+   --  question about one name, and `Exists` is how a script asks it.
+   --
+   --  @param Pattern The pattern, with or without a directory.
+   --  @return How many paths it names.
+   function Match_Count (Pattern : String) return Natural;
+
+   --  One of the paths a pattern names, counting from one.
+   --
+   --  From the same reading as the count beside it, the way File_At reads from
+   --  File_Count's: a loop from 1 to Match_Count walks the matches the count
+   --  came from.
+   --
+   --  @param Pattern The pattern.
+   --  @param Position Which one, from one.
+   --  @return The path, or "" where there is no such position.
+   function Match_At (Pattern : String; Position : Positive) return String;
+
+   --  Was the last expansion of this pattern refused for being too large?
+   --
+   --  Match_Count answers zero for a pattern that names nothing and zero for
+   --  one that names too much, and those are not the same thing to a caller
+   --  about to run a program: one is a typing mistake and the other is a
+   --  directory somebody else filled. Asked separately so that neither has to
+   --  be reported as the other.
+   --
+   --  @param Pattern The pattern, as it was given to Match_Count.
+   --  @return Whether it named more than Maximum_Matches.
+   function Match_Refused (Pattern : String) return Boolean;
+
+   --  How many paths one pattern may name.
+   --
+   --  A bound rather than a promise: a pattern that names more is refused
+   --  whole rather than answered with a prefix, because a script that ran a
+   --  program over the first thousand files of two thousand would do half a
+   --  job and report success.
+   Maximum_Matches : constant := 4_096;
 
    --  Make a directory, and any directory above it that is missing.
    --

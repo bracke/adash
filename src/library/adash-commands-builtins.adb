@@ -6,6 +6,7 @@ with Ada.Strings.Unbounded;
 
 with Adash.Errors;
 with Adash.Filesystem;
+with Adash.Patterns;
 with Adash.Language.Values;
 with Adash.Version;
 
@@ -801,7 +802,8 @@ package body Adash.Commands.Builtins is
                end;
             end;
 
-         when Command_Run | Command_Run_Into | Command_Run_From
+         when Command_Run | Command_Run_Matching | Command_Run_Into
+            | Command_Run_From
             | Command_Run_From_Text | Command_Run_With | Command_Start_With
             | Command_Time
             | Command_Run_Append | Command_Run_New | Command_Run_Errors_Into
@@ -1013,11 +1015,60 @@ package body Adash.Commands.Builtins is
                end if;
 
                for Position in First_Word + 1 .. Given loop
-                  Args.Append
-                    (Ada.Strings.Unbounded.To_Unbounded_String
-                       (Argument (Arguments, Position)));
-                  Ada.Strings.Unbounded.Append
-                    (Told, " " & Argument (Arguments, Position));
+                  declare
+                     Word : constant String := Argument (Arguments, Position);
+
+                     --  Only one command expands, and only an argument that
+                     --  holds a pattern. Everything else is passed along as
+                     --  the caller wrote it, which is what lets a flag and a
+                     --  pattern stand side by side.
+                     Expanding : constant Boolean :=
+                       Id = Command_Run_Matching
+                         and then Adash.Patterns.Holds_A_Pattern (Word);
+                  begin
+                     if not Expanding then
+                        Args.Append
+                          (Ada.Strings.Unbounded.To_Unbounded_String (Word));
+                        Ada.Strings.Unbounded.Append (Told, " " & Word);
+                     else
+                        declare
+                           Found : constant Natural :=
+                             Adash.Filesystem.Match_Count (Word);
+                        begin
+                           if Found = 0 then
+                              --  Two ways to name nothing, and they are not
+                              --  the same mistake: a pattern nobody meant, and
+                              --  a directory somebody else filled.
+                              if Adash.Filesystem.Match_Refused (Word) then
+                                 return Failed
+                                   (Adash.Errors.Error_Too_Many_Matches,
+                                    [M.Named ("pattern", Word),
+                                     M.Named
+                                       ("limit",
+                                        Trim
+                                          (Adash.Filesystem.Maximum_Matches))]);
+                              end if;
+
+                              return Failed
+                                (Adash.Errors.Error_No_Matching_Files,
+                                 [1 => M.Named ("pattern", Word)]);
+                           end if;
+
+                           for Match in 1 .. Found loop
+                              declare
+                                 Path : constant String :=
+                                   Adash.Filesystem.Match_At (Word, Match);
+                              begin
+                                 Args.Append
+                                   (Ada.Strings.Unbounded.To_Unbounded_String
+                                      (Path));
+                                 Ada.Strings.Unbounded.Append
+                                   (Told, " " & Path);
+                              end;
+                           end loop;
+                        end;
+                     end if;
+                  end;
                end loop;
 
                declare

@@ -456,6 +456,27 @@ package body Adash.Engine is
                   else "");
             end;
 
+         when Adash.Predefined.Entity_Match_Count =>
+            Answer := Adash.Language.Values.To_Value
+              (Integer (Adash.Filesystem.Match_Count (Text_At (1))));
+
+         when Adash.Predefined.Entity_Match_At =>
+            declare
+               Position : Integer := 0;
+            begin
+               if Count >= 2
+                 and then not Adash.Language.Values.Get
+                                (Arguments (2), Position)
+               then
+                  Position := 0;
+               end if;
+
+               Answer := Adash.Language.Values.To_Value
+                 (if Position >= 1
+                  then Adash.Filesystem.Match_At (Text_At (1), Position)
+                  else "");
+            end;
+
          when Adash.Predefined.Entity_Stage_Count =>
             Answer := Adash.Language.Values.To_Value
               (Integer (Sink.Shell.Stage_Statuses.Length));

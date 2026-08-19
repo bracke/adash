@@ -1871,6 +1871,59 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after completing a word");
    end Completion_Offers_What_A_User_Taught_It;
 
+   --  A script can ask the user a question at a terminal.
+   --
+   --  `Read_Line` reads the shell's own standard input, which at a prompt is
+   --  the terminal the line editor is reading. The two must not both take the
+   --  answer: what the user types after a submission that asks for a line
+   --  belongs to the script that asked, and only afterwards does the editor
+   --  have the terminal again.
+   --
+   --  Typed at a terminal rather than piped, because a pipe cannot tell the
+   --  two readers apart -- and it is the terminal where a user meets this. On
+   --  a host that watches its own terminal for Ctrl-C, the watching holds it
+   --  raw, and a raw terminal echoes nothing and ends a line with a carriage
+   --  return; the read hands the terminal back for its duration, and this is
+   --  what says the handing back works.
+   procedure A_Script_Can_Ask_A_Question
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Script_Can_Ask_A_Question
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into
+        (Session,
+         "put (""Name? ""); Who : String := Read_Line; "
+         & "put_line (""hello "" & Who);" & Return_Key);
+
+      --  Wait for the question before answering it: an answer typed while the
+      --  shell was still reading the submission would be part of the
+      --  submission, and the case would pass without the read ever happening.
+      Assert (Waited_For_Plainly (Session, "Name?", 400),
+              "the shell never asked the question: ["
+              & Plainly (Session) & "]");
+
+      Type_Into (Session, "Bent" & Return_Key);
+
+      Assert (Waited_For_Plainly (Session, "hello Bent", 400),
+              "what was typed did not reach the script that asked for it: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after answering a question");
+   end A_Script_Can_Ask_A_Question;
+
    --  A line interrupted at the prompt runs what `on_interrupt` asked for.
    --
    --  The script case beside this one covers a file; this covers the session,
@@ -3648,6 +3701,8 @@ package body Adash_Tests.Interactive_Cases is
                         "what a shell on a terminal says when given a script");
       Register_Routine (T, An_Interrupted_Script_Still_Tidies_Up'Access,
                         "a script interrupted still runs what it registered");
+      Register_Routine (T, A_Script_Can_Ask_A_Question'Access,
+         "a script can ask the user a question at a terminal");
       Register_Routine (T, An_Interrupted_Script_Runs_Its_Handler'Access,
                         "a script interrupted runs its handler, then its cleanup");
       Register_Routine (T, A_Job_Waited_For_Gets_The_Terminal'Access,

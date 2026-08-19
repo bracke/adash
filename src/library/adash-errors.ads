@@ -127,6 +127,17 @@ package Adash.Errors is
       --  the limit can be read back and seen.
       Error_Limit_Refused,
 
+      --  A pattern that names no file. Refused rather than passed along as a
+      --  word: `rm *.log` in a directory with no logs is how sh ends up asking
+      --  a program to remove a file called `*.log`, and a shell that expands
+      --  on purpose can afford to say so instead.
+      Error_No_Matching_Files,
+
+      --  A pattern naming more paths than one command may carry. Refused whole
+      --  rather than cut short, because a program run over the first few
+      --  thousand of five would do half a job and report that it had done it.
+      Error_Too_Many_Matches,
+
       --  A suspended job, where the caller wanted one that would end.
       Error_Job_Is_Suspended,
       Error_Cancelled,

@@ -16,6 +16,33 @@ what changed.
   form `NAME=VALUE`, which has exactly one exception, written down where the
   command is registered: a program whose own name contains an `=` must be run
   by `run` with the variables `set`.
+- **Pattern expansion**, which is the largest thing this shell did not have.
+  `run_matching ("rm", "-f", "*.log")` replaces every argument holding `*`, `?`
+  or `[` with the paths it names, sorted, and passes every other argument along
+  untouched — so a flag and a pattern stand side by side. `Match_Count` and
+  `Match_At` are the same expansion as a question, for a script that wants the
+  paths rather than a program run over them.
+
+  Expansion is asked for, never implicit. An argument in this language is a
+  string literal, and a shell that quietly turned one into several would be a
+  shell whose quoting rules somebody has to learn before they can name a file
+  with a star in it — so `run` still hands a program exactly what it was
+  written with, and there is a case saying so beside the one that says
+  `run_matching` does not.
+
+  A pattern that names nothing refuses the command rather than passing the
+  pattern on as a word. That is where `rm *.log` in a directory with no logs
+  becomes a program asked to remove a file called `*.log`, and a shell that
+  expands on purpose can afford to say so instead. A pattern naming more than
+  4096 paths is refused whole rather than cut short, and the two refusals are
+  told apart: one is a typing mistake, the other is a directory somebody else
+  filled.
+
+  Only the last segment of a pattern is matched — `build/*.o` looks in `build`
+  and the paths keep that directory — and a name beginning with a dot answers
+  only a pattern beginning with one, which is the rule every shell has.
+  `Adash.Patterns` now owns the matcher that `Matches` was already using, since
+  two copies of a matcher are two matchers that will one day disagree.
 - `resource_limit` and `resource_ceiling` — what the host will let this shell
   use, which every other shell exposes as `ulimit`. With no argument the first
   lists every limit; with a resource it shows the limit and the ceiling it may

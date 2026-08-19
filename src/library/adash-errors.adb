@@ -30,6 +30,8 @@ package body Adash.Errors is
             | Error_Process_Would_Not_Stop
             | Error_No_Creation_Mask
             | Error_Mask_Not_Octal
+            | Error_No_Matching_Files
+            | Error_Too_Many_Matches
             | Error_No_Resource_Limits
             | Error_Unknown_Resource
             | Error_Limit_Not_A_Number
@@ -200,6 +202,10 @@ package body Adash.Errors is
          when Error_Process_Would_Not_Stop => return Adash.Messages.Msg_Process_Would_Not_Stop;
          when Error_No_Creation_Mask       => return Adash.Messages.Msg_No_Creation_Mask;
          when Error_Mask_Not_Octal         => return Adash.Messages.Msg_Mask_Not_Octal;
+         when Error_No_Matching_Files      =>
+            return Adash.Messages.Msg_No_Matching_Files;
+         when Error_Too_Many_Matches       =>
+            return Adash.Messages.Msg_Too_Many_Matches;
          when Error_No_Resource_Limits     =>
             return Adash.Messages.Msg_No_Resource_Limits;
          when Error_Unknown_Resource       =>

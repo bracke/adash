@@ -85,6 +85,7 @@ package Adash.Commands is
       --  this language runs an external program, so without it `jobs` has
       --  nothing to list and the subsystem beneath it is unreachable.
       Command_Run,
+      Command_Run_Matching,
       Command_Run_Into,
       Command_Run_From,
       Command_Run_From_Text,
