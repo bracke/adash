@@ -322,6 +322,7 @@ en.job.state.completed = finished
 en.capability.signals = sending signals
 en.capability.job_control = job control
 en.capability.pseudo_terminal = pseudo-terminals
+en.capability.session_redirection = pointing this shell own streams at a file
 en.capability.becoming_a_program = replacing this program with another
 en.capability.advisory_locks = advisory file locks
 en.start.reason.host_refused = the host refused

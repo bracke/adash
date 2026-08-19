@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 584 messages in 22 groups.
+There are 585 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -588,6 +588,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `capability.signals` | sending signals |
 | `capability.job_control` | job control |
 | `capability.pseudo_terminal` | pseudo-terminals |
+| `capability.session_redirection` | pointing this shell own streams at a file |
 | `capability.becoming_a_program` | replacing this program with another |
 | `capability.advisory_locks` | advisory file locks |
 

@@ -104,11 +104,11 @@ reads as the empty string rather than failing.
 | `redirect_append (Stream : String; Path : String)` | 2 | the same, adding to the end of the file |
 | `redirect_back (Stream : String)` | 1 | puts a stream back where it was |
 
-`redirect` moves the shell's own stream on every host. On Linux and macOS the
-programs it starts write there too, which is the point of it; on Windows that
-half is not yet established — the first CI run of it put the shell's line in the
-file and the program's on the console — so a script that must log a program's
-output on that host should use `run_into` for now.
+`redirect` works on Linux and macOS, where `dup2` moves the descriptor every
+writer in the process already holds. **Windows refuses it**: `SetStdHandle`
+there changes what a new reader of the standard handles finds and leaves this
+program's own writes where they were, so the command would report success and
+move nothing. A script that must capture output on that host uses `run_into`.
 
 
 Expansion is the shell's, not the language's: nothing is expanded unless

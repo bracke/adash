@@ -28,11 +28,15 @@ what changed.
   assigned over standard output, nothing in the process remembers where it used
   to point.
 
-  The shell's own writing moves on every host. That the programs it starts
-  follow is asserted on Linux and macOS only: the first Windows run had the
-  shell's line in the file and the program's still on the console, and until
-  that is understood it is not a claim to make there. A script that must capture
-  a program's output on Windows uses `run_into`.
+  **Linux and macOS only, and Windows says so.** `dup2` there moves the
+  descriptor every writer in the process already holds; Windows offers
+  `SetStdHandle`, which changes what a *new* reader of the standard handles
+  finds and leaves this program's own writes where they were. A run proved it —
+  the shell's line came out on the console with the file empty — so the command
+  refuses on that host rather than reporting success and moving nothing, which
+  is the worst of the three possible behaviours. `run_into` is how a script
+  captures output there. hostkit's `Descriptors.Assign` now says the same thing
+  in its own specification.
 - **Columns without a format string.** `Left_Aligned`, `Right_Aligned`,
   `Zero_Padded` and `Decimals` do what `printf "%-20s %06.2f"` does, as calls the
   compiler type-checks. A format string is a second language inside the first —

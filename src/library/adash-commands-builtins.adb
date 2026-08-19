@@ -2136,6 +2136,21 @@ package body Adash.Commands.Builtins is
                end Point;
 
             begin
+               --  Asked first, because a host that cannot do this must say so
+               --  rather than report success and move nothing -- which is what
+               --  a Windows run showed: the shell's own line on the console
+               --  with the file it had been redirected to empty.
+               if not Adash.Platform.Is_Available
+                        (Adash.Platform.Capability_Session_Redirection)
+               then
+                  return Failed
+                    (Adash.Errors.Error_Capability_Unavailable,
+                     [1 => M.Named
+                             ("capability",
+                              Adash.Platform.Name
+                                (Adash.Platform.Capability_Session_Redirection))]);
+               end if;
+
                if not Wants_Output and then not Wants_Errors then
                   return Failed (Adash.Errors.Error_Unknown_Stream,
                                  [1 => M.Named ("stream", Named_As)]);

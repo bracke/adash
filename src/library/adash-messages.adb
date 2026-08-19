@@ -760,6 +760,8 @@ package body Adash.Messages is
          when Msg_Capability_Advisory_Locks => return "capability.advisory_locks";
          when Msg_Capability_Becoming_A_Program =>
             return "capability.becoming_a_program";
+         when Msg_Capability_Session_Redirection =>
+            return "capability.session_redirection";
          when Msg_Start_Reason_Host_Refused => return "start.reason.host_refused";
          when Msg_Start_Reason_Stream_Setup => return "start.reason.stream_setup";
          when Msg_Completion_Keyword         => return "completion.keyword";
@@ -863,6 +865,7 @@ package body Adash.Messages is
             | Msg_Capability_Pseudo_Terminal
             | Msg_Capability_Advisory_Locks
             | Msg_Capability_Becoming_A_Program
+            | Msg_Capability_Session_Redirection
             | Msg_Start_Reason_Host_Refused
             | Msg_Start_Reason_Stream_Setup
 

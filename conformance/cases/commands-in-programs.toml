@@ -1022,16 +1022,17 @@ Asserted by looking for the text in the file rather than by matching the file
 line for line: what a `put_line` leaves at the end of a file is a host's line
 ending, and this case is not about those.
 
-This is the shell's own writing, which moves on every host. Whether the programs
-it starts follow it there is the case below, which is asserted on two hosts: the
-first Windows run of this had the shell's line in the file and the program's on
-the console, and until that is understood it is not something to claim on that
-host.
+On the two hosts that have it. Windows refuses the command outright -- see the
+case gated to it -- because SetStdHandle there changes what a new reader of the
+standard handles finds and leaves this program's own writes where they were: a
+shell that called it would report success and move nothing, which is worse than
+saying it cannot.
 """
 script = "cd (\"{store}\"); redirect (\"both\", \"session.log\"); put_line (To_Upper (\"the shell\")); redirect_back (\"both\"); put_line (Index (Read_File (\"session.log\"), \"THE SHELL\") > 0);\nquit (0);"
 exit_status = 0
 output = ["TRUE"]
 diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "redirection.a-program-writes-where-the-session-was-sent"
@@ -1041,12 +1042,7 @@ output goes, because it is the process's stream that moved -- which is the
 difference between this and `run_into`, and the reason one line at the top of a
 script can log everything it does.
 
-Asserted on the two hosts where it is known to hold. On Windows the first run of
-this found the shell's line in the file and the program's still on the console,
-which is either how the child's handles are chosen there or how the assignment
-reaches them; the shell behaves identically on all three and the difference is
-below it. Named here rather than gated quietly, because a reader of this file
-should know the claim stops at two hosts and why.
+On the two hosts that have it, for the reason the case above gives.
 """
 script = "cd (\"{store}\"); redirect (\"output\", \"program.log\"); run (\"{emit}\", \"the program\"); redirect_back (\"output\"); put_line (Index (Read_File (\"program.log\"), \"the program\") > 0);\nquit (0);"
 exit_status = 0
@@ -1086,3 +1082,21 @@ script = "put_line (\"[\" & Left_Aligned (\"name\", 8) & \"|\" & Right_Aligned (
 exit_status = 0
 output = ["[name    |   7]", "007 12345", "3.14 2 []"]
 diagnostics = []
+
+[[case]]
+id = "redirection.a-host-that-cannot-move-a-stream-says-so"
+requirement = """
+Windows refuses `redirect`. Its SetStdHandle changes what a *new* reader of the
+standard handles finds; it does not move where this program's own writes go, and
+a run of the earlier version of this feature proved it -- the shell's line came
+out on the console with the file it had been redirected to empty.
+
+A command that reports success and moves nothing is the worst of the three
+possible behaviours, so this says which capability is missing. `run_into` is how
+a script captures a program's output on that host.
+"""
+script = "redirect (\"output\", \"nowhere.log\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.capability_unavailable{capability=SESSION_REDIRECTION}!"]
+platforms = ["windows"]
