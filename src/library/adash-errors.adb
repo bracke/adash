@@ -31,6 +31,7 @@ package body Adash.Errors is
             | Error_No_Creation_Mask
             | Error_Mask_Not_Octal
             | Error_No_Matching_Files
+            | Error_No_Previous_Directory
             | Error_Unknown_Signal
             | Error_Signal_Not_Catchable
             | Error_Signal_Refused
@@ -205,6 +206,8 @@ package body Adash.Errors is
          when Error_Process_Would_Not_Stop => return Adash.Messages.Msg_Process_Would_Not_Stop;
          when Error_No_Creation_Mask       => return Adash.Messages.Msg_No_Creation_Mask;
          when Error_Mask_Not_Octal         => return Adash.Messages.Msg_Mask_Not_Octal;
+         when Error_No_Previous_Directory  =>
+            return Adash.Messages.Msg_No_Previous_Directory;
          when Error_No_Matching_Files      =>
             return Adash.Messages.Msg_No_Matching_Files;
          when Error_Unknown_Signal         =>

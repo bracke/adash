@@ -350,6 +350,25 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Current_Directory_Hint,
        Status => Available),
 
+      (Id => Entity_Previous_Directory, Name => Named ("Previous_Directory"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 0,
+       Parameters => No_Parameters, Optional_Parameters => 0,
+       Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Previous_Directory_Doc,
+       Description => Adash.Messages.Msg_Predefined_Previous_Directory_Hint,
+       Status => Available),
+
+      (Id => Entity_Job_Process, Name => Named ("Job_Process"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_Integer, Parameter_Count => 1,
+       Parameters => [1 => (Named ("Job"), Types.Type_Integer),
+                      others => (Named (""), Types.Type_None)],
+       Optional_Parameters => 0, Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Job_Process_Doc,
+       Description => Adash.Messages.Msg_Predefined_Job_Process_Hint,
+       Status => Available),
+
       --  What is in a directory, which nothing here could see before.
       --
       --  Two functions rather than one that answers with a list: a String and

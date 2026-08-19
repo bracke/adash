@@ -234,6 +234,20 @@ package body Adash.Execution.Jobs is
       return P.Group (Item.Jobs.Element (Index).Pipeline);
    end Group;
 
+   -------------
+   -- Process --
+   -------------
+
+   function Process (Item : Table; Id : Job_Id) return Integer is
+      Index : constant Natural := Find (Item, Id);
+   begin
+      if Index = 0 then
+         return 0;
+      end if;
+
+      return P.Leading_Process (Item.Jobs.Element (Index).Pipeline);
+   end Process;
+
    ------------
    -- Result --
    ------------

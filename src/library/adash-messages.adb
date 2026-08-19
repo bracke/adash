@@ -304,6 +304,8 @@ package body Adash.Messages is
          when Msg_No_Creation_Mask           => return "error.no_creation_mask";
          when Msg_Mask_Not_Octal             => return "error.mask_not_octal";
          when Msg_No_Matching_Files          => return "error.no_matching_files";
+         when Msg_No_Previous_Directory      =>
+            return "error.no_previous_directory";
          when Msg_Unknown_Signal             => return "error.unknown_signal";
          when Msg_Signal_Not_Catchable       => return "error.signal_not_catchable";
          when Msg_Signal_Refused             => return "error.signal_refused";
@@ -465,6 +467,10 @@ package body Adash.Messages is
             return "predefined.file_count.doc";
          when Msg_Predefined_File_At_Doc =>
             return "predefined.file_at.doc";
+         when Msg_Predefined_Previous_Directory_Doc =>
+            return "predefined.previous_directory.doc";
+         when Msg_Predefined_Job_Process_Doc =>
+            return "predefined.job_process.doc";
          when Msg_Predefined_Match_Count_Doc =>
             return "predefined.match_count.doc";
          when Msg_Predefined_Match_At_Doc =>
@@ -481,6 +487,10 @@ package body Adash.Messages is
             return "predefined.file_count.hint";
          when Msg_Predefined_File_At_Hint =>
             return "predefined.file_at.hint";
+         when Msg_Predefined_Previous_Directory_Hint =>
+            return "predefined.previous_directory.hint";
+         when Msg_Predefined_Job_Process_Hint =>
+            return "predefined.job_process.hint";
          when Msg_Predefined_Match_Count_Hint =>
             return "predefined.match_count.hint";
          when Msg_Predefined_Match_At_Hint =>
@@ -974,6 +984,9 @@ package body Adash.Messages is
             | Msg_Predefined_Current_Directory_Hint
             | Msg_Predefined_File_Count_Doc | Msg_Predefined_File_Count_Hint
             | Msg_Predefined_File_At_Doc | Msg_Predefined_File_At_Hint
+            | Msg_Predefined_Previous_Directory_Doc
+            | Msg_Predefined_Previous_Directory_Hint
+            | Msg_Predefined_Job_Process_Doc | Msg_Predefined_Job_Process_Hint
             | Msg_Predefined_Match_Count_Doc | Msg_Predefined_Match_Count_Hint
             | Msg_Predefined_Match_At_Doc | Msg_Predefined_Match_At_Hint
             | Msg_Predefined_Program_Path_Doc
@@ -1414,6 +1427,9 @@ package body Adash.Messages is
 
          when Msg_No_Matching_Files =>
             return [1 => N ("pattern")];
+
+         when Msg_No_Previous_Directory =>
+            return No_Placeholders;
 
          when Msg_Unknown_Signal | Msg_Signal_Not_Catchable =>
             return [1 => N ("signal")];

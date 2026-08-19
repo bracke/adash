@@ -26,6 +26,12 @@ registry in `Adash.Commands` declares. `help;` lists them at the prompt and
 | Command | Takes | Does |
 |---|---|---|
 | `cd (Directory : String)` | 0 .. 1 | changes the directory; with no argument, goes to the home directory |
+
+With no argument `cd` goes home; `cd ("-")` goes back to where the last `cd`
+came from, and says so rather than guessing when the session has not moved yet.
+A directory actually named `-` is reachable as `./-`, which is how the other
+shells reach it too.
+
 | `pwd` | 0 | reports the directory the shell is in |
 | `quit (Status : Integer)` | 0 .. 1 | ends the session, with a status if one is given |
 | `version` | 0 | reports which build this is |

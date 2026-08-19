@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 559 messages in 22 groups.
+There are 564 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -123,6 +123,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.unknown_signal` | no signal here is called {signal}; the names are the host's own in lower case |
 | `error.signal_not_catchable` | {signal} cannot be caught: kill and stop are refused by every host by design, and this host may report fewer still |
 | `error.signal_refused` | this host would not send {signal} to process {process}: it may have ended already, or it may not be yours to signal |
+| `error.no_previous_directory` | there is nowhere to go back to: this session has not changed directory yet |
 | `error.no_matching_files` | nothing is called {pattern} here, and a pattern that names nothing is not passed along as a word |
 | `error.too_many_matches` | {pattern} names more than {limit} paths, which is more than one command carries; name fewer, or loop over Match_At |
 | `error.no_creation_mask` | this host has no creation mask: permissions here come from the directory a file is made in, not from a per-process mask |
@@ -370,6 +371,10 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.file_count.hint` | how many names a directory holds |
 | `predefined.file_at.doc` | File_At (DIRECTORY, POSITION) is one of the names in a directory, sorted, counting from one. |
 | `predefined.file_at.hint` | one name in a directory |
+| `predefined.previous_directory.doc` | Previous_Directory is where the shell was before the last cd, which is where cd ("-") goes back to. Empty in a session that has not moved. |
+| `predefined.previous_directory.hint` | where the last cd came from |
+| `predefined.job_process.doc` | Job_Process (JOB) is the process id of a job this session started, for handing to a program or to signal_process. Zero for a job that is not there, one that has been reaped, or a host with no process ids. |
+| `predefined.job_process.hint` | the process id of a job |
 | `predefined.match_count.doc` | Match_Count (PATTERN) is how many paths a pattern names, with * ? and [class] in the last segment. Nothing is expanded unless a script asks for it. |
 | `predefined.match_count.hint` | how many paths a pattern names |
 | `predefined.match_at.doc` | Match_At (PATTERN, POSITION) is one of the paths a pattern names, sorted, counting from one. |

@@ -192,6 +192,36 @@ package body Adash.Engine is
             Answer := Adash.Language.Values.To_Value
               (Integer (Adash.Execution.Jobs.Most_Recent (Sink.Shell.Jobs)));
 
+         when Adash.Predefined.Entity_Job_Process =>
+            declare
+               Which : Integer := 0;
+            begin
+               if Count >= 1
+                 and then not Adash.Language.Values.Get (Arguments (1), Which)
+               then
+                  Which := 0;
+               end if;
+
+               --  Zero for a job nobody has: a question about a job that ended
+               --  and was reaped is a question with no answer, and answering
+               --  with somebody else's process id is the one wrong thing this
+               --  could do.
+               Answer := Adash.Language.Values.To_Value
+                 (if Which >= 1
+                  then Adash.Execution.Jobs.Process
+                         (Sink.Shell.Jobs,
+                          Adash.Execution.Jobs.Job_Id (Which))
+                  else 0);
+            end;
+
+         when Adash.Predefined.Entity_Previous_Directory =>
+            --  Where `cd ("-")` would go, which a script may want to keep
+            --  rather than move to.
+            Answer := Adash.Language.Values.To_Value
+              (if Sink.Shell.Previous_Directory.Is_Empty then ""
+               else Ada.Strings.Unbounded.To_String
+                      (Sink.Shell.Previous_Directory.First_Element));
+
          when Adash.Predefined.Entity_Output_Of
             | Adash.Predefined.Entity_Error_Of
             | Adash.Predefined.Entity_All_Of

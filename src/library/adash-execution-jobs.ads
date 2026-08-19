@@ -151,6 +151,12 @@ package Adash.Execution.Jobs is
    --  @return Its process group, or -1 where the host has none.
    function Group (Item : Table; Id : Job_Id) return Integer;
 
+   --  @param Item Table to inspect.
+   --  @param Id Job to ask about.
+   --  @return The process id leading it, or zero for a job this table does not
+   --          have and for a host with no process ids.
+   function Process (Item : Table; Id : Job_Id) return Integer;
+
    --  What became of a job. Meaningful once its state is Job_Completed.
    --
    --  @param Item Table to inspect.

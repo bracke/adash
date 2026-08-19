@@ -471,6 +471,15 @@ package Adash.Commands is
       --  reports.
       Interrupt_Handlers : Hostkit.String_Vectors.Vector;
 
+      --  Where the last `cd` came from, for `cd ("-")`.
+      --
+      --  Kept here rather than in an environment variable: OLDPWD is a
+      --  convention other shells export, and a variable a child can set is a
+      --  variable that can lie about where this shell has been. A vector
+      --  because this package's visible part has no unbounded string of its
+      --  own: empty means the session has not moved yet.
+      Previous_Directory : Hostkit.String_Vectors.Vector;
+
       --  What `on_signal` asked for: pairs of a signal's name and the
       --  subprogram to run when it arrives, one after the other.
       --

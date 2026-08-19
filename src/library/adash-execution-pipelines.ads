@@ -79,6 +79,19 @@ package Adash.Execution.Pipelines is
    --  @return Its process group.
    function Group (Item : Running) return Integer;
 
+   --  The process id of the stage that leads a running pipeline.
+   --
+   --  The first stage, which is the one a user means by "the process": in
+   --  `a | b` it is `a`, the one that was started first and the one whose name
+   --  the job is listed under. What ends a whole pipeline is its group, and
+   --  `stop` is the command that does that -- this is for handing a number to
+   --  a program that wants one.
+   --
+   --  @param Item The running pipeline.
+   --  @return The process id, or zero where the host has none and for a
+   --          pipeline with no stages.
+   function Leading_Process (Item : Running) return Integer;
+
    --  What became of every stage, in order.
    package Status_Vectors is new Ada.Containers.Vectors
      (Index_Type   => Positive,

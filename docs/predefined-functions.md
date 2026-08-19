@@ -119,10 +119,12 @@ either way.
 | `Is_Executable (Path)` | `Boolean` | whether it could be run |
 | `Read_File (Path : String) return String` | what the file holds, or nothing when there is no such file |
 | `Current_Directory` | `String` | where the session is, which `cd` moves |
+| `Previous_Directory` | `String` | where the last `cd` came from, which is where `cd ("-")` goes back to; empty in a session that has not moved |
 | `File_Count (Directory)` | `Integer` | how many names a directory holds |
 | `File_At (Directory; Position)` | `String` | one of them, sorted, counting from one |
 | `Match_Count (Pattern)` | `Integer` | how many paths a pattern names: `*`, `?` and `[class]` in the last segment, sorted, dot files only when the pattern starts with a dot |
 | `Match_At (Pattern, Position)` | `String` | one of them, counting from one, with the pattern's own directory part still on it |
+| `Job_Process (Job)` | `Integer` | the process id of a job this session started, for handing to a program or to `signal_process`; zero for a job that is not there or has been reaped |
 | `Program_Path (Program)` | `String` | where the host would find that program, or nothing |
 
 A path nobody can reach — no such directory, nothing named at all — is not a

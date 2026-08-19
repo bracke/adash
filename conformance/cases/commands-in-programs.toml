@@ -819,3 +819,64 @@ script = "put_line (Exists (\"~adash-no-such-account-anywhere\")'Image);\nquit (
 exit_status = 0
 output = ["FALSE"]
 diagnostics = []
+
+[[case]]
+id = "paths.cd-goes-back-to-where-it-was"
+requirement = """
+`cd ("-")` goes back to where the last `cd` came from, which is what the dash
+means in every other shell -- and twice in a row returns to where it started,
+because going back is itself a move.
+
+A directory actually named `-` is reachable as `./-`, which is how the other
+shells reach it too.
+"""
+script = "cd (\"{store}\"); Started : String := Current_Directory; cd (\"{root}\"); cd (\"-\"); put_line (Current_Directory = Started); cd (\"-\"); put_line (Current_Directory = Started);\nquit (0);"
+exit_status = 0
+output = ["TRUE", "FALSE"]
+diagnostics = []
+
+[[case]]
+id = "paths.going-back-with-nowhere-to-go-is-refused"
+requirement = """
+A session that has not moved has nowhere to go back to, and says so. Treating it
+as the home directory -- which is what a shell that guessed would do -- would
+take somebody somewhere they had never been and call it going back.
+"""
+script = "cd (\"-\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.no_previous_directory!"]
+
+[[case]]
+id = "paths.previous-directory-is-a-question-a-script-can-ask"
+requirement = """
+The same value as a question, for a script that wants to remember where it was
+rather than go there: `Previous_Directory` is what `cd ("-")` would use, and is
+empty in a session that has not moved.
+"""
+script = "put_line (\"[\" & Previous_Directory & \"]\"); cd (\"{store}\"); Left : String := Current_Directory; cd (\"{root}\"); put_line (Previous_Directory = Left);\nquit (0);"
+exit_status = 0
+output = ["[]", "TRUE"]
+diagnostics = []
+
+[[case]]
+id = "jobs.a-job-has-a-process-id"
+requirement = """
+A job this session started has a process id, which is what a script needs to
+hand a number to another program -- or to `signal_process`, which until now
+could be aimed at every process on the machine except the ones this shell had
+started itself.
+
+Zero for a job nobody has. Answering with somebody else's process id is the one
+wrong thing this could do, so a question about a job that is not there has no
+answer rather than a plausible one.
+"""
+script = "start (\"{emit}\", \"--sleep=30\"); Id : Integer := Last_Job; put_line (Job_Process (Id) > 0); put_line (Job_Process (9999) = 0); stop (Id); wait (Id);\nquit (0);"
+exit_status = 0
+output = [
+  "!line.job_started{id=1,what={emit} --sleep=30}!",
+  "TRUE",
+  "TRUE",
+  "!line.job_signalled{id=1,signal=!signal.terminate!}!",
+]
+diagnostics = []

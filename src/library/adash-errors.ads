@@ -154,6 +154,11 @@ package Adash.Errors is
       --  this -- guessing between "gone" and "not yours" would be a claim.
       Error_Signal_Refused,
 
+      --  `cd ("-")` in a session that has not moved yet. Said rather than
+      --  treated as the home directory: a shell that guessed would take
+      --  somebody somewhere they had never been and call it going back.
+      Error_No_Previous_Directory,
+
       --  A suspended job, where the caller wanted one that would end.
       Error_Job_Is_Suspended,
       Error_Cancelled,

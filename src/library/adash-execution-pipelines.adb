@@ -75,6 +75,19 @@ package body Adash.Execution.Pipelines is
       return Item.Group;
    end Group;
 
+   ---------------------------
+   -- Leading_Process --
+   ---------------------------
+
+   function Leading_Process (Item : Running) return Integer is
+   begin
+      if Item.States.Is_Empty then
+         return 0;
+      end if;
+
+      return Hostkit.Spawn.Process_Id (Item.States.First_Element.Process);
+   end Leading_Process;
+
    -----------
    -- Start --
    -----------

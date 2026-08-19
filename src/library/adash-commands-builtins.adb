@@ -69,6 +69,20 @@ package body Adash.Commands.Builtins is
    function Is_An_Assignment (Text : String) return Boolean
    is (Assignment_Split (Text) > 0);
 
+   --  Where the shell is, or "" for a directory that has been taken away
+   --  under it. Asked before a move, so that `cd ("-")` has somewhere to go
+   --  back to -- and a shell whose directory was deleted still moves rather
+   --  than raising on the way.
+   function Where_We_Are return String;
+
+   function Where_We_Are return String is
+   begin
+      return Ada.Directories.Current_Directory;
+   exception
+      when others =>
+         return "";
+   end Where_We_Are;
+
    --  The same text in lower case, for names a host spells in capitals.
    function Lowered (Text : String) return String;
 
@@ -389,13 +403,39 @@ package body Adash.Commands.Builtins is
 
          when Command_Change_Directory =>
             declare
+               Asked : constant String :=
+                 (if Given = 0 then "" else Argument (Arguments, 1));
+
+               --  Where this shell was before the last time it moved.
+               Back : constant String :=
+                 (if Shell.Previous_Directory.Is_Empty then ""
+                  else Ada.Strings.Unbounded.To_String
+                         (Shell.Previous_Directory.First_Element));
+
                --  With no argument, the home directory -- asked of hostkit,
                --  which knows where a host keeps one, rather than read from
                --  HOME, which a spawned process can set to anything.
+               --
+               --  `-` is where the shell was, which is what every other shell
+               --  means by it. A directory actually called `-` is reachable as
+               --  `./-`, which is how the other shells reach it too.
                Target : constant String :=
                  (if Given = 0 then Hostkit.Fs.Home_Directory
-                  else Adash.Filesystem.Expanded (Argument (Arguments, 1)));
+                  elsif Asked = "-" then Back
+                  else Adash.Filesystem.Expanded (Asked));
+
+               --  Read before the move, because after it this is the answer
+               --  rather than the question.
+               Leaving : constant String := Where_We_Are;
             begin
+               if Asked = "-" and then Back = "" then
+                  --  Nothing to go back to: this session has not moved yet.
+                  --  Said rather than treated as the home directory, which is
+                  --  what a shell that guessed would do.
+                  return Failed (Adash.Errors.Error_No_Previous_Directory,
+                                 M.No_Arguments);
+               end if;
+
                if Target = "" then
                   return Failed (Adash.Errors.Error_Directory_Not_Found,
                                  [1 => M.Named ("path", Target)]);
@@ -405,6 +445,13 @@ package body Adash.Commands.Builtins is
                   --  The process's own directory, so there is one answer and a
                   --  child inherits the real one without being told.
                   Ada.Directories.Set_Directory (Target);
+
+                  --  Remembered only when the move happened: a `cd` that was
+                  --  refused has not moved anywhere, and recording it would
+                  --  make the next `cd ("-")` go somewhere nobody had been.
+                  Shell.Previous_Directory.Clear;
+                  Shell.Previous_Directory.Append
+                    (Ada.Strings.Unbounded.To_Unbounded_String (Leaving));
                exception
                   when Ada.IO_Exceptions.Name_Error =>
                      return Failed (Adash.Errors.Error_Directory_Not_Found,

@@ -16,6 +16,21 @@ what changed.
   form `NAME=VALUE`, which has exactly one exception, written down where the
   command is registered: a program whose own name contains an `=` must be run
   by `run` with the variables `set`.
+- **`cd ("-")` goes back to where the last `cd` came from**, and twice in a row
+  returns to where it started, because going back is itself a move. A session
+  that has not moved says so rather than treating the dash as the home
+  directory, which would take somebody somewhere they had never been and call it
+  going back. The value is readable as `Previous_Directory` for a script that
+  wants to remember where it was rather than go there. Kept in the shell rather
+  than exported as `OLDPWD`: a variable a child can set is a variable that can
+  lie about where this shell has been.
+- **A job has a process id.** `Job_Process (Last_Job)` is the number, which is
+  what a script needs to hand a job to another program — or to `signal_process`,
+  which until now could be aimed at every process on the machine except the ones
+  this shell had started itself. The first stage of a pipeline, which is the one
+  a job is listed under; `stop` remains how a whole pipeline is ended. Zero for
+  a job that is not there or has been reaped, because answering with somebody
+  else's process id is the one wrong thing it could do.
 - **`~other` is that user's home directory**, asked of the host's user database
   through the new `Hostkit.Fs.Home_Directory_Of`. A name the host does not know
   — and every name on Windows, where a profile folder belongs to whoever is
