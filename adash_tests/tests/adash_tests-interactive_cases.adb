@@ -1871,6 +1871,85 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after completing a word");
    end Completion_Offers_What_A_User_Taught_It;
 
+   --  Ctrl-R finds a line in the history and runs it.
+   --
+   --  A substring rather than a prefix, which is the difference between this
+   --  and the up key: a user searching their history remembers a word in the
+   --  middle of a line, not how it began. The match goes into the line being
+   --  edited, so Enter runs it and any other key starts editing it.
+   --
+   --  Waited for by what the line prints rather than by the line itself: a
+   --  terminal echoes what is typed, so the text of a submission is in the
+   --  transcript before the shell has run anything.
+   procedure A_Search_Finds_A_Line_And_Runs_It
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Search_Finds_A_Line_And_Runs_It
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+      Search_Key : constant String := [1 => Character'Val (18)];
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""needle in here""));" & Return_Key);
+      Assert (Waited_For_Plainly (Session, "NEEDLE IN HERE", 400),
+              "the first line never ran: [" & Plainly (Session) & "]");
+
+      Type_Into
+        (Session, "put_line (To_Upper (""something else""));" & Return_Key);
+      Assert (Waited_For_Plainly (Session, "SOMETHING ELSE", 400),
+              "the second line never ran: [" & Plainly (Session) & "]");
+
+      --  Search back for a word from the middle of the first line.
+      Type_Into (Session, Search_Key);
+      Type_Into (Session, "needle in");
+
+      --  The search says what it is searching for where the prompt was, which
+      --  is the evidence that the key arrived at all -- and a failure here
+      --  tells that apart from a search that ran and found nothing.
+      Assert (Waited_For_Plainly (Session, "search back for", 400),
+              "Ctrl-R did not start a search: [" & Plainly (Session) & "]");
+
+      Type_Into (Session, Return_Key);
+
+      --  Twice now: once when it was typed, once when the search ran it. Both
+      --  are the same text, so this waits for the count rather than for the
+      --  text -- which is also why the wait is written out rather than done
+      --  with Waited_For_Plainly, whose first match is already there.
+      declare
+         Ran_Again : Boolean := False;
+      begin
+         for Attempt in 1 .. 400 loop
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               Ran_Again := Times_Seen (Session, "NEEDLE IN HERE") >= 2;
+            end;
+
+            exit when Ran_Again;
+            delay 0.05;
+         end loop;
+
+         Assert (Ran_Again,
+                 "the search did not run what it found: ["
+                 & Plainly (Session) & "]");
+      end;
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after a search");
+   end A_Search_Finds_A_Line_And_Runs_It;
+
    --  A script can ask the user a question at a terminal.
    --
    --  `Read_Line` reads the shell's own standard input, which at a prompt is
@@ -3703,6 +3782,8 @@ package body Adash_Tests.Interactive_Cases is
                         "what a shell on a terminal says when given a script");
       Register_Routine (T, An_Interrupted_Script_Still_Tidies_Up'Access,
                         "a script interrupted still runs what it registered");
+      Register_Routine (T, A_Search_Finds_A_Line_And_Runs_It'Access,
+         "a reverse search finds a line in the history and runs it");
       Register_Routine (T, A_Script_Can_Ask_A_Question'Access,
          "a script can ask the user a question at a terminal");
       Register_Routine (T, An_Interrupted_Script_Runs_Its_Handler'Access,

@@ -1152,6 +1152,13 @@ package body Adash.Interactive.Session is
                  --  What a user taught Tab, asked through the engine because
                  --  answering means running their subprogram.
                  Ask_Caller   => Knowing'Unchecked_Access,
+
+                 --  What a reverse search shows in place of the prompt. From
+                 --  the catalog here rather than inside the editor, which
+                 --  renders no messages of its own.
+                 Search_Label => Catalog.Text (Adash.Messages.Msg_Line_Search),
+                 Search_Empty =>
+                   Catalog.Text (Adash.Messages.Msg_Line_Search_Empty),
                  Into         => Typed,
                  Last         => Last);
 

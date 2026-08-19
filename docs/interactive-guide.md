@@ -98,6 +98,13 @@ recalled is the whole submission, including a multi-line one: the history file
 holds each as one JSON string, so a submission written across three lines comes
 back as three lines rather than as a fragment.
 
+**Ctrl-R** searches backwards for a line *holding* what you type, which is the
+difference between it and the up key: you remember a word from the middle of a
+line, not how it began. What is being searched for replaces the prompt while the
+search runs, and the match is the line being edited -- so Enter runs it, any
+other key starts editing it, and Ctrl-C gives up on the search and hands back
+what you had been typing. Another Ctrl-R walks to the match before that one.
+
 `history;` lists it. In a session with no log — a script — the command says it
 has nothing to report, which is a different thing from a missing feature.
 

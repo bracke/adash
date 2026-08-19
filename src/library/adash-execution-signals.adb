@@ -2,7 +2,6 @@ with Ada.Calendar;
 with Ada.Characters.Latin_1;
 with Ada.Streams;
 
-with Hostkit.Signals;
 with Hostkit.Terminal_Control;
 
 with Adash.Execution.Streams;

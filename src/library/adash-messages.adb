@@ -668,6 +668,8 @@ package body Adash.Messages is
          when Msg_Line_Job_Started           => return "line.job_started";
          when Msg_Line_Took                  => return "line.took";
          when Msg_Line_Creation_Mask         => return "line.creation_mask";
+         when Msg_Line_Search                => return "line.search";
+         when Msg_Line_Search_Empty          => return "line.search_empty";
          when Msg_Line_Limit                 => return "line.limit";
          when Msg_Line_Limit_Unbounded       => return "line.limit_unbounded";
          when Msg_Line_Limit_Ceiling         => return "line.limit_ceiling";
@@ -1086,6 +1088,9 @@ package body Adash.Messages is
 
          when Msg_Line_Creation_Mask =>
             return [1 => N ("mask")];
+
+         when Msg_Line_Search | Msg_Line_Search_Empty =>
+            return No_Placeholders;
 
          when Msg_Line_Limit | Msg_Line_Limit_Ceiling =>
             return [N ("resource"), N ("value")];

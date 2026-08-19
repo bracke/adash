@@ -39,10 +39,12 @@ package Adash.Filesystem is
    --  is somebody who made a file whose name begins with `~` -- who can write
    --  `./~` and get it.
    --
-   --  Only a leading `~` that stands alone or is followed by a separator.
-   --  `~other` is somebody else's home directory, which needs a lookup this
-   --  library does not have, so it is left exactly as it was rather than
-   --  guessed at -- and a path that was meant to be literal survives.
+   --  `~other` is somebody else's home directory, which the host's user
+   --  database answers and nothing else can. A host that will not say -- and
+   --  Windows will not, for any account but the one logged in -- leaves the
+   --  path exactly as it was, so a path that was meant to be literal survives
+   --  and one that meant a user fails as a path that is not there rather than
+   --  as the wrong directory.
    --
    --  Asked of the host rather than read from HOME, which a spawned process
    --  can set to anything. A host with no home directory to name leaves the
@@ -210,9 +212,14 @@ package Adash.Filesystem is
    --
    --  The pattern may carry a directory: `build/*.o` looks in `build`, and the
    --  paths answered carry that directory too, so what comes back can be
-   --  handed to a program as it is. Only the last segment is a pattern -- a
-   --  star in the directory part matches a directory called `*`, and a
-   --  pattern that walked a tree is a different feature with a different cost.
+   --  handed to a program as it is. Every segment is matched, so `src/*/*.ads`
+   --  means what it says, and `**` stands for any run of directories including
+   --  none -- `logs/**/*.log` finds what is directly in `logs` as well as what
+   --  is under it, and `logs/**` names the directories themselves.
+   --
+   --  A walk never goes through a symbolic link and never deeper than 64
+   --  levels. A link that points at its own parent is a walk with no end, and
+   --  no shell follows one for this.
    --
    --  A name beginning with a dot is passed over unless the pattern begins
    --  with one, which is the rule every shell has: `*` is not how anybody asks

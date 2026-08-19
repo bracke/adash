@@ -16,6 +16,27 @@ what changed.
   form `NAME=VALUE`, which has exactly one exception, written down where the
   command is registered: a program whose own name contains an `=` must be run
   by `run` with the variables `set`.
+- **`~other` is that user's home directory**, asked of the host's user database
+  through the new `Hostkit.Fs.Home_Directory_Of`. A name the host does not know
+  — and every name on Windows, where a profile folder belongs to whoever is
+  logged in — leaves the path exactly as it was written, so a path that meant
+  itself survives and one that meant a user fails as a path that is not there
+  rather than as the wrong directory.
+- **`**` walks a tree.** `logs/**/*.log` finds what is directly in `logs` as
+  well as what is under it, because `**` stands for any run of directories
+  *including none* — one pattern rather than two, since a user who has to write
+  both has to remember which found what. `logs/**` names the directories
+  themselves. Every segment is matched now, so `src/*/*.ads` means what it says,
+  while a single `*` still stops at a separator. A walk never goes through a
+  symbolic link — one pointing at its own parent is a walk with no end — and
+  never deeper than sixty-four levels.
+- **Ctrl-R searches the history.** Backwards, for a line *holding* what you
+  type, which is the difference between it and the up key: you remember a word
+  from the middle of a line, not how it began. What is being searched for
+  replaces the prompt while the search runs, and the match is the line being
+  edited — so Enter runs it, any other key starts editing it, another Ctrl-R
+  walks to the match before that one, and Ctrl-C gives up on the search and
+  hands back what you had been typing rather than abandoning the line.
 - **A leading `~` is your home directory**, everywhere the shell resolves a path:
   `cd ("~/src")`, `read_file ("~/notes.txt")`, `run_into ("~/log.txt", ...)`,
   `source ("~/setup.adash")`, the listings and the pattern expansion. This is the

@@ -37,14 +37,36 @@ package body Adash.Filesystem is
          return Path;
       end if;
 
-      --  `~other` is somebody else's home, which needs a lookup this library
-      --  does not have. Left as it was rather than guessed at: a path that
-      --  meant itself survives, and one that meant a user fails as a path that
-      --  is not there rather than as the wrong directory.
+      --  `~other` is somebody else's home, and the host's user database is the
+      --  only thing that knows where it is. A host that will not say -- and
+      --  Windows will not, for any account but the one logged in -- leaves the
+      --  text alone, so a path that meant itself survives and one that meant a
+      --  user fails as a path that is not there rather than as the wrong
+      --  directory.
       if Path'Length > 1
         and then Path (Path'First + 1) not in '/' | '\'
       then
-         return Path;
+         declare
+            Ends : Natural := Path'Last;
+         begin
+            for Index in Path'First + 1 .. Path'Last loop
+               if Path (Index) in '/' | '\' then
+                  Ends := Index - 1;
+                  exit;
+               end if;
+            end loop;
+
+            declare
+               Who   : constant String := Path (Path'First + 1 .. Ends);
+               Where : constant String := Hostkit.Fs.Home_Directory_Of (Who);
+            begin
+               if Where = "" then
+                  return Path;
+               end if;
+
+               return Where & Path (Ends + 1 .. Path'Last);
+            end;
+         end;
       end if;
 
       --  A host that will not name a home directory leaves the path alone,
@@ -417,25 +439,6 @@ package body Adash.Filesystem is
    -- Match_Count --
    ---------------------
 
-   --  Where a pattern's directory part ends, or zero when it has none.
-   --
-   --  The last separator, and both are looked for on every host: a script that
-   --  wrote `build/*.o` on Windows meant the directory `build`, and a shell
-   --  that only knew backslashes there would have gone looking for a file with
-   --  a slash in its name.
-   function Directory_Ends (Pattern : String) return Natural;
-
-   function Directory_Ends (Pattern : String) return Natural is
-   begin
-      for Index in reverse Pattern'Range loop
-         if Pattern (Index) in '/' | '\' then
-            return Index;
-         end if;
-      end loop;
-
-      return 0;
-   end Directory_Ends;
-
    --  The matches of one pattern, sorted, or nothing when there are too many.
    procedure Read_Matches
      (Pattern : String;
@@ -449,59 +452,219 @@ package body Adash.Filesystem is
    is
       use Ada.Strings.Unbounded;
 
-      Split : constant Natural := Directory_Ends (Pattern);
+      --  How deep a walk may go.
+      --
+      --  A bound rather than a promise, like the count of matches: `**` on a
+      --  filesystem somebody else fills is a walk somebody else decides the
+      --  length of. Deep enough that no real tree reaches it.
+      Maximum_Depth : constant := 64;
 
-      --  The directory to read, and the text that is prefixed to every match.
-      --  They differ for a pattern with no directory: the place to read is
-      --  the current one and the prefix is nothing, because a script that
-      --  wrote `*.log` wants `notes.log` rather than `./notes.log` -- what it
-      --  asked for is what it gets back.
-      Where  : constant String :=
-        (if Split = 0 then "." else Pattern (Pattern'First .. Split - 1));
-      Prefix : constant String :=
-        (if Split = 0 then "" else Pattern (Pattern'First .. Split));
-      Tail   : constant String :=
-        (if Split = 0 then Pattern else Pattern (Split + 1 .. Pattern'Last));
+      Overflowed : Boolean := False;
 
-      Names : Name_Lists.Vector;
+      --  The pattern cut at the separators, which is what a walk steps
+      --  through. Both separators on every host: a script that wrote
+      --  `build/*.o` on Windows meant the directory `build`, and a shell that
+      --  only knew backslashes there would have gone looking for a file with a
+      --  slash in its name.
+      type Segment is record
+         First : Natural := 1;
+         Last  : Natural := 0;
+      end record;
+
+      Segments : array (1 .. 64) of Segment;
+      Count    : Natural := 0;
+
+      --  Where the walk starts: the root for an absolute pattern, and this
+      --  directory for any other.
+      Rooted : constant Boolean :=
+        Pattern'Length > 0 and then Pattern (Pattern'First) in '/' | '\';
+
+      procedure Cut;
+
+      procedure Cut is
+         From : Natural := Pattern'First;
+      begin
+         if Rooted then
+            From := From + 1;
+         end if;
+
+         while From <= Pattern'Last loop
+            declare
+               To : Natural := From;
+            begin
+               while To <= Pattern'Last
+                 and then Pattern (To) not in '/' | '\'
+               loop
+                  To := To + 1;
+               end loop;
+
+               --  An empty segment is a doubled separator, which names the
+               --  same place as one: `logs//*.log` is `logs/*.log`.
+               if To > From and then Count < Segments'Last then
+                  Count := Count + 1;
+                  Segments (Count) := (First => From, Last => To - 1);
+               end if;
+
+               From := To + 1;
+            end;
+         end loop;
+      end Cut;
+
+      function Text_Of (Item : Segment) return String
+      is (Pattern (Item.First .. Item.Last));
+
+      --  Whether a name is passed over for beginning with a dot.
+      --
+      --  The rule every shell has: `*` is not how anybody asks to see `.git`,
+      --  and a pattern that begins with a dot is how it is asked. It applies
+      --  per segment, so `**` never descends into a hidden directory either.
+      function Hidden_From (Called : String; Against : String) return Boolean
+      is (Called'Length > 0
+          and then Called (Called'First) = '.'
+          and then (Against'Length = 0
+                    or else Against (Against'First) /= '.'));
+
+      procedure Add (Path : String);
+
+      procedure Add (Path : String) is
+      begin
+         --  Refused whole rather than answered with a prefix: a script that
+         --  ran a program over the first four thousand of five would do half a
+         --  job and report that it had done it.
+         if Natural (Into.Length) >= Maximum_Matches then
+            Overflowed := True;
+            return;
+         end if;
+
+         Into.Append (To_Unbounded_String (Path));
+      end Add;
+
+      --  Step through the segments, reading each directory as it is reached.
+      --
+      --  Where is what to read; Shown is what to put in front of a match, and
+      --  the two differ for a pattern with no directory part: the place to
+      --  read is `.` and the prefix is nothing, because a script that wrote
+      --  `*.log` wants `notes.log` back rather than `./notes.log`.
+      procedure Walk (Where : String; Shown : String; Index : Positive;
+                      Depth : Natural);
+
+      procedure Walk (Where : String; Shown : String; Index : Positive;
+                      Depth : Natural)
+      is
+         Names : Name_Lists.Vector;
+      begin
+         if Overflowed or else Depth > Maximum_Depth then
+            return;
+         end if;
+
+         declare
+            This : constant String := Text_Of (Segments (Index));
+            Last : constant Boolean := Index = Count;
+         begin
+            --  `**` stands for any run of directories, including none. The
+            --  first call is the none, and the loop below is the rest -- so a
+            --  pattern is not two patterns and `logs/**/*.log` finds what is
+            --  directly in `logs` as well as what is under it.
+            if This = "**" then
+               if not Last then
+                  Walk (Where, Shown, Index + 1, Depth);
+               end if;
+
+               Read_Directory (Where, Names);
+
+               for Position in Names.First_Index .. Names.Last_Index loop
+                  declare
+                     Called : constant String :=
+                       To_String (Names.Element (Position));
+                     Below  : constant String := Hostkit.Fs.Join (Where, Called);
+                  begin
+                     --  Directories only, and never through a link: a link
+                     --  that points at its own parent is a walk with no end,
+                     --  and no shell follows one for this.
+                     if not Hidden_From (Called, This)
+                       and then Is_Directory (Below)
+                       and then not Hostkit.Fs.Is_Link (Below)
+                     then
+                        --  A `**` at the end names the directories themselves,
+                        --  which is what `logs/**` means.
+                        if Last then
+                           Add (Shown & Called);
+                        end if;
+
+                        Walk (Below, Shown & Called & "/", Index, Depth + 1);
+                     end if;
+                  end;
+               end loop;
+
+               return;
+            end if;
+
+            --  A segment with nothing to match is a name: stepped into
+            --  without reading the directory it is in, which is one fewer
+            --  listing per literal segment and the difference between
+            --  `logs/2026/*.log` reading one directory and reading three.
+            if not Adash.Patterns.Holds_A_Pattern (This) then
+               declare
+                  Below : constant String := Hostkit.Fs.Join (Where, This);
+               begin
+                  if Last then
+                     if Exists (Below) then
+                        Add (Shown & This);
+                     end if;
+                  elsif Is_Directory (Below) then
+                     Walk (Below, Shown & This & "/", Index + 1, Depth + 1);
+                  end if;
+               end;
+
+               return;
+            end if;
+
+            Read_Directory (Where, Names);
+
+            for Position in Names.First_Index .. Names.Last_Index loop
+               declare
+                  Called : constant String :=
+                    To_String (Names.Element (Position));
+                  Below  : constant String := Hostkit.Fs.Join (Where, Called);
+               begin
+                  if not Hidden_From (Called, This)
+                    and then Adash.Patterns.Matches (Called, This)
+                  then
+                     if Last then
+                        Add (Shown & Called);
+                     elsif Is_Directory (Below) then
+                        Walk (Below, Shown & Called & "/", Index + 1,
+                              Depth + 1);
+                     end if;
+                  end if;
+               end;
+            end loop;
+         end;
+      end Walk;
+
    begin
       Into.Clear;
       Refused := False;
+      Cut;
 
-      --  A directory that is a separator and nothing else: the root, which is
-      --  a place rather than an empty name.
-      if Split = Pattern'First then
-         Read_Directory (Pattern (Pattern'First .. Split), Names);
-      else
-         Read_Directory (Where, Names);
+      if Count = 0 then
+         return;
       end if;
 
-      for Position in Names.First_Index .. Names.Last_Index loop
-         declare
-            Called : constant String := To_String (Names.Element (Position));
-         begin
-            --  A name that begins with a dot is passed over unless the pattern
-            --  does, which is the rule every shell has: `*` is not how
-            --  anybody asks to see `.git`.
-            if Called'Length > 0
-              and then (Called (Called'First) /= '.'
-                        or else (Tail'Length > 0
-                                 and then Tail (Tail'First) = '.'))
-              and then Adash.Patterns.Matches (Called, Tail)
-            then
-               --  Refused whole rather than answered with a prefix: a script
-               --  that ran a program over the first four thousand of five
-               --  would do half a job and report that it had done it.
-               if Natural (Into.Length) >= Maximum_Matches then
-                  Into.Clear;
-                  Refused := True;
-                  return;
-               end if;
+      Walk ((if Rooted then Pattern (Pattern'First .. Pattern'First) else "."),
+            (if Rooted then Pattern (Pattern'First .. Pattern'First) else ""),
+            1, 0);
 
-               Into.Append (To_Unbounded_String (Prefix & Called));
-            end if;
-         end;
-      end loop;
+      if Overflowed then
+         Into.Clear;
+         Refused := True;
+         return;
+      end if;
+
+      --  Sorted at the end rather than per directory: a walk visits several
+      --  directories and what a caller gets has to be one order, so that two
+      --  runs of the same script hand a program the same argument list.
+      Name_Sorting.Sort (Into);
    end Read_Matches;
 
    --  The last pattern's matches, held the way a directory listing is.

@@ -565,6 +565,7 @@ package body Adash.Interactive.Editing is
             when 16#05#          => Simple (Key_End, 1);           return;
             when 16#02#          => Simple (Key_Left, 1);          return;
             when 16#06#          => Simple (Key_Right, 1);         return;
+            when 16#12#          => Simple (Key_Search, 1);        return;
             when 16#0B#          => Simple (Key_Kill_To_End, 1);   return;
             when 16#15#          => Simple (Key_Kill_To_Start, 1); return;
             when 16#17#          => Simple (Key_Kill_Word, 1);     return;
@@ -741,6 +742,8 @@ package body Adash.Interactive.Editing is
       Allow_Editing : Boolean := True;
       Search_Path  : String := "";
       Ask_Caller   : access Candidate_Supplier'Class := null;
+      Search_Label : String := "";
+      Search_Empty : String := "";
       Into         : out String;
       Last         : out Natural) return Read_Outcome
    is
@@ -770,6 +773,43 @@ package body Adash.Interactive.Editing is
       Drawn_Row  : Natural := 0;
       Drawn_Rows : Natural := 0;
 
+      --  What a reverse search is holding while it runs.
+      --
+      --  The line being edited *is* the match: a search that showed the match
+      --  somewhere else would be a second thing to read on a line the user is
+      --  already reading. What changes is the prompt, which says what is being
+      --  searched for -- so accepting a match is pressing Enter, and every
+      --  editing key works on it the moment the search ends.
+      Searching   : Boolean := False;
+      Needle      : String (1 .. Max_Line) := [others => ' '];
+      Needle_Used : Natural := 0;
+
+      --  Where the last match was found, counting from the oldest, so that
+      --  another Ctrl-R continues past it rather than finding it again.
+      Found_At : Natural := 0;
+
+      --  The line as it was when the search began, for a search the user gives
+      --  up on.
+      Before_Search : Buffer;
+
+      --  Look for the newest line at or before Before that holds the needle,
+      --  and put it in the buffer.
+      --
+      --  Nothing is changed when nothing matches: the line keeps the last
+      --  match, and the prompt says the search found nothing. A search that
+      --  emptied the line on a mistyped letter would throw away what the user
+      --  had already found.
+      procedure Search_Again (Before : Natural);
+
+      --  What stands where the prompt does, and how wide it is.
+      --
+      --  The prompt while nothing is being searched for; the search label and
+      --  what has been typed into it while something is. Everything that
+      --  places the cursor asks for the width rather than measuring the text,
+      --  so the two have to be answered together.
+      function Shown_Prompt return String;
+      function Shown_Width return Natural;
+
       procedure Redraw;
       procedure Complete_Here;
       function Finish (Outcome : Read_Outcome) return Read_Outcome;
@@ -777,6 +817,50 @@ package body Adash.Interactive.Editing is
       ------------
       -- Redraw --
       ------------
+
+      procedure Search_Again (Before : Natural) is
+         Found : Adash.Interactive.History.Entry_Text;
+         Where : Natural;
+         Took  : Boolean;
+      begin
+         if Adash.Interactive.History.Search_Holding
+              (Recall, Needle (1 .. Needle_Used), Before, Found, Where)
+         then
+            Found_At := Where;
+            Line.Clear;
+            Took := Line.Insert
+              (Ada.Strings.Unbounded.To_String (Found));
+            pragma Unreferenced (Took);
+         else
+            Found_At := 0;
+         end if;
+      end Search_Again;
+
+      function Shown_Prompt return String is
+      begin
+         if not Searching then
+            return Prompt;
+         end if;
+
+         --  The blank and the colon are punctuation rather than prose: the
+         --  catalog says what a search is called and this puts the typed text
+         --  after it, the way it puts the line after the prompt.
+         return (if Found_At = 0 and then Needle_Used > 0
+                 then Search_Empty else Search_Label)
+           & " " & Needle (1 .. Needle_Used) & ": ";
+      end Shown_Prompt;
+
+      function Shown_Width return Natural is
+      begin
+         if not Searching then
+            return Prompt_Width;
+         end if;
+
+         --  Measured rather than counted: the label comes from a catalog and
+         --  what the user typed is whatever they typed, so neither is one cell
+         --  per byte.
+         return Adash.Display_Width.Cells (Shown_Prompt);
+      end Shown_Width;
 
       procedure Redraw is
          Ignored : Boolean;
@@ -808,9 +892,9 @@ package body Adash.Interactive.Editing is
            (if Columns > 1 then Columns - 1 else 1);
 
          Ends   : constant Screen_Position :=
-           Place (Line, Prompt_Width, Usable, Natural'Last);
+           Place (Line, Shown_Width, Usable, Natural'Last);
          Points : constant Screen_Position :=
-           Place (Line, Prompt_Width, Usable, Line.Cursor);
+           Place (Line, Shown_Width, Usable, Line.Cursor);
 
          Last_Row   : constant Natural := Ends.Row;
          Cursor_Row : constant Natural := Points.Row;
@@ -820,7 +904,7 @@ package body Adash.Interactive.Editing is
          function Wrapped return String is
             Built : Ada.Strings.Unbounded.Unbounded_String;
             Text  : constant String := Line.Text;
-            Used  : Natural := Prompt_Width;
+            Used  : Natural := Shown_Width;
             Index : Positive := Text'First;
          begin
             while Index <= Text'Last loop
@@ -890,7 +974,7 @@ package body Adash.Interactive.Editing is
             --  it -- which is what every line did before wrapping existed.
             declare
                Room    : constant Natural :=
-                 (if Usable > Prompt_Width then Usable - Prompt_Width else 1);
+                 (if Usable > Shown_Width then Usable - Shown_Width else 1);
                Skipped : constant Natural :=
                  (if Line.Cursor_Cells > Room
                   then Line.Cursor_Cells - Room else 0);
@@ -935,7 +1019,7 @@ package body Adash.Interactive.Editing is
                   end loop;
                end;
 
-               Ignored := Emit (Prompt);
+               Ignored := Emit (Shown_Prompt);
                Ignored := Emit (Text (First .. Stop));
 
                for Step in 1 .. Shown - (Line.Cursor_Cells - Skipped) loop
@@ -948,7 +1032,7 @@ package body Adash.Interactive.Editing is
             end;
 
          else
-            Ignored := Emit (Prompt);
+            Ignored := Emit (Shown_Prompt);
             Ignored := Emit (Wrapped);
 
             --  The cursor is at the end of what was written; bring it to where
@@ -1254,9 +1338,38 @@ package body Adash.Interactive.Editing is
                  Pending (Ada.Streams.Stream_Element_Offset (Consumed) + 1 .. Held);
                Held := Held - Ada.Streams.Stream_Element_Offset (Consumed);
 
+               --  Any other key ends the search and keeps what it found,
+               --  which is what makes a found line something to edit: the
+               --  match is already in the buffer, so an arrow key or Home
+               --  simply starts working on it.
+               if Searching
+                 and then Event.Kind not in Key_Character | Key_Backspace
+                                          | Key_Search | Key_Interrupt
+                                          | Key_Enter
+               then
+                  Searching := False;
+               end if;
+
                case Event.Kind is
                   when Key_Character =>
-                     Ignored := Line.Insert (Event.Text (1 .. Event.Length));
+                     if Searching then
+                        --  Into the needle rather than into the line: what is
+                        --  typed during a search is what is searched for.
+                        for Index in 1 .. Event.Length loop
+                           if Needle_Used < Needle'Last then
+                              Needle_Used := Needle_Used + 1;
+                              Needle (Needle_Used) := Event.Text (Index);
+                           end if;
+                        end loop;
+
+                        --  From the newest again, because a longer needle may
+                        --  match something newer than the last match did not.
+                        Search_Again (0);
+                     else
+                        Ignored := Line.Insert
+                          (Event.Text (1 .. Event.Length));
+                     end if;
+
                      Redraw;
 
                   when Key_Enter =>
@@ -1267,11 +1380,21 @@ package body Adash.Interactive.Editing is
                      return Finish (Line_Read);
 
                   when Key_Interrupt =>
-                     if Have_Mode then
-                        Ignored := Hostkit.Terminal_Control.Restore_Mode
-                          (Input, Saved_Mode);
+                     if Searching then
+                        --  The search is what is abandoned, not the line: a
+                        --  user who searched by mistake gets back exactly what
+                        --  they had been typing.
+                        Searching := False;
+                        Line := Before_Search;
+                        Redraw;
+                     else
+                        if Have_Mode then
+                           Ignored := Hostkit.Terminal_Control.Restore_Mode
+                             (Input, Saved_Mode);
+                        end if;
+
+                        return Finish (Line_Abandoned);
                      end if;
-                     return Finish (Line_Abandoned);
 
                   when Key_End_Of_Input =>
                      --  Only on an empty line. On a line with text it would
@@ -1290,7 +1413,16 @@ package body Adash.Interactive.Editing is
                      end if;
 
                   when Key_Backspace =>
-                     Ignored := Line.Delete_Backward;
+                     if Searching then
+                        if Needle_Used > 0 then
+                           Needle_Used := Needle_Used - 1;
+                        end if;
+
+                        Search_Again (0);
+                     else
+                        Ignored := Line.Delete_Backward;
+                     end if;
+
                      Redraw;
 
                   when Key_Delete =>
@@ -1364,6 +1496,24 @@ package body Adash.Interactive.Editing is
                         Line := Saved;
                         Redraw;
                      end if;
+
+                  when Key_Search =>
+                     if not Searching then
+                        --  What the line was, for a search given up on.
+                        Before_Search := Line;
+                        Searching := True;
+                        Needle_Used := 0;
+                        Found_At := 0;
+                        Search_Again (0);
+                     else
+                        --  Again: the one before what was found last, so a
+                        --  user holding Ctrl-R walks backwards rather than
+                        --  finding one line for ever.
+                        Search_Again
+                          (if Found_At > 1 then Found_At - 1 else 0);
+                     end if;
+
+                     Redraw;
 
                   when Key_Refresh =>
                      Redraw;

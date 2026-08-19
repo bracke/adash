@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 557 messages in 22 groups.
+There are 559 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -254,6 +254,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `note.first_here` | the first one is here |
 | `line.creation_mask` | umask {mask} |
 | `line.took` | {what} took {seconds} seconds |
+| `line.search` | search back for |
+| `line.search_empty` | nothing holds |
 | `line.limit` | {resource} is {value} |
 | `line.limit_unbounded` | {resource} is unlimited |
 | `line.limit_ceiling` | {resource} may be raised to {value} |

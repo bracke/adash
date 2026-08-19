@@ -478,6 +478,7 @@ package Adash.Messages is
       --  than two with a word for "unlimited" in them: the word would have to
       --  be built in Ada and handed over as a placeholder, and a translator
       --  cannot reach a word that arrives already written.
+      Msg_Line_Search, Msg_Line_Search_Empty,
       Msg_Line_Limit, Msg_Line_Limit_Unbounded,
       Msg_Line_Limit_Ceiling, Msg_Line_Limit_Ceiling_Unbounded,
       Msg_Line_Job_Finished,

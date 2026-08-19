@@ -127,6 +127,31 @@ package Adash.Interactive.History is
       Prefix : String;
       Found  : out Entry_Text) return Boolean;
 
+   --  The newest entry at or before a position that holds this text.
+   --
+   --  What Ctrl-R walks. A substring rather than a prefix, because that is
+   --  what a user searching their history is doing: they remember a word in
+   --  the middle of a line, not how it began. Search_Backwards above answers
+   --  the other question, which is what the up key does.
+   --
+   --  Before is where to start, counting from the oldest as Entry_At does, and
+   --  zero means "from the newest". Where comes back as the position of what
+   --  was found, so the next search continues past it rather than finding the
+   --  same line for ever.
+   --
+   --  @param Item Log to search.
+   --  @param Text What the entry holds; an empty one matches the newest entry.
+   --  @param Before Where to start, or zero for the newest.
+   --  @param Found The entry, when this returns True.
+   --  @param Where Its position, when this returns True.
+   --  @return True when one was found.
+   function Search_Holding
+     (Item   : Log;
+      Text   : String;
+      Before : Natural;
+      Found  : out Entry_Text;
+      Where  : out Natural) return Boolean;
+
    --  Forget the most recent entries.
    --
    --  What `forget` does to the session's own log. The durable file is a

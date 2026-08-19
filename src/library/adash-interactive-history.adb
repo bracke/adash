@@ -1,3 +1,4 @@
+with Ada.Strings.Fixed;
 package body Adash.Interactive.History is
 
    use Ada.Strings.Unbounded;
@@ -120,6 +121,41 @@ package body Adash.Interactive.History is
    ------------------------
    -- Search_Backwards --
    ------------------------
+
+   -----------------------
+   -- Search_Holding --
+   -----------------------
+
+   function Search_Holding
+     (Item   : Log;
+      Text   : String;
+      Before : Natural;
+      Found  : out Entry_Text;
+      Where  : out Natural) return Boolean
+   is
+      From : constant Natural :=
+        (if Before = 0 or else Before > Natural (Item.Lines.Length)
+         then Natural (Item.Lines.Length) else Before);
+   begin
+      Found := Null_Unbounded_String;
+      Where := 0;
+
+      for Index in reverse 1 .. From loop
+         declare
+            Line : constant String := To_String (Item.Lines.Element (Index));
+         begin
+            if Text'Length = 0
+              or else Ada.Strings.Fixed.Index (Line, Text) > 0
+            then
+               Found := Item.Lines.Element (Index);
+               Where := Index;
+               return True;
+            end if;
+         end;
+      end loop;
+
+      return False;
+   end Search_Holding;
 
    function Search_Backwards
      (Item   : Log;

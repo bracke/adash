@@ -230,6 +230,10 @@ package Adash.Interactive.Editing is
       --  Redraw everything.
       Key_Refresh,
 
+      --  Search the history for a line holding what is typed next, newest
+      --  first, and again for the one before it.
+      Key_Search,
+
       --  Bytes that decoded to nothing this editor knows. Ignored rather than
       --  inserted: inserting the bytes of an unrecognised escape sequence puts
       --  visible rubbish in the line the user is typing.
@@ -342,6 +346,13 @@ package Adash.Interactive.Editing is
       Allow_Editing : Boolean := True;
       Search_Path  : String := "";
       Ask_Caller   : access Candidate_Supplier'Class := null;
+
+      --  What a search shows in place of the prompt while it runs, and what
+      --  it shows when nothing matches. Text rather than a message, because
+      --  this package renders no catalog: the caller has one and passes what
+      --  it says.
+      Search_Label : String := "";
+      Search_Empty : String := "";
       Into         : out String;
       Last         : out Natural) return Read_Outcome;
 

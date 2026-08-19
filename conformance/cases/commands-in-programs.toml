@@ -760,3 +760,62 @@ exit_status = 0
 output = []
 diagnostics = ["!error.signal_not_catchable{signal=terminate}!"]
 platforms = ["windows"]
+
+[[case]]
+id = "matching.a-pattern-walks-a-tree-when-it-is-asked-to"
+requirement = """
+`**` stands for any run of directories, including none, so `logs/**/*.log` finds
+what is directly in `logs` as well as what is under it. One pattern rather than
+two, because a user who has to write both has to remember which of them found
+what.
+
+Every other segment is matched too: `*/name` means what it says. A walk never
+goes through a symbolic link -- a link pointing at its own parent is a walk with
+no end -- and never deeper than sixty-four levels.
+"""
+script = "cd (\"{store}\"); make_directory (\"logs/inner\"); write_file (\"a\", \"logs/one.log\"); write_file (\"b\", \"logs/inner/two.log\"); write_file (\"c\", \"logs/inner/three.txt\");\nfor I in 1 .. Match_Count (\"logs/**/*.log\") loop put_line (Match_At (\"logs/**/*.log\", I)); end loop;\nquit (0);"
+exit_status = 0
+output = ["logs/inner/two.log", "logs/one.log"]
+diagnostics = []
+
+[[case]]
+id = "matching.a-star-does-not-cross-a-directory"
+requirement = """
+A single `*` matches within one segment and stops at the separator, which is the
+rule everywhere else and the reason `**` had to be spelled differently: a star
+that quietly crossed directories would make `logs/*.log` mean something else on
+the day somebody made a subdirectory.
+"""
+script = "cd (\"{store}\"); make_directory (\"tree/under\"); write_file (\"a\", \"tree/top.log\"); write_file (\"b\", \"tree/under/deep.log\");\nfor I in 1 .. Match_Count (\"tree/*.log\") loop put_line (Match_At (\"tree/*.log\", I)); end loop;\nquit (0);"
+exit_status = 0
+output = ["tree/top.log"]
+diagnostics = []
+
+[[case]]
+id = "paths.a-tilde-is-this-users-home"
+requirement = """
+A leading `~` is this user's home directory wherever the shell resolves a path.
+Asked of the host rather than read from HOME, which a spawned process can set to
+anything -- so this compares what the shell resolves against what the host says
+its home is, rather than against a name a test could have set itself.
+"""
+script = "put_line (Is_Directory (\"~\")'Image);\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "paths.a-user-nobody-has-stays-as-it-was"
+requirement = """
+`~other` is somebody else's home, which the host's user database answers and
+nothing else can. A name the host does not know is left exactly as written: a
+path that meant itself survives, and one that meant a user fails as a path that
+is not there rather than as the wrong directory.
+
+Which is also what happens on a host that answers about no account at all --
+Windows, where a profile folder belongs to whoever is logged in.
+"""
+script = "put_line (Exists (\"~adash-no-such-account-anywhere\")'Image);\nquit (0);"
+exit_status = 0
+output = ["FALSE"]
+diagnostics = []
