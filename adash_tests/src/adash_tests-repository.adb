@@ -1,3 +1,4 @@
+with Ada.Characters.Handling;
 with Ada.Characters.Latin_1;
 with Ada.Strings.Fixed;
 with Ada.Directories;
@@ -28,6 +29,10 @@ package body Adash_Tests.Repository is
      "tooling.check.command_not_exercised";
    Key_Entity_Not_Exercised : constant String :=
      "tooling.check.entity_not_exercised";
+   Key_Diagnostic_Not_Produced : constant String :=
+     "tooling.check.diagnostic_not_produced";
+   Key_Diagnostic_Listed_Wrongly : constant String :=
+     "tooling.check.diagnostic_listed_wrongly";
    Key_Catalogued_Missing   : constant String :=
      "tooling.check.catalogued_message_missing";
    Key_Catalogued_Differs   : constant String :=
@@ -1122,6 +1127,85 @@ package body Adash_Tests.Repository is
    --  Keys built at run time are allowed for by their prefix: a tool that says
    --  `"tooling.bench.what." & What` carries the dotted prefix as a literal,
    --  so a catalog key underneath one is counted as used.
+   --  What the cases run and expect, as text.
+   --
+   --  The values of `script`, `arguments`, `input` and `diagnostics`, and
+   --  nothing else: requirement prose names things nobody has run, and a check
+   --  that read it would pass on a paragraph. Multi-line forms are followed --
+   --  TOML writes a long script between three quotation marks and a list of
+   --  diagnostics between brackets.
+   procedure Case_Values (Path : String; Into : in out US.Unbounded_String);
+
+   procedure Case_Values (Path : String; Into : in out US.Unbounded_String) is
+      Text : constant String := Read_If_Present (Path);
+
+      From : Positive := Text'First;
+
+      In_Long  : Boolean := False;
+      In_Array : Boolean := False;
+
+      function Opens (Line : String) return Boolean
+      is (Project_Tools.Text.Starts_With (Line, "script = ")
+          or else Project_Tools.Text.Starts_With (Line, "arguments = ")
+          or else Project_Tools.Text.Starts_With (Line, "input = ")
+          or else Project_Tools.Text.Starts_With (Line, "diagnostics = ")
+          or else Project_Tools.Text.Starts_With (Line, "output = "));
+   begin
+      if Text = "" then
+         return;
+      end if;
+
+      while From <= Text'Last loop
+         declare
+            Stop : Natural := From;
+         begin
+            while Stop <= Text'Last
+              and then Text (Stop) /= Ada.Characters.Latin_1.LF
+            loop
+               Stop := Stop + 1;
+            end loop;
+
+            declare
+               Line : constant String := Text (From .. Stop - 1);
+            begin
+               if In_Long then
+                  US.Append (Into, Line & Ada.Characters.Latin_1.LF);
+
+                  if Ada.Strings.Fixed.Index (Line, """""""") > 0 then
+                     In_Long := False;
+                  end if;
+
+               elsif In_Array then
+                  US.Append (Into, Line & Ada.Characters.Latin_1.LF);
+
+                  if Ada.Strings.Fixed.Index (Line, "]") > 0 then
+                     In_Array := False;
+                  end if;
+
+               elsif Opens (Line) then
+                  US.Append (Into, Line & Ada.Characters.Latin_1.LF);
+
+                  if Ada.Strings.Fixed.Index (Line, """""""") > 0
+                    and then Ada.Strings.Fixed.Index
+                               (Line, """""""",
+                                Ada.Strings.Fixed.Index (Line, """""""") + 3)
+                             = 0
+                  then
+                     In_Long := True;
+
+                  elsif Ada.Strings.Fixed.Index (Line, "[") > 0
+                    and then Ada.Strings.Fixed.Index (Line, "]") = 0
+                  then
+                     In_Array := True;
+                  end if;
+               end if;
+            end;
+
+            From := Stop + 1;
+         end;
+      end loop;
+   end Case_Values;
+
    --  Every command and every predefined entity is exercised by a case.
    --
    --  Named in the `help` listing is not exercised: that case pins the whole
@@ -1144,67 +1228,6 @@ package body Adash_Tests.Repository is
       --  name and the unit sources. Requirement prose is left out on purpose
       --  -- a name mentioned in a paragraph is a name nobody has run.
       Exercised : US.Unbounded_String;
-
-      procedure Take_Case_Values (Path : String);
-
-      procedure Take_Case_Values (Path : String) is
-         Text : constant String := Read_If_Present (Path);
-
-         From : Positive := Text'First;
-
-         --  Whether a line opens a value this check cares about.
-         function Opens (Line : String) return Boolean
-         is (Project_Tools.Text.Starts_With (Line, "script = ")
-             or else Project_Tools.Text.Starts_With (Line, "arguments = ")
-             or else Project_Tools.Text.Starts_With (Line, "input = "));
-
-         In_Long : Boolean := False;
-      begin
-         if Text = "" then
-            return;
-         end if;
-
-         while From <= Text'Last loop
-            declare
-               Stop : Natural := From;
-            begin
-               while Stop <= Text'Last
-                 and then Text (Stop) /= Ada.Characters.Latin_1.LF
-               loop
-                  Stop := Stop + 1;
-               end loop;
-
-               declare
-                  Line : constant String := Text (From .. Stop - 1);
-               begin
-                  --  A value written across several lines, which TOML opens
-                  --  and closes with three quotation marks. Everything
-                  --  between them is what the case runs.
-                  if In_Long then
-                     US.Append (Exercised, Line & Ada.Characters.Latin_1.LF);
-
-                     if Ada.Strings.Fixed.Index (Line, """""""") > 0 then
-                        In_Long := False;
-                     end if;
-
-                  elsif Opens (Line) then
-                     US.Append (Exercised, Line & Ada.Characters.Latin_1.LF);
-
-                     if Ada.Strings.Fixed.Index (Line, """""""") > 0
-                       and then Ada.Strings.Fixed.Index
-                                  (Line, """""""",
-                                   Ada.Strings.Fixed.Index (Line, """""""") + 3)
-                                = 0
-                     then
-                        In_Long := True;
-                     end if;
-                  end if;
-               end;
-
-               From := Stop + 1;
-            end;
-         end loop;
-      end Take_Case_Values;
 
       --  Every name a table registers, as the text between the quotes of
       --  `Named ("...")` on a line that also names an entry of that table.
@@ -1263,7 +1286,7 @@ package body Adash_Tests.Repository is
 
    begin
       for Path of Case_Files (Root) loop
-         Take_Case_Values (US.To_String (Path));
+         Case_Values (US.To_String (Path), Exercised);
       end loop;
 
       for Path of Fixture_Files (Root) loop
@@ -1280,6 +1303,202 @@ package body Adash_Tests.Repository is
       Check_Table (Join (Root, "src/library/adash-predefined.adb"),
                    "Id => Entity_", Key_Entity_Not_Exercised);
    end Check_Every_Name_Is_Exercised;
+
+   --  Every diagnostic is produced by a case, or is listed as one that is not.
+   --
+   --  A message nobody has produced is a message nobody has read: its
+   --  placeholders have never been filled, its sentence has never been seen
+   --  next to the mistake it describes, and its translation has never been
+   --  exercised. 47 of the 197 were in that state when this was written.
+   --
+   --  Some cannot be produced by a case and should not be faked. They are
+   --  listed below with the reason, and the list is checked in both
+   --  directions: a message that stops being produced joins it or the check
+   --  fails, and a message on it that a case *does* produce is a stale entry
+   --  and fails too. The list only shrinks by somebody doing the work.
+   Not_Produced_By_A_Case : constant array (Positive range <>) of
+     access constant String :=
+       [
+        --  The machine's own defensive checks. Reaching one means the
+        --  interpreter has already lost -- a stack that is full, a frame with
+        --  no room, a return with nowhere to go -- and a case that could
+        --  produce one would be a case that had broken the machine on purpose
+        --  through an interface that does not exist.
+        new String'("error.machine.stack_full"),
+        new String'("error.machine.stack_empty"),
+        new String'("error.machine.no_place"),
+        new String'("error.machine.no_store_place"),
+        new String'("error.machine.swap_empty"),
+        new String'("error.machine.not_a_number"),
+        new String'("error.machine.arithmetic"),
+        new String'("error.machine.no_frame_room"),
+        new String'("error.machine.no_return_to"),
+        new String'("error.machine.no_shell"),
+        new String'("error.machine.not_a_raise"),
+        new String'("error.machine.too_many_alternatives"),
+        new String'("error.machine.no_caller"),
+
+        --  A host refusing in a particular way, which a case cannot arrange
+        --  without a hostile filesystem: a pipe that will not be created, a
+        --  stream that will not write, a directory that denies rather than
+        --  hides. Each wants a fixture that makes the host refuse, and none
+        --  has one yet.
+        new String'("error.command_not_executable"),
+        new String'("error.command_start_failed"),
+        new String'("error.input_text_not_held"),
+        new String'("error.pipe_creation_failed"),
+        new String'("error.stream_write_failed"),
+        new String'("error.stream_read_failed"),
+        new String'("error.directory_denied"),
+        new String'("error.execution_cancelled"),
+
+        --  Bounds a case would have to spend real time or real disk to reach:
+        --  a file over the read limit, a source over it, four thousand
+        --  matching names.
+        new String'("error.file_too_large"),
+        new String'("error.source_too_large"),
+        new String'("error.too_many_matches"),
+
+        --  Reachable, and nobody has found the shape of the mistake yet: a
+        --  nested subprogram this language refuses, an operand with no value,
+        --  an array asked for what it has not got, a generic used as a
+        --  subprogram, a name registered but not runnable in this build, a
+        --  history that would not give something up.
+        new String'("error.nested_subprogram"),
+        new String'("error.operand_has_no_value"),
+        new String'("error.array_is_empty"),
+        new String'("error.not_an_array"),
+        new String'("error.generic_not_callable"),
+        new String'("error.not_runnable_yet"),
+        new String'("error.history_not_forgotten")];
+
+   procedure Check_Diagnostics_Are_Produced (Root : String; Into : in out Report);
+
+   procedure Check_Diagnostics_Are_Produced (Root : String; Into : in out Report)
+   is
+      Catalog : constant String :=
+        Read_If_Present (Join (Root, "resources/messages/catalog.txt"));
+
+      --  What the cases produce: every diagnostic they expect, every script
+      --  they run, and the unit sources -- where a case names an error by its
+      --  Ada identifier rather than by its key.
+      Produced : US.Unbounded_String;
+
+      function Is_Listed (Key : String) return Boolean;
+
+      function Is_Listed (Key : String) return Boolean is
+      begin
+         for Item of Not_Produced_By_A_Case loop
+            if Item.all = Key then
+               return True;
+            end if;
+         end loop;
+
+         return False;
+      end Is_Listed;
+
+      --  The Ada identifier a key belongs to: error.mask_not_octal is
+      --  Error_Mask_Not_Octal, which is how a unit case names it.
+      function As_Identifier (Key : String) return String;
+
+      function As_Identifier (Key : String) return String is
+         Body_Text : constant String :=
+           Key (Key'First + String'("error.")'Length .. Key'Last);
+
+         Result : String := Body_Text;
+         Upper  : Boolean := True;
+      begin
+         for Index in Result'Range loop
+            if Result (Index) = '.' then
+               Result (Index) := '_';
+               Upper := True;
+            elsif Result (Index) = '_' then
+               Upper := True;
+            elsif Upper then
+               Result (Index) :=
+                 Ada.Characters.Handling.To_Upper (Result (Index));
+               Upper := False;
+            end if;
+         end loop;
+
+         return "Error_" & Result;
+      end As_Identifier;
+
+   begin
+      if Catalog = "" then
+         return;
+      end if;
+
+      for Path of Case_Files (Root) loop
+         Case_Values (US.To_String (Path), Produced);
+      end loop;
+
+      for Path of Fixture_Files (Root) loop
+         US.Append (Produced, Read_If_Present (US.To_String (Path)));
+      end loop;
+
+      for Path of Test_Files (Root) loop
+         US.Append (Produced, Read_If_Present (US.To_String (Path)));
+      end loop;
+
+      declare
+         From : Positive := Catalog'First;
+      begin
+         while From <= Catalog'Last loop
+            declare
+               Stop : Natural := From;
+            begin
+               while Stop <= Catalog'Last
+                 and then Catalog (Stop) /= Ada.Characters.Latin_1.LF
+               loop
+                  Stop := Stop + 1;
+               end loop;
+
+               declare
+                  Line : constant String := Catalog (From .. Stop - 1);
+                  Head : constant String := "en.error.";
+               begin
+                  if Line'Length > Head'Length
+                    and then Line (Line'First .. Line'First + Head'Length - 1)
+                             = Head
+                  then
+                     declare
+                        Marker : constant Natural :=
+                          Ada.Strings.Fixed.Index (Line, " =");
+                     begin
+                        if Marker > Line'First + Head'Length then
+                           declare
+                              Key : constant String :=
+                                Line (Line'First + 3 .. Marker - 1);
+
+                              Seen : constant Boolean :=
+                                Project_Tools.Text.Contains
+                                  (US.To_String (Produced), Key)
+                                or else Project_Tools.Text.Contains
+                                          (US.To_String (Produced),
+                                           As_Identifier (Key));
+                           begin
+                              Into.Checks_Run := Into.Checks_Run + 1;
+
+                              if Seen and then Is_Listed (Key) then
+                                 Add (Into, Key_Diagnostic_Listed_Wrongly,
+                                      [1 => Msg.Named ("key", Key)]);
+
+                              elsif not Seen and then not Is_Listed (Key) then
+                                 Add (Into, Key_Diagnostic_Not_Produced,
+                                      [1 => Msg.Named ("key", Key)]);
+                              end if;
+                           end;
+                        end if;
+                     end;
+                  end if;
+               end;
+
+               From := Stop + 1;
+            end;
+         end loop;
+      end;
+   end Check_Diagnostics_Are_Produced;
 
    procedure Check_Catalog_Keys_Are_Used (Root : String; Into : in out Report);
 
@@ -1680,6 +1899,7 @@ package body Adash_Tests.Repository is
       Check_Version_Consistency (Root, Into);
       Check_Catalog_Keys_Are_Used (Root, Into);
       Check_Every_Name_Is_Exercised (Root, Into);
+      Check_Diagnostics_Are_Produced (Root, Into);
       Check_The_Documented_Catalogue (Root, Into);
       Check_Package_Inventory (Root, Into);
       Check_Message_Catalog (Root, Into);

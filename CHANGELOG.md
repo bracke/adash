@@ -278,6 +278,17 @@ what changed.
 
 ### Added
 
+- **`adash_check` refuses a diagnostic no case produces.** A message nobody has
+  produced is a message nobody has read: its placeholders have never been
+  filled, its sentence has never been seen next to the mistake it describes,
+  and its translation has never been exercised. The ones that cannot be produced
+  by a case are listed in the checker with the reason — the machine's own
+  defensive checks, host refusals a case cannot arrange, bounds that would cost
+  real time or disk — and the list is checked in *both* directions, so a message
+  that stops being produced has to join it and a stale entry fails too. The list
+  only shrinks by somebody doing the work. It found three of my own entries
+  wrong on the first run: `redirection_conflict`, `command.unavailable` and
+  `script_cycle` are produced by unit cases I had missed.
 - **`adash_check` refuses a command or function no case runs.** Being listed by
   `help` is not being tested: that case pins the whole vocabulary in registry
   order, so everything appears in it whether or not anything calls it. The new
