@@ -355,6 +355,11 @@ what changed.
 
 ### Fixed
 
+- **A signal reaches its handler while the shell is waiting for a key.**
+  `Read_Key` is its own loop around its own read, so it had its own copy of the
+  defect below and needed its own fix. A menu waiting for `y` is the place a
+  user is most likely to walk away from, which makes it the place a `terminate`
+  is most likely to arrive.
 - **A signal reaches its handler while the shell is waiting for input.** The
   same defect as the one below, wearing a different hat: a blocking read cannot
   be interrupted, because the host restarts it when a signal arrives — which is

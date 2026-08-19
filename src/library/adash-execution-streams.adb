@@ -551,6 +551,22 @@ package body Adash.Execution.Streams is
       end if;
 
       loop
+         --  Waited for in the poll, as a line is: a key nobody presses is a
+         --  read that would never return, and a script that asked for one has
+         --  the same right to hear a signal as a script that asked for a line.
+         if not Hostkit.Descriptors.Wait_Readable
+                  (Hostkit.Descriptors.Standard_Input, 200)
+         then
+            if Adash.Execution.Signals.Interrupt_Pending
+              or else Adash.Execution.Signals.Winding_Up
+            then
+               Ended := True;
+               return "";
+            end if;
+
+            goto Continue;
+         end if;
+
          case Hostkit.Descriptors.Read
                 (Hostkit.Descriptors.Standard_Input, Chunk, Last)
          is
@@ -572,6 +588,8 @@ package body Adash.Execution.Streams is
                Ended := True;
                return "";
          end case;
+
+         <<Continue>>
       end loop;
    end Read_Key;
 
