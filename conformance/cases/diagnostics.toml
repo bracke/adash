@@ -485,3 +485,71 @@ exit_status = 0
 output = []
 diagnostics = ["!error.not_a_record{name=A,found=A}!"]
 
+
+[[case]]
+id = "history.a-script-has-no-history-to-ask-about"
+requirement = """
+A script is not a session: nothing it runs was typed, so there is no log to list
+and nothing to forget. Both commands say so rather than reporting an empty
+history, which would be a different thing -- a session that recorded nothing is
+not a session that cannot record.
+"""
+arguments = ["{root}/conformance/fixtures/asks-for-history.adash"]
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.no_history_here!",
+  "!error.no_history_here!",
+]
+
+[[case]]
+id = "commands.a-program-this-host-will-not-run"
+requirement = """
+A path that names a directory, or a file without the bit that makes it a
+program, is refused with the name that was asked for. The host decides, and it
+does not say which of the two it was -- so neither does this.
+
+Two hosts: what Windows makes of a directory here is its own business and is not
+this case's claim.
+"""
+script = "run (\"{store}\");"
+exit_status = 0
+output = []
+diagnostics = ["!error.command_denied{command={store}}!"]
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "scripts.a-script-that-is-not-utf-8-is-refused"
+requirement = """
+A script this shell cannot read as UTF-8 is refused with the offset of the byte
+that settled it, rather than run with the text guessed at. A file written in
+Latin-1 is the ordinary way to meet this -- one accented character, one byte
+that no UTF-8 sequence begins with -- and guessing would run a program whose
+strings are not what its author typed.
+"""
+arguments = ["{root}/conformance/fixtures/not-utf8.adash"]
+exit_status = 2
+output = []
+diagnostics = ["!error.source_invalid_encoding{source={root}/conformance/fixtures/not-utf8.adash,offset=16}!"]
+
+[[case]]
+id = "files.a-file-that-cannot-be-written-says-so"
+requirement = """
+A write the host refuses is reported with the path, and the script carries on to
+be told so -- `write_file` is a command, and a command that fails is a status
+rather than an end.
+
+The directory is made unwritable by the mask rather than by a permission command,
+because this shell has no permission command: `umask ("777")` takes every bit
+away from what is created next, which is what the mask is for and is the only
+way a script can arrange this for itself. Restored afterwards, or every file the
+rest of this case wrote would be unreadable too.
+
+POSIX only: Windows has no creation mask, and no way for a script to make a
+directory it cannot write.
+"""
+script = "cd (\"{store}\"); umask (\"777\"); make_directory (\"locked\"); umask (\"22\"); write_file (\"text\", \"locked/f.txt\");"
+exit_status = 0
+output = []
+diagnostics = ["!error.file_write_failed{path=locked/f.txt}!"]
+platforms = ["linux", "macos"]

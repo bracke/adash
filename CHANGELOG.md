@@ -286,6 +286,10 @@ what changed.
   registered name appears there. It exists because the same hole opened three
   times in one week, always the same way: a family shared code with something
   covered, and the sharing was the argument for not testing the rest.
+- **A script that is not UTF-8, and a write the host refuses**, both have cases
+  now. The second needed no permission command: `umask ("777")` takes every bit
+  away from what is created next, which is the only way a script can make itself
+  a directory it cannot write — and is the mask doing exactly what it is for.
 - **Every diagnostic a mistyped line produces now has a case.** The whole
   `lexical.*` family and `syntax.mixed_logical` were reachable, documented,
   translated — and never once produced by anything that runs. Eleven cases cover
