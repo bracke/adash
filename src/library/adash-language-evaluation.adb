@@ -897,6 +897,13 @@ package body Adash.Language.Evaluation is
             when Adash.Predefined.Entity_Starts_With => Op := VM.Text_Starts;
             when Adash.Predefined.Entity_Ends_With   => Op := VM.Text_Ends;
             when Adash.Predefined.Entity_Matches     => Op := VM.Text_Matches;
+            when Adash.Predefined.Entity_Left_Aligned =>
+               Op := VM.Text_Left_Aligned;
+            when Adash.Predefined.Entity_Right_Aligned =>
+               Op := VM.Text_Right_Aligned;
+            when Adash.Predefined.Entity_Zero_Padded =>
+               Op := VM.Text_Zero_Padded;
+            when Adash.Predefined.Entity_Decimals    => Op := VM.Text_Decimals;
 
             --  The clock is the machine's: asking the shell for it would be a
             --  round trip to be told what is already here.

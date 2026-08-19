@@ -159,6 +159,15 @@ package Adash.Errors is
       --  somebody somewhere they had never been and call it going back.
       Error_No_Previous_Directory,
 
+      --  A word that names no stream. The streams are `output`, `errors` and
+      --  `both`, which is what `redirect` lists when it refuses one.
+      Error_Unknown_Stream,
+
+      --  `redirect_back` for a stream that was never moved. Said rather than
+      --  quietly doing nothing: a script that thinks it restored something is
+      --  a script whose next output goes somewhere it did not expect.
+      Error_Stream_Not_Redirected,
+
       --  A suspended job, where the caller wanted one that would end.
       Error_Job_Is_Suspended,
       Error_Cancelled,

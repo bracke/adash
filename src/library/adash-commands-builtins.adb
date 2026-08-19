@@ -1,6 +1,7 @@
 with Ada.Directories;
 with Ada.IO_Exceptions;
 with Ada.Strings.Fixed;
+with Ada.Text_IO;
 with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 
@@ -13,6 +14,7 @@ with Adash.Version;
 with Hostkit;
 with Hostkit.Process;
 with Hostkit.Signals;
+with Hostkit.Descriptors;
 with Hostkit.Fs;
 with Hostkit.Limits;
 with Adash.Configuration;
@@ -2087,6 +2089,139 @@ package body Adash.Commands.Builtins is
                        (Adash.Errors.Error_Signal_Refused,
                         [M.Named ("signal", Named),
                          M.Named ("process", Trim (Wanted))]);
+                  end if;
+
+                  return Adash.Execution.Success;
+               end;
+            end;
+
+         when Command_Redirect | Command_Redirect_Append
+            | Command_Redirect_Back =>
+            declare
+               package D renames Hostkit.Descriptors;
+
+               Named_As : constant String := Argument (Arguments, 1);
+
+               Wants_Output : constant Boolean :=
+                 Named_As = "output" or else Named_As = "both";
+               Wants_Errors : constant Boolean :=
+                 Named_As = "errors" or else Named_As = "both";
+
+               use type D.Descriptor;
+               use type D.Standard_Stream;
+
+               --  Move one stream to a descriptor, remembering where it was.
+               function Point
+                 (Stream : D.Standard_Stream;
+                  Where  : D.Descriptor;
+                  Saved  : in out D.Descriptor) return Boolean;
+
+               function Point
+                 (Stream : D.Standard_Stream;
+                  Where  : D.Descriptor;
+                  Saved  : in out D.Descriptor) return Boolean is
+               begin
+                  --  Saved once. A second redirect without a restore in
+                  --  between keeps the *original*, so `redirect_back` goes to
+                  --  the terminal rather than to whatever file the script
+                  --  redirected to first.
+                  if not D.Is_Valid (Saved) then
+                     Saved :=
+                       D.Duplicate
+                         (if Stream = D.Stream_Output
+                          then D.Standard_Output else D.Standard_Error);
+                  end if;
+
+                  return D.Assign (Where, Stream);
+               end Point;
+
+            begin
+               if not Wants_Output and then not Wants_Errors then
+                  return Failed (Adash.Errors.Error_Unknown_Stream,
+                                 [1 => M.Named ("stream", Named_As)]);
+               end if;
+
+               --  Whatever this shell has written and not yet handed to the
+               --  host goes to the stream it was written for, not to the one
+               --  that is about to take its place.
+               Ada.Text_IO.Flush (Ada.Text_IO.Standard_Output);
+               Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
+
+               if Id = Command_Redirect_Back then
+                  if (Wants_Output and then not D.Is_Valid (Shell.Saved_Output))
+                    or else (Wants_Errors
+                             and then not D.Is_Valid (Shell.Saved_Errors))
+                  then
+                     return Failed
+                       (Adash.Errors.Error_Stream_Not_Redirected,
+                        [1 => M.Named ("stream", Named_As)]);
+                  end if;
+
+                  if Wants_Output then
+                     if not D.Assign (Shell.Saved_Output, D.Stream_Output) then
+                        return Failed
+                          (Adash.Errors.Error_Stream_Not_Redirected,
+                           [1 => M.Named ("stream", Named_As)]);
+                     end if;
+
+                     D.Close (Shell.Saved_Output);
+                     Shell.Saved_Output := D.Invalid;
+                  end if;
+
+                  if Wants_Errors then
+                     if not D.Assign (Shell.Saved_Errors, D.Stream_Error) then
+                        return Failed
+                          (Adash.Errors.Error_Stream_Not_Redirected,
+                           [1 => M.Named ("stream", Named_As)]);
+                     end if;
+
+                     D.Close (Shell.Saved_Errors);
+                     Shell.Saved_Errors := D.Invalid;
+                  end if;
+
+                  return Adash.Execution.Success;
+               end if;
+
+               declare
+                  Path : constant String :=
+                    Adash.Filesystem.Expanded (Argument (Arguments, 2));
+
+                  Opened : D.Descriptor;
+                  Placed : Boolean := True;
+               begin
+                  if Path = ""
+                    or else not D.Open_File
+                                  (Path,
+                                   (if Id = Command_Redirect_Append
+                                    then D.Open_Write_Append
+                                    else D.Open_Write_Truncate),
+                                   Opened)
+                  then
+                     return Failed
+                       (Adash.Errors.Error_Redirection_Open_Failed,
+                        [1 => M.Named ("path", Path)]);
+                  end if;
+
+                  --  One open file for `both`, so that the two streams
+                  --  interleave in it the way they do on a terminal rather
+                  --  than overwriting each other from two file positions.
+                  if Wants_Output then
+                     Placed := Point (D.Stream_Output, Opened,
+                                      Shell.Saved_Output);
+                  end if;
+
+                  if Placed and then Wants_Errors then
+                     Placed := Point (D.Stream_Error, Opened,
+                                      Shell.Saved_Errors);
+                  end if;
+
+                  --  The stream holds its own copy now.
+                  D.Close (Opened);
+
+                  if not Placed then
+                     return Failed
+                       (Adash.Errors.Error_Redirection_Open_Failed,
+                        [1 => M.Named ("path", Path)]);
                   end if;
 
                   return Adash.Execution.Success;

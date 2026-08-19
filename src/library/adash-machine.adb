@@ -2603,6 +2603,85 @@ package body Adash.Machine is
                             To_String (Right.Text))));
                end;
 
+            when Text_Left_Aligned | Text_Right_Aligned | Text_Zero_Padded =>
+               declare
+                  Left, Right : Cell;
+               begin
+                  Two (Left, Right);
+
+                  declare
+                     Item  : constant String := To_String (Left.Text);
+                     Width : constant Integer := Integer (Discrete (Right));
+
+                     --  A column somebody asked for, not a promise to fit in
+                     --  it: text longer than the width comes back whole. A
+                     --  formatter that cut a name in half to keep a column
+                     --  straight would lose the one thing the line was for.
+                     Room : constant Natural :=
+                       (if Width > Item'Length then Width - Item'Length else 0);
+
+                     Fill : constant Character :=
+                       (if Here.Code = Text_Zero_Padded then '0' else ' ');
+
+                     Padding : constant String (1 .. Room) := [others => Fill];
+                  begin
+                     Push ((Cell_Text,
+                            To_Unbounded_String
+                              (if Here.Code = Text_Left_Aligned
+                               then Item & Padding
+                               else Padding & Item)));
+                  end;
+               end;
+
+            when Text_Decimals =>
+               declare
+                  Left, Right : Cell;
+               begin
+                  Two (Left, Right);
+
+                  declare
+                     package Reals is new Ada.Text_IO.Float_IO (Float);
+
+                     Value : constant Float :=
+                       (if Left.Kind = Cell_Real then Float (Left.Number)
+                        else Float (Discrete (Left)));
+
+                     Places : constant Integer := Integer (Discrete (Right));
+
+                     --  Wide enough for any Float this shell can hold, plus
+                     --  the places asked for.
+                     Written : String (1 .. 64) := [others => ' '];
+                  begin
+                     --  A number of places nobody could mean has no answer.
+                     --  Clamping would print something that looked like what
+                     --  was asked for and was not.
+                     if Places < 0 or else Places > 20 then
+                        Push ((Cell_Text, Null_Unbounded_String));
+
+                     elsif Places = 0 then
+                        --  None means none. Ada's own output always keeps one
+                        --  digit after the point, so `Decimals (2.0, 0)` would
+                        --  be "2.0" -- which is not what a caller who asked
+                        --  for no decimals asked for.
+                        declare
+                           Whole : constant Long_Long_Integer :=
+                             Long_Long_Integer (Float'Rounding (Value));
+                        begin
+                           Push ((Cell_Text,
+                                  Trim (To_Unbounded_String
+                                          (Long_Long_Integer'Image (Whole)),
+                                        Ada.Strings.Both)));
+                        end;
+
+                     else
+                        Reals.Put (Written, Value, Aft => Places, Exp => 0);
+                        Push ((Cell_Text,
+                               Trim (To_Unbounded_String (Written),
+                                     Ada.Strings.Both)));
+                     end if;
+                  end;
+               end;
+
             when Text_Trim =>
                declare
                   Only : constant Cell := Pop;

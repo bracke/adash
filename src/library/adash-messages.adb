@@ -306,6 +306,9 @@ package body Adash.Messages is
          when Msg_No_Matching_Files          => return "error.no_matching_files";
          when Msg_No_Previous_Directory      =>
             return "error.no_previous_directory";
+         when Msg_Unknown_Stream             => return "error.unknown_stream";
+         when Msg_Stream_Not_Redirected      =>
+            return "error.stream_not_redirected";
          when Msg_Unknown_Signal             => return "error.unknown_signal";
          when Msg_Signal_Not_Catchable       => return "error.signal_not_catchable";
          when Msg_Signal_Refused             => return "error.signal_refused";
@@ -471,6 +474,14 @@ package body Adash.Messages is
             return "predefined.previous_directory.doc";
          when Msg_Predefined_Job_Process_Doc =>
             return "predefined.job_process.doc";
+         when Msg_Predefined_Left_Aligned_Doc =>
+            return "predefined.left_aligned.doc";
+         when Msg_Predefined_Right_Aligned_Doc =>
+            return "predefined.right_aligned.doc";
+         when Msg_Predefined_Zero_Padded_Doc =>
+            return "predefined.zero_padded.doc";
+         when Msg_Predefined_Decimals_Doc =>
+            return "predefined.decimals.doc";
          when Msg_Predefined_Braces_Count_Doc =>
             return "predefined.braces_count.doc";
          when Msg_Predefined_Braces_At_Doc =>
@@ -495,6 +506,14 @@ package body Adash.Messages is
             return "predefined.previous_directory.hint";
          when Msg_Predefined_Job_Process_Hint =>
             return "predefined.job_process.hint";
+         when Msg_Predefined_Left_Aligned_Hint =>
+            return "predefined.left_aligned.hint";
+         when Msg_Predefined_Right_Aligned_Hint =>
+            return "predefined.right_aligned.hint";
+         when Msg_Predefined_Zero_Padded_Hint =>
+            return "predefined.zero_padded.hint";
+         when Msg_Predefined_Decimals_Hint =>
+            return "predefined.decimals.hint";
          when Msg_Predefined_Braces_Count_Hint =>
             return "predefined.braces_count.hint";
          when Msg_Predefined_Braces_At_Hint =>
@@ -607,6 +626,11 @@ package body Adash.Messages is
          when Msg_Command_Umask_Doc          => return "command.umask.doc";
          when Msg_Command_Run_Matching_Doc   => return "command.run_matching.doc";
          when Msg_Command_Run_Instead_Doc    => return "command.run_instead.doc";
+         when Msg_Command_Redirect_Doc       => return "command.redirect.doc";
+         when Msg_Command_Redirect_Append_Doc =>
+            return "command.redirect_append.doc";
+         when Msg_Command_Redirect_Back_Doc  =>
+            return "command.redirect_back.doc";
          when Msg_Command_On_Signal_Doc      => return "command.on_signal.doc";
          when Msg_Command_Signal_Process_Doc =>
             return "command.signal_process.doc";
@@ -1001,6 +1025,13 @@ package body Adash.Messages is
             | Msg_Predefined_Previous_Directory_Doc
             | Msg_Predefined_Previous_Directory_Hint
             | Msg_Predefined_Job_Process_Doc | Msg_Predefined_Job_Process_Hint
+            | Msg_Predefined_Left_Aligned_Doc
+            | Msg_Predefined_Left_Aligned_Hint
+            | Msg_Predefined_Right_Aligned_Doc
+            | Msg_Predefined_Right_Aligned_Hint
+            | Msg_Predefined_Zero_Padded_Doc
+            | Msg_Predefined_Zero_Padded_Hint
+            | Msg_Predefined_Decimals_Doc | Msg_Predefined_Decimals_Hint
             | Msg_Predefined_Braces_Count_Doc
             | Msg_Predefined_Braces_Count_Hint
             | Msg_Predefined_Braces_At_Doc | Msg_Predefined_Braces_At_Hint
@@ -1059,6 +1090,9 @@ package body Adash.Messages is
             | Msg_Command_Umask_Doc
             | Msg_Command_Run_Matching_Doc
             | Msg_Command_Run_Instead_Doc
+            | Msg_Command_Redirect_Doc
+            | Msg_Command_Redirect_Append_Doc
+            | Msg_Command_Redirect_Back_Doc
             | Msg_Command_On_Signal_Doc
             | Msg_Command_Signal_Process_Doc
             | Msg_Command_Resource_Limit_Doc
@@ -1449,6 +1483,9 @@ package body Adash.Messages is
 
          when Msg_No_Previous_Directory =>
             return No_Placeholders;
+
+         when Msg_Unknown_Stream | Msg_Stream_Not_Redirected =>
+            return [1 => N ("stream")];
 
          when Msg_Unknown_Signal | Msg_Signal_Not_Catchable =>
             return [1 => N ("signal")];

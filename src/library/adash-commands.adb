@@ -128,6 +128,40 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Run_Instead_Doc, M.Msg_Command_Hint, Available),
 
+      --  Point the shell's own streams somewhere, for the rest of the
+      --  session.
+      --
+      --  The other half of what `exec` does elsewhere: `exec > log.txt` moves
+      --  the shell's output rather than replacing the shell. It moves what the
+      --  programs it starts write too, because it is the process's own stream
+      --  that moves -- which is the point, and the difference between this and
+      --  `run_into`, which redirects one program.
+      --
+      --  The stream is named rather than numbered: `output`, `errors`, or
+      --  `both`. Numbers are a convention this shell has never used, and
+      --  `2>&1` is a spelling nobody reads twice with pleasure.
+      (Command_Redirect, Named ("redirect"), 2, 2,
+       [1 => Text ("Stream"), 2 => Text ("Path"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Redirect_Doc, M.Msg_Command_Hint, Available),
+
+      --  The same, adding to what is in the file rather than replacing it.
+      (Command_Redirect_Append, Named ("redirect_append"), 2, 2,
+       [1 => Text ("Stream"), 2 => Text ("Path"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Redirect_Append_Doc, M.Msg_Command_Hint, Available),
+
+      --  Put a stream back where it was.
+      --
+      --  Which is why `redirect` saves it: once a file has been assigned over
+      --  standard output, nothing in the process remembers where it used to
+      --  point, and a shell that could not undo this would be one a script
+      --  could only use at the very end.
+      (Command_Redirect_Back, Named ("redirect_back"), 1, 1,
+       [1 => Text ("Stream"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Redirect_Back_Doc, M.Msg_Command_Hint, Available),
+
       --  The same, with one of the program's streams attached to a file. The
       --  file comes first because the arguments after it belong to the program
       --  and there is no other place to put a boundary between them: this

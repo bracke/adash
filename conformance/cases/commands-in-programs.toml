@@ -143,6 +143,9 @@ output = [
   "!line.command_entry{name=run,summary=!command.run.doc!}!",
   "!line.command_entry{name=run_matching,summary=!command.run_matching.doc!}!",
   "!line.command_entry{name=run_instead,summary=!command.run_instead.doc!}!",
+  "!line.command_entry{name=redirect,summary=!command.redirect.doc!}!",
+  "!line.command_entry{name=redirect_append,summary=!command.redirect_append.doc!}!",
+  "!line.command_entry{name=redirect_back,summary=!command.redirect_back.doc!}!",
   "!line.command_entry{name=run_into,summary=!command.run_into.doc!}!",
   "!line.command_entry{name=run_from,summary=!command.run_from.doc!}!",
   "!line.command_entry{name=run_from_text,summary=!command.run_from_text.doc!}!",
@@ -1006,3 +1009,54 @@ exit_status = 0
 output = []
 diagnostics = ["!error.command_not_found{command=adash-no-such-program-anywhere}!"]
 platforms = ["linux", "macos"]
+
+[[case]]
+id = "redirection.the-session-can-send-its-own-output-to-a-file"
+requirement = """
+`redirect` is the other half of what `exec` does elsewhere: it moves the shell's
+own stream rather than replacing the shell. What the programs it starts write
+moves with it, because it is the process's stream that moved -- which is the
+difference between this and `run_into`, and the reason a script can log
+everything it does with one line at the top.
+
+`redirect_back` puts it where it was, which is why `redirect` saved it: once a
+file is assigned over standard output, nothing in the process remembers where it
+used to point.
+"""
+script = "cd (\"{store}\"); redirect (\"both\", \"session.log\"); put_line (To_Upper (\"the shell\")); run (\"{emit}\", \"the program\"); redirect_back (\"both\"); put (Read_File (\"session.log\"));\nquit (0);"
+exit_status = 0
+output = ["THE SHELL", "the program", ""]
+diagnostics = []
+
+[[case]]
+id = "redirection.a-stream-nobody-has-is-refused"
+requirement = """
+The streams are named rather than numbered -- `output`, `errors`, `both` -- and
+a word that names none of them is refused where it stands. Numbers are a
+convention this shell has never used, and a shell that accepted `2` here would
+have to decide what `3` meant.
+"""
+script = "redirect (\"stdout\", \"nowhere.log\");\nredirect_back (\"output\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.unknown_stream{stream=stdout}!",
+  "!error.stream_not_redirected{stream=output}!",
+]
+
+[[case]]
+id = "text.columns-without-a-format-string"
+requirement = """
+What a format string does elsewhere, done as calls: alignment, padding and
+decimal places. A format string is a second language inside the first -- its own
+escapes, its own type letters, its own rules for when the letter and the value
+disagree -- and this shell has one language.
+
+Text already longer than the width comes back whole rather than cut: a formatter
+that shortened a name to keep a column straight would lose the thing the line was
+written for.
+"""
+script = "put_line (\"[\" & Left_Aligned (\"name\", 8) & \"|\" & Right_Aligned (\"7\", 4) & \"]\"); put_line (Zero_Padded (\"7\", 3) & \" \" & Zero_Padded (\"12345\", 3)); put_line (Decimals (3.14159, 2) & \" \" & Decimals (2.0, 0) & \" [\" & Decimals (1.0, 99) & \"]\");\nquit (0);"
+exit_status = 0
+output = ["[name    |   7]", "007 12345", "3.14 2 []"]
+diagnostics = []

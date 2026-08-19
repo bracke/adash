@@ -16,6 +16,25 @@ what changed.
   form `NAME=VALUE`, which has exactly one exception, written down where the
   command is registered: a program whose own name contains an `=` must be run
   by `run` with the variables `set`.
+- **`redirect`, `redirect_append`, `redirect_back`** — the other half of what
+  `exec` does elsewhere: point the shell's *own* output, errors, or both at a
+  file for the rest of the session. What the programs it starts write goes there
+  too, because it is the process's stream that moved — which is the difference
+  between this and `run_into`, and the reason a script can log everything it
+  does with one line at the top. The stream is named (`output`, `errors`,
+  `both`) rather than numbered: numbers are a convention this shell has never
+  used, and a shell that accepted `2` would have to decide what `3` meant.
+  `redirect_back` is why `redirect` saves what was there — once a file is
+  assigned over standard output, nothing in the process remembers where it used
+  to point.
+- **Columns without a format string.** `Left_Aligned`, `Right_Aligned`,
+  `Zero_Padded` and `Decimals` do what `printf "%-20s %06.2f"` does, as calls the
+  compiler type-checks. A format string is a second language inside the first —
+  its own escapes, its own type letters, its own rules for when the letter and
+  the value disagree — and this shell has one language. Text already longer than
+  the width comes back whole rather than cut: a formatter that shortened a name
+  to keep a column straight would lose the thing the line was written for. And
+  `Decimals (2.0, 0)` is `2`, not `2.0`, because none means none.
 - **Brace expansion.** `{lib,test}` is two strings, `{1..4}` counts, two groups
   multiply, and groups nest. `run_matching` expands braces before patterns —
   `run_matching ("mkdir", "-p", "src/{lib,test}")` works — and `Braces_Count` /

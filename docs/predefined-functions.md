@@ -126,6 +126,10 @@ either way.
 | `Match_At (Pattern, Position)` | `String` | one of them, counting from one, with the pattern's own directory part still on it |
 | `Braces_Count (Text)` | `Integer` | how many strings a text with brace groups stands for: two alternatives are two, a range counts, two groups multiply, and text with no group stands for itself |
 | `Braces_At (Text, Position)` | `String` | one of them, counting from one, in the order they are written |
+| `Left_Aligned (Text, Width)` | `String` | padded on the right with spaces; text already longer comes back whole |
+| `Right_Aligned (Text, Width)` | `String` | padded on the left with spaces |
+| `Zero_Padded (Text, Width)` | `String` | padded on the left with zeros, for a number in a name or a time |
+| `Decimals (Value, Places)` | `String` | a number with that many decimal places, none to twenty |
 | `Job_Process (Job)` | `Integer` | the process id of a job this session started, for handing to a program or to `signal_process`; zero for a job that is not there or has been reaped |
 | `Program_Path (Program)` | `String` | where the host would find that program, or nothing |
 
@@ -243,3 +247,11 @@ script has, and `'Image` is how a value becomes text.
 
 `internal-commands.md` describes the twenty-seven commands, and
 `language-reference.md` the language they are called from.
+
+## Why there is no format string
+
+`printf "%-20s %6.2f"` is a second language inside the first: its own escapes,
+its own type letters, its own rules about what happens when the letter and the
+value disagree. This shell has one language, so the four functions above do what
+a format string does — alignment, padding and decimal places — as calls that the
+compiler type-checks like any other.

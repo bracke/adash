@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 571 messages in 22 groups.
+There are 584 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -123,6 +123,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.unknown_signal` | no signal here is called {signal}; the names are the host's own in lower case |
 | `error.signal_not_catchable` | {signal} cannot be caught: kill and stop are refused by every host by design, and this host may report fewer still |
 | `error.signal_refused` | this host would not send {signal} to process {process}: it may have ended already, or it may not be yours to signal |
+| `error.unknown_stream` | no stream here is called {stream}; the streams are output, errors and both |
+| `error.stream_not_redirected` | {stream} was not redirected, so there is nowhere to put it back |
 | `error.no_previous_directory` | there is nowhere to go back to: this session has not changed directory yet |
 | `error.no_matching_files` | nothing is called {pattern} here, and a pattern that names nothing is not passed along as a word |
 | `error.too_many_matches` | {pattern} names more than {limit} paths, which is more than one command carries; name fewer, or loop over Match_At |
@@ -292,6 +294,9 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.complete_with.doc` | Name a subprogram that says what may follow a program, one candidate per line, for Tab to offer. |
 | `command.on_signal.doc` | Run a subprogram when a signal arrives: terminate, hangup, quit, continue and the rest, by the host's own name in lower case. kill and stop cannot be caught anywhere and are refused. |
 | `command.signal_process.doc` | Send a signal to a process by id, naming the signal rather than numbering it. |
+| `command.redirect.doc` | Point the shell own stream at a file for the rest of the session, replacing what is there: output, errors, or both. What the programs it starts write goes there too. |
+| `command.redirect_append.doc` | As redirect, adding to the end of the file rather than replacing what is in it. |
+| `command.redirect_back.doc` | Put a stream back where it was before redirect moved it. |
 | `command.run_instead.doc` | Become a program: run it instead of this shell, keeping the process, its files and its place in the terminal. Nothing comes after it, and what on_exit asked for does not run. Windows has no such call. |
 | `command.run_matching.doc` | Run a program, expanding the arguments that hold a pattern into the paths they name. An argument with no * ? or [ is passed along untouched, and a pattern that names nothing refuses the command. |
 | `command.umask.doc` | Show the permissions this host takes away from a new file, or set them, in octal. Windows has none. |
@@ -376,6 +381,14 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.previous_directory.hint` | where the last cd came from |
 | `predefined.job_process.doc` | Job_Process (JOB) is the process id of a job this session started, for handing to a program or to signal_process. Zero for a job that is not there, one that has been reaped, or a host with no process ids. |
 | `predefined.job_process.hint` | the process id of a job |
+| `predefined.left_aligned.doc` | Left_Aligned (TEXT, WIDTH) is the text padded on the right with spaces to that width. Text already longer comes back whole rather than cut. |
+| `predefined.left_aligned.hint` | text padded on the right |
+| `predefined.right_aligned.doc` | Right_Aligned (TEXT, WIDTH) is the text padded on the left with spaces to that width. Text already longer comes back whole rather than cut. |
+| `predefined.right_aligned.hint` | text padded on the left |
+| `predefined.zero_padded.doc` | Zero_Padded (TEXT, WIDTH) is the text padded on the left with zeros to that width, for a number in a name or a time. |
+| `predefined.zero_padded.hint` | text padded on the left with zeros |
+| `predefined.decimals.doc` | Decimals (VALUE, PLACES) is a number written with that many decimal places, between none and twenty. Empty for a number of places nobody could mean. |
+| `predefined.decimals.hint` | a number with that many decimals |
 | `predefined.braces_count.doc` | Braces_Count (TEXT) is how many strings a text with brace groups stands for: a group of two alternatives is two, a range counts, and two groups multiply. Text with no group stands for itself. |
 | `predefined.braces_count.hint` | how many strings braces stand for |
 | `predefined.braces_at.doc` | Braces_At (TEXT, POSITION) is one of the strings a text with brace groups stands for, counting from one, in the order they are written. |

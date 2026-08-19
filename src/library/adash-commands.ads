@@ -1,6 +1,7 @@
 private with Ada.Containers.Vectors;
 private with Ada.Strings.Unbounded;
 
+with Hostkit.Descriptors;
 with Hostkit;
 
 with Adash.Configuration;
@@ -87,6 +88,9 @@ package Adash.Commands is
       Command_Run,
       Command_Run_Matching,
       Command_Run_Instead,
+      Command_Redirect,
+      Command_Redirect_Append,
+      Command_Redirect_Back,
       Command_Run_Into,
       Command_Run_From,
       Command_Run_From_Text,
@@ -471,6 +475,16 @@ package Adash.Commands is
       --  and silently not for the second, which is the shape of a bug nobody
       --  reports.
       Interrupt_Handlers : Hostkit.String_Vectors.Vector;
+
+      --  The shell's own streams as they were before `redirect` moved them.
+      --
+      --  Kept so that `redirect_back` has somewhere to put them: once a file
+      --  is assigned over standard output there is nothing left in the process
+      --  that remembers where it used to point.
+      Saved_Output : Hostkit.Descriptors.Descriptor :=
+        Hostkit.Descriptors.Invalid;
+      Saved_Errors : Hostkit.Descriptors.Descriptor :=
+        Hostkit.Descriptors.Invalid;
 
       --  Where the last `cd` came from, for `cd ("-")`.
       --

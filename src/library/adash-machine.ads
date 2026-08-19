@@ -708,6 +708,10 @@ package Adash.Machine is
       Text_Starts,          --  whole, piece
       Text_Ends,
       Text_Matches,         --  whole, pattern: * ? and a [class]
+      Text_Left_Aligned,    --  text, width: padded on the right with spaces
+      Text_Right_Aligned,   --  text, width: padded on the left with spaces
+      Text_Zero_Padded,     --  text, width: padded on the left with zeros
+      Text_Decimals,        --  value, places: a number with that many decimals
 
       --  Between the two numeric types, both ways. `Integer (F)` and
       --  `Float (I)`, which is how a value crosses in Ada -- written out,

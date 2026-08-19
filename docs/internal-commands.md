@@ -100,6 +100,9 @@ reads as the empty string rather than failing.
 | `run (Program : String; Argument : String…)` | 1 .. any | runs a program and waits |
 | `run_matching (Program : String; Argument : String)` | 1 or more | runs a program with the arguments that hold `*`, `?` or `[` replaced by the paths they name, sorted; an argument with none is passed along untouched, and a pattern that names nothing refuses the command rather than passing the pattern on as a word |
 | `run_instead (Program : String; Argument : String)` | 1 or more | becomes the program: runs it instead of this shell, keeping the process, its open files and its place in the terminal. Nothing runs after it, including `on_exit`. Windows has no such call and says so |
+| `redirect (Stream : String; Path : String)` | 2 | points the shell's own `output`, `errors` or `both` at a file for the rest of the session, replacing what is in it — programs it starts write there too |
+| `redirect_append (Stream : String; Path : String)` | 2 | the same, adding to the end of the file |
+| `redirect_back (Stream : String)` | 1 | puts a stream back where it was |
 
 Expansion is the shell's, not the language's: nothing is expanded unless
 `run_matching` was written, and `run` hands a program exactly the arguments it

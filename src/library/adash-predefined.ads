@@ -103,7 +103,15 @@ package Adash.Predefined is
       Entity_To_Lower,
       Entity_Starts_With,
       Entity_Ends_With,
-      Entity_Matches);
+      Entity_Matches,
+
+      --  Shaping text for a column: what a shell elsewhere does with a format
+      --  string, done with functions instead. A format string is a second
+      --  language inside the first, and this shell has one language.
+      Entity_Left_Aligned,
+      Entity_Right_Aligned,
+      Entity_Zero_Padded,
+      Entity_Decimals);
 
    --  What sort of thing an entity is.
    type Entity_Sort is
