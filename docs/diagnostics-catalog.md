@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 584 messages in 22 groups.
+There are 596 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -125,6 +125,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.signal_refused` | this host would not send {signal} to process {process}: it may have ended already, or it may not be yours to signal |
 | `error.unknown_stream` | no stream here is called {stream}; the streams are output, errors and both |
 | `error.stream_not_redirected` | {stream} was not redirected, so there is nowhere to put it back |
+| `error.no_directory_set_aside` | there is nothing set aside to go back to: push_directory has not been used, or everything it set aside has been used up |
 | `error.no_previous_directory` | there is nowhere to go back to: this session has not changed directory yet |
 | `error.no_matching_files` | nothing is called {pattern} here, and a pattern that names nothing is not passed along as a word |
 | `error.too_many_matches` | {pattern} names more than {limit} paths, which is more than one command carries; name fewer, or loop over Match_At |
@@ -257,6 +258,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `note.first_here` | the first one is here |
 | `line.creation_mask` | umask {mask} |
 | `line.took` | {what} took {seconds} seconds |
+| `line.set_aside` | {number} {path} |
 | `line.search` | search back for |
 | `line.search_empty` | nothing holds |
 | `line.limit` | {resource} is {value} |
@@ -298,6 +300,10 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.redirect_append.doc` | As redirect, adding to the end of the file rather than replacing what is in it. |
 | `command.redirect_back.doc` | Put a stream back where it was before redirect moved it. |
 | `command.run_instead.doc` | Become a program: run it instead of this shell, keeping the process, its files and its place in the terminal. Nothing comes after it, and what on_exit asked for does not run. Windows has no such call. |
+| `command.on_failure.doc` | Run a subprogram after a submission in which a command failed, once for the submission rather than once for each failure. |
+| `command.push_directory.doc` | Go to a directory and set aside the one you were in, so pop_directory can come back to it. They nest. |
+| `command.pop_directory.doc` | Go back to the directory push_directory set aside most recently, and forget it. |
+| `command.directories.doc` | List the directories push_directory has set aside, most recent first. |
 | `command.run_matching.doc` | Run a program, expanding the arguments that hold a pattern into the paths they name. An argument with no * ? or [ is passed along untouched, and a pattern that names nothing refuses the command. |
 | `command.umask.doc` | Show the permissions this host takes away from a new file, or set them, in octal. Windows has none. |
 | `command.time.doc` | Run a program and report how long it took, in wall-clock seconds. |
@@ -381,6 +387,12 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `predefined.previous_directory.hint` | where the last cd came from |
 | `predefined.job_process.doc` | Job_Process (JOB) is the process id of a job this session started, for handing to a program or to signal_process. Zero for a job that is not there, one that has been reaped, or a host with no process ids. |
 | `predefined.job_process.hint` | the process id of a job |
+| `predefined.read_line_within.doc` | Read_Line_Within (SECONDS) is a line, or nothing if none arrives in that long. Input_Timed_Out says which happened, and Input_Ended says whether the input has run out. |
+| `predefined.read_line_within.hint` | a line, or nothing after a while |
+| `predefined.read_key.doc` | Read_Key is one character as it is typed, without waiting for a line. The terminal is put in raw mode for the read and put back afterwards. |
+| `predefined.read_key.hint` | one character as it is typed |
+| `predefined.input_timed_out.doc` | Input_Timed_Out is whether the last read gave up waiting rather than finding a line or the end of the input. |
+| `predefined.input_timed_out.hint` | whether the last read gave up waiting |
 | `predefined.left_aligned.doc` | Left_Aligned (TEXT, WIDTH) is the text padded on the right with spaces to that width. Text already longer comes back whole rather than cut. |
 | `predefined.left_aligned.hint` | text padded on the right |
 | `predefined.right_aligned.doc` | Right_Aligned (TEXT, WIDTH) is the text padded on the left with spaces to that width. Text already longer comes back whole rather than cut. |

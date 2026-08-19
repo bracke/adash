@@ -466,6 +466,97 @@ package body Adash.Commands.Builtins is
                return Adash.Execution.Success;
             end;
 
+         when Command_Push_Directory | Command_Pop_Directory
+            | Command_Directories =>
+            declare
+               Here : constant String := Where_We_Are;
+            begin
+               if Id = Command_Directories then
+                  --  Most recent first, which is the order they come back in.
+                  for Position in
+                    Shell.Directory_Stack.First_Index
+                      .. Shell.Directory_Stack.Last_Index
+                  loop
+                     Say (Produced, M.Msg_Line_Set_Aside,
+                          [M.Named ("number", Trim (Position)),
+                           M.Named
+                             ("path",
+                              Ada.Strings.Unbounded.To_String
+                                (Shell.Directory_Stack.Element (Position)))]);
+                  end loop;
+
+                  return Adash.Execution.Success;
+               end if;
+
+               if Id = Command_Pop_Directory then
+                  if Shell.Directory_Stack.Is_Empty then
+                     return Failed
+                       (Adash.Errors.Error_No_Directory_Set_Aside,
+                        M.No_Arguments);
+                  end if;
+
+                  declare
+                     Back : constant String :=
+                       Ada.Strings.Unbounded.To_String
+                         (Shell.Directory_Stack.First_Element);
+                  begin
+                     begin
+                        Ada.Directories.Set_Directory (Back);
+                     exception
+                        when others =>
+                           --  The place it was set aside from has gone. The
+                           --  entry stays: a script that makes the directory
+                           --  again can go back, and dropping it would leave
+                           --  nothing to say where it had meant to go.
+                           return Failed
+                             (Adash.Errors.Error_Directory_Not_Found,
+                              [1 => M.Named ("path", Back)]);
+                     end;
+
+                     Shell.Directory_Stack.Delete_First;
+
+                     --  Going back is a move like any other, so `cd ("-")`
+                     --  from here returns to where the pop came from.
+                     Shell.Previous_Directory.Clear;
+                     Shell.Previous_Directory.Append
+                       (Ada.Strings.Unbounded.To_Unbounded_String (Here));
+
+                     return Adash.Execution.Success;
+                  end;
+               end if;
+
+               declare
+                  Target : constant String :=
+                    Adash.Filesystem.Expanded (Argument (Arguments, 1));
+               begin
+                  if Target = "" then
+                     return Failed (Adash.Errors.Error_Directory_Not_Found,
+                                    [1 => M.Named ("path", Target)]);
+                  end if;
+
+                  begin
+                     Ada.Directories.Set_Directory (Target);
+                  exception
+                     when others =>
+                        --  Nothing is set aside when the move did not happen:
+                        --  a stack that grew on a failed `push_directory`
+                        --  would take a later `pop_directory` somewhere the
+                        --  script had never been.
+                        return Failed (Adash.Errors.Error_Directory_Not_Found,
+                                       [1 => M.Named ("path", Target)]);
+                  end;
+
+                  Shell.Directory_Stack.Prepend
+                    (Ada.Strings.Unbounded.To_Unbounded_String (Here));
+
+                  Shell.Previous_Directory.Clear;
+                  Shell.Previous_Directory.Append
+                    (Ada.Strings.Unbounded.To_Unbounded_String (Here));
+
+                  return Adash.Execution.Success;
+               end;
+            end;
+
          when Command_Print_Directory =>
             Say (Produced, M.Msg_Line_Directory,
                  [1 => M.Named ("path", Ada.Directories.Current_Directory)]);
@@ -2274,6 +2365,21 @@ package body Adash.Commands.Builtins is
                   return Failed (Adash.Errors.Error_Command_Not_Executable,
                                  [1 => M.Named ("command", Named_As)]);
                end if;
+
+               return Adash.Execution.Success;
+            end;
+
+         when Command_On_Failure =>
+            declare
+               Name : constant String := Argument (Arguments, 1);
+            begin
+               if Name = "" then
+                  return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
+                                 [1 => M.Named ("name", "on_failure")]);
+               end if;
+
+               Shell.Failure_Handlers.Prepend
+                 (Ada.Strings.Unbounded.To_Unbounded_String (Name));
 
                return Adash.Execution.Success;
             end;

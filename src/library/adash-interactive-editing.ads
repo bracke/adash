@@ -234,6 +234,9 @@ package Adash.Interactive.Editing is
       --  first, and again for the one before it.
       Key_Search,
 
+      --  Put back what the last kill took out.
+      Key_Yank,
+
       --  Bytes that decoded to nothing this editor knows. Ignored rather than
       --  inserted: inserting the bytes of an unrecognised escape sequence puts
       --  visible rubbish in the line the user is typing.

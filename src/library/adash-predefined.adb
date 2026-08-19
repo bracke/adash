@@ -279,6 +279,37 @@ package body Adash.Predefined is
        Documentation => Adash.Messages.Msg_Predefined_Input_Ended_Doc,
        Description => Adash.Messages.Msg_Predefined_Input_Ended_Hint,
        Status => Available),
+      (Id => Entity_Read_Line_Within, Name => Named ("Read_Line_Within"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 1,
+       Parameters => [1 => (Named ("Seconds"), Types.Type_Float),
+                      others => (Named (""), Types.Type_None)],
+       Optional_Parameters => 0,
+
+       --  Reading consumes, and waiting takes time somebody may be watching.
+       Has_Side_Effects => True,
+       Documentation => Adash.Messages.Msg_Predefined_Read_Line_Within_Doc,
+       Description => Adash.Messages.Msg_Predefined_Read_Line_Within_Hint,
+       Status => Available),
+
+      (Id => Entity_Read_Key, Name => Named ("Read_Key"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_String, Parameter_Count => 0,
+       Parameters => No_Parameters, Optional_Parameters => 0,
+       Has_Side_Effects => True,
+       Documentation => Adash.Messages.Msg_Predefined_Read_Key_Doc,
+       Description => Adash.Messages.Msg_Predefined_Read_Key_Hint,
+       Status => Available),
+
+      (Id => Entity_Input_Timed_Out, Name => Named ("Input_Timed_Out"),
+       Sort => Sort_Function,
+       Of_Type => Types.Type_Boolean, Parameter_Count => 0,
+       Parameters => No_Parameters, Optional_Parameters => 0,
+       Has_Side_Effects => False,
+       Documentation => Adash.Messages.Msg_Predefined_Input_Timed_Out_Doc,
+       Description => Adash.Messages.Msg_Predefined_Input_Timed_Out_Hint,
+       Status => Available),
+
 
       (Id => Entity_Exists, Name => Named ("Exists"),
        Sort => Sort_Function,

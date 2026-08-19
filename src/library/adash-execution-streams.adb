@@ -5,6 +5,7 @@ with Ada.Strings.Unbounded;
 
 with Adash.Execution.Signals;
 
+with Hostkit.Terminal_Control;
 with Hostkit.Fs;
 
 package body Adash.Execution.Streams is
@@ -287,6 +288,225 @@ package body Adash.Execution.Streams is
       Ended := True;
       return "";
    end Read_Line;
+
+   --------------------------
+   -- Read_Line_Within --
+   --------------------------
+
+   function Read_Line_Within
+     (Seconds   : Duration;
+      Ended     : out Boolean;
+      Timed_Out : out Boolean;
+      Limit     : Positive := Adash.Filesystem.Default_Limit) return String
+   is
+      use Ada.Strings.Unbounded;
+
+      --  The terminal for as long as this read takes, as Read_Line does and
+      --  for the same reason: a shell watching its own terminal holds it raw,
+      --  and a raw terminal echoes nothing and ends a line with a carriage
+      --  return.
+      type Borrowed_Terminal is new Ada.Finalization.Limited_Controlled with
+        null record;
+
+      overriding procedure Initialize (Item : in out Borrowed_Terminal);
+      overriding procedure Finalize (Item : in out Borrowed_Terminal);
+
+      overriding procedure Initialize (Item : in out Borrowed_Terminal) is
+         pragma Unreferenced (Item);
+      begin
+         Adash.Execution.Signals.Hand_Over_Terminal;
+      end Initialize;
+
+      overriding procedure Finalize (Item : in out Borrowed_Terminal) is
+         pragma Unreferenced (Item);
+      begin
+         Adash.Execution.Signals.Take_Terminal_Back;
+      end Finalize;
+
+      Borrowed : Borrowed_Terminal;
+      pragma Unreferenced (Borrowed);
+
+      function Break return Natural;
+
+      function Break return Natural is
+      begin
+         for Index in 1 .. Length (Held) loop
+            if Element (Held, Index) = Ada.Characters.Latin_1.LF then
+               return Index;
+            end if;
+         end loop;
+
+         return 0;
+      end Break;
+
+      Milliseconds : constant Integer :=
+        (if Seconds <= 0.0 then 0 else Integer (Seconds * 1_000.0));
+
+      Chunk : Ada.Streams.Stream_Element_Array (1 .. 4096);
+      Last  : Ada.Streams.Stream_Element_Offset;
+   begin
+      Ended := False;
+      Timed_Out := False;
+
+      loop
+         declare
+            At_Break : constant Natural := Break;
+         begin
+            if At_Break > 0 then
+               declare
+                  Stop : Natural := At_Break - 1;
+               begin
+                  if Stop > 0
+                    and then Element (Held, Stop) = Ada.Characters.Latin_1.CR
+                  then
+                     Stop := Stop - 1;
+                  end if;
+
+                  return Line : constant String := Slice (Held, 1, Stop) do
+                     Delete (Held, 1, At_Break);
+                  end return;
+               end;
+            end if;
+         end;
+
+         if Length (Held) >= Limit then
+            return Line : constant String := Slice (Held, 1, Limit) do
+               Delete (Held, 1, Limit);
+            end return;
+         end if;
+
+         exit when Drained;
+
+         --  The wait, which is what this has and Read_Line does not. A
+         --  refusal from the host is a timeout here: a caller that read
+         --  anyway would block, which is the one thing this exists to avoid.
+         if not Hostkit.Descriptors.Wait_Readable
+                  (Hostkit.Descriptors.Standard_Input, Milliseconds)
+         then
+            Timed_Out := True;
+            return "";
+         end if;
+
+         case Hostkit.Descriptors.Read
+                (Hostkit.Descriptors.Standard_Input, Chunk, Last)
+         is
+            when Hostkit.Descriptors.Transfer_Ok =>
+               for Index in Chunk'First .. Last loop
+                  Append (Held, Character'Val (Natural (Chunk (Index))));
+               end loop;
+
+            when Hostkit.Descriptors.Transfer_Interrupted
+               | Hostkit.Descriptors.Transfer_Would_Block =>
+               null;
+
+            when others =>
+               Drained := True;
+         end case;
+      end loop;
+
+      if Length (Held) > 0 then
+         return Line : constant String := To_String (Held) do
+            Held := Null_Unbounded_String;
+         end return;
+      end if;
+
+      Ended := True;
+      return "";
+   end Read_Line_Within;
+
+   ----------------
+   -- Read_Key --
+   ----------------
+
+   function Read_Key (Ended : out Boolean) return String is
+      use Ada.Strings.Unbounded;
+
+      --  Raw for the read, so that a character arrives when it is typed
+      --  rather than when a line is finished, and put back afterwards --
+      --  including on the way out of a read that failed.
+      type Raw_While_Reading is new Ada.Finalization.Limited_Controlled with
+        record
+           Held_Mode : Hostkit.Terminal_Control.Mode;
+           Have_Mode : Boolean := False;
+        end record;
+
+      overriding procedure Initialize (Item : in out Raw_While_Reading);
+      overriding procedure Finalize (Item : in out Raw_While_Reading);
+
+      overriding procedure Initialize (Item : in out Raw_While_Reading) is
+      begin
+         Adash.Execution.Signals.Hand_Over_Terminal;
+
+         if Hostkit.Descriptors.Is_Terminal
+              (Hostkit.Descriptors.Standard_Input)
+         then
+            Item.Have_Mode :=
+              Hostkit.Terminal_Control.Save_Mode
+                (Hostkit.Descriptors.Standard_Input, Item.Held_Mode);
+
+            if Item.Have_Mode then
+               Item.Have_Mode :=
+                 Hostkit.Terminal_Control.Set_Raw
+                   (Hostkit.Descriptors.Standard_Input);
+            end if;
+         end if;
+      end Initialize;
+
+      overriding procedure Finalize (Item : in out Raw_While_Reading) is
+         Put_Back : Boolean;
+      begin
+         if Item.Have_Mode then
+            Put_Back :=
+              Hostkit.Terminal_Control.Restore_Mode
+                (Hostkit.Descriptors.Standard_Input, Item.Held_Mode);
+            pragma Unreferenced (Put_Back);
+            Item.Have_Mode := False;
+         end if;
+
+         Adash.Execution.Signals.Take_Terminal_Back;
+      end Finalize;
+
+      Raw : Raw_While_Reading;
+      pragma Unreferenced (Raw);
+
+      Chunk : Ada.Streams.Stream_Element_Array (1 .. 1);
+      Last  : Ada.Streams.Stream_Element_Offset;
+   begin
+      Ended := False;
+
+      --  What a previous read left over comes first: there is one standard
+      --  input, and a character already taken from it is a character this
+      --  would otherwise skip.
+      if Length (Held) > 0 then
+         return Item : constant String := Slice (Held, 1, 1) do
+            Delete (Held, 1, 1);
+         end return;
+      end if;
+
+      if Drained then
+         Ended := True;
+         return "";
+      end if;
+
+      loop
+         case Hostkit.Descriptors.Read
+                (Hostkit.Descriptors.Standard_Input, Chunk, Last)
+         is
+            when Hostkit.Descriptors.Transfer_Ok =>
+               if Ada.Streams."<=" (Chunk'First, Last) then
+                  return [1 => Character'Val (Natural (Chunk (Chunk'First)))];
+               end if;
+
+            when Hostkit.Descriptors.Transfer_Interrupted =>
+               null;
+
+            when others =>
+               Drained := True;
+               Ended := True;
+               return "";
+         end case;
+      end loop;
+   end Read_Key;
 
    -----------------
    -- Take_Held --

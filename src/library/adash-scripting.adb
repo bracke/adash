@@ -79,6 +79,7 @@ package body Adash.Scripting is
    --  What a handler run for an interrupt is called in a diagnostic about it.
    Name_Of_Handlers : constant String := "on_interrupt";
    Name_Of_Signal_Handlers : constant String := "on_signal";
+   Name_Of_Failure_Handlers : constant String := "on_failure";
 
    procedure Run_Text
      (Session : in out Adash.Engine.Session;
@@ -155,6 +156,42 @@ package body Adash.Scripting is
                      Report  => Report,
                      On_Output => On_Output);
                end loop;
+            end;
+         end if;
+      end;
+
+      --  What `on_failure` asked for, if anything failed while this ran.
+      --
+      --  Once for the text rather than once per failing command: a script that
+      --  fails a hundred times in a loop has one thing wrong with it, and a
+      --  handler that wrote a line each time would bury it.
+      declare
+         Went_Wrong : constant Boolean :=
+           Adash.Engine.Take_Failure (Session);
+
+         Ran_It : Adash.Engine.Result;
+      begin
+         if Went_Wrong then
+            for Name of Adash.Engine.Failure_Handlers (Session) loop
+               Adash.Engine.Submit
+                 (Session,
+                  Ada.Strings.Unbounded.To_String (Name) & ";",
+                  Name    => Name_Of_Failure_Handlers,
+                  Kind    => Adash.Source.Origin_Interactive,
+                  Outcome => Ran_It,
+                  Report  => Report,
+                  On_Output => On_Output);
+            end loop;
+
+            --  Whatever the handlers themselves did is not another failure to
+            --  report: a handler that fails says so through its own
+            --  diagnostics, and running it again for that would not end.
+            declare
+               Ignored : constant Boolean :=
+                 Adash.Engine.Take_Failure (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               null;
             end;
          end if;
       end;

@@ -158,6 +158,46 @@ package Adash.Execution.Streams is
      (Ended : out Boolean;
       Limit : Positive := Adash.Filesystem.Default_Limit) return String;
 
+   --  A line, or nothing after this long.
+   --
+   --  What a script needs to ask a question it can carry on without: a prompt
+   --  with a default, a wait for something a user may not be there to type.
+   --
+   --  Timed_Out and Ended are two different answers and neither is an empty
+   --  line: input can genuinely hold one, so a caller that read "" would not
+   --  know which of the three had happened. All three come back separately.
+   --
+   --  The wait is per read rather than for the whole call. A line arriving one
+   --  character at a time from something slow is a line that is arriving, and
+   --  giving up in the middle of it would leave the rest for whoever reads
+   --  next -- which is the shell, and the characters would be a command.
+   --
+   --  @param Seconds How long to wait for something to arrive. Zero looks and
+   --         does not wait.
+   --  @param Ended True at end of input.
+   --  @param Timed_Out True when nothing arrived in time.
+   --  @param Limit The longest line to hand over whole.
+   --  @return The line, without its terminator.
+   function Read_Line_Within
+     (Seconds   : Duration;
+      Ended     : out Boolean;
+      Timed_Out : out Boolean;
+      Limit     : Positive := Adash.Filesystem.Default_Limit) return String;
+
+   --  One character, as it is typed.
+   --
+   --  What a menu needs: a keypress rather than a line, so a user answering
+   --  `y` does not also have to press return. The terminal is put in raw mode
+   --  for the read and put back afterwards, which is what makes the character
+   --  arrive at all -- a terminal in its usual mode hands over a line at a
+   --  time and would wait for the return this exists to avoid.
+   --
+   --  Reading a pipe or a file it is simply the next byte.
+   --
+   --  @param Ended True at end of input.
+   --  @return The character, or "" at end of input.
+   function Read_Key (Ended : out Boolean) return String;
+
    --  Take everything read and not yet handed out.
    --
    --  For a frontend that reads standard input itself. There is one standard

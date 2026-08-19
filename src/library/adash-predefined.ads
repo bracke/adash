@@ -70,7 +70,10 @@ package Adash.Predefined is
 
       --  Reading the shell's own input.
       Entity_Read_Line,
+      Entity_Read_Line_Within,
+      Entity_Read_Key,
       Entity_Input_Ended,
+      Entity_Input_Timed_Out,
 
       --  Asking about a path.
       Entity_Exists,

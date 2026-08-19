@@ -98,6 +98,10 @@ recalled is the whole submission, including a multi-line one: the history file
 holds each as one JSON string, so a submission written across three lines comes
 back as three lines rather than as a fragment.
 
+**Ctrl-Y** puts back what the last cut took out — `Ctrl-K` to the end of the
+line, `Ctrl-U` to its start, `Ctrl-W` a word back. One buffer rather than a
+ring: what you want back is what you just cut.
+
 **Ctrl-R** searches backwards for a line *holding* what you type, which is the
 difference between it and the up key: you remember a word from the middle of a
 line, not how it began. What is being searched for replaces the prompt while the

@@ -566,6 +566,7 @@ package body Adash.Interactive.Editing is
             when 16#02#          => Simple (Key_Left, 1);          return;
             when 16#06#          => Simple (Key_Right, 1);         return;
             when 16#12#          => Simple (Key_Search, 1);        return;
+            when 16#19#          => Simple (Key_Yank, 1);          return;
             when 16#0B#          => Simple (Key_Kill_To_End, 1);   return;
             when 16#15#          => Simple (Key_Kill_To_Start, 1); return;
             when 16#17#          => Simple (Key_Kill_Word, 1);     return;
@@ -772,6 +773,15 @@ package body Adash.Interactive.Editing is
       --  screen after every edit.
       Drawn_Row  : Natural := 0;
       Drawn_Rows : Natural := 0;
+
+      --  What the last kill took out, for the yank key to put back.
+      --
+      --  One buffer rather than a ring: what a user wants back is what they
+      --  just cut, and a ring is a second thing to remember the shape of. The
+      --  three kill keys fill it; nothing else touches it, so a yank after a
+      --  cut and some typing still puts back the cut.
+      Killed      : String (1 .. Max_Line) := [others => ' '];
+      Killed_Used : Natural := 0;
 
       --  What a reverse search is holding while it runs.
       --
@@ -1453,16 +1463,55 @@ package body Adash.Interactive.Editing is
                      Ignored := Line.Move (To_End);
                      Redraw;
 
-                  when Key_Kill_To_End =>
-                     Ignored := Line.Delete_To_End;
+                  when Key_Kill_To_End | Key_Kill_To_Start
+                     | Key_Kill_Word =>
+                     declare
+                        --  What the line held before and after, so that what
+                        --  the kill took out can be kept without each kill
+                        --  having to hand it back.
+                        Before : constant String := Line.Text;
+                        Point  : constant Natural := Natural (Line.Cursor);
+                     begin
+                        case Event.Kind is
+                           when Key_Kill_To_End =>
+                              Ignored := Line.Delete_To_End;
+
+                           when Key_Kill_To_Start =>
+                              Ignored := Line.Delete_To_Start;
+
+                           when others =>
+                              Ignored := Line.Delete_Word_Backward;
+                        end case;
+
+                        declare
+                           After : constant String := Line.Text;
+
+                           --  What went is the difference in length, and where
+                           --  it went from is the cursor: to the end from the
+                           --  point, and to the start or a word back ending at
+                           --  it.
+                           Gone : constant Natural :=
+                             Before'Length - After'Length;
+                        begin
+                           if Gone > 0 and then Gone <= Killed'Length then
+                              Killed_Used := Gone;
+                              Killed (1 .. Gone) :=
+                                (if Event.Kind = Key_Kill_To_End
+                                 then Before (Before'First + Point
+                                              .. Before'First + Point + Gone - 1)
+                                 else Before (Before'First + Point - Gone
+                                              .. Before'First + Point - 1));
+                           end if;
+                        end;
+                     end;
+
                      Redraw;
 
-                  when Key_Kill_To_Start =>
-                     Ignored := Line.Delete_To_Start;
-                     Redraw;
+                  when Key_Yank =>
+                     if Killed_Used > 0 then
+                        Ignored := Line.Insert (Killed (1 .. Killed_Used));
+                     end if;
 
-                  when Key_Kill_Word =>
-                     Ignored := Line.Delete_Word_Backward;
                      Redraw;
 
                   when Key_Up =>

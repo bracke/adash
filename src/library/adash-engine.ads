@@ -235,6 +235,24 @@ package Adash.Engine is
    function Interrupt_Handlers
      (Item : Session) return Hostkit.String_Vectors.Vector;
 
+   --  What `on_failure` asked for, in the order to run them.
+   --
+   --  @param Item The session.
+   --  @return The names.
+   function Failure_Handlers
+     (Item : Session) return Hostkit.String_Vectors.Vector;
+
+   --  Whether a command failed since this was last asked, and forget it.
+   --
+   --  Asked once after a submission, so that a handler runs for the submission
+   --  rather than for each failing command in it -- a loop that fails a
+   --  hundred times is one thing gone wrong. Reporting and clearing together,
+   --  because a caller that asked twice would run the handler twice.
+   --
+   --  @param Item The session.
+   --  @return True when something failed.
+   function Take_Failure (Item : in out Session) return Boolean;
+
    --  The handlers whose signal has arrived, and forget the arrivals.
    --
    --  Asked at a moment the caller chooses rather than delivered: a signal

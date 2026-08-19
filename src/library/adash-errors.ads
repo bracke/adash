@@ -159,6 +159,11 @@ package Adash.Errors is
       --  somebody somewhere they had never been and call it going back.
       Error_No_Previous_Directory,
 
+      --  `pop_directory` with nothing set aside. Said rather than treated as
+      --  the home directory or as nothing at all: a script that thought it had
+      --  gone back is a script doing the rest of its work in the wrong place.
+      Error_No_Directory_Set_Aside,
+
       --  A word that names no stream. The streams are `output`, `errors` and
       --  `both`, which is what `redirect` lists when it refuses one.
       Error_Unknown_Stream,

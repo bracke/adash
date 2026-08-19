@@ -16,6 +16,31 @@ what changed.
   form `NAME=VALUE`, which has exactly one exception, written down where the
   command is registered: a program whose own name contains an `=` must be run
   by `run` with the variables `set`.
+- **A directory stack**: `push_directory` goes somewhere and sets aside where
+  you were, `pop_directory` comes back to the most recent of those, and
+  `directories` lists what is waiting. They nest, which one previous directory
+  cannot — `cd ("-")` answers "where was I before this one", these answer "where
+  was I before I went off to do something else". A `pop_directory` with nothing
+  set aside is refused rather than treated as home: a script that thought it had
+  gone back would do the rest of its work in the wrong place. A failed
+  `push_directory` sets nothing aside, for the same reason.
+- **`on_failure`**, which is what `trap … ERR` is elsewhere. `stop.on-failure`
+  stops; this one *tells*, and a script that wants both does both. Once per
+  submission rather than once per failing command: a loop that fails a hundred
+  times is one thing gone wrong, and a handler writing a line each time would
+  bury it. A handler's own failure is not another thing to handle.
+- **`Read_Line_Within`, `Read_Key`, `Input_Timed_Out`.** A read that gives up
+  after a while is what a script needs to ask a question it can carry on
+  without, and there are three answers — a line, the end of the input, giving up
+  — none of which is an empty line, because input can genuinely hold one.
+  `Read_Key` is one character as it is typed: the terminal goes raw for the read
+  and back afterwards, which is what makes `y` an answer rather than `y` and a
+  return. The waiting is per read rather than for the whole call, so a line
+  arriving slowly is a line that is arriving; giving up in the middle would
+  leave the rest for the shell to read as a command.
+- **Ctrl-Y puts back what a cut took out.** `Ctrl-K`, `Ctrl-U` and `Ctrl-W` fill
+  one buffer; one rather than a ring, because what you want back is what you
+  just cut.
 - **`redirect`, `redirect_append`, `redirect_back`** — the other half of what
   `exec` does elsewhere: point the shell's *own* output, errors, or both at a
   file for the rest of the session. What the programs it starts write goes there

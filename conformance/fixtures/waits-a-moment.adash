@@ -1,0 +1,6 @@
+--  Reads a line, giving up if none arrives quickly, and says which of the
+--  three things happened: a line, the end of the input, or giving up.
+Line : String := Read_Line_Within (0.2);
+put_line ("[" & Line & "] timed_out " & Input_Timed_Out'Image
+          & " ended " & Input_Ended'Image);
+quit (0);

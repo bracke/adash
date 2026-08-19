@@ -306,6 +306,8 @@ package body Adash.Messages is
          when Msg_No_Matching_Files          => return "error.no_matching_files";
          when Msg_No_Previous_Directory      =>
             return "error.no_previous_directory";
+         when Msg_No_Directory_Set_Aside     =>
+            return "error.no_directory_set_aside";
          when Msg_Unknown_Stream             => return "error.unknown_stream";
          when Msg_Stream_Not_Redirected      =>
             return "error.stream_not_redirected";
@@ -474,6 +476,12 @@ package body Adash.Messages is
             return "predefined.previous_directory.doc";
          when Msg_Predefined_Job_Process_Doc =>
             return "predefined.job_process.doc";
+         when Msg_Predefined_Read_Line_Within_Doc =>
+            return "predefined.read_line_within.doc";
+         when Msg_Predefined_Read_Key_Doc =>
+            return "predefined.read_key.doc";
+         when Msg_Predefined_Input_Timed_Out_Doc =>
+            return "predefined.input_timed_out.doc";
          when Msg_Predefined_Left_Aligned_Doc =>
             return "predefined.left_aligned.doc";
          when Msg_Predefined_Right_Aligned_Doc =>
@@ -506,6 +514,12 @@ package body Adash.Messages is
             return "predefined.previous_directory.hint";
          when Msg_Predefined_Job_Process_Hint =>
             return "predefined.job_process.hint";
+         when Msg_Predefined_Read_Line_Within_Hint =>
+            return "predefined.read_line_within.hint";
+         when Msg_Predefined_Read_Key_Hint =>
+            return "predefined.read_key.hint";
+         when Msg_Predefined_Input_Timed_Out_Hint =>
+            return "predefined.input_timed_out.hint";
          when Msg_Predefined_Left_Aligned_Hint =>
             return "predefined.left_aligned.hint";
          when Msg_Predefined_Right_Aligned_Hint =>
@@ -624,6 +638,12 @@ package body Adash.Messages is
          when Msg_Command_Start_With_Doc     => return "command.start_with.doc";
          when Msg_Command_Time_Doc           => return "command.time.doc";
          when Msg_Command_Umask_Doc          => return "command.umask.doc";
+         when Msg_Command_On_Failure_Doc     => return "command.on_failure.doc";
+         when Msg_Command_Push_Directory_Doc =>
+            return "command.push_directory.doc";
+         when Msg_Command_Pop_Directory_Doc  =>
+            return "command.pop_directory.doc";
+         when Msg_Command_Directories_Doc    => return "command.directories.doc";
          when Msg_Command_Run_Matching_Doc   => return "command.run_matching.doc";
          when Msg_Command_Run_Instead_Doc    => return "command.run_instead.doc";
          when Msg_Command_Redirect_Doc       => return "command.redirect.doc";
@@ -711,6 +731,7 @@ package body Adash.Messages is
          when Msg_Line_Job_Started           => return "line.job_started";
          when Msg_Line_Took                  => return "line.took";
          when Msg_Line_Creation_Mask         => return "line.creation_mask";
+         when Msg_Line_Set_Aside             => return "line.set_aside";
          when Msg_Line_Search                => return "line.search";
          when Msg_Line_Search_Empty          => return "line.search_empty";
          when Msg_Line_Limit                 => return "line.limit";
@@ -1026,6 +1047,11 @@ package body Adash.Messages is
             | Msg_Predefined_Previous_Directory_Doc
             | Msg_Predefined_Previous_Directory_Hint
             | Msg_Predefined_Job_Process_Doc | Msg_Predefined_Job_Process_Hint
+            | Msg_Predefined_Read_Line_Within_Doc
+            | Msg_Predefined_Read_Line_Within_Hint
+            | Msg_Predefined_Read_Key_Doc | Msg_Predefined_Read_Key_Hint
+            | Msg_Predefined_Input_Timed_Out_Doc
+            | Msg_Predefined_Input_Timed_Out_Hint
             | Msg_Predefined_Left_Aligned_Doc
             | Msg_Predefined_Left_Aligned_Hint
             | Msg_Predefined_Right_Aligned_Doc
@@ -1089,6 +1115,10 @@ package body Adash.Messages is
             | Msg_Command_Run_From_Text_Doc
             | Msg_Command_Complete_With_Doc
             | Msg_Command_Umask_Doc
+            | Msg_Command_On_Failure_Doc
+            | Msg_Command_Push_Directory_Doc
+            | Msg_Command_Pop_Directory_Doc
+            | Msg_Command_Directories_Doc
             | Msg_Command_Run_Matching_Doc
             | Msg_Command_Run_Instead_Doc
             | Msg_Command_Redirect_Doc
@@ -1482,8 +1512,11 @@ package body Adash.Messages is
          when Msg_No_Matching_Files =>
             return [1 => N ("pattern")];
 
-         when Msg_No_Previous_Directory =>
+         when Msg_No_Previous_Directory | Msg_No_Directory_Set_Aside =>
             return No_Placeholders;
+
+         when Msg_Line_Set_Aside =>
+            return [N ("number"), N ("path")];
 
          when Msg_Unknown_Stream | Msg_Stream_Not_Redirected =>
             return [1 => N ("stream")];

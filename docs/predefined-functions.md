@@ -56,6 +56,9 @@ lines the way a command's output is.
 | Call | Answers | Notes |
 |---|---|---|
 | `Read_Line` | `String` | one line, without the newline that ended it |
+| `Read_Line_Within (Seconds)` | `String` | a line, or nothing if none arrives in that long; `Input_Timed_Out` says which |
+| `Read_Key` | `String` | one character as it is typed, without waiting for a line |
+| `Input_Timed_Out` | `Boolean` | whether the last read gave up waiting rather than finding a line or the end |
 | `Input_Ended` | `Boolean` | whether the last read found the end rather than a line |
 
 Two questions rather than one, on purpose: an empty line is a line a file may

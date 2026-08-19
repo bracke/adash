@@ -1763,6 +1763,139 @@ package body Adash_Tests.Execution_Cases is
               & Ada.Strings.Unbounded.To_String (Said) & "]");
    end Becoming_A_Program_Keeps_The_Process;
 
+   ------------------------------------------------------------------
+   --  Reading with a deadline
+   ------------------------------------------------------------------
+
+   --  A read gives up when nothing arrives, and says that is what happened.
+   --
+   --  The one answer a conformance case cannot produce: the runner either
+   --  hands the shell text or closes the stream, and this needs an input that
+   --  is open and silent. So the pipe is made here and nothing is written into
+   --  it -- the shell waits its two tenths of a second, gives up, and says so.
+   --
+   --  Which is the whole point of the function: a script that asks a question
+   --  it can carry on without must be able to tell "nobody answered" from
+   --  "there is nobody there" and from "they answered with an empty line".
+   procedure A_Read_Gives_Up_When_Nothing_Arrives
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Read_Gives_Up_When_Nothing_Arrives
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Shell : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Directories.Containing_Directory
+                (Ada.Directories.Containing_Directory
+                   (Ada.Directories.Full_Name
+                      (Ada.Command_Line.Command_Name)))),
+           "bin");
+
+      Binary : constant String :=
+        Ada.Directories.Compose
+          (Shell, "adash" & Hostkit.Fs.Executable_Suffix);
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-waiting.adash");
+
+      Told    : Hostkit.String_Vectors.Vector;
+      Options : Hostkit.Spawn.Options;
+      Child   : Hostkit.Spawn.Process_Handle;
+      Result  : Hostkit.Spawn.Status;
+
+      Feeding : Hostkit.Descriptors.Pipe_Ends;
+      Outs    : Hostkit.Descriptors.Pipe_Ends;
+
+      Said : Ada.Strings.Unbounded.Unbounded_String;
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      if not Ada.Directories.Exists (Binary) then
+         return;
+      end if;
+
+      Adash.Filesystem.Write
+        (Script,
+         "Line : String := Read_Line_Within (0.2);"
+         & Ada.Characters.Latin_1.LF
+         & "put_line (To_Upper (if Input_Timed_Out then ""gave up"""
+         & " else ""heard something""));" & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the probe script was not written");
+
+      Assert (Hostkit.Descriptors.Create_Pipe (Feeding),
+              "no pipe for the shell's input");
+      Assert (Hostkit.Descriptors.Create_Pipe (Outs),
+              "no pipe for the shell's output");
+      Assert (Hostkit.Descriptors.Set_Inheritable (Feeding.Read_End, True)
+              and then Hostkit.Descriptors.Set_Inheritable
+                         (Outs.Write_End, True),
+              "the child's streams would not travel to it");
+
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
+      Options.Input := Feeding.Read_End;
+      Options.Output := Outs.Write_End;
+
+      Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start on the waiting script");
+
+      --  This end of them, so that the shell's read ends when the shell does.
+      --  The *writing* end of its input is held open on purpose and nothing is
+      --  put into it: that is what makes the read wait rather than see the end
+      --  of the input straight away.
+      Hostkit.Descriptors.Close (Feeding.Read_End);
+      Hostkit.Descriptors.Close (Outs.Write_End);
+
+      loop
+         declare
+            Chunk : Ada.Streams.Stream_Element_Array (1 .. 1_024);
+            Last  : Ada.Streams.Stream_Element_Offset;
+         begin
+            exit when Hostkit.Descriptors.Read (Outs.Read_End, Chunk, Last)
+                      /= Hostkit.Descriptors.Transfer_Ok;
+
+            for Index in Chunk'First .. Last loop
+               Ada.Strings.Unbounded.Append
+                 (Said, Character'Val (Natural (Chunk (Index))));
+            end loop;
+         end;
+      end loop;
+
+      declare
+         Reaped : constant Boolean :=
+           Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Block, Result);
+         pragma Unreferenced (Reaped);
+      begin
+         null;
+      end;
+
+      Hostkit.Descriptors.Close (Feeding.Write_End);
+      Hostkit.Descriptors.Close (Outs.Read_End);
+
+      begin
+         Ada.Directories.Delete_File (Script);
+      exception
+         when others =>
+            null;
+      end;
+
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Said), "GAVE UP") > 0,
+              "a read with nobody answering did not give up: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+   end A_Read_Gives_Up_When_Nothing_Arrives;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -1829,6 +1962,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, A_Shell_Whose_Reader_Left_Says_No_Stack_Trace'Access,
          "execution : a shell whose reader left says no stack trace");
+      Register_Routine
+        (T, A_Read_Gives_Up_When_Nothing_Arrives'Access,
+         "execution : a read gives up when nothing arrives");
       Register_Routine
         (T, Becoming_A_Program_Keeps_The_Process'Access,
          "execution : becoming a program keeps the process");

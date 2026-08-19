@@ -137,6 +137,9 @@ output = [
   "!line.command_entry{name=jobs,summary=!command.jobs.doc!}!",
   "!line.command_entry{name=help,summary=!command.help.doc!}!",
   "!line.command_entry{name=version,summary=!command.version.doc!}!",
+  "!line.command_entry{name=push_directory,summary=!command.push_directory.doc!}!",
+  "!line.command_entry{name=pop_directory,summary=!command.pop_directory.doc!}!",
+  "!line.command_entry{name=directories,summary=!command.directories.doc!}!",
   "!line.command_entry{name=history,summary=!command.history.doc!}!",
   "!line.command_entry{name=forget,summary=!command.forget.doc!}!",
   "!line.command_entry{name=source,summary=!command.source.doc!}!",
@@ -194,6 +197,7 @@ output = [
   "!line.command_entry{name=on_exit,summary=!command.on_exit.doc!}!",
   "!line.command_entry{name=on_interrupt,summary=!command.on_interrupt.doc!}!",
   "!line.command_entry{name=append_file,summary=!command.append_file.doc!}!",
+  "!line.command_entry{name=on_failure,summary=!command.on_failure.doc!}!",
   "!line.command_entry{name=on_signal,summary=!command.on_signal.doc!}!",
   "!line.command_entry{name=signal_process,summary=!command.signal_process.doc!}!",
   "!line.command_entry{name=settings,summary=!command.settings.doc!}!",
@@ -1099,3 +1103,62 @@ exit_status = 0
 output = ["[name    |   7]", "007 12345", "3.14 2 []"]
 diagnostics = []
 
+
+[[case]]
+id = "paths.directories-are-set-aside-and-come-back"
+requirement = """
+`push_directory` goes somewhere and remembers where it was; `pop_directory`
+goes back to the most recent of those and forgets it; `directories` lists what
+is waiting, most recent first. They nest, which is what one previous directory
+cannot do -- and is why a script walking a tree wants them.
+
+A `pop_directory` with nothing set aside is refused rather than treated as the
+home directory: a script that thought it had gone back would do the rest of its
+work in the wrong place.
+"""
+script = "cd (\"{store}\"); make_directory (\"one/two\"); Started : String := Current_Directory; push_directory (\"one\"); push_directory (\"two\"); directories; pop_directory; pop_directory; put_line (Current_Directory = Started);\npop_directory;\nquit (0);"
+exit_status = 0
+output = [
+  "!line.set_aside{number=1,path={store}/one}!",
+  "!line.set_aside{number=2,path={store}}!",
+  "TRUE",
+]
+diagnostics = ["!error.no_directory_set_aside!"]
+
+[[case]]
+id = "failure.a-handler-hears-about-a-failure"
+requirement = """
+`on_failure` is what `trap ... ERR` is elsewhere, and what `stop.on-failure` is
+not: the setting stops, this one tells. A script that wants to know which step
+went wrong without stopping registers one of these.
+
+Once per submission rather than once per failing command: a loop that fails a
+hundred times is one thing gone wrong, and a handler writing a line each time
+would bury it. That is what the two failures in one submission here assert.
+"""
+script = "procedure Note is begin put_line (To_Upper (\"noticed\")); end Note; on_failure (\"Note\"); run (\"{emit}\", \"--exit=1\"); run (\"{emit}\", \"--exit=2\"); put_line (To_Upper (\"carried on\"));\nquit (0);"
+exit_status = 0
+output = ["CARRIED ON", "NOTICED"]
+diagnostics = []
+
+[[case]]
+id = "input.a-read-can-give-up-waiting"
+requirement = """
+`Read_Line_Within` is a line or nothing after that long, which is what a script
+needs to ask a question it can carry on without.
+
+Three answers, none of them an empty line: a line, the end of the input, and
+giving up -- `Input_Ended` and `Input_Timed_Out` say which, because input can
+genuinely hold an empty line and a caller reading "" would not know which of the
+three had happened.
+
+A line is what this case gives it. The other two need an input that is open and
+silent, which a case cannot arrange -- the runner either hands the shell text or
+closes the stream -- so giving up is asserted by a unit case that holds a pipe
+open and writes nothing into it.
+"""
+arguments = ["{root}/conformance/fixtures/waits-a-moment.adash"]
+input = "answered in time\n"
+exit_status = 0
+output = ["[answered in time] timed_out FALSE ended FALSE"]
+diagnostics = []

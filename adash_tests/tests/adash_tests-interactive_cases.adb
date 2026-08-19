@@ -1871,6 +1871,47 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after completing a word");
    end Completion_Offers_What_A_User_Taught_It;
 
+   --  What a cut took out, a yank puts back.
+   --
+   --  The three cut keys fill one buffer -- to the end of the line, to its
+   --  start, a word back -- and Ctrl-Y puts it back at the cursor. A ring
+   --  would be a second thing to remember the shape of; what a user wants back
+   --  is what they just cut.
+   procedure A_Yank_Puts_Back_What_A_Cut_Took
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Yank_Puts_Back_What_A_Cut_Took
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+      Cut_Word   : constant String := [1 => Character'Val (23)];
+      Yank_Key   : constant String := [1 => Character'Val (25)];
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      --  Typed, cut, put back twice: what comes out says the buffer held the
+      --  word rather than the shell having simply left the line alone.
+      Type_Into (Session, "put_line (To_Upper (""ab cd");
+      Type_Into (Session, Cut_Word);
+      Type_Into (Session, Yank_Key);
+      Type_Into (Session, Yank_Key);
+      Type_Into (Session, """));" & Return_Key);
+
+      Assert (Waited_For_Plainly (Session, "AB CDCD", 400),
+              "a yank did not put back what the cut took: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after a yank");
+   end A_Yank_Puts_Back_What_A_Cut_Took;
+
    --  Ctrl-R finds a line in the history and runs it.
    --
    --  A substring rather than a prefix, which is the difference between this
@@ -3782,6 +3823,8 @@ package body Adash_Tests.Interactive_Cases is
                         "what a shell on a terminal says when given a script");
       Register_Routine (T, An_Interrupted_Script_Still_Tidies_Up'Access,
                         "a script interrupted still runs what it registered");
+      Register_Routine (T, A_Yank_Puts_Back_What_A_Cut_Took'Access,
+         "a yank puts back what a cut took out");
       Register_Routine (T, A_Search_Finds_A_Line_And_Runs_It'Access,
          "a reverse search finds a line in the history and runs it");
       Register_Routine (T, A_Script_Can_Ask_A_Question'Access,

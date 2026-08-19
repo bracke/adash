@@ -64,6 +64,29 @@ package body Adash.Commands is
        Reports_Only,
        M.Msg_Command_Version_Doc, M.Msg_Command_Hint, Available),
 
+      --  Go somewhere, and remember where you were.
+      --
+      --  What `pushd` is elsewhere. `cd ("-")` answers "where was I before
+      --  this one"; this answers "where was I before I went off to do
+      --  something else", which is what a script walking a tree asks -- and it
+      --  nests, which one previous directory cannot.
+      (Command_Push_Directory, Named ("push_directory"), 1, 1,
+       [1 => Text ("Path"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Push_Directory_Doc, M.Msg_Command_Hint, Available),
+
+      --  Go back to the last place `push_directory` set aside.
+      (Command_Pop_Directory, Named ("pop_directory"), 0, 0,
+       [others => Nothing],
+       Changes_State,
+       M.Msg_Command_Pop_Directory_Doc, M.Msg_Command_Hint, Available),
+
+      --  What is on the stack, most recent first.
+      (Command_Directories, Named ("directories"), 0, 0,
+       [others => Nothing],
+       Reports_Only,
+       M.Msg_Command_Directories_Doc, M.Msg_Command_Hint, Available),
+
       (Command_History, Named ("history"), 0, Any_Number, [1 => Whole ("Count"), others => Nothing],
        Reports_Only,
        M.Msg_Command_History_Doc, M.Msg_Command_Hint, Available),
@@ -593,6 +616,22 @@ package body Adash.Commands is
        [1 => Text ("Text"), 2 => Text ("File"), others => Nothing],
        Changes_State,
        M.Msg_Command_Append_File_Doc, M.Msg_Command_Hint, Available),
+
+      --  Run a subprogram after a submission in which something failed.
+      --
+      --  What `trap ... ERR` is elsewhere, and what `stop.on-failure` is not:
+      --  that setting stops, this one *tells*. A script that wants to know
+      --  which step went wrong without stopping registers one of these; a
+      --  script that wants to stop turns the setting on; a script that wants
+      --  both does both, and the handler runs before the stopping.
+      --
+      --  Once per submission rather than once per failing command: a loop that
+      --  fails a hundred times is one thing gone wrong, and a handler that
+      --  wrote a line each time would bury it.
+      (Command_On_Failure, Named ("on_failure"), 1, 1,
+       [1 => Text ("Name"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_On_Failure_Doc, M.Msg_Command_Hint, Available),
 
       --  Run a subprogram when a signal arrives.
       --

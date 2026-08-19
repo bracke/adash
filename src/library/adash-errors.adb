@@ -32,6 +32,7 @@ package body Adash.Errors is
             | Error_Mask_Not_Octal
             | Error_No_Matching_Files
             | Error_No_Previous_Directory
+            | Error_No_Directory_Set_Aside
             | Error_Unknown_Stream
             | Error_Stream_Not_Redirected
             | Error_Unknown_Signal
@@ -210,6 +211,8 @@ package body Adash.Errors is
          when Error_Mask_Not_Octal         => return Adash.Messages.Msg_Mask_Not_Octal;
          when Error_No_Previous_Directory  =>
             return Adash.Messages.Msg_No_Previous_Directory;
+         when Error_No_Directory_Set_Aside =>
+            return Adash.Messages.Msg_No_Directory_Set_Aside;
          when Error_Unknown_Stream         =>
             return Adash.Messages.Msg_Unknown_Stream;
          when Error_Stream_Not_Redirected  =>

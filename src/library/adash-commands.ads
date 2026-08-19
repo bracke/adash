@@ -46,6 +46,9 @@ package Adash.Commands is
      (
       --  The directory the shell is in.
       Command_Change_Directory,
+      Command_Push_Directory,
+      Command_Pop_Directory,
+      Command_Directories,
       Command_Print_Directory,
 
       --  Ending the session.
@@ -128,6 +131,7 @@ package Adash.Commands is
       Command_Stop,
       Command_Stop_Process,
       Command_On_Interrupt,
+      Command_On_Failure,
       Command_On_Signal,
       Command_Signal_Process,
       Command_Suspend,
@@ -486,6 +490,14 @@ package Adash.Commands is
       Saved_Errors : Hostkit.Descriptors.Descriptor :=
         Hostkit.Descriptors.Invalid;
 
+      --  Directories set aside by `push_directory`, most recent first.
+      --
+      --  A stack rather than a second "previous": `cd ("-")` answers "where
+      --  was I before this one", and this answers "where was I before I went
+      --  off to do something else", which is a different question a script
+      --  asks when it walks a tree.
+      Directory_Stack : Hostkit.String_Vectors.Vector;
+
       --  Where the last `cd` came from, for `cd ("-")`.
       --
       --  Kept here rather than in an environment variable: OLDPWD is a
@@ -494,6 +506,20 @@ package Adash.Commands is
       --  because this package's visible part has no unbounded string of its
       --  own: empty means the session has not moved yet.
       Previous_Directory : Hostkit.String_Vectors.Vector;
+
+      --  What `on_failure` asked for, most recently asked first.
+      Failure_Handlers : Hostkit.String_Vectors.Vector;
+
+      --  Whether a command has failed since anybody asked. Set for every
+      --  failing command, internal or external, and taken by the frontend
+      --  after a submission so that `on_failure` runs once for a submission
+      --  rather than once for each command in it.
+      Something_Failed : Boolean := False;
+
+      --  Whether the last read gave up waiting. Beside Input_Ended, and for
+      --  the same reason: an empty line is a line, so neither can be reported
+      --  by handing one back.
+      Input_Timed_Out : Boolean := False;
 
       --  What `on_signal` asked for: pairs of a signal's name and the
       --  subprogram to run when it arrives, one after the other.

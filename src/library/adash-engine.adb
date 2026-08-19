@@ -402,6 +402,46 @@ package body Adash.Engine is
                Answer := Adash.Language.Values.To_Value (Line);
             end;
 
+         when Adash.Predefined.Entity_Read_Line_Within =>
+            declare
+               Ended     : Boolean;
+               Timed_Out : Boolean;
+
+               Seconds : Float := 0.0;
+
+               Line : constant String :=
+                 (if Adash.Language.Values.Get (Arguments (1), Seconds)
+                  then Adash.Execution.Streams.Read_Line_Within
+                         (Duration (Seconds), Ended, Timed_Out,
+                          Limit =>
+                            Positive
+                              (Adash.Configuration.Integer_Value
+                                 (Sink.Shell.Chosen,
+                                  Adash.Configuration.Read_Limit_Setting)
+                               * 1_024 * 1_024))
+                  else "");
+            begin
+               Sink.Shell.Input_Ended := Ended;
+               Sink.Shell.Input_Timed_Out := Timed_Out;
+               Answer := Adash.Language.Values.To_Value (Line);
+            end;
+
+         when Adash.Predefined.Entity_Read_Key =>
+            declare
+               Ended : Boolean;
+
+               Item : constant String :=
+                 Adash.Execution.Streams.Read_Key (Ended);
+            begin
+               Sink.Shell.Input_Ended := Ended;
+               Sink.Shell.Input_Timed_Out := False;
+               Answer := Adash.Language.Values.To_Value (Item);
+            end;
+
+         when Adash.Predefined.Entity_Input_Timed_Out =>
+            Answer := Adash.Language.Values.To_Value
+              (Sink.Shell.Input_Timed_Out);
+
          when Adash.Predefined.Entity_Input_Ended =>
             Answer := Adash.Language.Values.To_Value (Sink.Shell.Input_Ended);
 
@@ -722,6 +762,13 @@ package body Adash.Engine is
       Sink.Shell.Last_Status := Status;
 
       Failed := not Adash.Execution.Succeeded (Status);
+
+      --  Remembered for `on_failure`, which the frontend runs once the
+      --  submission is over: a handler cannot run from in here, where the
+      --  program that failed is still half way through a statement.
+      if Failed then
+         Sink.Shell.Something_Failed := True;
+      end if;
 
       --  `quit` is the command that ends a session, and it says so by setting
       --  this rather than by being named here: a second command that ended a
@@ -1668,6 +1715,19 @@ package body Adash.Engine is
 
       return Due;
    end Due_Signal_Handlers;
+
+   function Failure_Handlers
+     (Item : Session) return Hostkit.String_Vectors.Vector is
+   begin
+      return Item.Shell.Failure_Handlers;
+   end Failure_Handlers;
+
+   function Take_Failure (Item : in out Session) return Boolean is
+      Answer : constant Boolean := Item.Shell.Something_Failed;
+   begin
+      Item.Shell.Something_Failed := False;
+      return Answer;
+   end Take_Failure;
 
    function Interrupt_Handlers
      (Item : Session) return Hostkit.String_Vectors.Vector is

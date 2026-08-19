@@ -1393,6 +1393,43 @@ package body Adash.Interactive.Session is
                      end if;
                   end;
 
+                  --  What `on_failure` asked for, if anything failed in that
+                  --  submission. Once for the submission: a loop that fails a
+                  --  hundred times is one thing gone wrong.
+                  declare
+                     Went_Wrong : constant Boolean :=
+                       Adash.Engine.Take_Failure (Shell);
+                  begin
+                     if Went_Wrong then
+                        for Name of Adash.Engine.Failure_Handlers (Shell) loop
+                           declare
+                              Ran_It : Adash.Engine.Result;
+                           begin
+                              Adash.Engine.Submit
+                                (Shell,
+                                 Ada.Strings.Unbounded.To_String (Name) & ";",
+                                 Name      => "on_failure",
+                                 Kind      => Adash.Source.Origin_Interactive,
+                                 Outcome   => Ran_It,
+                                 Report    => Report,
+                                 On_Output => Output_To'Unchecked_Access);
+                           end;
+                        end loop;
+
+                        Render_Diagnostics;
+
+                        --  A handler that failed is not another thing to
+                        --  handle; it says so through its own diagnostics.
+                        declare
+                           Ignored : constant Boolean :=
+                             Adash.Engine.Take_Failure (Shell);
+                           pragma Unreferenced (Ignored);
+                        begin
+                           null;
+                        end;
+                     end if;
+                  end;
+
                   --  And whatever else arrived while that ran: a `terminate`
                   --  sent by a service manager, a `hangup` from a terminal
                   --  that went away. Asked here rather than delivered, because

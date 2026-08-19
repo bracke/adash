@@ -33,6 +33,9 @@ A directory actually named `-` is reachable as `./-`, which is how the other
 shells reach it too.
 
 | `pwd` | 0 | reports the directory the shell is in |
+| `push_directory (Path : String)` | 1 | goes there and sets aside where you were, nesting |
+| `pop_directory` | 0 | goes back to the most recently set aside, and forgets it |
+| `directories` | 0 | lists what is set aside, most recent first |
 | `quit (Status : Integer)` | 0 .. 1 | ends the session, with a status if one is given |
 | `version` | 0 | reports which build this is |
 | `help (Topic : String)` | 0 .. 1 | lists the commands, or describes one |
@@ -139,6 +142,7 @@ over has already been expanded, and nothing is left for a runtime to find.
 | `resource_ceiling (Resource : String; Value : String)` | 1 or 2 | shows or sets how far a limit may be raised. Anybody may lower a ceiling; only privilege raises it again |
 | `complete_with (Program : String; Name : String)` | 2 | names a subprogram that says what may follow a program, one candidate per line, for Tab |
 | `on_interrupt (Name : String)` | 1 | names a subprogram to run when the user interrupts; stays registered |
+| `on_failure (Name : String)` | 1 | runs a subprogram after a submission in which a command failed, once for the submission |
 | `on_signal (Signal : String; Name : String)` | 2 | runs a subprogram when a signal arrives — `terminate`, `hangup`, `quit`, `continue` and the rest, by the host's own name in lower case. `kill` and `stop` cannot be caught anywhere and are refused; Windows has none of these and refuses too |
 | `signal_process (Process : Integer; Signal : String)` | 2 | sends a signal to a process by id, naming it rather than numbering it |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
