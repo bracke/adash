@@ -96,6 +96,12 @@ package body Adash_Tests.Configuration_Cases is
                           C.Setting_Id'Image (Which)
                           & " is a choice with fewer than two words");
 
+               when C.Text_Setting =>
+                  --  Free text has no list to check. What it must not do is
+                  --  accept what a terminal would read as an instruction, and
+                  --  the case below asks that of it.
+                  null;
+
                when C.Integer_Setting =>
                   Assert (C.Minimum (Which) <= C.Maximum (Which),
                           C.Setting_Id'Image (Which)
@@ -137,6 +143,11 @@ package body Adash_Tests.Configuration_Cases is
                  & C.Setting_Id'Image (Which));
 
          case C.Kind (Which) is
+            when C.Text_Setting =>
+               Assert (C.Text_Value (Chosen, Which)'Length <= C.Maximum_Text,
+                       "the default for " & C.Key (Which)
+                       & " is longer than a text setting may be");
+
             when C.Integer_Setting =>
                Assert (C.Integer_Value (Chosen, Which) >= C.Minimum (Which)
                        and then C.Integer_Value (Chosen, Which)
@@ -409,6 +420,11 @@ package body Adash_Tests.Configuration_Cases is
 
          for Which in C.Setting_Id loop
             case C.Kind (Which) is
+               when C.Text_Setting =>
+                  Assert (C.Text_Value (Again, Which)
+                          = C.Text_Value (Chosen, Which),
+                          C.Key (Which) & " did not survive the round trip");
+
                when C.Boolean_Setting =>
                   Assert (C.Boolean_Value (Again, Which)
                           = C.Boolean_Value (Chosen, Which),

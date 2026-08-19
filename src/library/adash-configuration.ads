@@ -91,7 +91,11 @@ package Adash.Configuration is
       --  the convention the other shells have needs it to work the first time
       --  they reach for it, and the cost of the default being wrong is a
       --  recalled line missing rather than a secret kept.
-      History_Ignore_Space_Setting);
+      History_Ignore_Space_Setting,
+
+      --  What the prompt looks like. Empty means the built-in one, which the
+      --  two prompt switches above shape.
+      Prompt_Format_Setting);
 
    --  What sort of value a setting holds.
    type Setting_Kind is
@@ -105,7 +109,18 @@ package Adash.Configuration is
       --  One of a fixed list of words. Not a free string: a setting whose
       --  wrong values are only discovered at the point of use is one the user
       --  finds out about later and elsewhere.
-      Choice_Setting);
+      Choice_Setting,
+
+      --  Free text.
+      --
+      --  The argument above is about a value whose wrongness shows up
+      --  somewhere else, later. A prompt format is the opposite: what it does
+      --  is on the screen the moment it is set, and a list of allowed prompts
+      --  is not a list anybody could write. What is still refused is text that
+      --  could scramble a terminal -- control characters and escapes are
+      --  styling, and styling here belongs to the style package rather than to
+      --  a string a user pasted.
+      Text_Setting);
 
    --  The key a setting has in the file, dotted as TOML writes it.
    --
@@ -174,6 +189,28 @@ package Adash.Configuration is
    --  @param Which A Choice_Setting.
    --  @return Its value, one of the setting's words.
    function Choice_Value (Item : Settings; Which : Setting_Id) return String;
+
+   --  @param Item The settings.
+   --  @param Which A Text_Setting.
+   --  @return Its value, which may be empty.
+   function Text_Value (Item : Settings; Which : Setting_Id) return String;
+
+   --  Set free text, refusing what a terminal would read as an instruction.
+   --
+   --  @param Item The settings.
+   --  @param Which A Text_Setting.
+   --  @param To The new text.
+   --  @return False when the text is too long or holds a control character,
+   --          in which case nothing changed. A prompt is written to a terminal
+   --          before anything else on the line, so text that moves a cursor or
+   --          sets a colour would be a setting that breaks the display it
+   --          appears in -- and the styling a prompt does have is the style
+   --          package's to decide.
+   function Set_Text
+     (Item : in out Settings; Which : Setting_Id; To : String) return Boolean;
+
+   --  Longest a text setting may be.
+   Maximum_Text : constant := 200;
 
    --  @param Item The settings.
    --  @param Which A Boolean_Setting.

@@ -1451,6 +1451,175 @@ package body Adash_Tests.Execution_Cases is
       end if;
    end A_Shell_That_Cannot_Write_Its_Own_Lines_Ends_With_74;
 
+   ------------------------------------------------------------------
+   --  Signals a script asked to hear about
+   ------------------------------------------------------------------
+
+   --  A signal a handler was registered for reaches the handler.
+   --
+   --  The shell is started on a script that registers for `terminate`, says
+   --  it is ready and then loops; this sends the signal and waits for what the
+   --  handler prints. Sent to a real process by a real host, because that is
+   --  all this feature is: a disposition, a flag set inside a handler, and a
+   --  shell that turns the flag into work at a moment of its own choosing.
+   --
+   --  Nothing to do on a host with no `terminate` to send, which is Windows --
+   --  where `on_signal` refuses instead, as the conformance case gated to that
+   --  host says.
+   procedure A_Signal_Reaches_The_Handler_It_Was_Registered_For
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Signal_Reaches_The_Handler_It_Was_Registered_For
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Shell : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Directories.Containing_Directory
+                (Ada.Directories.Containing_Directory
+                   (Ada.Directories.Full_Name
+                      (Ada.Command_Line.Command_Name)))),
+           "bin");
+
+      Binary : constant String :=
+        Ada.Directories.Compose
+          (Shell, "adash" & Hostkit.Fs.Executable_Suffix);
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-signal.adash");
+
+      Told    : Hostkit.String_Vectors.Vector;
+      Options : Hostkit.Spawn.Options;
+      Child   : Hostkit.Spawn.Process_Handle;
+      Result  : Hostkit.Spawn.Status;
+
+      Outs : Hostkit.Descriptors.Pipe_Ends;
+      Said : Ada.Strings.Unbounded.Unbounded_String;
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      if not Ada.Directories.Exists (Binary)
+        or else not Hostkit.Signals.Is_Supported
+                      (Hostkit.Signals.Signal_Terminate)
+      then
+         return;
+      end if;
+
+      --  Upper case through To_Upper, so what this waits for cannot be a copy
+      --  of the script's own text arriving on the same stream.
+      Adash.Filesystem.Write
+        (Script,
+         "procedure Note is begin put_line (To_Upper (""noted"")); end Note;"
+         & Ada.Characters.Latin_1.LF
+         & "on_signal (""terminate"", ""Note"");" & Ada.Characters.Latin_1.LF
+         & "put_line (To_Upper (""ready""));" & Ada.Characters.Latin_1.LF
+         & "for I in 1 .. 600 loop delay 0.1; end loop;"
+         & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the probe script was not written");
+
+      Assert (Hostkit.Descriptors.Create_Pipe (Outs),
+              "no pipe for the shell's output");
+      Assert (Hostkit.Descriptors.Set_Inheritable (Outs.Write_End, True),
+              "the child's output would not travel to it");
+
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
+      Options.Output := Outs.Write_End;
+
+      Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start on the signal script");
+
+      Hostkit.Descriptors.Close (Outs.Write_End);
+
+      --  Wait for the script to say it is ready before signalling it: a signal
+      --  sent before the handler was registered is one the shell dies of,
+      --  which is the host's default rather than anything this is about.
+      declare
+         Ready : Boolean := False;
+      begin
+         for Attempt in 1 .. 400 loop
+            declare
+               Chunk : Ada.Streams.Stream_Element_Array (1 .. 1_024);
+               Last  : Ada.Streams.Stream_Element_Offset;
+            begin
+               exit when Hostkit.Descriptors.Read (Outs.Read_End, Chunk, Last)
+                         /= Hostkit.Descriptors.Transfer_Ok;
+
+               for Index in Chunk'First .. Last loop
+                  Ada.Strings.Unbounded.Append
+                    (Said, Character'Val (Natural (Chunk (Index))));
+               end loop;
+            end;
+
+            Ready := Ada.Strings.Fixed.Index
+                       (Ada.Strings.Unbounded.To_String (Said), "READY") > 0;
+            exit when Ready;
+         end loop;
+
+         Assert (Ready,
+                 "the script never said it was ready: ["
+                 & Ada.Strings.Unbounded.To_String (Said) & "]");
+      end;
+
+      Assert (Hostkit.Signals.Send_To_Process
+                (Hostkit.Spawn.Process_Id (Child),
+                 Hostkit.Signals.Signal_Terminate),
+              "the host would not send the signal");
+
+      --  What the handler printed. The read ends when the shell does, so a
+      --  handler that never ran shows up as a closed stream holding nothing
+      --  after READY rather than as a case that waits for ever.
+      loop
+         declare
+            Chunk : Ada.Streams.Stream_Element_Array (1 .. 1_024);
+            Last  : Ada.Streams.Stream_Element_Offset;
+         begin
+            exit when Hostkit.Descriptors.Read (Outs.Read_End, Chunk, Last)
+                      /= Hostkit.Descriptors.Transfer_Ok;
+
+            for Index in Chunk'First .. Last loop
+               Ada.Strings.Unbounded.Append
+                 (Said, Character'Val (Natural (Chunk (Index))));
+            end loop;
+         end;
+      end loop;
+
+      --  Reaped, so the child does not linger; what it exited with says
+      --  nothing here, because a handler that ran and a shell that ignored the
+      --  signal both end normally.
+      declare
+         Reaped : constant Boolean :=
+           Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Block, Result);
+         pragma Unreferenced (Reaped);
+      begin
+         null;
+      end;
+
+      Hostkit.Descriptors.Close (Outs.Read_End);
+
+      begin
+         Ada.Directories.Delete_File (Script);
+      exception
+         when others =>
+            null;
+      end;
+
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Said), "NOTED") > 0,
+              "the signal did not reach the handler registered for it: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+   end A_Signal_Reaches_The_Handler_It_Was_Registered_For;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -1517,6 +1686,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, A_Shell_Whose_Reader_Left_Says_No_Stack_Trace'Access,
          "execution : a shell whose reader left says no stack trace");
+      Register_Routine
+        (T, A_Signal_Reaches_The_Handler_It_Was_Registered_For'Access,
+         "execution : a signal reaches the handler registered for it");
       Register_Routine
         (T, What_A_Stopped_Child_Leaves_On_A_Shells_Error_Stream'Access,
          "execution : what a stopped child leaves on a shell's error stream");

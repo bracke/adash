@@ -1,4 +1,5 @@
 with Hostkit.Descriptors;
+with Hostkit.Signals;
 
 with Adash.Errors;
 
@@ -93,6 +94,48 @@ package Adash.Execution.Signals is
    --
    --  @return True when at least one interrupt is outstanding.
    function Interrupt_Pending return Boolean;
+
+   --  Ask the host to record a signal, so that a handler can be run for it.
+   --
+   --  What `on_signal` needs and what `Install` above deliberately does not
+   --  do: the shell's own policy is about signals it must not die from, and
+   --  this is about a signal a user asked to hear about. Recording is all a
+   --  handler may do from inside a signal -- the work happens later, at a
+   --  point the shell chooses -- which is why the answer comes back through
+   --  Signal_Pending rather than through a callback.
+   --
+   --  @param Item The signal.
+   --  @return False where this host cannot report that one arrived, which
+   --          Windows cannot for anything but the interrupt.
+   function Record_Signal (Item : Hostkit.Signals.Signal) return Boolean;
+
+   --  Whether a recorded signal is outstanding.
+   --
+   --  @param Item The signal.
+   --  @return True when at least one arrived since it was acknowledged.
+   function Signal_Pending (Item : Hostkit.Signals.Signal) return Boolean;
+
+   --  Whether a signal that means "wind up" is outstanding.
+   --
+   --  Terminate, hangup and quit: the three a user or a service manager sends
+   --  to say stop. Only ever true for one the shell was asked to record --
+   --  that is, one a handler was registered for -- because a signal nobody
+   --  registered for keeps the host's own disposition, which for these is to
+   --  end the process.
+   --
+   --  It belongs beside Interrupt_Pending because a cancellation token asks
+   --  both: a submission that is running when one of these arrives has to stop
+   --  before its handler can run, and "stop what is running" is what a token
+   --  is for. A handler that only ran once the loop it was meant to interrupt
+   --  had finished would be a handler that never ran.
+   --
+   --  @return True when one of the three is outstanding.
+   function Winding_Up return Boolean;
+
+   --  Acknowledge one, once whatever it meant has been dealt with.
+   --
+   --  @param Item The signal.
+   procedure Acknowledge_Signal (Item : Hostkit.Signals.Signal);
 
    --  Acknowledge every outstanding interrupt.
    --

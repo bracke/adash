@@ -26,6 +26,7 @@ package body Adash.Configuration is
          when Session_File_Setting     => return "startup.session";
          when History_Per_Session_Setting => return "history.per-session";
          when History_Ignore_Space_Setting => return "history.ignore-space";
+         when Prompt_Format_Setting    => return "prompt.format";
       end case;
    end Key;
 
@@ -37,6 +38,7 @@ package body Adash.Configuration is
    begin
       case Item is
          when Color_Setting         => return Choice_Setting;
+         when Prompt_Format_Setting => return Text_Setting;
          when History_Limit_Setting => return Integer_Setting;
          when Read_Limit_Setting    => return Integer_Setting;
          when Trace_Setting         => return Boolean_Setting;
@@ -73,6 +75,8 @@ package body Adash.Configuration is
             return Adash.Messages.Msg_Setting_History_Per_Session;
          when History_Ignore_Space_Setting =>
             return Adash.Messages.Msg_Setting_History_Ignore_Space;
+         when Prompt_Format_Setting =>
+            return Adash.Messages.Msg_Setting_Prompt_Format;
       end case;
    end Description;
 
@@ -234,6 +238,43 @@ package body Adash.Configuration is
       return To_String (Item.Values (Which).Text);
    end Choice_Value;
 
+   -------------------
+   -- Text_Value --
+   -------------------
+
+   function Text_Value (Item : Settings; Which : Setting_Id) return String is
+   begin
+      return To_String (Item.Values (Which).Text);
+   end Text_Value;
+
+   ----------------
+   -- Set_Text --
+   ----------------
+
+   function Set_Text
+     (Item : in out Settings; Which : Setting_Id; To : String) return Boolean is
+   begin
+      if To'Length > Maximum_Text then
+         return False;
+      end if;
+
+      --  A control character is an instruction to a terminal, and a prompt is
+      --  written before everything else on the line: text that moved the
+      --  cursor or set a colour would be a setting that breaks the display it
+      --  appears in. What styling a prompt has is decided by the style
+      --  package, from the role of each part.
+      for Index in To'Range loop
+         if Character'Pos (To (Index)) < 32
+           or else Character'Pos (To (Index)) = 127
+         then
+            return False;
+         end if;
+      end loop;
+
+      Item.Values (Which).Text := To_Unbounded_String (To);
+      return True;
+   end Set_Text;
+
    -----------------
    -- Set_Boolean --
    -----------------
@@ -298,7 +339,7 @@ package body Adash.Configuration is
          when Integer_Setting =>
             return Item.Values (Which).Whole = Original.Values (Which).Whole;
 
-         when Choice_Setting =>
+         when Choice_Setting | Text_Setting =>
             return Item.Values (Which).Text = Original.Values (Which).Text;
       end case;
    end Is_Default;

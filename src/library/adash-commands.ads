@@ -123,6 +123,8 @@ package Adash.Commands is
       Command_Stop,
       Command_Stop_Process,
       Command_On_Interrupt,
+      Command_On_Signal,
+      Command_Signal_Process,
       Command_Suspend,
       Command_Resume,
       Command_Foreground,
@@ -468,6 +470,14 @@ package Adash.Commands is
       --  and silently not for the second, which is the shape of a bug nobody
       --  reports.
       Interrupt_Handlers : Hostkit.String_Vectors.Vector;
+
+      --  What `on_signal` asked for: pairs of a signal's name and the
+      --  subprogram to run when it arrives, one after the other.
+      --
+      --  Pairs in one vector for the same reason the completions are: this
+      --  shell has no map type, and a user names a handful of signals rather
+      --  than all of them.
+      Signal_Handlers : Hostkit.String_Vectors.Vector;
 
       --  What `complete_with` asked for: pairs of a program name and the
       --  subprogram that says what may follow it, one after the other.

@@ -73,6 +73,7 @@ package body Adash.Configuration.Files is
          when Boolean_Setting => return Msg.Msg_Config_Wants_Truth;
          when Integer_Setting => return Msg.Msg_Config_Wants_Range;
          when Choice_Setting  => return Msg.Msg_Config_Wants_Choice;
+         when Text_Setting    => return Msg.Msg_Config_Wants_Text;
       end case;
    end Expected;
 
@@ -88,6 +89,9 @@ package body Adash.Configuration.Files is
 
          when Choice_Setting =>
             return [1 => Msg.Named ("choices", Choice_List (Which))];
+
+         when Text_Setting =>
+            return [1 => Msg.Named ("limit", Image (Maximum_Text))];
       end case;
    end Expected_Given;
 
@@ -266,6 +270,30 @@ package body Adash.Configuration.Files is
                                  [Msg.Named ("key", Full),
                                   Msg.Named ("detail", Choice_List (Which))]);
                            end if;
+
+                        when Text_Setting =>
+                           if Doc.Kind (Document, Item) /= Doc.String_Value
+                           then
+                              Complain
+                                (Msg.Msg_Config_Wrong_Type,
+                                 Adash.Diagnostics.Severity_Error,
+                                 [1 => Msg.Named ("key", Full)],
+                                 Expected (Which), Expected_Given (Which));
+
+                           elsif not Set_Text
+                                       (Into, Which,
+                                        Doc.As_String (Document, Item))
+                           then
+                              --  Too long, or holding something a terminal
+                              --  would read as an instruction. The default
+                              --  stands rather than a truncation nobody asked
+                              --  for.
+                              Complain
+                                (Msg.Msg_Config_Out_Of_Range,
+                                 Adash.Diagnostics.Severity_Error,
+                                 [1 => Msg.Named ("key", Full)],
+                                 Expected (Which), Expected_Given (Which));
+                           end if;
                      end case;
 
                   elsif Doc.Kind (Document, Item) = Doc.Table_Value then
@@ -379,6 +407,9 @@ package body Adash.Configuration.Files is
                   when Choice_Setting =>
                      Value := Doc.New_String
                        (Document, Choice_Value (Item, Which));
+                  when Text_Setting =>
+                     Value := Doc.New_String
+                       (Document, Text_Value (Item, Which));
                end case;
 
                --  Walk the dotted key, creating the tables it names. tomllib

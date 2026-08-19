@@ -12,6 +12,7 @@ with Adash.Version;
 
 with Hostkit;
 with Hostkit.Process;
+with Hostkit.Signals;
 with Hostkit.Fs;
 with Hostkit.Limits;
 with Adash.Configuration;
@@ -67,6 +68,23 @@ package body Adash.Commands.Builtins is
    --  arguments. What separates the two in `run_with ("A=1", "B=2", "sort")`.
    function Is_An_Assignment (Text : String) return Boolean
    is (Assignment_Split (Text) > 0);
+
+   --  The same text in lower case, for names a host spells in capitals.
+   function Lowered (Text : String) return String;
+
+   function Lowered (Text : String) return String is
+      Result : String := Text;
+   begin
+      for Index in Result'Range loop
+         if Result (Index) in 'A' .. 'Z' then
+            Result (Index) :=
+              Character'Val (Character'Pos (Result (Index))
+                             - Character'Pos ('A') + Character'Pos ('a'));
+         end if;
+      end loop;
+
+      return Result;
+   end Lowered;
 
    --  A mask as a shell writes one: octal, no prefix.
    function Octal (Value : Natural) return String;
@@ -376,7 +394,7 @@ package body Adash.Commands.Builtins is
                --  HOME, which a spawned process can set to anything.
                Target : constant String :=
                  (if Given = 0 then Hostkit.Fs.Home_Directory
-                  else Argument (Arguments, 1));
+                  else Adash.Filesystem.Expanded (Argument (Arguments, 1)));
             begin
                if Target = "" then
                   return Failed (Adash.Errors.Error_Directory_Not_Found,
@@ -1723,6 +1741,9 @@ package body Adash.Commands.Builtins is
 
                      when Config.Choice_Setting =>
                         return Shell.Chosen.Choice_Value (Which);
+
+                     when Config.Text_Setting =>
+                        return Shell.Chosen.Text_Value (Which);
                   end case;
                end Written;
             begin
@@ -1832,6 +1853,18 @@ package body Adash.Commands.Builtins is
                                        (Allowed))]);
                            end;
                         end if;
+
+                     when Config.Text_Setting =>
+                        if not Shell.Chosen.Set_Text (Which, Wanted) then
+                           --  Too long, or holding something a terminal would
+                           --  read as an instruction rather than as text.
+                           return Refused
+                             (M.Msg_Config_Wrong_Type,
+                              [1 => M.Named ("key", Named_As)],
+                              M.Msg_Config_Wants_Text,
+                              [1 => M.Named
+                                      ("limit", Trim (Config.Maximum_Text))]);
+                        end if;
                   end case;
 
                   --  Said back, so a user sees what the shell now holds rather
@@ -1892,6 +1925,98 @@ package body Adash.Commands.Builtins is
                  (Ada.Strings.Unbounded.To_Unbounded_String (Name));
 
                return Adash.Execution.Success;
+            end;
+
+         when Command_On_Signal | Command_Signal_Process =>
+            declare
+               --  The signal a word names, if any. The host's own names in
+               --  lower case, so the list a user reads and the list this
+               --  matches against are one list.
+               function Signal_Named
+                 (Text : String;
+                  Item : out Hostkit.Signals.Signal) return Boolean;
+
+               function Signal_Named
+                 (Text : String;
+                  Item : out Hostkit.Signals.Signal) return Boolean is
+               begin
+                  Item := Hostkit.Signals.Signal'First;
+
+                  for Candidate in Hostkit.Signals.Signal loop
+                     if Lowered (Hostkit.Signals.Name (Candidate)) = Text then
+                        Item := Candidate;
+                        return True;
+                     end if;
+                  end loop;
+
+                  return False;
+               end Signal_Named;
+
+               Which : Hostkit.Signals.Signal;
+            begin
+               if Id = Command_On_Signal then
+                  declare
+                     Named   : constant String := Argument (Arguments, 1);
+                     Handler : constant String := Argument (Arguments, 2);
+                  begin
+                     if Handler = "" then
+                        return Failed
+                          (Adash.Errors.Error_Command_Wrong_Arguments,
+                           [1 => M.Named ("name", "on_signal")]);
+                     end if;
+
+                     if not Signal_Named (Named, Which) then
+                        return Failed (Adash.Errors.Error_Unknown_Signal,
+                                       [1 => M.Named ("signal", Named)]);
+                     end if;
+
+                     --  Asked of the host, which is the only thing that knows
+                     --  whether it can report this one arriving: Kill and Stop
+                     --  nowhere, and on Windows nothing but the interrupt.
+                     if not Adash.Execution.Signals.Record_Signal (Which) then
+                        return Failed
+                          (Adash.Errors.Error_Signal_Not_Catchable,
+                           [1 => M.Named ("signal", Named)]);
+                     end if;
+
+                     --  Most recent first, as the interrupt handlers are.
+                     Shell.Signal_Handlers.Prepend
+                       (Ada.Strings.Unbounded.To_Unbounded_String (Handler));
+                     Shell.Signal_Handlers.Prepend
+                       (Ada.Strings.Unbounded.To_Unbounded_String
+                          (Lowered (Hostkit.Signals.Name (Which))));
+
+                     return Adash.Execution.Success;
+                  end;
+               end if;
+
+               declare
+                  Wanted : Integer;
+                  Named  : constant String := Argument (Arguments, 2);
+               begin
+                  if not Whole_Argument (Arguments, 1, Wanted)
+                    or else Wanted <= 0
+                  then
+                     return Failed
+                       (Adash.Errors.Error_Signal_Refused,
+                        [M.Named ("signal", Named),
+                         M.Named ("process", Argument (Arguments, 1))]);
+                  end if;
+
+                  if not Signal_Named (Named, Which) then
+                     return Failed (Adash.Errors.Error_Unknown_Signal,
+                                    [1 => M.Named ("signal", Named)]);
+                  end if;
+
+                  if not Hostkit.Signals.Send_To_Process (Wanted, Which) then
+                     return Failed
+                       (Adash.Errors.Error_Signal_Refused,
+                        [M.Named ("signal", Named),
+                         M.Named ("process", Trim (Wanted))]);
+                  end if;
+
+                  return Adash.Execution.Success;
+               end;
             end;
 
          when Command_On_Exit =>

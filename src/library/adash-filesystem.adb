@@ -26,13 +26,52 @@ package body Adash.Filesystem is
    -- Exists --
    ------------
 
-   function Exists (Path : String) return Boolean is
+   ------------------
+   -- Expanded --
+   ------------------
+
+   function Expanded (Path : String) return String is
+      Home : constant String := Hostkit.Fs.Home_Directory;
    begin
-      if Path = "" then
+      if Path'Length = 0 or else Path (Path'First) /= '~' then
+         return Path;
+      end if;
+
+      --  `~other` is somebody else's home, which needs a lookup this library
+      --  does not have. Left as it was rather than guessed at: a path that
+      --  meant itself survives, and one that meant a user fails as a path that
+      --  is not there rather than as the wrong directory.
+      if Path'Length > 1
+        and then Path (Path'First + 1) not in '/' | '\'
+      then
+         return Path;
+      end if;
+
+      --  A host that will not name a home directory leaves the path alone,
+      --  which is the refusal hostkit makes rather than a guess this makes.
+      if Home = "" then
+         return Path;
+      end if;
+
+      if Path'Length = 1 then
+         return Home;
+      end if;
+
+      --  The separator the user wrote is kept: it is already there, at
+      --  Path'First + 1, and joining with the host's own would turn a path
+      --  somebody wrote by hand into one they did not.
+      return Home & Path (Path'First + 1 .. Path'Last);
+   end Expanded;
+
+   function Exists (Path : String) return Boolean is
+      Real_Path : constant String := Expanded (Path);
+
+   begin
+      if Real_Path = "" then
          return False;
       end if;
 
-      return Ada.Directories.Exists (Path);
+      return Ada.Directories.Exists (Real_Path);
 
    exception
       when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
@@ -47,13 +86,15 @@ package body Adash.Filesystem is
    ------------------
 
    function Is_Directory (Path : String) return Boolean is
+      Real_Path : constant String := Expanded (Path);
+
    begin
-      if Path = "" then
+      if Real_Path = "" then
          return False;
       end if;
 
-      return Ada.Directories.Exists (Path)
-        and then Ada.Directories.Kind (Path) = Ada.Directories.Directory;
+      return Ada.Directories.Exists (Real_Path)
+        and then Ada.Directories.Kind (Real_Path) = Ada.Directories.Directory;
 
    exception
       when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
@@ -65,15 +106,17 @@ package body Adash.Filesystem is
    -------------------
 
    function Is_Executable (Path : String) return Boolean is
+      Real_Path : constant String := Expanded (Path);
+
    begin
-      if Path = "" then
+      if Real_Path = "" then
          return False;
       end if;
 
       --  hostkit's answer, not a guess from the name: what makes a file
       --  runnable is the host's business, and on one of them it is not a
       --  permission bit at all.
-      return Hostkit.Fs.Is_Executable (Path);
+      return Hostkit.Fs.Is_Executable (Real_Path);
    end Is_Executable;
 
    -----------
@@ -93,10 +136,12 @@ package body Adash.Filesystem is
       use Ada.Streams;
 
       File : Ada.Streams.Stream_IO.File_Type;
+      Real_Path : constant String := Expanded (Path);
+
    begin
       Text := Ada.Strings.Unbounded.Null_Unbounded_String;
 
-      if Path = "" or else Is_Directory (Path) then
+      if Real_Path = "" or else Is_Directory (Real_Path) then
          --  A directory is not a file that could not be read; it is not the
          --  sort of thing this asks about.
          Result := Read_Refused;
@@ -105,7 +150,7 @@ package body Adash.Filesystem is
 
       begin
          Ada.Streams.Stream_IO.Open
-           (File, Ada.Streams.Stream_IO.In_File, Path);
+           (File, Ada.Streams.Stream_IO.In_File, Real_Path);
       exception
          when Ada.IO_Exceptions.Name_Error =>
             Result := Read_Missing;
@@ -189,7 +234,7 @@ package body Adash.Filesystem is
       begin
          if not Adash.Source.Load
                   (Checked,
-                   Adash.Source.Make_Origin (Adash.Source.Origin_File, Path),
+                   Adash.Source.Make_Origin (Adash.Source.Origin_File, Real_Path),
                    Held, Problem)
          then
             Text := Ada.Strings.Unbounded.Null_Unbounded_String;
@@ -256,16 +301,18 @@ package body Adash.Filesystem is
 
       Search : Ada.Directories.Search_Type;
       Found  : Ada.Directories.Directory_Entry_Type;
+      Real_Path : constant String := Expanded (Path);
+
    begin
       Into.Clear;
 
-      if Path = "" or else not Is_Directory (Path) then
+      if Real_Path = "" or else not Is_Directory (Real_Path) then
          return;
       end if;
 
       begin
          Ada.Directories.Start_Search
-           (Search, Path, "",
+           (Search, Real_Path, "",
             [Ada.Directories.Ordinary_File => True,
              Ada.Directories.Directory     => True,
              Ada.Directories.Special_File  => True]);
@@ -563,25 +610,27 @@ package body Adash.Filesystem is
    -------------------
 
    procedure Remove_File (Path : String; Result : out Written) is
+      Real_Path : constant String := Expanded (Path);
+
    begin
-      if Path = "" then
+      if Real_Path = "" then
          Result := Write_Refused;
          return;
       end if;
 
-      if not Ada.Directories.Exists (Path) then
+      if not Ada.Directories.Exists (Real_Path) then
          --  Already not there, which is what was asked for. A script tidying
          --  up should not have to ask whether it already has.
          Result := Write_Ok;
          return;
       end if;
 
-      if Is_Directory (Path) then
+      if Is_Directory (Real_Path) then
          Result := Write_Refused;
          return;
       end if;
 
-      Ada.Directories.Delete_File (Path);
+      Ada.Directories.Delete_File (Real_Path);
       Result := Write_Ok;
 
    exception
@@ -594,18 +643,20 @@ package body Adash.Filesystem is
    ------------------------
 
    procedure Remove_Directory (Path : String; Result : out Written) is
+      Real_Path : constant String := Expanded (Path);
+
    begin
-      if Path = "" then
+      if Real_Path = "" then
          Result := Write_Refused;
          return;
       end if;
 
-      if not Ada.Directories.Exists (Path) then
+      if not Ada.Directories.Exists (Real_Path) then
          Result := Write_Ok;
          return;
       end if;
 
-      if not Is_Directory (Path) then
+      if not Is_Directory (Real_Path) then
          Result := Write_Refused;
          return;
       end if;
@@ -613,7 +664,7 @@ package body Adash.Filesystem is
       --  Delete_Directory rather than Delete_Tree, which is the whole of the
       --  promise this makes: it fails on a directory that holds something,
       --  and that failure is the point.
-      Ada.Directories.Delete_Directory (Path);
+      Ada.Directories.Delete_Directory (Real_Path);
       Result := Write_Ok;
 
    exception
@@ -626,15 +677,18 @@ package body Adash.Filesystem is
    --------------
 
    procedure Rename (From : String; To : String; Result : out Written) is
+      Real_From : constant String := Expanded (From);
+      Real_To : constant String := Expanded (To);
+
    begin
-      if From = "" or else To = "" or else not Ada.Directories.Exists (From)
-        or else Ada.Directories.Exists (To)
+      if Real_From = "" or else Real_To = "" or else not Ada.Directories.Exists (Real_From)
+        or else Ada.Directories.Exists (Real_To)
       then
          Result := Write_Refused;
          return;
       end if;
 
-      Ada.Directories.Rename (From, To);
+      Ada.Directories.Rename (Real_From, Real_To);
       Result := Write_Ok;
 
    exception
@@ -647,15 +701,18 @@ package body Adash.Filesystem is
    -----------------
 
    procedure Copy_File (From : String; To : String; Result : out Written) is
+      Real_From : constant String := Expanded (From);
+      Real_To : constant String := Expanded (To);
+
    begin
-      if From = "" or else To = "" or else not Ada.Directories.Exists (From)
-        or else Is_Directory (From) or else Ada.Directories.Exists (To)
+      if Real_From = "" or else Real_To = "" or else not Ada.Directories.Exists (Real_From)
+        or else Is_Directory (Real_From) or else Ada.Directories.Exists (Real_To)
       then
          Result := Write_Refused;
          return;
       end if;
 
-      Ada.Directories.Copy_File (From, To);
+      Ada.Directories.Copy_File (Real_From, Real_To);
       Result := Write_Ok;
 
    exception
@@ -668,24 +725,26 @@ package body Adash.Filesystem is
    ---------------------
 
    procedure Make_Directory (Path : String; Result : out Written) is
+      Real_Path : constant String := Expanded (Path);
+
    begin
-      if Path = "" then
+      if Real_Path = "" then
          Result := Write_Refused;
          return;
       end if;
 
       --  Already there, and already a directory: what the caller asked for is
       --  the state of the world, not the act.
-      if Ada.Directories.Exists (Path) then
+      if Ada.Directories.Exists (Real_Path) then
          Result :=
-           (if Is_Directory (Path) then Write_Ok else Write_Refused);
+           (if Is_Directory (Real_Path) then Write_Ok else Write_Refused);
          return;
       end if;
 
       begin
          --  Create_Path rather than Create_Directory: every missing level, in
          --  one call, which is what a script naming a path three deep means.
-         Ada.Directories.Create_Path (Path);
+         Ada.Directories.Create_Path (Real_Path);
       exception
          when others =>
             --  Every complaint the host makes here is a refusal.
@@ -716,7 +775,7 @@ package body Adash.Filesystem is
       --  for. Which is why Make_Directory never answers Write_Failed. A write
       --  can stop in the middle and a directory cannot.
       Result :=
-        (if Ada.Directories.Exists (Path) and then Is_Directory (Path)
+        (if Ada.Directories.Exists (Real_Path) and then Is_Directory (Real_Path)
          then Write_Ok else Write_Refused);
 
    exception
@@ -730,15 +789,17 @@ package body Adash.Filesystem is
       Result : out Written)
    is
       File : Ada.Streams.Stream_IO.File_Type;
+      Real_Path : constant String := Expanded (Path);
+
    begin
-      if Path = "" or else Is_Directory (Path) then
+      if Real_Path = "" or else Is_Directory (Real_Path) then
          Result := Write_Refused;
          return;
       end if;
 
       begin
          Ada.Streams.Stream_IO.Create
-           (File, Ada.Streams.Stream_IO.Out_File, Path);
+           (File, Ada.Streams.Stream_IO.Out_File, Real_Path);
       exception
          when Ada.IO_Exceptions.Name_Error =>
             --  Nowhere to put it: a directory in the path that is not there.
@@ -775,21 +836,23 @@ package body Adash.Filesystem is
       Result : out Written)
    is
       File : Ada.Streams.Stream_IO.File_Type;
+      Real_Path : constant String := Expanded (Path);
+
    begin
-      if Path = "" or else Is_Directory (Path) then
+      if Real_Path = "" or else Is_Directory (Real_Path) then
          Result := Write_Refused;
          return;
       end if;
 
       begin
-         if Exists (Path) then
+         if Exists (Real_Path) then
             Ada.Streams.Stream_IO.Open
-              (File, Ada.Streams.Stream_IO.Append_File, Path);
+              (File, Ada.Streams.Stream_IO.Append_File, Real_Path);
          else
             --  Made rather than refused: appending to a file that is not there
             --  yet is what a script collecting output does on its first turn.
             Ada.Streams.Stream_IO.Create
-              (File, Ada.Streams.Stream_IO.Out_File, Path);
+              (File, Ada.Streams.Stream_IO.Out_File, Real_Path);
          end if;
       exception
          when Ada.IO_Exceptions.Name_Error =>

@@ -28,7 +28,13 @@ package body Adash.Execution.Cancellation is
          --  could be forgotten separately. One of them was: a program run in
          --  the foreground waited out its full duration, because the wait
          --  polled the token and only the machine consulted the signal.
-         return Requested or else Adash.Execution.Signals.Interrupt_Pending;
+         --  And a signal that means wind up, for the same reason: a handler
+         --  registered for `terminate` cannot run while the loop it was meant
+         --  to interrupt is still going, and the token is the one place that
+         --  knows what "stop" means.
+         return Requested
+           or else Adash.Execution.Signals.Interrupt_Pending
+           or else Adash.Execution.Signals.Winding_Up;
       end Is_Requested;
 
       -----------

@@ -538,6 +538,39 @@ package body Adash.Commands is
        Changes_State,
        M.Msg_Command_Append_File_Doc, M.Msg_Command_Hint, Available),
 
+      --  Run a subprogram when a signal arrives.
+      --
+      --  `on_interrupt` is this for the one signal a user sends with a
+      --  keystroke; this is the rest of them. A script that writes a file and
+      --  wants it whole registers for `terminate`, which is what a service
+      --  manager sends first and what a user's `kill` sends by default -- and
+      --  until now nothing in this shell could hear it.
+      --
+      --  The names are the host's own, in lower case: `terminate`, `hangup`,
+      --  `continue`, `quit`. `kill` and `stop` cannot be caught by anybody, on
+      --  any host, and asking for them is refused rather than accepted and
+      --  quietly never run.
+      --
+      --  Windows has no signals to speak of -- a console can report an
+      --  interrupt and nothing else -- so this refuses there for everything
+      --  else, which is a shell saying what it cannot do rather than a handler
+      --  that never runs.
+      (Command_On_Signal, Named ("on_signal"), 2, 2,
+       [1 => Text ("Signal"), 2 => Text ("Name"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_On_Signal_Doc, M.Msg_Command_Hint, Available),
+
+      --  Send a signal to a process.
+      --
+      --  `stop_process` asks a process to stop, which is one signal of many.
+      --  This is `kill` as every other shell has it: a process id and a name.
+      --  A process this session did not start is fair game -- the host decides
+      --  whether this user may signal it, and says so by refusing.
+      (Command_Signal_Process, Named ("signal_process"), 2, 2,
+       [1 => Whole ("Process"), 2 => Text ("Signal"), others => Nothing],
+       Changes_State,
+       M.Msg_Command_Signal_Process_Doc, M.Msg_Command_Hint, Available),
+
       (Command_Settings, Named ("settings"), 0, 2,
        [1 => Text ("Setting"), 2 => Text ("Value"), others => Nothing],
        Changes_State,

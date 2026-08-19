@@ -95,6 +95,29 @@ A file that cannot be read leaves the defaults in place and says so once. An
 unknown key warns and the rest of the file is still read — a setting this build
 does not know is likely to be one a later build does.
 
+## The prompt
+
+`prompt.directory` and `prompt.failure` shape the built-in prompt. `prompt.format`
+replaces it: whatever you write is the prompt, with four placeholders filled in.
+
+| Placeholder | What it becomes |
+|---|---|
+| `{directory}` | the working directory's last component |
+| `{path}` | the whole working directory, with your home written `~` |
+| `{status}` | the number the last submission ended with |
+| `{failed}` | the failure marker, and nothing at all when the last submission succeeded |
+
+Anything else is literal, including a `{word}` that names no placeholder — what a
+prompt does wrong is on the screen the moment it is set, which is why free text
+is allowed here and nowhere else in the settings.
+
+Spacing is yours: the built-in prompt puts a blank between its parts, and a
+format is used exactly as written. Control characters are refused, so a prompt
+cannot carry escape sequences of its own — colour comes from the style package,
+by the role of each part.
+
+Setting `prompt.format` back to the empty string brings the built-in prompt back.
+
 ## What the shell reads at startup
 
 The configuration file, then `$XDG_CONFIG_HOME/adash/startup.adash` if it is

@@ -715,6 +715,11 @@ package body Adash.Machine is
       Quantum : constant := 64;
       Ran_For : Natural := 0;
 
+      --  Whether the last instruction was one that waited, which is where the
+      --  cancellation check below earns its keep. Set by the delay
+      --  instructions and cleared once it has been acted on.
+      Waited : Boolean := False;
+
       --  What the next task started will run at, said by the instruction
       --  before it and put back to the default afterwards -- so a task that
       --  says nothing about its priority gets the default rather than
@@ -1680,13 +1685,23 @@ package body Adash.Machine is
          --  Asked between instructions rather than inside one: a program that
          --  cannot be interrupted is one runaway loop away from ending the
          --  session.
-         if Counter mod 1_024 = 0
+         --
+         --  Every thousand instructions, or after one that waited. The count
+         --  alone was wrong for the loop people actually write: `loop delay
+         --  0.2; end loop;` runs a handful of instructions per second, so a
+         --  thousand of them is ten seconds -- ten seconds between a Ctrl-C
+         --  and anything happening, which reads as a shell that ignored it.
+         --  A wait is the one instruction whose cost is time rather than
+         --  work, so it is worth asking after each one.
+         if (Counter mod 1_024 = 0 or else Waited)
            and then On_Host /= null
            and then On_Host.Stop_Requested
          then
             Produced.What := Stopped;
             exit;
          end if;
+
+         Waited := False;
 
          --  What this strand was handed while it was set aside, raised where
          --  it resumes. Before the instruction rather than after, so that the
@@ -3509,6 +3524,8 @@ package body Adash.Machine is
                end;
 
             when Delay_Until =>
+               Waited := True;
+
                declare
                   use type Ada.Real_Time.Time;
 
@@ -3551,6 +3568,8 @@ package body Adash.Machine is
                end;
 
             when Delay_For =>
+               Waited := True;
+
                declare
                   How_Long : constant Cell := Pop;
 

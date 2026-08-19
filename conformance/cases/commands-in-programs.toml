@@ -190,6 +190,8 @@ output = [
   "!line.command_entry{name=on_exit,summary=!command.on_exit.doc!}!",
   "!line.command_entry{name=on_interrupt,summary=!command.on_interrupt.doc!}!",
   "!line.command_entry{name=append_file,summary=!command.append_file.doc!}!",
+  "!line.command_entry{name=on_signal,summary=!command.on_signal.doc!}!",
+  "!line.command_entry{name=signal_process,summary=!command.signal_process.doc!}!",
   "!line.command_entry{name=settings,summary=!command.settings.doc!}!",
   "!line.command_entry{name=save_settings,summary=!command.save_settings.doc!}!",
 ]
@@ -699,3 +701,62 @@ script = "cd (\"{store}\"); write_file (\"here\", \"plain.txt\");\nput_line (Tri
 exit_status = 0
 output = ["0", "TRUE"]
 diagnostics = []
+
+[[case]]
+id = "signals.a-word-that-names-no-signal-is-refused"
+requirement = """
+The names are the host's own in lower case, and one that names nothing is
+refused where it stands. A shell that accepted an unknown name would be a shell
+with a handler that never runs and nothing to say about why.
+"""
+script = "on_signal (\"nosuchsignal\", \"Anything\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.unknown_signal{signal=nosuchsignal}!"]
+
+[[case]]
+id = "signals.kill-and-stop-cannot-be-caught"
+requirement = """
+Two signals no process may catch, on any host: a process that could catch them
+could not be ended, which is why POSIX makes them unconditional. Refused when
+they are asked for rather than accepted and quietly never run.
+"""
+script = "on_signal (\"kill\", \"Anything\");\non_signal (\"stop\", \"Anything\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.signal_not_catchable{signal=kill}!",
+  "!error.signal_not_catchable{signal=stop}!",
+]
+
+[[case]]
+id = "signals.a-process-that-is-not-there-is-reported"
+requirement = """
+Sending to a process that does not exist is refused with the process named. The
+host does not say whether it is gone or whether it was never this user's to
+signal, and neither does this: guessing between the two would be a claim.
+
+The number is far above what any host hands out, so nothing is signalled by
+accident on a machine running the suite.
+"""
+script = "signal_process (999999999, \"terminate\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.signal_refused{signal=terminate,process=999999999}!"]
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "signals.a-host-without-them-says-so"
+requirement = """
+Windows has no signals in this sense. A console can report an interrupt and
+nothing else, so `on_signal ("terminate", ...)` is refused there rather than
+accepted and never run -- a shell saying what it cannot do.
+
+The unit suite asserts the other half on the hosts that have signals: a
+`terminate` sent to a running shell reaches the subprogram registered for it.
+"""
+script = "on_signal (\"terminate\", \"Anything\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.signal_not_catchable{signal=terminate}!"]
+platforms = ["windows"]

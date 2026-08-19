@@ -217,6 +217,7 @@ package Adash.Messages is
       Msg_Config_Wants_Whole,
       Msg_Config_Wants_Range,
       Msg_Config_Wants_Choice,
+      Msg_Config_Wants_Text,
       Msg_File_Write_Failed,
    Msg_File_Too_Large,
    Msg_Output_Too_Large,
@@ -225,6 +226,9 @@ package Adash.Messages is
       Msg_No_Creation_Mask,
       Msg_Mask_Not_Octal,
       Msg_No_Matching_Files,
+      Msg_Unknown_Signal,
+      Msg_Signal_Not_Catchable,
+      Msg_Signal_Refused,
       Msg_Too_Many_Matches,
       Msg_No_Resource_Limits,
       Msg_Unknown_Resource,
@@ -404,6 +408,7 @@ package Adash.Messages is
       Msg_Command_Run_From_Doc, Msg_Command_Run_From_Text_Doc,
       Msg_Command_Run_With_Doc, Msg_Command_Start_With_Doc,
       Msg_Command_Run_Matching_Doc,
+      Msg_Command_On_Signal_Doc, Msg_Command_Signal_Process_Doc,
       Msg_Command_Time_Doc, Msg_Command_Umask_Doc,
       Msg_Command_Resource_Limit_Doc, Msg_Command_Resource_Ceiling_Doc,
       Msg_Command_Complete_With_Doc,
@@ -550,6 +555,7 @@ package Adash.Messages is
       Msg_Setting_Session_File,
       Msg_Setting_History_Per_Session,
       Msg_Setting_History_Ignore_Space,
+      Msg_Setting_Prompt_Format,
 
       --  Reading a configuration file.
       Msg_Config_Unknown_Key,

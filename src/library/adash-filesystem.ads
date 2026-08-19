@@ -30,6 +30,33 @@ package Adash.Filesystem is
    --
    --  @param Path The path, as the user wrote it.
    --  @return True when something is there, of whatever kind.
+   --  A path with a leading `~` replaced by this user's home directory.
+   --
+   --  What every shell does to `~/notes`, and the one expansion this shell
+   --  does without being asked. A pattern turns one argument into several,
+   --  which is why `run_matching` is a command a user writes on purpose; a
+   --  tilde turns one path into one path, and the only thing it can surprise
+   --  is somebody who made a file whose name begins with `~` -- who can write
+   --  `./~` and get it.
+   --
+   --  Only a leading `~` that stands alone or is followed by a separator.
+   --  `~other` is somebody else's home directory, which needs a lookup this
+   --  library does not have, so it is left exactly as it was rather than
+   --  guessed at -- and a path that was meant to be literal survives.
+   --
+   --  Asked of the host rather than read from HOME, which a spawned process
+   --  can set to anything. A host with no home directory to name leaves the
+   --  path alone.
+   --
+   --  Every operation in this package expands what it is given, so a caller
+   --  handing on a path a user typed does not have to remember to. It is here
+   --  as well because the commands that resolve a path themselves -- `cd`, and
+   --  the redirections that open a file -- need the same answer.
+   --
+   --  @param Path The path as a user wrote it.
+   --  @return The path with a leading tilde expanded, or Path unchanged.
+   function Expanded (Path : String) return String;
+
    function Exists (Path : String) return Boolean;
 
    --  Whether a directory is at this path.

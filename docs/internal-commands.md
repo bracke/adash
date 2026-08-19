@@ -122,6 +122,8 @@ over has already been expanded, and nothing is left for a runtime to find.
 | `resource_ceiling (Resource : String; Value : String)` | 1 or 2 | shows or sets how far a limit may be raised. Anybody may lower a ceiling; only privilege raises it again |
 | `complete_with (Program : String; Name : String)` | 2 | names a subprogram that says what may follow a program, one candidate per line, for Tab |
 | `on_interrupt (Name : String)` | 1 | names a subprogram to run when the user interrupts; stays registered |
+| `on_signal (Signal : String; Name : String)` | 2 | runs a subprogram when a signal arrives — `terminate`, `hangup`, `quit`, `continue` and the rest, by the host's own name in lower case. `kill` and `stop` cannot be caught anywhere and are refused; Windows has none of these and refuses too |
+| `signal_process (Process : Integer; Signal : String)` | 2 | sends a signal to a process by id, naming it rather than numbering it |
 | `pipe (Program : String; Argument : String…)` | 1 .. any | adds a stage to the pipeline being built |
 | `pipe_run` | 0 | runs what `pipe` built, and waits |
 | `pipe_start` | 0 | runs the pipeline in the background and names the job |

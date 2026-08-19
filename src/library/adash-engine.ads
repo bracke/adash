@@ -235,6 +235,19 @@ package Adash.Engine is
    function Interrupt_Handlers
      (Item : Session) return Hostkit.String_Vectors.Vector;
 
+   --  The handlers whose signal has arrived, and forget the arrivals.
+   --
+   --  Asked at a moment the caller chooses rather than delivered: a signal
+   --  interrupts a program between any two instructions, so all that happens
+   --  inside one is a flag being set. This turns the flags into work, which is
+   --  why it both reports and clears -- a caller that asked twice about one
+   --  arrival would run the handler twice.
+   --
+   --  @param Item The session.
+   --  @return The subprograms to call, in the order to call them.
+   function Due_Signal_Handlers
+     (Item : in out Session) return Hostkit.String_Vectors.Vector;
+
    --  The subprogram `complete_with` named for this program, or "".
    --
    --  @param Item The session.
@@ -250,6 +263,16 @@ package Adash.Engine is
    --  @param Item Session to inspect.
    --  @return Its exit status.
    function Exit_Status (Item : Session) return Adash.Execution.Exit_Status;
+
+   --  How the last submission ended.
+   --
+   --  What `Status` answers a script, and what a prompt showing `{status}`
+   --  needs. Not the same as Exit_Status above, which is what the shell will
+   --  leave with when somebody asked it to quit.
+   --
+   --  @param Item Session to inspect.
+   --  @return The status of the last thing it ran.
+   function Last_Status (Item : Session) return Adash.Execution.Exit_Status;
 
    --  How many lines the last command produced.
    --

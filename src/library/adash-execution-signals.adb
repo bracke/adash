@@ -178,6 +178,36 @@ package body Adash.Execution.Signals is
    Interrupt_Key : constant Ada.Streams.Stream_Element := 3;
    Return_Key    : constant Ada.Streams.Stream_Element := 13;
 
+   function Record_Signal (Item : Hostkit.Signals.Signal) return Boolean is
+   begin
+      --  Asked of the host rather than assumed from the signal's name: Kill
+      --  and Stop cannot be caught anywhere, and Windows can report an
+      --  interrupt and nothing else.
+      if not Hostkit.Signals.Can_Record (Item) then
+         return False;
+      end if;
+
+      return Hostkit.Signals.Set_Disposition
+               (Item, Hostkit.Signals.Disposition_Record);
+   end Record_Signal;
+
+   function Winding_Up return Boolean is
+   begin
+      return Hostkit.Signals.Arrived (Hostkit.Signals.Signal_Terminate)
+        or else Hostkit.Signals.Arrived (Hostkit.Signals.Signal_Hangup)
+        or else Hostkit.Signals.Arrived (Hostkit.Signals.Signal_Quit);
+   end Winding_Up;
+
+   function Signal_Pending (Item : Hostkit.Signals.Signal) return Boolean is
+   begin
+      return Hostkit.Signals.Arrived (Item);
+   end Signal_Pending;
+
+   procedure Acknowledge_Signal (Item : Hostkit.Signals.Signal) is
+   begin
+      Hostkit.Signals.Clear (Item);
+   end Acknowledge_Signal;
+
    function Interrupt_Pending return Boolean is
    begin
       return Seen_Typed

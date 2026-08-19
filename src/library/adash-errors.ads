@@ -138,6 +138,22 @@ package Adash.Errors is
       --  thousand of five would do half a job and report that it had done it.
       Error_Too_Many_Matches,
 
+      --  A word that names no signal this host has. The names are the host's
+      --  own in lower case, and a shell that accepted an unknown one would be
+      --  a shell with a handler that never runs.
+      Error_Unknown_Signal,
+
+      --  A signal nobody may catch. Kill and Stop are the two every host
+      --  refuses, by design: a process that could catch them could not be
+      --  ended. Refused when it is asked for rather than accepted and never
+      --  run.
+      Error_Signal_Not_Catchable,
+
+      --  The host would not deliver the signal: no such process, or not one
+      --  this user may signal. The host does not say which, and neither does
+      --  this -- guessing between "gone" and "not yours" would be a claim.
+      Error_Signal_Refused,
+
       --  A suspended job, where the caller wanted one that would end.
       Error_Job_Is_Suspended,
       Error_Cancelled,

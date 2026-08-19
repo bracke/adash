@@ -2,6 +2,7 @@
 with Ada.Characters.Latin_1;
 with Ada.Directories;
 
+with Hostkit.Signals;
 with Hostkit.Process;
 
 with Adash.Errors;
@@ -1514,6 +1515,72 @@ package body Adash.Engine is
    -- Interrupt_Handlers --
    -------------------------
 
+   --  The same text in lower case, for names a host spells in capitals.
+   function Lowered (Text : String) return String;
+
+   function Lowered (Text : String) return String is
+      Result : String := Text;
+   begin
+      for Index in Result'Range loop
+         if Result (Index) in 'A' .. 'Z' then
+            Result (Index) :=
+              Character'Val (Character'Pos (Result (Index))
+                             - Character'Pos ('A') + Character'Pos ('a'));
+         end if;
+      end loop;
+
+      return Result;
+   end Lowered;
+
+   function Due_Signal_Handlers
+     (Item : in out Session) return Hostkit.String_Vectors.Vector
+   is
+      Due : Hostkit.String_Vectors.Vector;
+
+      Position : Natural := Natural (Item.Shell.Signal_Handlers.First_Index);
+   begin
+      --  Pairs: a signal's name and the subprogram registered for it. Walked
+      --  two at a time, which is how they were stored.
+      while Position + 1 <= Natural (Item.Shell.Signal_Handlers.Last_Index)
+      loop
+         declare
+            Named : constant String :=
+              Ada.Strings.Unbounded.To_String
+                (Item.Shell.Signal_Handlers.Element (Position));
+            Handler : constant String :=
+              Ada.Strings.Unbounded.To_String
+                (Item.Shell.Signal_Handlers.Element (Position + 1));
+
+            Which : Hostkit.Signals.Signal := Hostkit.Signals.Signal'First;
+            Known : Boolean := False;
+         begin
+            for Candidate in Hostkit.Signals.Signal loop
+               if Lowered (Hostkit.Signals.Name (Candidate)) = Named then
+                  Which := Candidate;
+                  Known := True;
+               end if;
+            end loop;
+
+            if Known
+              and then Adash.Execution.Signals.Signal_Pending (Which)
+            then
+               Due.Append
+                 (Ada.Strings.Unbounded.To_Unbounded_String (Handler));
+
+               --  Cleared here rather than by the caller: an arrival that was
+               --  turned into work has been dealt with, and one left standing
+               --  would make the next line the user types run the handler
+               --  again.
+               Adash.Execution.Signals.Acknowledge_Signal (Which);
+            end if;
+         end;
+
+         Position := Position + 2;
+      end loop;
+
+      return Due;
+   end Due_Signal_Handlers;
+
    function Interrupt_Handlers
      (Item : Session) return Hostkit.String_Vectors.Vector is
    begin
@@ -1558,6 +1625,15 @@ package body Adash.Engine is
    begin
       return Item.Shell.Exit_Status;
    end Exit_Status;
+
+   -------------------
+   -- Last_Status --
+   -------------------
+
+   function Last_Status (Item : Session) return Adash.Execution.Exit_Status is
+   begin
+      return Item.Shell.Last_Status;
+   end Last_Status;
 
    -------------------
    -- Output_Count --

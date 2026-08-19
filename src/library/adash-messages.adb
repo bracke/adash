@@ -294,6 +294,8 @@ package body Adash.Messages is
             return "config.wants.range";
          when Msg_Config_Wants_Choice =>
             return "config.wants.choice";
+         when Msg_Config_Wants_Text =>
+            return "config.wants.text";
          when Msg_File_Write_Failed          => return "error.file_write_failed";
          when Msg_File_Too_Large             => return "error.file_too_large";
          when Msg_Output_Too_Large           => return "error.output_too_large";
@@ -302,6 +304,9 @@ package body Adash.Messages is
          when Msg_No_Creation_Mask           => return "error.no_creation_mask";
          when Msg_Mask_Not_Octal             => return "error.mask_not_octal";
          when Msg_No_Matching_Files          => return "error.no_matching_files";
+         when Msg_Unknown_Signal             => return "error.unknown_signal";
+         when Msg_Signal_Not_Catchable       => return "error.signal_not_catchable";
+         when Msg_Signal_Refused             => return "error.signal_refused";
          when Msg_Too_Many_Matches           => return "error.too_many_matches";
          when Msg_No_Resource_Limits         => return "error.no_resource_limits";
          when Msg_Unknown_Resource           => return "error.unknown_resource";
@@ -583,6 +588,9 @@ package body Adash.Messages is
          when Msg_Command_Time_Doc           => return "command.time.doc";
          when Msg_Command_Umask_Doc          => return "command.umask.doc";
          when Msg_Command_Run_Matching_Doc   => return "command.run_matching.doc";
+         when Msg_Command_On_Signal_Doc      => return "command.on_signal.doc";
+         when Msg_Command_Signal_Process_Doc =>
+            return "command.signal_process.doc";
          when Msg_Command_Resource_Limit_Doc          => return "command.resource_limit.doc";
          when Msg_Command_Resource_Ceiling_Doc  => return "command.resource_ceiling.doc";
          when Msg_Command_Complete_With_Doc  => return "command.complete_with.doc";
@@ -728,6 +736,8 @@ package body Adash.Messages is
          when Msg_Setting_Session_File       => return "setting.session-file";
          when Msg_Setting_History_Per_Session =>
             return "setting.history-per-session";
+         when Msg_Setting_Prompt_Format =>
+            return "setting.prompt.format";
          when Msg_Setting_History_Ignore_Space =>
             return "setting.history-ignore-space";
          when Msg_Config_Unknown_Key         => return "config.unknown-key";
@@ -1016,6 +1026,8 @@ package body Adash.Messages is
             | Msg_Command_Complete_With_Doc
             | Msg_Command_Umask_Doc
             | Msg_Command_Run_Matching_Doc
+            | Msg_Command_On_Signal_Doc
+            | Msg_Command_Signal_Process_Doc
             | Msg_Command_Resource_Limit_Doc
             | Msg_Command_Resource_Ceiling_Doc
             | Msg_Command_Time_Doc
@@ -1150,7 +1162,8 @@ package body Adash.Messages is
             | Msg_Setting_Prompt_Failure | Msg_Setting_Editing
             | Msg_Setting_Session_File
             | Msg_Setting_History_Per_Session
-            | Msg_Setting_History_Ignore_Space =>
+            | Msg_Setting_History_Ignore_Space
+            | Msg_Setting_Prompt_Format =>
             return No_Placeholders;
 
          when Msg_Setting_Unknown =>
@@ -1258,6 +1271,9 @@ package body Adash.Messages is
 
          when Msg_Config_Wants_Choice =>
             return [1 => N ("choices")];
+
+         when Msg_Config_Wants_Text =>
+            return [1 => N ("limit")];
 
          when Msg_Machine_Index_Outside =>
             return [N ("position"), N ("length")];
@@ -1393,6 +1409,12 @@ package body Adash.Messages is
 
          when Msg_No_Matching_Files =>
             return [1 => N ("pattern")];
+
+         when Msg_Unknown_Signal | Msg_Signal_Not_Catchable =>
+            return [1 => N ("signal")];
+
+         when Msg_Signal_Refused =>
+            return [N ("signal"), N ("process")];
 
          when Msg_Too_Many_Matches =>
             return [N ("pattern"), N ("limit")];

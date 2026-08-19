@@ -1,5 +1,6 @@
 with Hostkit.Descriptors;
 
+with Adash.Filesystem;
 with Adash.Messages;
 
 package body Adash.Execution.Redirection is
@@ -100,7 +101,13 @@ package body Adash.Execution.Redirection is
       for Index in 1 .. Item.Count loop
          declare
             Current : constant Redirection := Item.Entries (Index);
-            Path    : constant String := To_String (Current.Path);
+            --  Expanded here, where the file is opened, so `run_into
+            --  ("~/log.txt", ...)` writes where a user meant. The plan holds
+            --  the path as it was written, which is what a diagnostic quotes
+            --  back: naming the expansion in an error about a file the user
+            --  called `~/log.txt` would be answering a question nobody asked.
+            Path    : constant String :=
+              Adash.Filesystem.Expanded (To_String (Current.Path));
             Handle  : D.Descriptor;
          begin
             if Current.Kind = Redirect_Join_Output then

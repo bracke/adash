@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 550 messages in 22 groups.
+There are 557 messages in 22 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -120,6 +120,9 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.stream_write_failed` | could not write to {stream} |
 | `error.stream_read_failed` | could not read from {stream} |
 | `error.mask_not_octal` | {text} is not a mask: a mask is octal digits, as every shell writes one |
+| `error.unknown_signal` | no signal here is called {signal}; the names are the host's own in lower case |
+| `error.signal_not_catchable` | {signal} cannot be caught: kill and stop are refused by every host by design, and this host may report fewer still |
+| `error.signal_refused` | this host would not send {signal} to process {process}: it may have ended already, or it may not be yours to signal |
 | `error.no_matching_files` | nothing is called {pattern} here, and a pattern that names nothing is not passed along as a word |
 | `error.too_many_matches` | {pattern} names more than {limit} paths, which is more than one command carries; name fewer, or loop over Match_At |
 | `error.no_creation_mask` | this host has no creation mask: permissions here come from the directory a file is made in, not from a per-process mask |
@@ -284,6 +287,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `command.run_into.doc` | Run a program with its output written to a file, replacing what was there. |
 | `command.run_from.doc` | Run a program with its input read from a file. |
 | `command.complete_with.doc` | Name a subprogram that says what may follow a program, one candidate per line, for Tab to offer. |
+| `command.on_signal.doc` | Run a subprogram when a signal arrives: terminate, hangup, quit, continue and the rest, by the host's own name in lower case. kill and stop cannot be caught anywhere and are refused. |
+| `command.signal_process.doc` | Send a signal to a process by id, naming the signal rather than numbering it. |
 | `command.run_matching.doc` | Run a program, expanding the arguments that hold a pattern into the paths they name. An argument with no * ? or [ is passed along untouched, and a pattern that names nothing refuses the command. |
 | `command.umask.doc` | Show the permissions this host takes away from a new file, or set them, in octal. Windows has none. |
 | `command.time.doc` | Run a program and report how long it took, in wall-clock seconds. |
@@ -426,6 +431,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `config.wants.whole` | a whole number |
 | `config.wants.range` | between {low} and {high} |
 | `config.wants.choice` | one of {choices} |
+| `config.wants.text` | text of at most {limit} characters, with nothing in it a terminal would read as an instruction |
 | `config.unknown-key` | {path}: no setting is called {key}; it was ignored. |
 | `config.wrong-type` | {key} expects {detail}. |
 | `config.out-of-range` | {key} must be {detail}. |
@@ -451,6 +457,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `setting.editing` | Whether lines are edited in place rather than read whole. |
 | `setting.history-per-session` | keep this session's history in a file of its own and merge it in when the session ends |
 | `setting.history-ignore-space` | Whether a line typed with a space in front of it is left out of the history. |
+| `setting.prompt.format` | What the prompt looks like: your own text, with the words directory, path, status and failed in braces standing for the parts the shell fills in. Empty means the built-in prompt. |
 | `setting.session-file` | Whether the per-session startup file runs. |
 
 ## Expectations — what the parser wanted where it stopped

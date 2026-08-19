@@ -31,6 +31,9 @@ package body Adash.Errors is
             | Error_No_Creation_Mask
             | Error_Mask_Not_Octal
             | Error_No_Matching_Files
+            | Error_Unknown_Signal
+            | Error_Signal_Not_Catchable
+            | Error_Signal_Refused
             | Error_Too_Many_Matches
             | Error_No_Resource_Limits
             | Error_Unknown_Resource
@@ -204,6 +207,12 @@ package body Adash.Errors is
          when Error_Mask_Not_Octal         => return Adash.Messages.Msg_Mask_Not_Octal;
          when Error_No_Matching_Files      =>
             return Adash.Messages.Msg_No_Matching_Files;
+         when Error_Unknown_Signal         =>
+            return Adash.Messages.Msg_Unknown_Signal;
+         when Error_Signal_Not_Catchable   =>
+            return Adash.Messages.Msg_Signal_Not_Catchable;
+         when Error_Signal_Refused         =>
+            return Adash.Messages.Msg_Signal_Refused;
          when Error_Too_Many_Matches       =>
             return Adash.Messages.Msg_Too_Many_Matches;
          when Error_No_Resource_Limits     =>

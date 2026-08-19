@@ -78,6 +78,7 @@ package body Adash.Scripting is
 
    --  What a handler run for an interrupt is called in a diagnostic about it.
    Name_Of_Handlers : constant String := "on_interrupt";
+   Name_Of_Signal_Handlers : constant String := "on_signal";
 
    procedure Run_Text
      (Session : in out Adash.Engine.Session;
@@ -156,6 +157,27 @@ package body Adash.Scripting is
                end loop;
             end;
          end if;
+      end;
+
+      --  And any other signal a handler was registered for. A script is where
+      --  `terminate` matters most: it is the signal a service manager sends
+      --  first, and a script that writes a file wants the chance to finish it.
+      declare
+         Due : constant Hostkit.String_Vectors.Vector :=
+           Adash.Engine.Due_Signal_Handlers (Session);
+
+         Ran_It : Adash.Engine.Result;
+      begin
+         for Name of Due loop
+            Adash.Engine.Submit
+              (Session,
+               Ada.Strings.Unbounded.To_String (Name) & ";",
+               Name    => Name_Of_Signal_Handlers,
+               Kind    => Adash.Source.Origin_Interactive,
+               Outcome => Ran_It,
+               Report  => Report,
+               On_Output => On_Output);
+         end loop;
       end;
 
       --  What `on_exit` asked for, before this text is done with.
@@ -726,11 +748,15 @@ package body Adash.Scripting is
       Report  : in out D.List;
       On_Output : Adash.Engine.Output_Sink_Access := null)
    is
-      Resolved : constant String := Hostkit.Fs.Real_Path (Path);
+      --  A leading tilde is this user's home directory here as everywhere
+      --  else: `source ("~/setup.adash")` is a path a user writes, and a
+      --  script found through one is a script found.
+      Written  : constant String := Adash.Filesystem.Expanded (Path);
+      Resolved : constant String := Hostkit.Fs.Real_Path (Written);
    begin
       Status := (Kind => Adash.Execution.Exit_Start_Failure, Code => 127, others => <>);
 
-      if Resolved = "" or else not Ada.Directories.Exists (Path) then
+      if Resolved = "" or else not Ada.Directories.Exists (Written) then
          Result := Script_Not_Found;
          Complain (Report, Adash.Errors.Error_Source_Unreadable, Path);
          return;

@@ -310,8 +310,13 @@ package body Adash.Interactive.Session is
                   end if;
 
                   --  One blank between parts, so the line the user types does
-                  --  not begin against the prompt.
-                  Append (" ");
+                  --  not begin against the prompt -- unless the parts came
+                  --  from a format somebody wrote, where the spacing is
+                  --  theirs and a blank the shell added would be a space they
+                  --  cannot remove.
+                  if not Model.Joined then
+                     Append (" ");
+                  end if;
                end if;
             end;
          end loop;
@@ -1367,6 +1372,36 @@ package body Adash.Interactive.Session is
                            end;
                         end loop;
 
+                        Render_Diagnostics;
+                     end if;
+                  end;
+
+                  --  And whatever else arrived while that ran: a `terminate`
+                  --  sent by a service manager, a `hangup` from a terminal
+                  --  that went away. Asked here rather than delivered, because
+                  --  all a signal does is set a flag -- turning flags into
+                  --  work is the shell's to do, at a point where running a
+                  --  subprogram is safe.
+                  declare
+                     Due : constant Hostkit.String_Vectors.Vector :=
+                       Adash.Engine.Due_Signal_Handlers (Shell);
+                  begin
+                     for Name of Due loop
+                        declare
+                           Ran_It : Adash.Engine.Result;
+                        begin
+                           Adash.Engine.Submit
+                             (Shell,
+                              Ada.Strings.Unbounded.To_String (Name) & ";",
+                              Name      => "on_signal",
+                              Kind      => Adash.Source.Origin_Interactive,
+                              Outcome   => Ran_It,
+                              Report    => Report,
+                              On_Output => Output_To'Unchecked_Access);
+                        end;
+                     end loop;
+
+                     if not Due.Is_Empty then
                         Render_Diagnostics;
                      end if;
                   end;

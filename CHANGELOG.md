@@ -16,6 +16,39 @@ what changed.
   form `NAME=VALUE`, which has exactly one exception, written down where the
   command is registered: a program whose own name contains an `=` must be run
   by `run` with the variables `set`.
+- **A leading `~` is your home directory**, everywhere the shell resolves a path:
+  `cd ("~/src")`, `read_file ("~/notes.txt")`, `run_into ("~/log.txt", ...)`,
+  `source ("~/setup.adash")`, the listings and the pattern expansion. This is the
+  one expansion done without being asked, and the reason is that it cannot change
+  how many arguments there are: a pattern turns one word into several, which is
+  why `run_matching` is a command somebody writes on purpose, and a tilde turns
+  one path into one path. `~other` is somebody else's home, which needs a lookup
+  this shell does not have, so it is left exactly as written rather than guessed
+  at. Asked of the host rather than read from `HOME`, which a spawned process can
+  set to anything.
+- **`prompt.format`** — the prompt is yours now, not two switches.
+  `settings ("prompt.format", "[{path}]{status}$ ")` and that is the prompt;
+  `{directory}`, `{path}`, `{status}` and `{failed}` are filled in and everything
+  else is literal, spacing included. Empty brings the built-in prompt back.
+  Control characters are refused: a prompt is written before everything else on
+  the line, so text that moved a cursor would break the display it appears in,
+  and what colour a prompt has is the style package's decision. This is the first
+  free-text setting — the argument against them is about values whose wrongness
+  shows up somewhere else later, and a prompt's is on the screen immediately.
+- **`on_signal` and `signal_process`** — signals beyond the interrupt.
+  `on_signal ("terminate", "Save_And_Quit")` runs a subprogram when the signal a
+  service manager sends first arrives, which nothing in this shell could hear
+  before; `signal_process (1234, "hangup")` sends one, naming it rather than
+  numbering it. The names are the host's own in lower case. `kill` and `stop`
+  cannot be caught by anybody and are refused when asked for rather than accepted
+  and never run, and Windows — which has no signals beyond a console's interrupt
+  — refuses the rest.
+- **A wait is a place the shell looks for a reason to stop.** The machine asked
+  every thousand instructions, which is right for a loop that computes and wrong
+  for the loop people write: `loop delay 0.2; end loop;` runs a handful of
+  instructions a second, so a thousand of them was ten seconds — ten seconds
+  between a Ctrl-C and anything happening. It asks after every wait now, and both
+  Ctrl-C and a signal handler are immediate.
 - **Pattern expansion**, which is the largest thing this shell did not have.
   `run_matching ("rm", "-f", "*.log")` replaces every argument holding `*`, `?`
   or `[` with the paths it names, sorted, and passes every other argument along
