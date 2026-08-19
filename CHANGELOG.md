@@ -11,6 +11,14 @@ what changed.
 
 ### Added
 
+- **Unit cases for `Adash.Patterns`** — six of them, covering what a conformance
+  case would need a directory to reach: anchoring at both ends, a star that has
+  to give ground, a class that is negated, an unclosed bracket that stands for
+  itself, nested groups, ranges that count backwards, an empty alternative, and
+  the expansion bound refusing whole rather than handing back the first four
+  thousand. A sweep for library packages no test names found four; two are
+  exercised through the shell, and this is the first of the two that were not.
+
 - `run_with` takes as many assignments as you write, and `start_with` does the
   same without waiting. The boundary is the first argument that is not of the
   form `NAME=VALUE`, which has exactly one exception, written down where the
@@ -331,6 +339,13 @@ what changed.
   mistake.
 
 ### Fixed
+
+- **`{1..d}` keeps its braces.** A group with `..` in it was treated as a group
+  even when its ends were not the same shape, so the braces came off and nothing
+  was put in their place — `{1..d}` expanded to `1..d`, where every other shell
+  leaves it exactly as written. A group speaks only if it holds a comma or a
+  range this package would actually count. Found by the first unit case written
+  for `Adash.Patterns`, minutes after the package got one.
 
 - **A variable holding a newline no longer breaks the rest of the session.** A
   value is carried from one submission to the next as the text that declares it,

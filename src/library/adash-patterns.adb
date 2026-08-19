@@ -162,8 +162,22 @@ package body Adash.Patterns is
       return 0;
    end Group_Ends;
 
+   --  A range, if this is one: `1..4` or `a..d`.
+   --
+   --  Both ends the same shape, because `{1..d}` is not a range anybody meant
+   --  -- it stays text, and text is what a doubtful group is.
+   function Is_A_Range
+     (Body_Text : String;
+      Numeric   : out Boolean;
+      From      : out Integer;
+      To        : out Integer) return Boolean;
+
    --  Whether the body of a group says anything: a comma at its own depth, or
-   --  a range. `{a}` says nothing, and stays as it was written.
+   --  a range this package would actually count. `{a}` says nothing and stays
+   --  as it was written -- and so does `{1..d}`, whose ends are not the same
+   --  shape: a group that speaks without being a range would have its braces
+   --  taken off and nothing put in their place, which is not what anybody
+   --  wrote and is not what any other shell does.
    function Group_Speaks (Body_Text : String) return Boolean;
 
    function Group_Speaks (Body_Text : String) return Boolean is
@@ -176,15 +190,16 @@ package body Adash.Patterns is
             Depth := (if Depth > 0 then Depth - 1 else 0);
          elsif Body_Text (Index) = ',' and then Depth = 0 then
             return True;
-         elsif Body_Text (Index) = '.' and then Depth = 0
-           and then Index < Body_Text'Last
-           and then Body_Text (Index + 1) = '.'
-         then
-            return True;
          end if;
       end loop;
 
-      return False;
+      declare
+         Numeric : Boolean;
+         From    : Integer;
+         To      : Integer;
+      begin
+         return Is_A_Range (Body_Text, Numeric, From, To);
+      end;
    end Group_Speaks;
 
    function Holds_A_Brace_Group (Text : String) return Boolean is
@@ -209,16 +224,6 @@ package body Adash.Patterns is
    -------------
    -- Expand --
    -------------
-
-   --  A range, if this is one: `1..4` or `a..d`.
-   --
-   --  Both ends the same shape, because `{1..d}` is not a range anybody meant
-   --  -- it stays text, and text is what a doubtful group is.
-   function Is_A_Range
-     (Body_Text : String;
-      Numeric   : out Boolean;
-      From      : out Integer;
-      To        : out Integer) return Boolean;
 
    function Is_A_Range
      (Body_Text : String;
