@@ -548,7 +548,6 @@ package Adash.Messages is
       Msg_Capability_Pseudo_Terminal,
       Msg_Capability_Advisory_Locks,
       Msg_Capability_Becoming_A_Program,
-      Msg_Capability_Session_Redirection,
       Msg_Start_Reason_Host_Refused,
       Msg_Start_Reason_Stream_Setup,
 

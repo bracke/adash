@@ -50,15 +50,7 @@ package Adash.Platform is
       --  keeping the process. POSIX has execvp; Windows has no such call at
       --  all, and what it does have makes a new process -- which is the one
       --  thing a caller reaching for this is trying to avoid.
-      Capability_Becoming_A_Program,
-
-      --  Whether this host can point the shell's own streams somewhere for the
-      --  rest of a session. POSIX has dup2, which moves the descriptor every
-      --  writer in the process already holds. Windows has SetStdHandle, which
-      --  changes what a *new* reader of the standard handles finds and leaves
-      --  this program's own writes where they were -- so a shell that called
-      --  it would report success and move nothing.
-      Capability_Session_Redirection);
+      Capability_Becoming_A_Program);
 
    --  Whether this host has a capability.
    --

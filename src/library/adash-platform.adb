@@ -24,8 +24,6 @@ package body Adash.Platform is
             return Adash.Messages.Msg_Capability_Pseudo_Terminal;
          when Capability_Advisory_Locks =>
             return Adash.Messages.Msg_Capability_Advisory_Locks;
-         when Capability_Session_Redirection =>
-            return Adash.Messages.Msg_Capability_Session_Redirection;
          when Capability_Becoming_A_Program =>
             return Adash.Messages.Msg_Capability_Becoming_A_Program;
       end case;
@@ -61,17 +59,6 @@ package body Adash.Platform is
             --  which it would have to do even if this answered False.
             return True;
 
-         when Capability_Session_Redirection =>
-            --  Measured rather than assumed: a Windows run had the shell's own
-            --  line on the console with the file it had been redirected to
-            --  empty, which is SetStdHandle doing what it says -- changing
-            --  what a new reader finds, not where this program's writes go.
-            declare
-               use type Hostkit.Host.Kind;
-            begin
-               return Hostkit.Host.Current /= Hostkit.Host.Windows;
-            end;
-
          when Capability_Becoming_A_Program =>
             --  Asked of the host rather than of this shell: POSIX has execvp
             --  and Windows has nothing that replaces a running image, which
@@ -97,8 +84,6 @@ package body Adash.Platform is
          when Capability_Advisory_Locks  => return "ADVISORY_LOCKS";
          when Capability_Becoming_A_Program =>
             return "BECOMING_A_PROGRAM";
-         when Capability_Session_Redirection =>
-            return "SESSION_REDIRECTION";
       end case;
    end Name;
 

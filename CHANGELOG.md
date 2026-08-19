@@ -28,15 +28,14 @@ what changed.
   assigned over standard output, nothing in the process remembers where it used
   to point.
 
-  **Linux and macOS only, and Windows says so.** `dup2` there moves the
-  descriptor every writer in the process already holds; Windows offers
+  On every host. It was two for a while: Windows moves a stream with
   `SetStdHandle`, which changes what a *new* reader of the standard handles
-  finds and leaves this program's own writes where they were. A run proved it —
-  the shell's line came out on the console with the file empty — so the command
-  refuses on that host rather than reporting success and moving nothing, which
-  is the worst of the three possible behaviours. `run_into` is how a script
-  captures output there. hostkit's `Descriptors.Assign` now says the same thing
-  in its own specification.
+  finds and leaves this program's own writes where they were — the shell's line
+  came out on the console with the file empty — so the command refused there
+  rather than reporting success and moving nothing. hostkit moves the runtime
+  descriptor as well now (`_open_osfhandle`, `_flushall`, `_dup2`, which is what
+  `dup2` does in one call elsewhere), a case there asserts it by writing through
+  `Ada.Text_IO` and reading the file back, and the refusal is gone.
 - **Columns without a format string.** `Left_Aligned`, `Right_Aligned`,
   `Zero_Padded` and `Decimals` do what `printf "%-20s %06.2f"` does, as calls the
   compiler type-checks. A format string is a second language inside the first —

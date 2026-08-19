@@ -2145,21 +2145,6 @@ package body Adash.Commands.Builtins is
                                  [1 => M.Named ("stream", Named_As)]);
                end if;
 
-               --  Then the host. It must say it cannot rather than report
-               --  success and move nothing, which is what a Windows run
-               --  showed: the shell's own line on the console with the file it
-               --  had been redirected to empty.
-               if not Adash.Platform.Is_Available
-                        (Adash.Platform.Capability_Session_Redirection)
-               then
-                  return Failed
-                    (Adash.Errors.Error_Capability_Unavailable,
-                     [1 => M.Named
-                             ("capability",
-                              Adash.Platform.Name
-                                (Adash.Platform.Capability_Session_Redirection))]);
-               end if;
-
                --  Whatever this shell has written and not yet handed to the
                --  host goes to the stream it was written for, not to the one
                --  that is about to take its place.

@@ -1024,17 +1024,16 @@ Asserted by looking for the text in the file rather than by matching the file
 line for line: what a `put_line` leaves at the end of a file is a host's line
 ending, and this case is not about those.
 
-On the two hosts that have it. Windows refuses the command outright -- see the
-case gated to it -- because SetStdHandle there changes what a new reader of the
-standard handles finds and leaves this program's own writes where they were: a
-shell that called it would report success and move nothing, which is worse than
-saying it cannot.
+On every host. It was two for a while: Windows moves a stream with SetStdHandle,
+which changes what a new reader of the standard handles finds and leaves this
+program's own writes where they were, so the shell's line came out on the
+console with the file empty. hostkit moves the runtime descriptor there as well
+now, and this holds everywhere.
 """
 script = "cd (\"{store}\"); redirect (\"both\", \"session.log\"); put_line (To_Upper (\"the shell\")); redirect_back (\"both\"); put_line (Index (Read_File (\"session.log\"), \"THE SHELL\") > 0);\nquit (0);"
 exit_status = 0
 output = ["TRUE"]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "redirection.a-program-writes-where-the-session-was-sent"
@@ -1044,13 +1043,12 @@ output goes, because it is the process's stream that moved -- which is the
 difference between this and `run_into`, and the reason one line at the top of a
 script can log everything it does.
 
-On the two hosts that have it, for the reason the case above gives.
+On every host, for the reason the case above gives.
 """
 script = "cd (\"{store}\"); redirect (\"output\", \"program.log\"); run (\"{emit}\", \"the program\"); redirect_back (\"output\"); put_line (Index (Read_File (\"program.log\"), \"the program\") > 0);\nquit (0);"
 exit_status = 0
 output = ["TRUE"]
 diagnostics = []
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "redirection.a-stream-nobody-has-is-refused"
@@ -1077,14 +1075,12 @@ requirement = """
 done: a script that thinks it restored something is a script whose next output
 goes somewhere it did not expect.
 
-On the two hosts that have the feature at all. Windows refuses every one of
-these commands before it gets this far, which the case gated to it asserts.
+On every host, now that every host can move a stream.
 """
 script = "redirect_back (\"output\");\nquit (0);"
 exit_status = 0
 output = []
 diagnostics = ["!error.stream_not_redirected{stream=output}!"]
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "text.columns-without-a-format-string"
@@ -1103,25 +1099,3 @@ exit_status = 0
 output = ["[name    |   7]", "007 12345", "3.14 2 []"]
 diagnostics = []
 
-[[case]]
-id = "redirection.a-host-that-cannot-move-a-stream-says-so"
-requirement = """
-Windows refuses `redirect`. Its SetStdHandle changes what a *new* reader of the
-standard handles finds; it does not move where this program's own writes go, and
-a run of the earlier version of this feature proved it -- the shell's line came
-out on the console with the file it had been redirected to empty.
-
-A command that reports success and moves nothing is the worst of the three
-possible behaviours, so this says which capability is missing -- for putting a
-stream back as much as for moving it, which is why both are here.
-
-`run_into` is how a script captures a program's output on that host.
-"""
-script = "redirect (\"output\", \"nowhere.log\");\nredirect_back (\"output\");\nquit (0);"
-exit_status = 0
-output = []
-diagnostics = [
-  "!error.capability_unavailable{capability=SESSION_REDIRECTION}!",
-  "!error.capability_unavailable{capability=SESSION_REDIRECTION}!",
-]
-platforms = ["windows"]
