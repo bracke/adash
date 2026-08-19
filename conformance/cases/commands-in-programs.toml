@@ -1163,3 +1163,57 @@ input = "answered in time\n"
 exit_status = 0
 output = ["[answered in time] timed_out FALSE ended FALSE"]
 diagnostics = []
+
+[[case]]
+id = "redirection.appending-adds-to-what-is-there"
+requirement = """
+`redirect_append` adds to the end of a file where `redirect` replaces what is in
+it. Both halves are asserted here, in that order, because the difference between
+them is invisible in a file that was empty to begin with -- which is exactly the
+file a case that only ever redirected once would write.
+
+Asserted by looking for both pieces of text rather than by matching the file
+line for line: what a `put_line` leaves at the end of a file is a host's line
+ending, and this case is not about those.
+"""
+script = "cd (\"{store}\"); redirect (\"output\", \"twice.log\"); put_line (To_Upper (\"first\")); redirect_back (\"output\"); redirect_append (\"output\", \"twice.log\"); put_line (To_Upper (\"second\")); redirect_back (\"output\"); Held : String := Read_File (\"twice.log\"); put_line (Index (Held, \"FIRST\") > 0 and then Index (Held, \"SECOND\") > 0);\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "paths.directories-says-what-is-set-aside"
+requirement = """
+What `directories` prints: one line per directory set aside, numbered, most
+recent first.
+
+Read back out of a file rather than matched against the case's own output,
+because a path is spelled the way its host spells it -- a separator asserted
+here would be a case that only holds on two of the three hosts. What is looked
+for is the name of the directory that was left and the number of the second
+entry, neither of which depends on how a host writes a path.
+"""
+script = "cd (\"{store}\"); make_directory (\"aside\"); push_directory (\"aside\"); push_directory (\"..\"); redirect (\"output\", \"listed.txt\"); directories; redirect_back (\"output\"); Held : String := Read_File (\"listed.txt\"); put_line (Index (Held, \"aside\") > 0 and then Index (Held, \"number=2\") + Index (Held, \"2 \") > 0);\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []
+
+[[case]]
+id = "values.a-variable-holding-a-line-survives-the-submission"
+requirement = """
+A value is carried from one submission to the next as the text that declares it,
+so a String has to be written back as something this language reads. A literal
+cannot carry a control character -- a newline inside one ends the line -- and
+what came back was a literal that was never closed: the session then answered
+"this string literal is not closed" to everything that followed it, for the rest
+of the session.
+
+Which is what any script reading a file into a variable did: `Held : String :=
+Read_File (...)` and the next line, whatever it was, did not run. Written back
+as a concatenation now, with each control character as the character it is --
+which is how somebody writing a newline in this language writes one.
+"""
+script = "X : String := \"a\" & Character'Val (10) & \"b\";\nput_line (Index (X, \"a\") > 0 and then Index (X, \"b\") > 0);\nquit (0);"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []

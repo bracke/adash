@@ -262,22 +262,86 @@ package body Adash.Language.Values is
       case Types.Shape (Kind (Item)) is
          when Types.Shape_String =>
             declare
-               Quoted : Ada.Strings.Unbounded.Unbounded_String;
-            begin
-               Ada.Strings.Unbounded.Append (Quoted, '"');
+               Written : Ada.Strings.Unbounded.Unbounded_String;
+               Quoted  : Ada.Strings.Unbounded.Unbounded_String;
+               Open    : Boolean := False;
 
-               for Letter of Rendered loop
-                  --  Doubled, which is how every Ada string literal carries a
-                  --  quotation mark.
-                  if Letter = '"' then
-                     Ada.Strings.Unbounded.Append (Quoted, '"');
+               --  Close the quoted run being built, if there is one.
+               procedure Finish_Run;
+
+               procedure Finish_Run is
+               begin
+                  if not Open then
+                     return;
                   end if;
 
-                  Ada.Strings.Unbounded.Append (Quoted, Letter);
+                  Ada.Strings.Unbounded.Append (Quoted, '"');
+
+                  if Ada.Strings.Unbounded.Length (Written) > 0 then
+                     Ada.Strings.Unbounded.Append (Written, " & ");
+                  end if;
+
+                  Ada.Strings.Unbounded.Append (Written, Quoted);
+                  Quoted := Ada.Strings.Unbounded.Null_Unbounded_String;
+                  Open := False;
+               end Finish_Run;
+
+            begin
+               for Letter of Rendered loop
+                  --  A literal cannot carry a control character: a newline
+                  --  inside one ends the line, and what comes back is a
+                  --  literal that was never closed. So a run of ordinary
+                  --  characters is quoted and anything else is written as the
+                  --  character it is -- which is how somebody writing a
+                  --  newline in this language writes one.
+                  --
+                  --  This is not decoration. A value carried from one
+                  --  submission to the next is carried as the text that
+                  --  declares it, so a variable holding a line of a file used
+                  --  to break every submission after it: the session went on
+                  --  answering "this string literal is not closed" to
+                  --  everything that followed.
+                  if Character'Pos (Letter) < 32
+                    or else Character'Pos (Letter) = 127
+                  then
+                     Finish_Run;
+
+                     if Ada.Strings.Unbounded.Length (Written) > 0 then
+                        Ada.Strings.Unbounded.Append (Written, " & ");
+                     end if;
+
+                     Ada.Strings.Unbounded.Append
+                       (Written,
+                        "Character'Val ("
+                        & Ada.Strings.Fixed.Trim
+                            (Integer'Image (Character'Pos (Letter)),
+                             Ada.Strings.Both)
+                        & ")");
+                  else
+                     if not Open then
+                        Ada.Strings.Unbounded.Append (Quoted, '"');
+                        Open := True;
+                     end if;
+
+                     --  Doubled, which is how every Ada string literal
+                     --  carries a quotation mark.
+                     if Letter = '"' then
+                        Ada.Strings.Unbounded.Append (Quoted, '"');
+                     end if;
+
+                     Ada.Strings.Unbounded.Append (Quoted, Letter);
+                  end if;
                end loop;
 
-               Ada.Strings.Unbounded.Append (Quoted, '"');
-               return Ada.Strings.Unbounded.To_String (Quoted);
+               Finish_Run;
+
+               --  Nothing at all is the empty literal rather than nothing,
+               --  which would not be an expression.
+               if Ada.Strings.Unbounded.Length (Written) = 0 then
+                  return """""";
+               end if;
+
+               return Ada.Strings.Unbounded.To_String (Written);
             end;
 
          when Types.Shape_Character =>

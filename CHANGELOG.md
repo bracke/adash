@@ -278,6 +278,17 @@ what changed.
 
 ### Fixed
 
+- **A variable holding a newline no longer breaks the rest of the session.** A
+  value is carried from one submission to the next as the text that declares it,
+  and a String was written back as a quoted literal with its contents verbatim —
+  so a newline inside one ended the line and produced a literal that was never
+  closed. Every submission after it answered "this string literal is not closed",
+  which is to say that `Held : String := Read_File (…)` poisoned the session. It
+  is written back as a concatenation now, with each control character as the
+  character it is, which is how somebody writing a newline in this language
+  writes one. Found while closing a test-coverage hole: two new cases that read a
+  file into a variable failed, and the third case pins the defect itself.
+
 - `adash_check` checks `docs/diagnostics-catalog.md` against the catalog it
   claims to be — a row for every message, a message for every row, and the same
   words in both. That document said of itself "the catalog file is the source;

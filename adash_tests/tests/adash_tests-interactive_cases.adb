@@ -1871,6 +1871,54 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end after completing a word");
    end Completion_Offers_What_A_User_Taught_It;
 
+   --  A script can read one key, without waiting for a return.
+   --
+   --  What a menu needs, and the thing `Read_Line` cannot do: the terminal is
+   --  put in raw mode for the read and put back afterwards, which is what
+   --  makes a single `y` an answer rather than a `y` and a return.
+   --
+   --  Typed at a terminal because that is the only place the difference
+   --  exists: through a pipe every read is a byte at a time anyway, and a case
+   --  that read a pipe would pass whether or not the raw mode worked.
+   procedure A_Script_Can_Read_One_Key
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Script_Can_Read_One_Key
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Return_Key : constant String := [1 => Character'Val (13)];
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into
+        (Session,
+         "put_line (To_Upper (""ready"")); Key : String := Read_Key; "
+         & "put_line (To_Upper (""pressed "") & Key);" & Return_Key);
+
+      --  Wait for the question before answering it: a key typed while the
+      --  shell was still reading the submission would be part of it.
+      Assert (Waited_For_Plainly (Session, "READY", 400),
+              "the shell never got as far as reading a key: ["
+              & Plainly (Session) & "]");
+
+      --  One character, and no return after it. That is the whole point.
+      Type_Into (Session, "y");
+
+      Assert (Waited_For_Plainly (Session, "PRESSED y", 400),
+              "a single key did not reach the script that asked for it: ["
+              & Plainly (Session) & "]");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after reading a key");
+   end A_Script_Can_Read_One_Key;
+
    --  What a cut took out, a yank puts back.
    --
    --  The three cut keys fill one buffer -- to the end of the line, to its
@@ -3823,6 +3871,8 @@ package body Adash_Tests.Interactive_Cases is
                         "what a shell on a terminal says when given a script");
       Register_Routine (T, An_Interrupted_Script_Still_Tidies_Up'Access,
                         "a script interrupted still runs what it registered");
+      Register_Routine (T, A_Script_Can_Read_One_Key'Access,
+         "a script can read one key at a terminal");
       Register_Routine (T, A_Yank_Puts_Back_What_A_Cut_Took'Access,
          "a yank puts back what a cut took out");
       Register_Routine (T, A_Search_Finds_A_Line_And_Runs_It'Access,
