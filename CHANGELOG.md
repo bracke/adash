@@ -11,6 +11,11 @@ what changed.
 
 ### Added
 
+- **Unit cases for `Adash.Interactive.Prompt`** — five, asserting the model
+  rather than a terminal: the built-in prompt puts a blank between its parts and
+  a format does not (the spacing is the user's), a `{word}` this shell does not
+  know stays the text it is rather than vanishing, a `{failed}` marker waits for
+  a failure, and `{status}` shows the number the last submission ended with.
 - **Unit cases for `Adash.Patterns`** — six of them, covering what a conformance
   case would need a directory to reach: anchoring at both ends, a star that has
   to give ground, a class that is negated, an unclosed bracket that stands for
