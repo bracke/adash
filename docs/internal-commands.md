@@ -93,6 +93,15 @@ reads as the empty string rather than failing.
 |---|---|---|
 | `run (Program : String; Argument : String…)` | 1 .. any | runs a program and waits |
 | `run_matching (Program : String; Argument : String)` | 1 or more | runs a program with the arguments that hold `*`, `?` or `[` replaced by the paths they name, sorted; an argument with none is passed along untouched, and a pattern that names nothing refuses the command rather than passing the pattern on as a word |
+
+Expansion is the shell's, not the language's: nothing is expanded unless
+`run_matching` was written, and `run` hands a program exactly the arguments it
+was given. One host qualifies that last sentence — a Windows program built with
+the usual C runtime expands the wildcards in its own argument list before `main`
+runs, so `run ("prog", "*.log")` reaches `prog` as `*.log` everywhere and `prog`
+may then expand it for itself there. `run_matching` is unaffected: what it hands
+over has already been expanded, and nothing is left for a runtime to find.
+
 | `run_into (File : String; Program : String…)` | 2 .. any | runs it with its output written to a file, replacing what was there |
 | `run_append (File : String; Program : String…)` | 2 .. any | the same, added to the end |
 | `run_new (File : String; Program : String…)` | 2 .. any | the same, to a file that must not already exist |

@@ -607,11 +607,40 @@ of its own: `run` hands a program exactly what it was written with. An argument
 is a string literal in this language, and a shell that quietly turned one into
 several would be a shell whose quoting rules somebody has to learn before they
 can name a file with a star in it.
+
+What the program does with it afterwards is the program's business, and on
+Windows that is not nothing: a program built with the usual C runtime expands
+the wildcards in its own argument list before `main` runs. So this asserts what
+the shell hands over on the two hosts where the argument list a program receives
+is the one it was given, and the case below asserts what the third host does
+with the same script. The shell behaves identically on all three; only the
+program differs.
 """
 script = "cd (\"{store}\"); write_file (\"one\", \"kept.log\");\nrun (\"{emit}\", \"*.log\");\nquit (0);"
 exit_status = 0
 output = ["*.log"]
 diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "matching.a-windows-program-expands-for-itself"
+requirement = """
+The same script on Windows, where the program receives `kept.log` although the
+shell handed it `*.log`.
+
+Nothing in the shell did that. A program built with the usual Windows C runtime
+expands the wildcards in its own argument list before `main` runs, which is a
+fact about programs on that host rather than about this shell -- and it is worth
+a case because a script written against the other two hosts will behave
+differently here through no act of the shell's. `run_matching` is unaffected:
+what it hands over has already been expanded, and there is nothing left in it
+for a runtime to find.
+"""
+script = "cd (\"{store}\"); write_file (\"one\", \"kept.log\");\nrun (\"{emit}\", \"*.log\");\nquit (0);"
+exit_status = 0
+output = ["kept.log"]
+diagnostics = []
+platforms = ["windows"]
 
 [[case]]
 id = "matching.a-pattern-that-names-nothing-refuses"

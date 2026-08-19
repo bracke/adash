@@ -1902,21 +1902,23 @@ package body Adash_Tests.Interactive_Cases is
          return;
       end if;
 
+      --  Upper case, because a terminal echoes what is typed: a marker that
+      --  appears in the line being typed is a marker the transcript holds
+      --  before the shell has run anything, and waiting for it would answer a
+      --  question that had not been asked yet. `To_Upper` of a lower-case
+      --  literal cannot be in the echo, so what matches is the output.
       Type_Into
         (Session,
-         "put (""Name? ""); Who : String := Read_Line; "
-         & "put_line (""hello "" & Who);" & Return_Key);
+         "put_line (To_Upper (""asking"")); Who : String := Read_Line; "
+         & "put_line (To_Upper (""answered "") & Who);" & Return_Key);
 
-      --  Wait for the question before answering it: an answer typed while the
-      --  shell was still reading the submission would be part of the
-      --  submission, and the case would pass without the read ever happening.
-      Assert (Waited_For_Plainly (Session, "Name?", 400),
+      Assert (Waited_For_Plainly (Session, "ASKING", 400),
               "the shell never asked the question: ["
               & Plainly (Session) & "]");
 
       Type_Into (Session, "Bent" & Return_Key);
 
-      Assert (Waited_For_Plainly (Session, "hello Bent", 400),
+      Assert (Waited_For_Plainly (Session, "ANSWERED Bent", 400),
               "what was typed did not reach the script that asked for it: ["
               & Plainly (Session) & "]");
 
