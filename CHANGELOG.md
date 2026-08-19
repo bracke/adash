@@ -355,6 +355,15 @@ what changed.
 
 ### Fixed
 
+- **A signal reaches its handler while the shell is waiting for input.** The
+  same defect as the one below, wearing a different hat: a blocking read cannot
+  be interrupted, because the host restarts it when a signal arrives — which is
+  what `signal` asks for and what every other caller wants. So a script waiting
+  for a line read again for ever, and the handler it had registered for
+  `terminate` ran when the input finally came; for a pipe nobody writes to, that
+  is never. The wait happens in a poll now, in fifths of a second, and the read
+  is only ever made when it will not wait. Between polls the shell can notice it
+  has been asked to stop.
 - **A signal reaches its handler while the shell is waiting for a job.** `wait`
   blocked in the host with no cancellation token, which was fine while the only
   interruption anybody expected was Ctrl-C — that reaches the job through the

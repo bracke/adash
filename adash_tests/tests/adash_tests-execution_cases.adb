@@ -2099,6 +2099,192 @@ package body Adash_Tests.Execution_Cases is
               & Ada.Strings.Unbounded.To_String (Said) & "]");
    end A_Read_Gives_Up_When_Nothing_Arrives;
 
+   --  And it reaches the handler while the shell is waiting for input.
+   --
+   --  The other blocking call a script sits in, and the same defect wearing a
+   --  different hat: a read cannot be interrupted, because the host restarts
+   --  it when a signal arrives. A script waiting for a line read again for
+   --  ever, so the handler it had registered ran when the input finally came
+   --  -- which for a pipe nobody writes to is never.
+   --
+   --  The pipe here is held open and nothing is written into it, which is what
+   --  a script waiting on a slow producer looks like from the inside.
+   procedure A_Signal_Reaches_A_Handler_While_Reading
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Signal_Reaches_A_Handler_While_Reading
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Shell : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Containing_Directory
+             (Ada.Directories.Containing_Directory
+                (Ada.Directories.Containing_Directory
+                   (Ada.Directories.Full_Name
+                      (Ada.Command_Line.Command_Name)))),
+           "bin");
+
+      Binary : constant String :=
+        Ada.Directories.Compose
+          (Shell, "adash" & Hostkit.Fs.Executable_Suffix);
+
+      Script : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-signal-read.adash");
+
+      Told    : Hostkit.String_Vectors.Vector;
+      Options : Hostkit.Spawn.Options;
+      Child   : Hostkit.Spawn.Process_Handle;
+      Result  : Hostkit.Spawn.Status;
+
+      Feeding : Hostkit.Descriptors.Pipe_Ends;
+      Outs    : Hostkit.Descriptors.Pipe_Ends;
+
+      Said : Ada.Strings.Unbounded.Unbounded_String;
+
+      Written : Adash.Filesystem.Written;
+
+      use type Adash.Filesystem.Written;
+      use type Hostkit.Spawn.Spawn_Outcome;
+      use type Hostkit.Descriptors.Transfer_Outcome;
+   begin
+      if not Ada.Directories.Exists (Binary)
+        or else not Hostkit.Signals.Is_Supported
+                      (Hostkit.Signals.Signal_Terminate)
+      then
+         return;
+      end if;
+
+      Adash.Filesystem.Write
+        (Script,
+         "procedure Note is begin put_line (To_Upper (""noted"")); end Note;"
+         & Ada.Characters.Latin_1.LF
+         & "on_signal (""terminate"", ""Note"");" & Ada.Characters.Latin_1.LF
+         & "put_line (To_Upper (""ready""));" & Ada.Characters.Latin_1.LF
+         & "Line : String := Read_Line;" & Ada.Characters.Latin_1.LF,
+         Written);
+
+      Assert (Written = Adash.Filesystem.Write_Ok,
+              "the probe script was not written");
+
+      Assert (Hostkit.Descriptors.Create_Pipe (Feeding),
+              "no pipe for the shell's input");
+      Assert (Hostkit.Descriptors.Create_Pipe (Outs),
+              "no pipe for the shell's output");
+      Assert (Hostkit.Descriptors.Set_Inheritable (Feeding.Read_End, True)
+              and then Hostkit.Descriptors.Set_Inheritable
+                         (Outs.Write_End, True),
+              "the child's streams would not travel to it");
+
+      Told.Append (Ada.Strings.Unbounded.To_Unbounded_String (Script));
+      Options.Input := Feeding.Read_End;
+      Options.Output := Outs.Write_End;
+
+      Assert (Hostkit.Spawn.Start (Binary, Told, Options, Child)
+              = Hostkit.Spawn.Spawn_Ok,
+              "the shell would not start on the reading script");
+
+      Hostkit.Descriptors.Close (Feeding.Read_End);
+      Hostkit.Descriptors.Close (Outs.Write_End);
+
+      declare
+         Ready : Boolean := False;
+      begin
+         for Attempt in 1 .. 400 loop
+            declare
+               Chunk : Ada.Streams.Stream_Element_Array (1 .. 1_024);
+               Last  : Ada.Streams.Stream_Element_Offset;
+            begin
+               exit when Hostkit.Descriptors.Read (Outs.Read_End, Chunk, Last)
+                         /= Hostkit.Descriptors.Transfer_Ok;
+
+               for Index in Chunk'First .. Last loop
+                  Ada.Strings.Unbounded.Append
+                    (Said, Character'Val (Natural (Chunk (Index))));
+               end loop;
+            end;
+
+            Ready := Ada.Strings.Fixed.Index
+                       (Ada.Strings.Unbounded.To_String (Said), "READY") > 0;
+            exit when Ready;
+         end loop;
+
+         Assert (Ready,
+                 "the script never said it was ready: ["
+                 & Ada.Strings.Unbounded.To_String (Said) & "]");
+      end;
+
+      Assert (Hostkit.Signals.Send_To_Process
+                (Hostkit.Spawn.Process_Id (Child),
+                 Hostkit.Signals.Signal_Terminate),
+              "the host would not send the signal");
+
+      --  Ten seconds and no more. Nothing will ever be written into that pipe,
+      --  so a case that read until the stream closed would be a case that
+      --  waited for the defect to fix itself.
+      declare
+         use Ada.Real_Time;
+
+         Deadline : constant Ada.Real_Time.Time :=
+           Ada.Real_Time.Clock + Ada.Real_Time.To_Time_Span (10.0);
+      begin
+         while Ada.Real_Time.Clock < Deadline loop
+            exit when Ada.Strings.Fixed.Index
+                        (Ada.Strings.Unbounded.To_String (Said), "NOTED") > 0;
+
+            if Hostkit.Descriptors.Wait_Readable (Outs.Read_End, 200) then
+               declare
+                  Chunk : Ada.Streams.Stream_Element_Array (1 .. 1_024);
+                  Last  : Ada.Streams.Stream_Element_Offset;
+               begin
+                  exit when Hostkit.Descriptors.Read
+                              (Outs.Read_End, Chunk, Last)
+                            /= Hostkit.Descriptors.Transfer_Ok;
+
+                  for Index in Chunk'First .. Last loop
+                     Ada.Strings.Unbounded.Append
+                       (Said, Character'Val (Natural (Chunk (Index))));
+                  end loop;
+               end;
+            end if;
+         end loop;
+      end;
+
+      declare
+         Ignored : constant Boolean :=
+           Hostkit.Signals.Send_To_Process
+             (Hostkit.Spawn.Process_Id (Child), Hostkit.Signals.Signal_Kill);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
+
+      declare
+         Reaped : constant Boolean :=
+           Hostkit.Spawn.Wait (Child, Hostkit.Spawn.Wait_Block, Result);
+         pragma Unreferenced (Reaped);
+      begin
+         null;
+      end;
+
+      Hostkit.Descriptors.Close (Feeding.Write_End);
+      Hostkit.Descriptors.Close (Outs.Read_End);
+
+      begin
+         Ada.Directories.Delete_File (Script);
+      exception
+         when others =>
+            null;
+      end;
+
+      Assert (Ada.Strings.Fixed.Index
+                (Ada.Strings.Unbounded.To_String (Said), "NOTED") > 0,
+              "a signal did not reach the handler while the shell read: ["
+              & Ada.Strings.Unbounded.To_String (Said) & "]");
+   end A_Signal_Reaches_A_Handler_While_Reading;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -2171,6 +2357,9 @@ package body Adash_Tests.Execution_Cases is
       Register_Routine
         (T, Becoming_A_Program_Keeps_The_Process'Access,
          "execution : becoming a program keeps the process");
+      Register_Routine
+        (T, A_Signal_Reaches_A_Handler_While_Reading'Access,
+         "execution : a signal reaches a handler while the shell reads input");
       Register_Routine
         (T, A_Signal_Reaches_A_Handler_While_Waiting'Access,
          "execution : a signal reaches a handler while the shell waits for a job");

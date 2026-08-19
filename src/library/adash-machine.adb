@@ -2378,6 +2378,14 @@ package body Adash.Machine is
                      On_Host.Call
                        (To_String (Named.Text), Given, Count, Reply);
 
+                     --  Anything that leaves the machine may have taken time:
+                     --  a command that ran a program, a function that waited
+                     --  for a line. So the cancellation check happens on the
+                     --  next instruction rather than in a thousand -- which is
+                     --  what lets a script blocked on input notice a signal
+                     --  the moment its read gives up.
+                     Waited := True;
+
                      Push (Reply.Value);
 
                      if Reply.Halt then

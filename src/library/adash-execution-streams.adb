@@ -259,6 +259,44 @@ package body Adash.Execution.Streams is
 
          exit when Drained;
 
+         --  Waited for rather than blocked on, in fifths of a second.
+         --
+         --  A blocking read cannot be interrupted here: the host restarts it
+         --  when a signal arrives -- that is what `signal` asks for and what
+         --  every caller of this library otherwise wants -- so a script
+         --  waiting for input read again for ever, and the handler it had
+         --  registered for `terminate` ran when the input finally came. For a
+         --  pipe nobody is writing to, that is never.
+         --
+         --  A host that will not answer readiness gets the blocking read it
+         --  always got: refusing to answer is not a reason to stop reading,
+         --  and spinning on a question this host cannot answer would be worse
+         --  than waiting.
+         --  Nothing is read until the host says there is something.
+         --
+         --  A blocking read cannot be interrupted here: the host restarts it
+         --  when a signal arrives -- which is what `signal` asks for and what
+         --  every other caller wants -- so a script waiting for input read
+         --  again for ever, and the handler it had registered for `terminate`
+         --  ran when the input finally came. For a pipe nobody is writing to,
+         --  that is never.
+         --
+         --  So the wait happens in the poll, in fifths of a second, and the
+         --  read is only ever made when it will not wait. Between polls the
+         --  shell can notice that it has been asked to stop.
+         if not Hostkit.Descriptors.Wait_Readable
+                  (Hostkit.Descriptors.Standard_Input, 200)
+         then
+            if Adash.Execution.Signals.Interrupt_Pending
+              or else Adash.Execution.Signals.Winding_Up
+            then
+               Ended := True;
+               return "";
+            end if;
+
+            goto Continue;
+         end if;
+
          case Hostkit.Descriptors.Read
                 (Hostkit.Descriptors.Standard_Input, Chunk, Last)
          is
@@ -268,7 +306,21 @@ package body Adash.Execution.Streams is
                end loop;
 
             when Hostkit.Descriptors.Transfer_Interrupted =>
-               null;
+               --  A signal arrived in the middle of the read.
+               --
+               --  Read again, unless it was one that means stop: a script
+               --  waiting for input when a `terminate` arrives used to read
+               --  again for ever, so the handler it had registered ran when
+               --  the input finally came -- which for a pipe nobody is writing
+               --  to is never. Giving up here lets the machine notice at its
+               --  next instruction, which stops the submission and runs the
+               --  handlers.
+               if Adash.Execution.Signals.Interrupt_Pending
+                 or else Adash.Execution.Signals.Winding_Up
+               then
+                  Ended := True;
+                  return "";
+               end if;
 
             when others =>
                --  End of file, or a host that will not answer. Either way
@@ -276,6 +328,8 @@ package body Adash.Execution.Streams is
                --  whether or not it was terminated.
                Drained := True;
          end case;
+
+         <<Continue>>
       end loop;
 
       --  Drained, with something held: a last line with no terminator.
@@ -397,7 +451,15 @@ package body Adash.Execution.Streams is
 
             when Hostkit.Descriptors.Transfer_Interrupted
                | Hostkit.Descriptors.Transfer_Would_Block =>
-               null;
+               --  As in Read_Line: read again unless the shell has been asked
+               --  to stop, in which case waiting longer is waiting for
+               --  something nobody will send.
+               if Adash.Execution.Signals.Interrupt_Pending
+                 or else Adash.Execution.Signals.Winding_Up
+               then
+                  Ended := True;
+                  return "";
+               end if;
 
             when others =>
                Drained := True;
@@ -498,7 +560,12 @@ package body Adash.Execution.Streams is
                end if;
 
             when Hostkit.Descriptors.Transfer_Interrupted =>
-               null;
+               if Adash.Execution.Signals.Interrupt_Pending
+                 or else Adash.Execution.Signals.Winding_Up
+               then
+                  Ended := True;
+                  return "";
+               end if;
 
             when others =>
                Drained := True;
