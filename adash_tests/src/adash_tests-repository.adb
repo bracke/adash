@@ -1353,9 +1353,9 @@ package body Adash_Tests.Repository is
         new String'("error.execution_cancelled"),
 
         --  Bounds a case would have to spend real time or real disk to reach:
-        --  a file over the read limit, a source over it, four thousand
-        --  matching names.
-        new String'("error.file_too_large"),
+        --  a source over the read limit -- which the limit does not in fact
+        --  govern, so this one is a question about the limit rather than a
+        --  case waiting to be written -- and four thousand matching names.
         new String'("error.source_too_large"),
         new String'("error.too_many_matches"),
 

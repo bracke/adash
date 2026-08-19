@@ -611,3 +611,23 @@ diagnostics = [
   "!error.syntax.unexpected{found=end,expected=begin}!",
   "!error.syntax.unexpected{found=end,expected=begin}!",
 ]
+
+[[case]]
+id = "files.a-file-over-the-read-limit-is-refused-whole"
+requirement = """
+`read.limit` is what stops a script reading a file that does not fit in memory,
+and a file over it is refused whole rather than truncated: half a configuration
+file is worse than none, because it parses.
+
+The file is built by doubling a string sixteen times rather than shipped as a
+fixture -- two megabytes in a repository to prove a bound is two megabytes
+somebody clones for ever -- and the limit is lowered to one megabyte so that the
+case costs a moment rather than a minute.
+"""
+script = "cd (\"{store}\"); settings (\"read.limit\", \"1\");\nX : String := \"aaaaaaaaaaaaaaaa\"; for I in 1 .. 17 loop X := X & X; end loop; write_file (X, \"big.txt\"); Y : String := Read_File (\"big.txt\"); put_line (Trim (Y'Length'Image));"
+exit_status = 0
+output = [
+  "!line.setting{key=read.limit,value=1,summary=!setting.read-limit!}!",
+  "0",
+]
+diagnostics = ["!error.file_too_large{path=big.txt}!"]
