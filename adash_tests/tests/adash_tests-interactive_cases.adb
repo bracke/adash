@@ -965,6 +965,64 @@ package body Adash_Tests.Interactive_Cases is
       end;
    end Highlighting_Covers_Unparsable_Input;
 
+   ------------------------------------------------
+   -- Highlighting_Follows_A_Recovered_Literal --
+   ------------------------------------------------
+
+   procedure Highlighting_Follows_A_Recovered_Literal
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure Highlighting_Follows_A_Recovered_Literal
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      --  A formatted literal with a brace that closes nothing. The scanner
+      --  says so and carries on to the closing quote, which is what stopped
+      --  one wrong byte from costing four diagnostics -- and this is the other
+      --  half of that change: the rest of the line is a *literal* for the
+      --  highlighter too, not code. Before it, the closing quote opened a
+      --  second literal and everything between them was coloured as though
+      --  somebody had typed a program there.
+      Text   : constant String := "put_line (f""closes } nothing"");";
+
+      Origin : constant Adash.Source.Origin :=
+        Adash.Source.Make_Origin (Adash.Source.Origin_Interactive, "-");
+
+      Buffer : Adash.Source.Buffer;
+      Stream : Adash.Language.Tokens.Token_Stream;
+      Report : Adash.Diagnostics.List;
+      Error  : Adash.Errors.Error_Info;
+
+      Coloured : High.Highlight;
+
+      --  Where `nothing` sits in the line, which is inside the literal.
+      Inside : constant Positive :=
+        Ada.Strings.Fixed.Index (Text, "nothing");
+
+      Covered : Boolean := False;
+   begin
+      Assert (Adash.Source.Load (Buffer, Origin, Text, Error),
+              "the sample source did not load");
+      Adash.Language.Lexer.Scan (Buffer, Stream, Report);
+      Coloured := High.Colour (Stream);
+
+      Assert (Coloured.Count > 0, "a recovered literal produced no colouring");
+
+      for Index in 1 .. Coloured.Count loop
+         if Coloured.Spans (Index).Extent.First <= Inside
+           and then Coloured.Spans (Index).Extent.Last >= Inside
+           and then Coloured.Spans (Index).Role = Adash.Terminal.Role_Literal
+         then
+            Covered := True;
+         end if;
+      end loop;
+
+      Assert (Covered,
+              "the text after an unescaped brace is not coloured as part of"
+              & " the literal it is in");
+   end Highlighting_Follows_A_Recovered_Literal;
+
    ----------
    -- Name --
    ----------
@@ -3841,6 +3899,8 @@ package body Adash_Tests.Interactive_Cases is
                         "the common prefix is shared by every candidate");
       Register_Routine (T, Highlighting_Covers_Unparsable_Input'Access,
                         "highlighting works on input that does not parse");
+      Register_Routine (T, Highlighting_Follows_A_Recovered_Literal'Access,
+                        "highlighting follows a literal the scanner recovered");
       Register_Routine (T, An_Interrupted_Line_Runs_Its_Handler'Access,
                         "a line interrupted at the prompt runs its handler");
       Register_Routine (T, Completion_Offers_What_A_User_Taught_It'Access,
