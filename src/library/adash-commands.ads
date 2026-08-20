@@ -593,6 +593,19 @@ package Adash.Commands is
       Pending : Adash.Execution.Pipelines.Plan :=
         Adash.Execution.Pipelines.Empty_Plan;
 
+      --  Whether the pipeline that was being built was given up rather than
+      --  never begun.
+      --
+      --  A placement that cannot be made -- a file in a directory that is not
+      --  there, a path that is a directory -- throws the stages away, because
+      --  leaving them behind would put them at the front of whatever the user
+      --  built next. What is left is an empty pipeline, and `pipe_run` used to
+      --  call that "nothing has been added to the pipeline", which is what the
+      --  state looks like and not what happened: the user had added two stages
+      --  and been told about the file. One word of memory is what lets the
+      --  second complaint be about the same event as the first.
+      Pipeline_Given_Up : Boolean := False;
+
       --  What this session has started and not yet forgotten. Held here rather
       --  than in the engine because a job outlives the command that started it
       --  and every command that asks about one reads the same table.

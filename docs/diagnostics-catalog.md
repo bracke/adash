@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 624 messages in 23 groups.
+There are 625 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -236,6 +236,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.command.wrong_arguments` | {name} was given the wrong number of arguments: {found} |
 | `error.too_many_kept` | this session already carries {limit} definitions, so {name} will not be remembered |
 | `error.empty_pipeline` | nothing has been added to the pipeline |
+| `error.pipeline_given_up` | the pipeline was given up when it could not be placed or started, and nothing of it is left |
 | `error.no_history_here` | this session is not keeping a history |
 | `error.history_not_forgotten` | the history file could not be rewritten; the lines are gone from this session only |
 | `error.command.unavailable` | {name} is not available in this build |

@@ -1,0 +1,4 @@
+procedure Tidy is begin put_line (To_Upper ("tidied")); end Tidy;
+on_exit ("Tidy");
+put_line (To_Upper ("running"));
+loop null; end loop;

@@ -751,6 +751,8 @@ package body Adash.Messages is
          when Msg_History_Not_Forgotten      =>
             return "error.history_not_forgotten";
          when Msg_Empty_Pipeline             => return "error.empty_pipeline";
+         when Msg_Pipeline_Given_Up          =>
+            return "error.pipeline_given_up";
          when Msg_Too_Many_Kept              => return "error.too_many_kept";
          when Msg_Command_Bad_Assignment     => return "error.command.bad_assignment";
          when Msg_Script_Cycle               => return "error.script_cycle";
@@ -1222,7 +1224,8 @@ package body Adash.Messages is
          when Msg_Too_Many_Kept =>
             return [N ("name"), N ("limit")];
 
-         when Msg_Empty_Pipeline =>
+         when Msg_Empty_Pipeline
+            | Msg_Pipeline_Given_Up =>
             return No_Placeholders;
 
          when Msg_No_History_Here =>

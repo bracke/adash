@@ -526,6 +526,7 @@ package Adash.Messages is
       --  forgotten would stop looking for it.
       Msg_History_Not_Forgotten,
       Msg_Empty_Pipeline,
+      Msg_Pipeline_Given_Up,
       Msg_Too_Many_Kept,
       Msg_Command_Bad_Assignment,
       Msg_Script_Cycle,

@@ -293,6 +293,14 @@ three arguments is told it takes 2, `run_into` with one is told it takes *2 or
 more*, `pipe_run` with nothing built reports an empty pipeline, and `help` on a
 name nothing declares reports that command as unavailable.
 
+A pipeline that *was* built and then thrown away is a different answer: a
+placement that cannot be made takes the stages with it, because leaving them
+behind would put them at the front of whatever is built next, and the `pipe_run`
+that follows says the pipeline was **given up** rather than that nothing was
+added to it. The second is what the state looks like; the first is what
+happened, and a user who has just been told about a file should not then be
+told they never built anything.
+
 **A call written in a program carries at most four arguments**, whatever the
 table above says a command takes: the activation record the machine builds for
 a command call has a fixed shape, decided when the stub is built rather than

@@ -1,0 +1,2 @@
+put_line (To_Upper ("spoken"));
+quit (0);

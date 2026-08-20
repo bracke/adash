@@ -1251,16 +1251,18 @@ there. The refusal is the half nobody writes a case for, and it is the half that
 protects a file somebody still wants.
 
 A refused placement takes the pipeline with it, so the `pipe_run` that follows
-finds nothing to run and says so. Two diagnostics for one mistake, which is what
-this shell does today and is written down here rather than left to be discovered
-by somebody whose script printed it.
+has nothing to run. It says the pipeline was **given up**, not that nothing was
+added to it: the second is what the state looks like and the first is what
+happened, and a user who has just been told about a file should not then be
+told they never built anything. Two diagnostics for one mistake either way,
+and this is the shape of the second.
 """
 script = "cd (\"{store}\"); pipe (\"{emit}\", \"one\"); pipe (\"{upcase}\"); pipe_into (\"piped.txt\"); pipe_run; pipe (\"{emit}\", \"two\"); pipe (\"{upcase}\"); pipe_append (\"piped.txt\"); pipe_run; pipe (\"{emit}\", \"three\"); pipe_new (\"piped.txt\"); pipe_run; put (Read_File (\"piped.txt\"));\nquit (0);"
 exit_status = 0
 output = ["ONE", "TWO", ""]
 diagnostics = [
   "!error.redirection_open_failed{path=piped.txt}!",
-  "!error.empty_pipeline!",
+  "!error.pipeline_given_up!",
 ]
 
 [[case]]
@@ -1279,7 +1281,7 @@ exit_status = 0
 output = ["TRUE"]
 diagnostics = [
   "!error.redirection_open_failed{path=errors.txt}!",
-  "!error.empty_pipeline!",
+  "!error.pipeline_given_up!",
 ]
 
 [[case]]
@@ -1297,7 +1299,7 @@ exit_status = 0
 output = ["TRUE"]
 diagnostics = [
   "!error.redirection_open_failed{path=both.txt}!",
-  "!error.empty_pipeline!",
+  "!error.pipeline_given_up!",
 ]
 
 [[case]]

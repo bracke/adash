@@ -693,6 +693,10 @@ package body Adash.Commands.Builtins is
                   --  `set` means by "children".
                   Stage.Environment := Shell.Environment;
                   Adash.Execution.Pipelines.Add_Stage (Shell.Pending, Stage);
+
+                  --  A stage begins a pipeline, so whatever became of the last
+                  --  one is no longer what the next complaint is about.
+                  Shell.Pipeline_Given_Up := False;
                end;
 
                return Adash.Execution.Success;
@@ -721,8 +725,11 @@ package body Adash.Commands.Builtins is
                   --  whatever is built next: a file named before the first
                   --  program is a line in the wrong order, and a shell that
                   --  quietly applied it later would be guessing.
-                  return Failed (Adash.Errors.Error_Empty_Pipeline,
-                                 M.No_Arguments);
+                  return Failed
+                    ((if Shell.Pipeline_Given_Up
+                      then Adash.Errors.Error_Pipeline_Given_Up
+                      else Adash.Errors.Error_Empty_Pipeline),
+                     M.No_Arguments);
                end if;
 
                if Id = Command_Pipe_From_Text then
@@ -753,6 +760,7 @@ package body Adash.Commands.Builtins is
                                   (Shell.Pending, Attach, Refused)
                   then
                      Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
+                     Shell.Pipeline_Given_Up := True;
 
                      Report.Emit
                        (Adash.Diagnostics.From_Error
@@ -818,8 +826,11 @@ package body Adash.Commands.Builtins is
                Refused : Adash.Errors.Error_Info;
             begin
                if Adash.Execution.Pipelines.Length (Shell.Pending) = 0 then
-                  return Failed (Adash.Errors.Error_Empty_Pipeline,
-                                 M.No_Arguments);
+                  return Failed
+                    ((if Shell.Pipeline_Given_Up
+                      then Adash.Errors.Error_Pipeline_Given_Up
+                      else Adash.Errors.Error_Empty_Pipeline),
+                     M.No_Arguments);
                end if;
 
                if not Adash.Execution.Redirection.Add (Attach, Asked, Refused)
@@ -830,6 +841,7 @@ package body Adash.Commands.Builtins is
                                (Shell.Pending, Attach, Refused)
                then
                   Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
+                  Shell.Pipeline_Given_Up := True;
 
                   Report.Emit
                     (Adash.Diagnostics.From_Error
@@ -856,8 +868,11 @@ package body Adash.Commands.Builtins is
                   --  Nothing was added. Refused rather than treated as a
                   --  pipeline of nothing, which would succeed and look like it
                   --  had run something.
-                  return Failed (Adash.Errors.Error_Empty_Pipeline,
-                                 M.No_Arguments);
+                  return Failed
+                    ((if Shell.Pipeline_Given_Up
+                      then Adash.Errors.Error_Pipeline_Given_Up
+                      else Adash.Errors.Error_Empty_Pipeline),
+                     M.No_Arguments);
                end if;
 
                if not Waits then
@@ -876,6 +891,7 @@ package body Adash.Commands.Builtins is
                   --  built next, which is the last thing somebody fixing a
                   --  mistyped program name wants.
                   Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
+                  Shell.Pipeline_Given_Up := True;
 
                   Report.Emit
                     (Adash.Diagnostics.From_Error

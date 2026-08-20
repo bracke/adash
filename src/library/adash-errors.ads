@@ -509,6 +509,14 @@ package Adash.Errors is
       --  and look like it had run something.
       Error_Empty_Pipeline,
 
+      --  The same empty pipeline, arrived at the other way: stages were added
+      --  and then thrown away, because a file the pipeline was to be placed in
+      --  could not be opened or a stage would not start. Told apart from the
+      --  one above because "nothing has been added" is not true of it, and a
+      --  user who has just been told about a file should not then be told they
+      --  never built anything.
+      Error_Pipeline_Given_Up,
+
       --  More subprograms declared in one session than it will carry forward.
       Error_Too_Many_Kept,
       Error_Command_Bad_Assignment,

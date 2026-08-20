@@ -399,6 +399,17 @@ what changed.
 
 ### Fixed
 
+- **A pipeline that was given up no longer reports that nothing was added to
+  it.** A placement that cannot be made -- a file in a directory that is not
+  there, a path that is a directory -- throws the stages away, so the
+  `pipe_run` that follows found an empty pipeline and said so: two diagnostics
+  for one mistake, the second telling a user who had just built two stages and
+  been told about a file that they had never built anything. It says the
+  pipeline was *given up* now, which is about the same event as the first.
+  Three conformance cases pinned the old wording, and one had the wart written
+  into its requirement as something "written down here rather than left to be
+  discovered".
+
 - **A configuration mistake is a sentence, not a key.** The TOML parser under
   the configuration reader answers with a catalog key -- and says so in its own
   source, where `Identifier` is written: the identifiers are keys, and the

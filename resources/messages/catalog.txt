@@ -296,6 +296,7 @@ en.error.default_not_in_mode = {name} is written to rather than given, so it can
 en.error.command.wrong_arguments = {name} was given the wrong number of arguments: {found}
 en.error.too_many_kept = this session already carries {limit} definitions, so {name} will not be remembered
 en.error.empty_pipeline = nothing has been added to the pipeline
+en.error.pipeline_given_up = the pipeline was given up when it could not be placed or started, and nothing of it is left
 en.error.no_history_here = this session is not keeping a history
 en.error.history_not_forgotten = the history file could not be rewritten; the lines are gone from this session only
 en.error.command.unavailable = {name} is not available in this build
