@@ -79,12 +79,20 @@ test, with whatever suffix the host puts on one — a case that named
 `{root}/bin/adash` was asking about a file that does not exist on Windows.
 
 **`platforms` restricts a case** to the hosts it can hold on — `["linux",
-"macos"]`, say. Six cases use it, and together they cover job control on every
-host: four assert the half that needs signals to exist, and two assert what
-Windows does instead — `stop`, `suspend` and `resume` reporting that the system
-does not support job control while the job runs to completion, and a job listed
-as running by a host that cannot signal it. That is a capability the host does
-not have, which is what the key is for.
+"macos"]`, say. Twenty-four cases use it, nine of them Windows-only, and each
+pair covers one capability from both sides: signals, resource limits, `exec`,
+the creation mask, job control, and a C runtime that expands a wildcard before
+the program sees it. One case asserts what POSIX does and its twin asserts what
+Windows does instead, so no host is left without an answer. That is a
+capability the host does not have, which is what the key is for.
+
+**Every gate is worth re-reading now and then.** On 2026-08-20 one of them was
+not a capability at all: a limit that is not a number was refused only on
+Linux and macOS, because `resource_limit` asked the host whether it had the
+limit before it looked at what the caller wrote, and Windows therefore answered
+something else. The gate was hiding a defect rather than describing a host. It
+came off with the fix, and the way to find the next one is to read each gate's
+requirement and ask whether it names something the host lacks.
 
 It is not for a case that merely needs a *program*: name `{emit}` or `{upcase}`
 and it runs everywhere. **A gated case is a case one host of the three never
