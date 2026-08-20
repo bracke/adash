@@ -55,10 +55,15 @@ does not record it, and what the file gets is what the session recorded. See
 
 `forget` is the one operation that **rewrites** this file rather than appending
 to it, and `forget ("…")` is the one that reads it looking for something the
-session never held. It takes the last occurrence of each line it is forgetting, by text
-rather than by position — a shared file holds what several shells wrote,
-interleaved — and the read and the write happen under one lock, so a line
-another session appends meanwhile is not lost.
+session never held — a line older than `history.limit`, which the session's own
+log no longer holds, still goes out of the file.
+
+Lines are matched by text rather than by position, because a shared file holds
+what several shells wrote, interleaved. A count forgets the last occurrence of
+each line it is taking out; a line named by its **text** takes out *every* copy,
+because a caller who names a line wants it gone and last week's copy is the same
+secret as this morning's. The read and the write happen under one lock, so a
+line another session appends meanwhile is not lost.
 
 `history.limit` bounds what is kept; `history.enabled` off means nothing is
 written at all, which is what somebody on a shared machine wants.
