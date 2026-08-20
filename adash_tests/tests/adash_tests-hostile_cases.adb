@@ -73,11 +73,22 @@ package body Adash_Tests.Hostile_Cases is
 
          when 19 => return "procedure P is begin P; end P; P;";
          when 20 => return "raise Constraint_Error;";
+
+         --  The four that ended the session with a GNAT traceback rather than
+         --  a diagnostic, on 2026-08-20. Each has a case of its own; they are
+         --  here as well because this is the table that asks the question they
+         --  all answered wrongly -- what a bad line does to the session.
+         when 21 => return "put_line (-9223372036854775808);";
+         when 22 => return "put_line (9223372036854775808);";
+         when 23 =>
+            return "X : Integer := Integer'First; put_line (-X);";
+         when 24 => return "put_line (Index (""abc"", """"));";
+
          when others => return "quit";
       end case;
    end Awkward;
 
-   Awkward_Count : constant := 20;
+   Awkward_Count : constant := 24;
 
    --  What each of them must do, said in advance.
    --
@@ -121,7 +132,11 @@ package body Adash_Tests.Hostile_Cases is
                                --  values rather than becoming one
       18 => Complained_About,  --  four thousand characters, still open
       19 => Complained_About,  --  a procedure that calls itself forever
-      20 => Complained_About]; --  an exception nobody handles
+      20 => Complained_About,  --  an exception nobody handles
+      21 => Ran,               --  the smallest whole number, written down
+      22 => Complained_About,  --  a number too large for this build to hold
+      23 => Complained_About,  --  negating the smallest overflows, and says so
+      24 => Ran];              --  looking for nothing is not there, and is 0
 
    ------------------------------------------------------------------
 
