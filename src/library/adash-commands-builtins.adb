@@ -479,10 +479,25 @@ package body Adash.Commands.Builtins is
                   Shell.Previous_Directory.Append
                     (Ada.Strings.Unbounded.To_Unbounded_String (Leaving));
                exception
-                  when Ada.IO_Exceptions.Name_Error =>
-                     return Failed (Adash.Errors.Error_Directory_Not_Found,
-                                    [1 => M.Named ("path", Target)]);
-                  when Ada.IO_Exceptions.Use_Error =>
+                  when Ada.IO_Exceptions.Name_Error
+                     | Ada.IO_Exceptions.Use_Error =>
+
+                     --  Which of the three it was, asked of the path rather
+                     --  than taken from the exception. GNAT raises Name_Error
+                     --  for a directory this user may not enter as well as for
+                     --  one that is not there, so `cd` into a directory whose
+                     --  mode is 000 said "no such directory" and sent the user
+                     --  hunting for a typo in a name that was right.
+                     if not Adash.Filesystem.Exists (Target) then
+                        return Failed (Adash.Errors.Error_Directory_Not_Found,
+                                       [1 => M.Named ("path", Target)]);
+                     end if;
+
+                     if not Adash.Filesystem.Is_Directory (Target) then
+                        return Failed (Adash.Errors.Error_Not_A_Directory,
+                                       [1 => M.Named ("path", Target)]);
+                     end if;
+
                      return Failed (Adash.Errors.Error_Directory_Denied,
                                     [1 => M.Named ("path", Target)]);
                end;

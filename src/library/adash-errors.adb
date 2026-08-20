@@ -47,6 +47,7 @@ package body Adash.Errors is
             | Error_Cancelled
             | Error_Directory_Not_Found
             | Error_Directory_Denied
+            | Error_Not_A_Directory
             | Error_Command_Wrong_Arguments
             | Error_Command_Unavailable
             | Error_No_History_Here
@@ -240,6 +241,8 @@ package body Adash.Errors is
          when Error_Capability_Unavailable => return Adash.Messages.Msg_Capability_Unavailable;
          when Error_Directory_Not_Found    => return Adash.Messages.Msg_Directory_Not_Found;
          when Error_Directory_Denied       => return Adash.Messages.Msg_Directory_Denied;
+         when Error_Not_A_Directory        =>
+            return Adash.Messages.Msg_Not_A_Directory;
          when Error_Source_Unreadable      => return Adash.Messages.Msg_Source_Unreadable;
          when Error_Source_Too_Large       => return Adash.Messages.Msg_Source_Too_Large;
          when Error_Module_Not_Found       =>

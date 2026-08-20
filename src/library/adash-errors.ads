@@ -184,6 +184,12 @@ package Adash.Errors is
       Error_Directory_Not_Found,
       Error_Directory_Denied,
 
+      --  A path that is there and is not a directory. `cd` into a file is a
+      --  third answer, told apart from the other two because all three send a
+      --  reader somewhere different: a name to correct, a permission to change,
+      --  or a path that names the wrong kind of thing entirely.
+      Error_Not_A_Directory,
+
       --  Source acquisition.
       Error_Source_Unreadable,
 

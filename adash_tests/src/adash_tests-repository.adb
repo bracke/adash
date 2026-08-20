@@ -1352,16 +1352,21 @@ package body Adash_Tests.Repository is
 
         --  A host refusing in a particular way, which a case cannot arrange
         --  without a hostile filesystem: a pipe that will not be created, a
-        --  stream that will not write, a directory that denies rather than
-        --  hides. Each wants a fixture that makes the host refuse, and none
-        --  has one yet.
+        --  stream that will not write. Each wants a fixture that makes the
+        --  host refuse, and none has one yet.
+        --
+        --  `error.directory_denied` used to be here beside them, described as
+        --  "a directory that denies rather than hides". A unit case makes one:
+        --  hostkit sets the mode to zero, `cd` is asked to enter it, and the
+        --  mode goes back whatever the assertion does. It was listed because
+        --  nothing produced it, and nothing produced it because `cd` reported
+        --  every refusal as "no such directory".
         new String'("error.command_not_executable"),
         new String'("error.command_start_failed"),
         new String'("error.input_text_not_held"),
         new String'("error.pipe_creation_failed"),
         new String'("error.stream_write_failed"),
         new String'("error.stream_read_failed"),
-        new String'("error.directory_denied"),
         new String'("error.execution_cancelled"),
 
         --  Two bounds were listed here as ones no case could reach, on the

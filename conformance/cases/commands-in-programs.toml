@@ -345,6 +345,26 @@ output = ["[only-here]", "[session]", "[]"]
 diagnostics = []
 
 [[case]]
+id = "files.cd-into-a-file-says-it-is-not-a-directory"
+requirement = """
+Three things stop a `cd`, and they send a reader three different places: a name
+to correct, a permission to change, or a path that names the wrong kind of
+thing. They were one message until now -- "no such directory" -- because
+`Set_Directory` raises the same exception for a directory that is not there and
+one this user may not enter, and the shell took the exception's word for it.
+Asked of the path instead: nothing there is *not found*, something there that is
+not a directory is *not a directory*, and a directory that would not open is
+*denied*.
+
+A file is the half a case can make. The denied half needs a directory the user
+may not enter, which no case can create and a unit case does with hostkit.
+"""
+script = "cd (\"{store}\"); write_file (\"x\", \"afile\"); cd (\"afile\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.not_a_directory{path=afile}!"]
+
+[[case]]
 id = "environment.a-name-with-a-space-in-it-is-not-a-name"
 requirement = """
 `set` wants NAME=VALUE, and the name has to be one: a letter or an underscore,

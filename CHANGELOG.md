@@ -399,6 +399,19 @@ what changed.
 
 ### Fixed
 
+- **Three things stop a `cd`, and they are told apart.** `Set_Directory` raises
+  the same exception for a directory that is not there and one this user may
+  not enter, and the shell took the exception's word for it — so `cd` into a
+  directory whose mode is `000` said "no such directory" and sent the reader
+  hunting for a typo in a name that was right. The path is asked instead:
+  nothing there is *not found*, something there that is not a directory is *not
+  a directory* (a new message; `cd` into a file used to be "no such directory"
+  too), and a directory that will not open is *denied*. That last message
+  existed and nothing had ever produced it — it was on the list of diagnostics
+  no case can make, described as "a directory that denies rather than hides",
+  and it is off that list now with a unit case that makes one through hostkit
+  and puts the mode back whatever the assertion does.
+
 - **`set ("PATH =/opt/bin")` is refused rather than obeyed.** The name had to be
   followed by an `=` and nothing else was asked of it, so a space nobody meant
   made a variable called `PATH ` — which no program looks up, because no shell

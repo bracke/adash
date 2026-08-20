@@ -1,4 +1,5 @@
 with Hostkit.Fs;
+with Hostkit.Metadata;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Ada.Directories;
@@ -217,6 +218,56 @@ package body Adash_Tests.Command_Cases is
       Assert (Report.Count = 1, "cd to a missing directory did not report once");
       Assert (Ada.Directories.Current_Directory = Started,
               "a failed cd moved the process anyway");
+
+      --  A directory that is there and will not open. Three things stop a
+      --  `cd`, and `Set_Directory` raises the same exception for two of them:
+      --  taking the exception's word for it called this one "no such
+      --  directory" and sent a reader hunting for a typo in a name that was
+      --  right. The mode is put back whatever happens, so a failure here does
+      --  not leave a directory nobody can delete.
+      declare
+         Locked : constant String :=
+           Ada.Directories.Compose
+             (Ada.Directories.Current_Directory, "adash-test-locked");
+
+         Denied : Boolean := False;
+      begin
+         if not Ada.Directories.Exists (Locked) then
+            Ada.Directories.Create_Directory (Locked);
+         end if;
+
+         --  Windows has no mode bits of this kind, and hostkit says so rather
+         --  than pretending: where it refuses, there is nothing to assert.
+         if Hostkit.Metadata.Set_Permissions (Locked, 0) then
+            Report.Clear;
+            Status := C.Execute (C.Command_Change_Directory, Args (Locked),
+                                 Shell, Produced, Report);
+
+            Denied :=
+              not Adash.Execution.Succeeded (Status)
+                and then Report.Count = 1
+                and then D.Message (Report.Element (1))
+                         = Adash.Errors.Message
+                             (Adash.Errors.Error_Directory_Denied);
+
+            declare
+               Ignored : constant Boolean :=
+                 Hostkit.Metadata.Set_Permissions (Locked, 8#700#);
+               pragma Unreferenced (Ignored);
+            begin
+               null;
+            end;
+
+            Assert (Denied,
+                    "a directory that would not open was not reported as"
+                    & " denied");
+         end if;
+
+         Ada.Directories.Delete_Directory (Locked);
+      end;
+
+      Assert (Ada.Directories.Current_Directory = Started,
+              "a refused cd moved the process anyway");
    end Changing_Directory_Changes_The_Process;
 
    procedure The_Environment_Is_The_Sessions_Not_The_Process

@@ -196,6 +196,7 @@ en.error.execution_cancelled = cancelled
 en.error.capability_unavailable = this system does not support {capability}
 en.error.directory_not_found = no such directory: {path}
 en.error.directory_denied = permission denied for directory: {path}
+en.error.not_a_directory = {path} is not a directory
 en.error.module_not_found = no script called {name}: {where}
 en.module.looked.as_written = it names a path, and there is nothing there
 en.module.looked.beside = nothing of that name beside the script that asked for it

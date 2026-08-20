@@ -241,6 +241,7 @@ package Adash.Messages is
       Msg_Capability_Unavailable,
       Msg_Directory_Not_Found,
       Msg_Directory_Denied,
+      Msg_Not_A_Directory,
       Msg_Source_Unreadable,
    Msg_Source_Too_Large,
       Msg_Module_Not_Found,
