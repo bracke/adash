@@ -11,6 +11,20 @@ what changed.
 
 ### Added
 
+- **Seven files the suite wrote had been committed, and two rules that nothing
+  enforced now do.** A check for what the suite leaves behind found
+  `adash-test-store-large.lock` in the repository root *and* in the test crate
+  — zero bytes each, from a case that removed its store file and not the lock
+  beside it — plus five `adash-test-*.adash` scripts. One of those was a case
+  that really does not clean up (it writes an anchor file to find a directory
+  and removes only the other file); the rest were committed when a run was
+  interrupted. Both cases clean up now, the seven files are gone, and a
+  repository holding one fails the check. Beside it, "no non-Ada repository
+  tooling" — an invariant with nothing behind it until now — refuses a `.sh`,
+  `.py`, `.ps1` or `Makefile` anywhere in the tree; the two deliberate
+  exceptions are the manifest's own `sh -c` test action and the CI workflow,
+  and neither is a file this could see.
+
 - **The layering invariant is checked rather than asserted.**
   `ARCHITECTURE.md` lists "package dependencies are acyclic and point downward"
   among the invariants that "hold at every commit", and nothing checked the

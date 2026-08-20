@@ -377,6 +377,15 @@ package body Adash_Tests.Scripting_Cases is
               "a script that sourced itself did not report a cycle");
 
       Remove (Ignored);
+
+      --  And the anchor, which is written only to find the directory to write
+      --  the other one into. It was the one file this case did not remove, so
+      --  a zero-byte `adash-test-anchor.adash` sat in the repository -- in two
+      --  directories, because the suite runs from both -- until a check went
+      --  looking for what the suite leaves behind.
+      Remove (Ada.Directories.Compose
+                (Ada.Directories.Containing_Directory (Path),
+                 "adash-test-anchor.adash"));
    end A_Script_Cannot_Source_Itself;
 
    ----------

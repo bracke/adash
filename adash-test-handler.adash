@@ -1,6 +1,0 @@
-procedure Note is begin put_line (To_Upper ("noted")); end Note;
-procedure Tidy is begin put_line (To_Upper ("tidied")); end Tidy;
-on_interrupt ("Note");
-on_exit ("Tidy");
-put_line (To_Upper ("running"));
-loop null; end loop;

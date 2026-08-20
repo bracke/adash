@@ -54,6 +54,9 @@ package body Adash_Tests.Repository is
    --  argument would have been an English phrase written in Ada source, which
    --  is the thing `Check_No_Prose_In_Source` forbids -- and it caught this
    --  while it was being written, which is the check earning its keep.
+   Key_Left_Behind      : constant String := "tooling.check.left_behind";
+   Key_Not_Ada_Tooling  : constant String := "tooling.check.not_ada_tooling";
+
    Key_Layer_Frontend   : constant String := "tooling.check.layer.frontend";
    Key_Layer_Engine     : constant String := "tooling.check.layer.engine";
    Key_Layer_Foundation : constant String := "tooling.check.layer.foundation";
@@ -1897,6 +1900,92 @@ package body Adash_Tests.Repository is
       end;
    end Check_The_Documented_Catalogue;
 
+   ------------------------------
+   -- Check_Nothing_Left_Behind --
+   ------------------------------
+
+   --  Two files a test wrote and never removed were committed: zero-byte
+   --  `adash-test-store-large.lock`, one in the repository root and one in the
+   --  test crate, because the suite runs from both. The case removed the store
+   --  file and not the lock beside it, and `git add` does not know the
+   --  difference between a fixture and litter.
+   --
+   --  Everything the suite makes is named `adash-test-…` or `adash-bench-…` by
+   --  convention, which is what makes this checkable at all: a repository that
+   --  holds one is a repository somebody committed a leftover into, or a suite
+   --  that is running right now -- and the checker is not run during the suite.
+   procedure Check_Nothing_Left_Behind (Root : String; Into : in out Report);
+
+   procedure Check_Nothing_Left_Behind (Root : String; Into : in out Report) is
+      Skip : constant Project_Tools.Files.Name_List :=
+        [US.To_Unbounded_String ("obj"),
+         US.To_Unbounded_String ("bin"),
+         US.To_Unbounded_String ("lib"),
+         US.To_Unbounded_String (".git"),
+         US.To_Unbounded_String ("alire")];
+   begin
+      for Pattern of Project_Tools.Files.Name_List'
+                       [US.To_Unbounded_String ("adash-test-*"),
+                        US.To_Unbounded_String ("adash-bench-*")]
+      loop
+         for Path of Project_Tools.Files.List_Tree
+                       (Root, US.To_String (Pattern), Skip)
+         loop
+            Into.Checks_Run := Into.Checks_Run + 1;
+            Add (Into, Key_Left_Behind,
+                 [1 => Msg.Named ("path", US.To_String (Path))]);
+         end loop;
+      end loop;
+
+      --  Counted even when there is nothing to find, so the check is visible
+      --  in the total rather than only when it fails.
+      Into.Checks_Run := Into.Checks_Run + 1;
+   end Check_Nothing_Left_Behind;
+
+   ------------------------------
+   -- Check_Tooling_Is_Ada --
+   ------------------------------
+
+   --  "No non-Ada repository tooling", says the invariant list. Nothing looked.
+   --
+   --  The two exceptions are deliberate and neither is a file: the manifest's
+   --  own `sh -c` test action, which Alire defines and this repository does not
+   --  get to change, and the CI workflow, which is YAML because GitHub reads
+   --  YAML. A script *file* is what this refuses -- the thing somebody adds
+   --  when a step gets awkward, which is how a repository ends up with tooling
+   --  in two languages and a rule in one.
+   procedure Check_Tooling_Is_Ada (Root : String; Into : in out Report);
+
+   procedure Check_Tooling_Is_Ada (Root : String; Into : in out Report) is
+      Skip : constant Project_Tools.Files.Name_List :=
+        [US.To_Unbounded_String ("obj"),
+         US.To_Unbounded_String ("bin"),
+         US.To_Unbounded_String ("lib"),
+         US.To_Unbounded_String (".git"),
+         US.To_Unbounded_String ("alire")];
+
+      Refused : constant Project_Tools.Files.Name_List :=
+        [US.To_Unbounded_String ("*.sh"),
+         US.To_Unbounded_String ("*.bash"),
+         US.To_Unbounded_String ("*.py"),
+         US.To_Unbounded_String ("*.pl"),
+         US.To_Unbounded_String ("*.rb"),
+         US.To_Unbounded_String ("*.ps1"),
+         US.To_Unbounded_String ("Makefile"),
+         US.To_Unbounded_String ("makefile")];
+   begin
+      for Pattern of Refused loop
+         Into.Checks_Run := Into.Checks_Run + 1;
+
+         for Path of Project_Tools.Files.List_Tree
+                       (Root, US.To_String (Pattern), Skip)
+         loop
+            Add (Into, Key_Not_Ada_Tooling,
+                 [1 => Msg.Named ("path", US.To_String (Path))]);
+         end loop;
+      end loop;
+   end Check_Tooling_Is_Ada;
+
    ----------------------
    -- Check_Layering --
    ----------------------
@@ -2158,6 +2247,8 @@ package body Adash_Tests.Repository is
    begin
       Check_Grammar_Covers_The_Syntax (Root, Into);
       Check_Layering (Root, Into);
+      Check_Nothing_Left_Behind (Root, Into);
+      Check_Tooling_Is_Ada (Root, Into);
       Check_Required_Files (Root, Into);
       Check_Required_Directories (Root, Into);
       Check_Version_Consistency (Root, Into);

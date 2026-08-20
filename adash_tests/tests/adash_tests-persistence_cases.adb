@@ -811,7 +811,18 @@ package body Adash_Tests.Persistence_Cases is
       Assert (Ada.Strings.Unbounded.Length (Kept) = Text'Length,
               "a store file inside the limit was read short");
 
-      Ada.Directories.Delete_File (Path);
+      --  The lock beside it as well. Every write takes one, and this case
+      --  removed the file and left the lock -- twice over, because the suite
+      --  runs from two directories, and both of those zero-byte files were
+      --  committed. A test that leaves litter behind leaves it in the
+      --  repository eventually.
+      declare
+         Gone_File : Adash.Persistence.Outcome;
+         Gone_Lock : Adash.Persistence.Outcome;
+      begin
+         Adash.Persistence.Remove (Path, Gone_File);
+         Adash.Persistence.Remove (Path & ".lock", Gone_Lock);
+      end;
    end A_Store_File_Past_The_Limit_Is_Refused;
 
    overriding procedure Register_Tests (T : in out Case_Type) is
