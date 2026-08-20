@@ -303,6 +303,18 @@ package body Adash_Tests.Repository is
 
       Require ("resources/messages/catalog.txt");
 
+      --  What the checks below read, and would otherwise skip.
+      --
+      --  Three of them compare a document against the code and return early
+      --  when the document cannot be read -- "both are required elsewhere",
+      --  said a comment about a file that was not required anywhere. Moving
+      --  `docs/diagnostics-catalog.md` out of the way made this program run
+      --  1248 fewer checks and report PASS, which is the worst answer
+      --  available: a check that disappears is one nobody ever runs again.
+      Require ("docs/diagnostics-catalog.md");
+      Require ("docs/grammar-reference.md");
+      Require (".github/workflows/ci.yml");
+
       --  The bounds every benchmark figure is checked against. Required
       --  because `adash_bench` refuses to measure without them, and CI runs it
       --  on every push: a file that went missing would turn a check into a

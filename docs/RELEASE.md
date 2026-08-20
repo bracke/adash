@@ -29,7 +29,7 @@ verdict.
 
 | Check | Fails when |
 |---|---|
-| `adash_check` | `docs/diagnostics-catalog.md` and the message catalog disagree about a message, a package has no owner in `repository.toml`, a required file is missing, `alire.toml` and `repository.toml` disagree about the version, a message is in the catalog and not in the code (or the reverse), an escape sequence appears in Ada source, or a forbidden unit is used |
+| `adash_check` | `docs/diagnostics-catalog.md` and the message catalog disagree about a message, a package has no owner in `repository.toml`, a required file is missing, `alire.toml` and `repository.toml` disagree about the version, a message is in the catalog and not in the code (or the reverse), a **terminal** escape byte appears in Ada source (the byte itself, or `ASCII.ESC`, `Latin_1.ESC`, `Character'Val (27)`) — styling belongs to terminal_styles and nowhere else, and a backslash escape in a string literal is a different thing this does not look for — or a forbidden unit is used |
 | `adash_tests` | Any unit or integration test fails, or the conformance suite or examples do |
 | `adash_conformance` | The built shell no longer behaves as `conformance/cases` says, or an example no longer produces its `.expected` output |
 | `adash_bench` | A measured operation exceeds its ceiling in `benchmarks/ceilings.toml`, gets slower as it repeats (a median more than four times its own fastest run), or has no ceiling or drift rule recorded there. The bounds are an order of magnitude above what the operations take, so a failure is a change in what the operation does and not a slow machine. It still reports every figure — compare those against `benchmarks/README.md` and update that file when a number moves for a reason |
@@ -38,6 +38,25 @@ verdict.
 
 Every check in the table was run through once, by making the thing it forbids
 and looking for the failure. Two of them did not fail.
+
+Every row above was run through again on 2026-08-20, by making the thing it
+forbids and looking for the failure: a document row that disagrees with the
+catalog, a package with no owner, a missing required file, a version that
+disagrees, a message in the catalog that nothing names, a terminal escape byte,
+a forbidden unit. All of them fail. Two things came out of that pass.
+
+**A required file that was not required.** Moving `docs/diagnostics-catalog.md`
+out of the way made `adash_check` run 1248 fewer checks and report PASS: the
+check that compares it against the catalog returns early when it cannot read
+either side, above a comment saying both are "required elsewhere" -- and that
+one was not required anywhere. `docs/grammar-reference.md` and the CI workflow
+were in the same position. All three are required now, and each was watched
+failing.
+
+**A row that described the wrong rule.** "An escape sequence appears in Ada
+source" reads as a backslash escape in a string literal, and one of those
+passes: what the check forbids is a *terminal* escape, which is a different
+defect with a different reason. The row says which it means now.
 
 `adash_check` read the version out of `alire.toml` and `repository.toml` with a
 reader that wants the `= ` as part of the key it is given, was asked for
