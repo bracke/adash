@@ -93,10 +93,18 @@ different build, and the lockfile records which happened.
   it is believed.
 - `benchmarks/README.md` carries numbers from this build, not the last one.
 - The sibling crates are at a commit somebody can name. Every dependency is a
-  path pin, so a release of Adash is only reproducible together with the
-  hostkit, jsonlib, tomllib, messages, terminal_styles and project_tools
-  commits it was verified against — record them with the tag. Until those
-  crates carry versions of their own, that list *is* the pin.
+  path pin, so a release of Adash is only reproducible together with the commits
+  it was verified against — record them with the tag. Until those crates carry
+  versions of their own, that list *is* the pin.
+
+  **Take the list from Alire, not from this file.** `alr pin` in the repository
+  root prints every pin the root crate resolves, and `alr pin` in `adash_tests`
+  prints that crate's own — which adds `project_tools` and adash itself. This
+  paragraph used to name six crates; there were fourteen, and following it would
+  have recorded fewer than half the graph while calling the result reproducible.
+  For each name, `git -C ../<name> rev-parse HEAD`, and check that none of them
+  has uncommitted work: a pin resolves to a *directory*, so a dirty sibling is a
+  release verified against something no commit contains.
 - `adash_bench` passes on all three hosts, which CI runs on every push. A
   ceiling that had to be raised is recorded in `benchmarks/ceilings.toml` with
   the reason, because a bound that moves without one is not a bound.
