@@ -1312,6 +1312,23 @@ package body Adash.Engine is
 
       Adash.Language.Lexer.Scan (Buffer, Stream, Aside);
 
+      --  A scanner complaint is not a line that wants finishing.
+      --
+      --  Nothing typed after it can mend it: a literal that ran to the end of
+      --  its line is unterminated whatever comes next, because Ada's literals
+      --  do not span lines. Asking anyway is what `put_line ("hello` used to
+      --  do -- a continuation prompt that could not be satisfied, which then
+      --  swallowed the next lines the user typed and refused all of it
+      --  together. Submitted instead, so the complaint arrives beside the line
+      --  it is about.
+      for Index in 1 .. D.Count (Aside) loop
+         if D.Level (D.Element (Aside, Index)) in
+              D.Severity_Error | D.Severity_Fatal
+         then
+            return False;
+         end if;
+      end loop;
+
       return Adash.Language.Parser.Wants_More (Stream, Origin);
    end Wants_More;
 

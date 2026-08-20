@@ -419,16 +419,14 @@ package body Adash.Language.Lexer is
                   --  interpolated literal outright -- the escape is what puts a
                   --  quote in one -- and accepting it here would take a program
                   --  a real compiler rejects.
+                  --  Said, and then taken as the quote it was meant to be, so
+                  --  that the literal still ends where its closing quote is.
+                  --  Giving up here left the rest of the line to be scanned as
+                  --  code, and the closing quote began a literal of its own.
                   Complain (Adash.Errors.Error_Lexical_Quote_In_Interpolation,
                             Index, Index + 1);
+                  Ada.Strings.Unbounded.Append (Piece, '"');
                   Index := Index + 2;
-
-                  if not Opening then
-                     Interpolations := Interpolations - 1;
-                  end if;
-
-                  After_Name := False;
-                  return;
                else
                   Index := Index + 1;
                   Emit (Kind, First, Index - 1,
@@ -472,11 +470,14 @@ package body Adash.Language.Lexer is
                      Index := Index + 2;
 
                   when others =>
+                     --  Said, and then taken as the character it follows, for
+                     --  the same reason the other two are: what a reader needs
+                     --  is the escape named once, not the rest of the line
+                     --  read as something it is not.
                      Complain (Adash.Errors.Error_Lexical_Bad_Escape,
                                Index, Index + 1);
+                     Ada.Strings.Unbounded.Append (Piece, Peek (1));
                      Index := Index + 2;
-                     After_Name := False;
-                     return;
                end case;
 
             elsif Peek = '{' then
@@ -494,16 +495,19 @@ package body Adash.Language.Lexer is
             elsif Peek = '}' then
                --  A brace that closes nothing. Written as it is, it would read
                --  as the end of an expression that never began.
+               --
+               --  Said, and then taken as the character it looks like, because
+               --  giving up on the literal here costs more than the mistake
+               --  did: the closing quote was read as the *start* of a literal,
+               --  so `put_line (f"closes } nothing");` -- one wrong byte on a
+               --  finished line -- came back as an unterminated string, a
+               --  missing bracket and a missing semicolon, and `Wants_More`
+               --  told an interactive frontend to go on reading a line that
+               --  was already whole.
                Complain (Adash.Errors.Error_Lexical_Brace_Unescaped,
                          Index, Index);
+               Ada.Strings.Unbounded.Append (Piece, Peek);
                Index := Index + 1;
-
-               if not Opening then
-                  Interpolations := Interpolations - 1;
-               end if;
-
-               After_Name := False;
-               return;
 
             else
                Ada.Strings.Unbounded.Append (Piece, Peek);

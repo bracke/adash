@@ -343,29 +343,24 @@ diagnostics = ["!error.procedure_has_no_value{name=New_Line}!"]
 [[case]]
 id = "lexical.a-character-that-belongs-to-no-token"
 requirement = """
-A character the language has no use for is named where it stands, and what
-follows it is read as best it can be -- so one stray character produces one
-complaint about the character and one about the shape of what is left, rather
-than a cascade.
+A character the language has no use for is named where it stands, once.
 
 These are the diagnostics a user meets by mistyping, and until now none of them
 had a case: they were reachable, documented, translated, and never once produced
 by anything that runs.
 
-The tail is asserted rather than trimmed. One stray character costs four
-complaints -- the parser tries the line as an expression, as a statement, and as
-the end of one -- and a case that expected only the first would have let the
-other three change without anybody noticing.
+The tail is asserted rather than trimmed, and the tail is now empty: a
+submission the scanner complained about is not parsed, because whatever the
+parser makes of tokens it was already told are wrong is not something a reader
+can act on. This case used to expect four complaints for one stray character --
+the parser tried the line as an expression, as a statement, and as the end of
+one -- and the three after the first named the byte *following* the mistake,
+which is not where the mistake is.
 """
 script = "put_line (\"a\" # \"b\");"
 exit_status = 0
 output = []
-diagnostics = [
-  "!error.lexical.stray_character{character=#}!",
-  "!error.syntax.unexpected{found=\"b\",expected=)}!",
-  "!error.syntax.unexpected{found=\"b\",expected=;}!",
-  "!error.syntax.unexpected{found=\"b\",expected=!expected.statement!}!",
-]
+diagnostics = ["!error.lexical.stray_character{character=#}!"]
 
 [[case]]
 id = "lexical.a-character-literal-that-is-not-one-character"
@@ -376,10 +371,7 @@ than reading it as a quote and then complaining about everything after it.
 script = "X : Character := 'ab';\nquit (0);"
 exit_status = 0
 output = []
-diagnostics = [
-  "!error.lexical.unterminated_character!",
-  "!error.syntax.unexpected{found=;,expected=!expected.attribute_name!}!",
-]
+diagnostics = ["!error.lexical.unterminated_character!"]
 
 [[case]]
 id = "lexical.a-number-with-letters-in-it"
@@ -391,10 +383,7 @@ written.
 script = "X : Integer := 12ab;\nquit (0);"
 exit_status = 0
 output = []
-diagnostics = [
-  "!error.lexical.malformed_number{text=12ab}!",
-  "!error.syntax.unexpected{found=;,expected=!expected.expression!}!",
-]
+diagnostics = ["!error.lexical.malformed_number{text=12ab}!"]
 
 [[case]]
 id = "lexical.an-identifier-ada-would-not-accept"
@@ -408,9 +397,7 @@ exit_status = 0
 output = []
 diagnostics = [
   "!error.lexical.malformed_identifier{text=X_}!",
-  "!error.syntax.unexpected{found=:,expected=!expected.statement!}!",
   "!error.lexical.malformed_identifier{text=Y__Z}!",
-  "!error.syntax.unexpected{found=:,expected=!expected.statement!}!",
 ]
 
 [[case]]
@@ -419,32 +406,50 @@ requirement = """
 Ada 2022 forbids a doubled quote inside an interpolated literal outright -- the
 escape is what puts a quote in one -- so accepting it would take a program a
 real compiler rejects.
+
+Refused, and then read as the quote it was meant to be, so that the literal
+still ends at its closing quote. Abandoning it there left the rest of the line
+to be scanned as code, and the closing quote opened a literal of its own: one
+mistyped byte came back as an unterminated string, a missing bracket and a
+missing semicolon, none of which the user had written.
 """
 script = "put_line (f\"a \"\" b\");"
 exit_status = 0
 output = []
-diagnostics = [
-  "!error.lexical.quote_in_interpolation!",
-  "!error.lexical.unterminated_string!",
-  "!error.syntax.missing{expected=)}!",
-  "!error.syntax.missing{expected=;}!",
-]
+diagnostics = ["!error.lexical.quote_in_interpolation!"]
+
+[[case]]
+id = "lexical.a-literal-that-is-never-closed"
+requirement = """
+A literal ends at the end of its line, as Ada's does, and one that has not been
+closed by then is said so where it began.
+
+Its own case because it used to be produced only as the *second* complaint
+about something else -- an unescaped brace, a doubled quote, an escape this
+language does not define -- and when those learned to carry on scanning the
+literal, the one diagnostic that is really about an unclosed literal stopped
+being produced by anything at all.
+"""
+script = "put_line (\"a);\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.lexical.unterminated_string!"]
 
 [[case]]
 id = "lexical.a-brace-that-closes-nothing"
 requirement = """
 A `}` in an interpolated literal that closes nothing would read as the end of an
-expression that never began.
+expression that never began. It is named, and then taken as the character it
+looks like, so the literal ends where its closing quote is and the line is not
+re-read as something the user did not write.
+
+Nothing runs: the line prints nothing, because a submission the scanner
+complained about is one whose text is not the program its author meant.
 """
 script = "put_line (f\"closes } nothing\");"
 exit_status = 0
 output = []
-diagnostics = [
-  "!error.lexical.brace_unescaped!",
-  "!error.lexical.unterminated_string!",
-  "!error.syntax.missing{expected=)}!",
-  "!error.syntax.missing{expected=;}!",
-]
+diagnostics = ["!error.lexical.brace_unescaped!"]
 
 [[case]]
 id = "syntax.and-and-or-without-brackets"

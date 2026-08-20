@@ -92,7 +92,4 @@ exit_status = 0
 output = []
 diagnostics = [
   "!error.lexical.bad_escape{text=\\e}!",
-  "!error.lexical.unterminated_string!",
-  "!error.syntax.missing{expected=)}!",
-  "!error.syntax.missing{expected=;}!",
 ]

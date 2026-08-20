@@ -11,6 +11,24 @@ what changed.
 
 ### Added
 
+- **A case for every awkward line, saying which of three things it must do.**
+  The hostile-input case asserted "ran or complained", which is satisfied by a
+  submission that parses half its text, runs that half and drops the rest --
+  exactly what a stray `end` did. Each of the twenty entries now says whether it
+  is unfinished, complained about, or runs, and the case compares that with what
+  happens; a submission that fails and says nothing is never right and is
+  noticed on its own. All twenty mismatches are gathered and reported together,
+  because a failed assertion ends the routine and reporting the first one hides
+  the nineteen behind it. Writing the table down is what caught the continuation
+  prompt that could not be satisfied, and settled that a four-thousand-character
+  identifier is a name like any other: two that differ in the last character
+  keep their own values.
+- **A case for `error.lexical.unterminated_string`.** It used to be produced
+  only as the *second* complaint about something else, so when those learned to
+  carry on scanning the literal, the one diagnostic that is really about an
+  unclosed literal stopped being produced by anything at all -- which the
+  repository check said before a person did.
+
 - **Two more combinations**: a program that takes over with `run_instead` writes
   where the shell was sent by `redirect` — one feature moves a descriptor the
   process holds, the other keeps the process holding it — and two pipelines run
@@ -361,6 +379,42 @@ what changed.
   mistake.
 
 ### Fixed
+
+- **A stray `end` no longer swallows the rest of the line in silence.** A
+  sequence stops at `end` whoever asked for it, because nothing in this language
+  begins with one; at the top level there is nobody to have asked, and the
+  parser handed back what it had. `put_line ("before"); end; put_line
+  ("after");` printed the first line, dropped the second and said nothing about
+  why. What is left over is named now, and an error node goes with the
+  complaint, so the half that did parse does not run either. Said only where
+  nothing else was: a submission that already has a complaint has an
+  explanation, and adding "and there was text left over" to it costs a place in
+  a bounded report -- it displaced "too many parameters" while this was being
+  written.
+
+- **One mistyped byte produces one complaint.** A lexical mistake used to be
+  reported and then scanned *around*: the scanner gave up where it stood, the
+  rest of the line was read as code, and the parser complained three more times
+  about the bytes that followed. `put_line (f"closes } nothing");` -- a finished
+  line with one wrong character in it -- came back as an unescaped brace, an
+  unterminated string, a missing bracket and a missing semicolon, and a reader
+  who fixed the last three still had the first. The three recoveries inside an
+  interpolated literal (an unescaped `}`, a doubled quote, an escape this
+  language does not define) now say what is wrong and take the character as
+  what it looks like, so the literal still ends at its closing quote. Text the
+  scanner complained about is not parsed at all: an error node stands for the
+  submission, which is what stops it running. That gate is in the parser rather
+  than in the shell, so everything that parses agrees -- the shell, a test that
+  lowers a program by hand, and anything later that reads a submission before
+  running it.
+
+- **An unclosed literal is no longer a continuation prompt that cannot be
+  satisfied.** `put_line ("hello` and Enter asked for more input, and no more
+  input could mend it: Ada's literals do not span lines, so the next line the
+  user typed was swallowed into the same broken submission, and the one after
+  that too. The shell asks the grammar whether a line wants finishing only when
+  the scanner had nothing to say about it; otherwise the line is submitted and
+  the complaint arrives beside it.
 
 - **A signal reaches its handler while the shell is waiting for a key.**
   `Read_Key` is its own loop around its own read, so it had its own copy of the

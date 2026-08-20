@@ -4232,6 +4232,42 @@ package body Adash.Language.Parser is
          declare
             Node : constant S.Node_Id := Parse_Sequence (T.Word_End);
          begin
+            --  Anything left over is said, as it is for an expression.
+            --
+            --  A sequence stops at `end` whoever asked for it, because nothing
+            --  in this language begins with one. At the top level there is
+            --  nobody to have asked, so a stray `end` stopped the submission
+            --  where it stood and the parser handed back what it had: `put_line
+            --  ("a"); end; put_line ("b");` printed the first line, dropped the
+            --  second, and said nothing at all about why.
+            --
+            --  Running out of tokens inside a construct is a different thing
+            --  and is not this: there the parser consumed everything, and the
+            --  frontend asks for the next line.
+            --  Only where nothing else was said.
+            --
+            --  A submission that already has a complaint has an explanation;
+            --  adding "and there was text left over" to it costs a place in a
+            --  bounded report and can push out the one that names the real
+            --  mistake -- which it did, replacing "too many parameters" with
+            --  itself. What this is for is the submission that stopped and
+            --  said nothing at all.
+            if not At_End and then D.Count (Report) = 0 then
+               Complain (Adash.Messages.Msg_Expected_End_Of_Input);
+
+               --  And an error node, so the part that did parse does not run.
+               --  Every other syntax complaint leaves one behind and that is
+               --  what stops the submission; without it `put_line ("before");
+               --  end; ...` complained and printed "before" anyway, which is
+               --  the worst of both answers.
+               declare
+                  Ignored : constant S.Node_Id := Error_Node (Here);
+                  pragma Unreferenced (Ignored);
+               begin
+                  null;
+               end;
+            end if;
+
             Into.Set_Root (Node);
          end;
       end if;
@@ -4251,6 +4287,41 @@ package body Adash.Language.Parser is
    is
       Unfinished : Boolean;
    begin
+      --  Text the scanner complained about is not parsed.
+      --
+      --  What the parser would make of tokens it has already been told are
+      --  wrong is not something a reader can act on: one mistyped byte came
+      --  back as four complaints, three of them naming the byte *after* the
+      --  mistake -- "expected )", "expected ;", "expected a statement" -- and
+      --  a reader who fixed what those named still had the original mistake.
+      --  An error node stands for the whole submission, which is what stops it
+      --  running, and the scanner's own diagnostics say what is wrong.
+      --
+      --  Here rather than in the engine so that everything that parses agrees:
+      --  the shell, a test that lowers a program by hand, and anything later
+      --  that reads a submission before running it.
+      --
+      --  Not in Run, because Wants_More goes through Run and must still say
+      --  "keep typing" for an unterminated literal -- which is a scanner
+      --  complaint about a line the user has not finished writing.
+      for Index in 1 .. From.Length loop
+         if T.Kind (From.Element (Index)) = T.Token_Error then
+            Into.Clear;
+
+            declare
+               Ignored : constant S.Node_Id :=
+                 S.Add_Leaf (Into, S.Node_Error, T.Extent (From.Element (Index)));
+               pragma Unreferenced (Ignored);
+            begin
+               Into.Set_Root (S.Add_Node (Into, S.Node_Sequence,
+                                          T.Extent (From.Element (Index)),
+                                          S.No_Children));
+            end;
+
+            return;
+         end if;
+      end loop;
+
       Run (From, Origin, Into, Report, Expression => False, Unfinished => Unfinished);
    end Parse;
 

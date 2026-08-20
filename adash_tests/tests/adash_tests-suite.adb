@@ -8,6 +8,7 @@ with Adash_Tests.Interactive_Cases;
 with Adash_Tests.Language_Cases;
 with Adash_Tests.Lexer_Cases;
 with Adash_Tests.Pattern_Cases;
+with Adash_Tests.Hostile_Cases;
 with Adash_Tests.Prompt_Cases;
 with Adash_Tests.Message_Cases;
 with Adash_Tests.Parser_Cases;
@@ -36,6 +37,7 @@ package body Adash_Tests.Suite is
    Lexer_Case      : aliased Adash_Tests.Lexer_Cases.Case_Type;
    Pattern_Case    : aliased Adash_Tests.Pattern_Cases.Case_Type;
    Prompt_Case     : aliased Adash_Tests.Prompt_Cases.Case_Type;
+   Hostile_Case    : aliased Adash_Tests.Hostile_Cases.Case_Type;
    Parser_Case     : aliased Adash_Tests.Parser_Cases.Case_Type;
    Semantics_Case  : aliased Adash_Tests.Semantics_Cases.Case_Type;
    Evaluation_Case : aliased Adash_Tests.Evaluation_Cases.Case_Type;
@@ -69,6 +71,7 @@ package body Adash_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result'Access, Lexer_Case'Access);
       AUnit.Test_Suites.Add_Test (Result'Access, Pattern_Case'Access);
       AUnit.Test_Suites.Add_Test (Result'Access, Prompt_Case'Access);
+      AUnit.Test_Suites.Add_Test (Result'Access, Hostile_Case'Access);
       AUnit.Test_Suites.Add_Test (Result'Access, Parser_Case'Access);
       AUnit.Test_Suites.Add_Test (Result'Access, Semantics_Case'Access);
       AUnit.Test_Suites.Add_Test (Result'Access, Evaluation_Case'Access);
