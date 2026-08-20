@@ -264,7 +264,7 @@ jobs:
   # jobs where one answers the question would buy nothing. If a release-only
   # defect ever turns out to be host-specific, this is the comment that was
   # wrong and the job that should become a matrix.
-  release-build:
+  release-and-validation:
     runs-on: ubuntu-latest
 
     defaults:
@@ -359,3 +359,20 @@ jobs:
           status=$?
           kill "${watchdog}" 2>/dev/null || true
           exit "${status}"
+
+      # And the third profile, last, which is a build rather than a run.
+      #
+      # Validation compiles with `-gnatwe`, so every warning is an error there
+      # -- the same rule the build steps above enforce by reading their own
+      # output, said by the compiler instead, and it costs a build rather than
+      # a suite. Last because building it replaces `bin/adash`, and everything
+      # above this line is meant to be running the *release* shell: put here
+      # in the middle, the AUnit suite would have been testing a binary the
+      # job never claims to test.
+      - name: Build at the validation profile, where warnings are errors
+        working-directory: Ada/adash
+        run: alr -n build --validation
+
+      - name: Build the test crate at the validation profile
+        working-directory: Ada/adash/adash_tests
+        run: alr -n build --validation

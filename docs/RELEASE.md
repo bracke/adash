@@ -30,7 +30,15 @@ could: three cases spelled `profile=development` into their expected output, so
 a release build failed them and the profile a user would ship had never been
 through the suite. The runner fills `{profile}` from the binary under test now,
 and a release build passes all of them. `alr build --release` in the root, then
-the suite; `alr build` puts the development build back. What the release
+the suite; `alr build` puts the development build back. Mind the order: building
+the test crate rebuilds its path dependency, so it replaces `bin/adash` with a
+build of its own choosing, and the last build has to be the one whose binary you
+mean to test.
+
+All three profiles build and pass, and CI runs the release one on every push.
+The validation profile is a build rather than a run there: it compiles with
+`-gnatwe`, which makes every warning an error, so it says the same thing the
+build gate says and says it in the compiler. What the release
 profile changes is `-O3` and inlining — the checks Adash reports failures from
 (`Constraint_Error` on overflow, on a bad `'Val`, on an index outside a String)
 are all still there, which was worth measuring rather than assuming.
