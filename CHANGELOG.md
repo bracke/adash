@@ -11,6 +11,14 @@ what changed.
 
 ### Added
 
+- **A benchmark for what a session's own history costs it.** `analyse a line
+  beside 128 declarations`: a submission is analysed together with everything
+  the session still holds, so the same line that takes about 3 ms on its own
+  takes about 80 beside 128 declarations, and a session carries up to 256. That
+  is the design — a script pays none of it, because a file is one submission —
+  but nothing showed the shape, and the figure is there to notice the day it
+  stops being linear in the count. The language reference says so too now.
+
 - **Two bounds nobody had ever watched hold now have cases.** `adash_check`
   lets a diagnostic be listed as one no case can produce, with a reason; two
   were listed on the grounds that reaching them would cost real time or real

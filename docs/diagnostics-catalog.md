@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 628 messages in 23 groups.
+There are 629 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -698,6 +698,7 @@ quoted into `config.syntax`, which supplies the file and the position.
 | `tooling.bench.what.analyse` | analyse |
 | `tooling.bench.what.run` | lower and run |
 | `tooling.bench.what.highlight` | highlight (per keystroke) |
+| `tooling.bench.what.analyse_carried` | analyse a line beside 128 declarations |
 | `tooling.bench.what.complete` | complete a command prefix |
 | `tooling.bench.what.complete_program` | complete a program name |
 | `tooling.bench.what.history` | encode a history entry |

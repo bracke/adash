@@ -45,6 +45,15 @@ nothing forward from that submission: what it declared is gone, and what it
 changed in variables the session already had is gone with it. Those keep the
 values they had before it ran.
 
+**What carrying costs.** A submission is analysed together with everything the
+session still holds, so the work grows with what has been declared before it:
+one line on its own is analysed in about 3 ms on the machine these numbers came
+from, and the same line beside 128 declarations takes about 80. A session
+carries at most 256 definitions and says so when it reaches that, which is also
+what bounds this. The benchmark `analyse a line beside 128 declarations` is
+there to notice the day it stops being linear in the count; a script pays none
+of it, because a file is one submission.
+
 ## Lexical elements
 
 Ada 2022's lexical rules, with Ada's own reserved words. Identifiers fold for

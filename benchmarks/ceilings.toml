@@ -43,6 +43,17 @@ parse = 600
 # few.
 analyse = 10000
 
+# The same line analysed beside 128 declarations the session is still carrying.
+#
+# Not a bound on the analyser: it is a bound on the shape. A submission is
+# analysed together with everything earlier submissions declared, so the work
+# grows with what the user has typed -- 2.9 ms for a line on its own against
+# 84 ms for the same line beside 128 declarations here, and a session carries
+# up to 256. That is the design and it is written down in the language
+# reference; what this figure is for is noticing the day it stops being linear
+# in the count.
+analyse_carried = 900000
+
 run = 200
 highlight = 500
 

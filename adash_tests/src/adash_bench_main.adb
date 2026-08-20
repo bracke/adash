@@ -547,6 +547,61 @@ begin
       end;
    end;
 
+   --  The same line, analysed beside what a session that has been used for a
+   --  while is carrying.
+   --
+   --  A submission is analysed together with every declaration the session
+   --  still holds, so what this figure shows is the cost of the *session*
+   --  rather than of the line: the work grows with what the user has already
+   --  typed, up to the 256 definitions a session carries. Measured because
+   --  nothing else here shows that shape -- the figures above analyse one line
+   --  standing on its own, which is the cheapest a line ever is.
+   declare
+      Carried : Ada.Strings.Unbounded.Unbounded_String;
+
+      Origin : constant Adash.Source.Origin :=
+        Adash.Source.Make_Origin (Adash.Source.Origin_Text, "<bench>");
+
+      Buffer      : Adash.Source.Buffer;
+      Stream      : Adash.Language.Tokens.Token_Stream;
+      Tree        : Adash.Language.Syntax.Tree;
+      Analysis    : Adash.Language.Semantics.Analysis;
+      Report_List : Adash.Diagnostics.List;
+      Error       : Adash.Errors.Error_Info;
+      Loaded      : Boolean;
+   begin
+      for Declaration in 1 .. 128 loop
+         Ada.Strings.Unbounded.Append
+           (Carried,
+            "X" & Ada.Strings.Fixed.Trim
+                    (Natural'Image (Declaration), Ada.Strings.Both)
+            & " : Integer :=" & Natural'Image (Declaration) & ";"
+            & Character'Val (16#0A#));
+      end loop;
+
+      Ada.Strings.Unbounded.Append (Carried, Typical_Line);
+
+      Loaded :=
+        Adash.Source.Load
+          (Buffer, Origin, Ada.Strings.Unbounded.To_String (Carried), Error);
+
+      if Loaded then
+         Adash.Language.Lexer.Scan (Buffer, Stream, Report_List);
+         Adash.Language.Parser.Parse (Stream, Origin, Tree, Report_List);
+         Report_List.Clear;
+
+         for Index in 1 .. Repetitions loop
+            Started := RT.Clock;
+            Adash.Language.Semantics.Analyse
+              (Tree, Origin, Analysis, Report_List);
+            Samples (Index) := RT.Clock - Started;
+            Report_List.Clear;
+         end loop;
+
+         Report ("analyse_carried", Samples);
+      end if;
+   end;
+
    IO.New_Line;
    IO.Put_Line (Say ("tooling.bench.group.frontend"));
 

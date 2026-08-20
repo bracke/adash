@@ -669,6 +669,7 @@ en.tooling.bench.what.parse = parse
 en.tooling.bench.what.analyse = analyse
 en.tooling.bench.what.run = lower and run
 en.tooling.bench.what.highlight = highlight (per keystroke)
+en.tooling.bench.what.analyse_carried = analyse a line beside 128 declarations
 en.tooling.bench.what.complete = complete a command prefix
 en.tooling.bench.what.complete_program = complete a program name
 en.tooling.bench.what.history = encode a history entry
