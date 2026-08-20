@@ -399,6 +399,17 @@ what changed.
 
 ### Fixed
 
+- **`set ("PATH =/opt/bin")` is refused rather than obeyed.** The name had to be
+  followed by an `=` and nothing else was asked of it, so a space nobody meant
+  made a variable called `PATH ` — which no program looks up, because no shell
+  can write that name down — left `PATH` alone, and said nothing, while `env`
+  showed a line that reads correctly at a glance. A name is a letter or an
+  underscore followed by letters, digits and underscores, and `set` asks the
+  same rule `run_with` asks. It was not asking it at all: the helper that
+  decides what an assignment looks like says in its own comment that this is
+  "the same question asked twice, so it is asked in one place", and `set` had
+  the second copy.
+
 - **A pipeline that was given up no longer reports that nothing was added to
   it.** A placement that cannot be made -- a file in a directory that is not
   there, a path that is a directory -- throws the stages away, so the

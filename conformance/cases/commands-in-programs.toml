@@ -345,6 +345,31 @@ output = ["[only-here]", "[session]", "[]"]
 diagnostics = []
 
 [[case]]
+id = "environment.a-name-with-a-space-in-it-is-not-a-name"
+requirement = """
+`set` wants NAME=VALUE, and the name has to be one: a letter or an underscore,
+then letters, digits and underscores.
+
+What this is for is the space nobody meant. `set ("PATH =/opt/bin")` used to
+make a variable called `PATH ` -- which no program will ever look up, because
+no shell can write that name down -- leave PATH itself alone, and say nothing;
+`env` then showed a line that reads correctly at a glance. A name a shell
+cannot write is a mistake rather than a variable.
+
+The rule is `set`'s and `run_with`'s together, asked in one place, which is
+where it was not being asked: `set` had a second copy of the question and did
+not get the answer this case is about.
+"""
+script = "set (\"PATH =/nowhere\");\nset (\"A B=1\");\nset (\"2FOO=1\");\nset (\"_ok=1\"); put_line (Env_Value (\"_ok\"));\nquit (0);"
+exit_status = 0
+output = ["1"]
+diagnostics = [
+  "!error.command.bad_assignment{text=PATH =/nowhere}!",
+  "!error.command.bad_assignment{text=A B=1}!",
+  "!error.command.bad_assignment{text=2FOO=1}!",
+]
+
+[[case]]
 id = "environment.run_with-refuses-what-is-not-an-assignment"
 requirement = """
 The same refusal `set` makes, in the same words: a command given `LC_ALL` where

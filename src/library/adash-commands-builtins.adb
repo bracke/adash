@@ -59,7 +59,31 @@ package body Adash.Commands.Builtins is
    begin
       for Index in Text'Range loop
          if Text (Index) = '=' then
-            return (if Index > Text'First then Index else 0);
+            if Index = Text'First then
+               return 0;
+            end if;
+
+            --  And the name has to be one: a letter or an underscore, then
+            --  letters, digits and underscores. What this is really for is the
+            --  space nobody meant -- `set ("PATH =/opt/bin")` made a variable
+            --  called `PATH ` that no program will ever look up, left PATH
+            --  alone, and said nothing, while `env` showed a line that read
+            --  right at a glance. A name a shell cannot write down is a
+            --  mistake rather than a variable.
+            for Place in Text'First .. Index - 1 loop
+               declare
+                  Letter : constant Character := Text (Place);
+               begin
+                  if not (Letter in 'A' .. 'Z' | 'a' .. 'z' | '_')
+                    and then not (Letter in '0' .. '9'
+                                  and then Place > Text'First)
+                  then
+                     return 0;
+                  end if;
+               end;
+            end loop;
+
+            return Index;
          end if;
       end loop;
 
@@ -599,20 +623,19 @@ package body Adash.Commands.Builtins is
 
          when Command_Set =>
             declare
-               Text  : constant String := Argument (Arguments, 1);
-               Split : Natural := 0;
-            begin
-               for Index in Text'Range loop
-                  if Text (Index) = '=' then
-                     Split := Index;
-                     exit;
-                  end if;
-               end loop;
+               Text : constant String := Argument (Arguments, 1);
 
+               --  Asked through the shared rule rather than with a loop of its
+               --  own. `Assignment_Split` says it is "the same question asked
+               --  twice, so it is asked in one place" -- and this was the
+               --  second place, with its own copy of the answer, so a rule
+               --  added to one of them was not added to `set`.
+               Split : constant Natural := Assignment_Split (Text);
+            begin
                --  NAME=VALUE and nothing else. A `set` that accepted a bare
                --  name would have to decide what it meant -- empty, or unset --
                --  and either choice surprises half its users.
-               if Split <= Text'First then
+               if Split = 0 then
                   return Failed (Adash.Errors.Error_Command_Bad_Assignment,
                                  [1 => M.Named ("text", Text)]);
                end if;

@@ -89,7 +89,7 @@ interleaved, so "the last three lines" of it may not be this session's three.
 
 | Command | Takes | Does |
 |---|---|---|
-| `set (Assignment : String)` | 1 | sets a variable, written `NAME=VALUE` |
+| `set (Assignment : String)` | 1 | sets a variable, written `NAME=VALUE`, where the name is a letter or an underscore followed by letters, digits and underscores |
 | `unset (Name : String)` | 1 | removes one |
 | `env` | 0 | lists them |
 
