@@ -261,14 +261,38 @@ package body Adash.Source is
       Text  : String;
       Error : out Adash.Errors.Error_Info) return Boolean
    is
+      --  A byte-order mark at the very start is not part of the program.
+      --
+      --  It is what a Windows editor writes when it saves as UTF-8, and it is
+      --  not a character the author typed: a script that began with one was
+      --  refused for a stray character nobody could see, at column 1 of a line
+      --  that looked perfectly ordinary. GNAT compiles a source that starts
+      --  with one without remark, and this language is Ada.
+      --
+      --  Only at the very start, and only three bytes: a mark anywhere else is
+      --  a zero-width space in the middle of a program, which is a real
+      --  mistake and stays one.
+      Marked : constant Boolean :=
+        Text'Length >= 3
+          and then Text (Text'First) = Character'Val (16#EF#)
+          and then Text (Text'First + 1) = Character'Val (16#BB#)
+          and then Text (Text'First + 2) = Character'Val (16#BF#);
+
+      Program : constant String :=
+        (if Marked then Text (Text'First + 3 .. Text'Last) else Text);
+
       Bad_At : Natural;
    begin
       Error := Adash.Errors.Success;
       Item.Loaded := False;
 
-      if not Validate_Utf8 (Text, Bad_At) then
+      if not Validate_Utf8 (Program, Bad_At) then
          declare
-            Offset : constant String := Natural'Image (Bad_At - Text'First + 1);
+            --  Counted from the first byte of the program, which is where a
+            --  reader counts from: a mark that was skipped is not a byte they
+            --  can see in their editor either.
+            Offset : constant String :=
+              Natural'Image (Bad_At - Program'First + 1);
          begin
             Error := Adash.Errors.Failure
               (Adash.Errors.Error_Source_Invalid_Encoding,
@@ -280,7 +304,7 @@ package body Adash.Source is
       end if;
 
       Item.From := From;
-      Item.Text := To_Unbounded_String (Text);
+      Item.Text := To_Unbounded_String (Program);
       Build_Line_Map (Item);
       Item.Loaded := True;
 

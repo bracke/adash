@@ -92,6 +92,37 @@ package body Adash.Language.Lexer is
       procedure Scan_Comment;
       procedure Scan_Delimiter;
 
+      --  `U+FEFF` for a character that cannot be shown.
+      function Codepoint (Value : Natural) return String;
+
+      -----------------
+      -- Codepoint --
+      -----------------
+
+      function Codepoint (Value : Natural) return String is
+         Digits_16 : constant String := "0123456789ABCDEF";
+
+         Result : String (1 .. 8);
+         Filled : Natural := 0;
+         Left   : Natural := Value;
+      begin
+         loop
+            Filled := Filled + 1;
+            Result (Result'Last - Filled + 1) :=
+              Digits_16 (Digits_16'First + Left mod 16);
+            Left := Left / 16;
+            exit when Left = 0;
+         end loop;
+
+         --  Four digits at least, as Unicode writes them.
+         while Filled < 4 loop
+            Filled := Filled + 1;
+            Result (Result'Last - Filled + 1) := '0';
+         end loop;
+
+         return "U+" & Result (Result'Last - Filled + 1 .. Result'Last);
+      end Codepoint;
+
       ----------
       -- Emit --
       ----------
@@ -650,9 +681,69 @@ package body Adash.Language.Lexer is
             when ''' => Take (1, T.Delim_Apostrophe);
 
             when others =>
-               Complain (Adash.Errors.Error_Lexical_Stray_Character,
-                         First, First);
-               Index := First + 1;
+               --  One character, not one byte.
+               --
+               --  A character the language has no use for is usually one
+               --  somebody pasted -- a byte-order mark, a non-breaking space,
+               --  a typographic quote -- and outside ASCII those are two,
+               --  three or four bytes each. Stepping a byte at a time
+               --  complained three times about a single invisible character
+               --  and named a third of it, which renders as a replacement
+               --  glyph and tells a reader nothing they can search for.
+               --
+               --  The width comes from the leading byte, and the text has
+               --  already been validated as UTF-8 when it was loaded, so the
+               --  rest of the sequence is there. A continuation byte standing
+               --  on its own cannot reach here for the same reason, and is
+               --  taken as one byte if it ever does.
+               declare
+                  Lead : constant Natural := Character'Pos (Peek);
+
+                  Width : constant Positive :=
+                    (if Lead >= 16#F0# then 4
+                     elsif Lead >= 16#E0# then 3
+                     elsif Lead >= 16#C0# then 2
+                     else 1);
+
+                  Stop : constant Natural :=
+                    Natural'Min (First + Width - 1, Last);
+
+                  --  What the sequence stands for, so that it can be named by
+                  --  number when it cannot be named by shape.
+                  Code : Natural := 0;
+               begin
+                  if Width = 1 then
+                     Code := Lead;
+                  else
+                     Code :=
+                       (case Width is
+                           when 2 => Lead mod 32,
+                           when 3 => Lead mod 16,
+                           when others => Lead mod 8);
+
+                     for Position in First + 1 .. Stop loop
+                        Code := Code * 64
+                          + Character'Pos (Text (Position)) mod 64;
+                     end loop;
+                  end if;
+
+                  --  A character a reader can see is shown; one they cannot is
+                  --  numbered. `U+FEFF does not begin anything the language
+                  --  recognises` is something they can search for and find in
+                  --  their editor; the character itself renders as nothing at
+                  --  all, and the sentence then reads as if a word were
+                  --  missing from it.
+                  if Code < 16#20# or else Code >= 16#7F# then
+                     Complain (Adash.Errors.Error_Lexical_Stray_Character,
+                               First, Stop, Detail => Codepoint (Code));
+                  else
+                     Complain (Adash.Errors.Error_Lexical_Stray_Character,
+                               First, Stop);
+                  end if;
+
+                  Index := Stop + 1;
+               end;
+
                After_Name := False;
          end case;
       end Scan_Delimiter;

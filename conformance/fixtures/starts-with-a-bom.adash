@@ -1,0 +1,1 @@
+﻿put_line ("a script that starts with a byte-order mark runs");

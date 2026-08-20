@@ -11,6 +11,12 @@ what changed.
 
 ### Added
 
+- **Three cases for what a script is made of** — a byte-order mark at the start
+  is skipped, one in the middle is still refused, and a non-breaking space
+  between two tokens costs exactly one complaint that names it `U+00A0`. The
+  third holds a real invisible character on purpose, and says so where somebody
+  tidying the file will read it.
+
 - **A case for every awkward line, saying which of three things it must do.**
   The hostile-input case asserted "ran or complained", which is satisfied by a
   submission that parses half its text, runs that half and drops the rest --
@@ -379,6 +385,25 @@ what changed.
   mistake.
 
 ### Fixed
+
+- **A script that begins with a byte-order mark runs.** It is what a Windows
+  editor writes when it saves as UTF-8, so it arrives on files nobody edited by
+  hand, and it was read as a character: the script was refused for a stray
+  character invisible in every editor that produced it, at column 1 of a line
+  that looked perfectly ordinary. GNAT compiles a source that begins with one
+  without remark, and this language is Ada. Skipped only at the very start —
+  a mark in the middle of a program is a zero-width space somebody pasted, and
+  that is still refused.
+
+- **One character the language has no use for costs one complaint, and is named
+  by number when it cannot be shown.** Outside ASCII a character is two, three
+  or four bytes; the scanner stepped a byte at a time, so one pasted mark
+  produced three diagnostics, each naming a third of a character — which
+  renders as a replacement glyph and gives a reader nothing to search for. The
+  width now comes from the leading byte, and a character below `U+0020` or
+  above `U+007E` is reported as `U+00A0` rather than as itself, because
+  `U+00A0 does not begin anything the language recognises` is a sentence with a
+  subject in it.
 
 - **A stray `end` no longer swallows the rest of the line in silence.** A
   sequence stops at `end` whoever asked for it, because nothing in this language

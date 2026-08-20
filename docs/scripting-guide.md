@@ -7,6 +7,21 @@ works in a script and the reverse.
     adash report.adash                 -- run it
     adash report.adash one two         -- with arguments
 
+## What a script is written in
+
+A script is UTF-8, and is refused rather than guessed at when it is not — the
+diagnostic gives the offset of the byte that settled it, because a file saved in
+Latin-1 differs from UTF-8 by one accented character and running it would run a
+program whose strings are not the ones its author typed.
+
+A byte-order mark at the very start is skipped: it is what a Windows editor
+writes when it saves as UTF-8, and it is not something anybody typed. Anywhere
+else it is a zero-width space somebody pasted, and it is refused like any other
+character the language has no use for — named by number, `U+FEFF`, because a
+character that renders as nothing cannot be looked for in an editor.
+
+Line endings are either kind. A file written on Windows runs on the other two.
+
 ## What a script sees
 
     Argument_Count                     -- how many it was given

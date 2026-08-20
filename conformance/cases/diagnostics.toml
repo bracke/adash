@@ -524,6 +524,64 @@ diagnostics = ["!error.command_denied{command={store}}!"]
 platforms = ["linux", "macos"]
 
 [[case]]
+id = "lexical.one-character-is-one-complaint-even-outside-ascii"
+requirement = """
+A character the language has no use for costs one complaint, whatever it is
+made of. Outside ASCII a character is two, three or four bytes, and stepping a
+byte at a time said the same thing three times about one invisible character
+somebody had pasted.
+
+It is named by number when it cannot be shown. `U+00A0 does not begin anything
+the language recognises` is something a reader can search for; the character
+itself renders as a space or as nothing at all, and the sentence then reads as
+if a word were missing from it.
+
+The script below holds a real non-breaking space between `1` and `+`. It is
+invisible in an editor, which is the whole point of the case: a person changing
+this file must not tidy it away.
+"""
+script = "X : Integer := 1 + 2;"
+exit_status = 0
+output = []
+diagnostics = ["!error.lexical.stray_character{character=U+00A0}!"]
+
+[[case]]
+id = "scripts.a-mark-in-the-middle-of-a-script-is-still-refused"
+requirement = """
+The other half of the case below: a byte-order mark is skipped where a file
+begins and nowhere else. In the middle of a program it is a zero-width space
+somebody pasted, and a program with an invisible character in it is refused
+rather than run with the character quietly dropped.
+"""
+arguments = ["{root}/conformance/fixtures/has-a-mark-inside.adash"]
+exit_status = 2
+output = []
+diagnostics = [
+  "!line.diagnostic_at{path={root}/conformance/fixtures/has-a-mark-inside.adash,line=2,column=1,text=!error.lexical.stray_character{character=U+FEFF}!}!",
+  "﻿put_line (\"two\");",
+  "^",
+]
+
+[[case]]
+id = "scripts.a-script-that-starts-with-a-byte-order-mark-runs"
+requirement = """
+A byte-order mark at the start of a script is skipped rather than read as a
+character. It is what a Windows editor writes when it saves as UTF-8, so it
+arrives on files nobody edited by hand, and it is not something the author
+typed: the script was refused for a stray character invisible in every editor
+that produced it, at column 1 of a line that looked perfectly ordinary. GNAT
+compiles a source that begins with one without remark, and this language is
+Ada.
+
+Only at the very start. A mark in the middle of a program is a zero-width space
+somebody pasted, which is a real mistake and is still refused.
+"""
+arguments = ["{root}/conformance/fixtures/starts-with-a-bom.adash"]
+exit_status = 0
+output = ["a script that starts with a byte-order mark runs"]
+diagnostics = []
+
+[[case]]
 id = "scripts.a-script-that-is-not-utf-8-is-refused"
 requirement = """
 A script this shell cannot read as UTF-8 is refused with the offset of the byte
