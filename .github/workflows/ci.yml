@@ -249,3 +249,113 @@ jobs:
       - name: Run the benchmarks against their ceilings
         working-directory: Ada/adash/adash_tests
         run: ./bin/adash_bench${{ matrix.suffix }} 50
+
+  # The profile a user would build.
+  #
+  # `alr build` is the development profile: -Og, every check, every warning.
+  # What anybody installing this would get is `--release`: -O3 and inlining.
+  # Until 2026-08-20 the conformance suite could not even run against one --
+  # three cases had `profile=development` written into what they expected --
+  # so the shipped build had never been through it. It passes now, and this
+  # job is what keeps that true.
+  #
+  # One host, deliberately. What the profile changes is optimization, not the
+  # platform bodies; those are what the matrix above is for, and running four
+  # jobs where one answers the question would buy nothing. If a release-only
+  # defect ever turns out to be host-specific, this is the comment that was
+  # wrong and the job that should become a matrix.
+  release-build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out adash
+        uses: actions/checkout@v4
+        with:
+          path: Ada/adash
+
+      # The pinned graph. adash pins these by relative path, and Alire honours
+      # pins only in the root crate, so every one of them has to be present --
+      # a resolve that succeeds without them was reading a cache.
+      - name: Check out sibling crates
+        run: |
+          set -eu
+          cd Ada
+
+          # Three tries each. A clone that dies halfway -- "RPC failed; curl 56
+          # Recv failure", which is a runner's network and not this repository
+          # -- failed the whole job and read like a real failure until somebody
+          # opened the log. Fourteen clones in a row is fourteen chances of
+          # that, and the answer to a transient fault is to try it again rather
+          # than to make a person do it.
+          #
+          # The partial clone goes before each retry: git will not clone into a
+          # directory that is already there, so a second attempt on top of a
+          # first would fail for a reason that has nothing to do with the
+          # network.
+          for crate in hostkit messages terminal_styles project_tools \
+                       jsonlib tomllib i18n httpclient ssllib cryptolib \
+                       truststores zlib awklib regexp tarlib; do
+            for attempt in 1 2 3; do
+              if git clone --depth 1 \
+                   "https://github.com/bracke/${crate}.git" "${crate}"; then
+                break
+              fi
+
+              if [ "${attempt}" = 3 ]; then
+                echo "could not clone ${crate} after three attempts"
+                exit 1
+              fi
+
+              echo "cloning ${crate} failed; trying again"
+              rm -rf "${crate}"
+              sleep 5
+            done
+          done
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@v4
+        with:
+          version: 2.1.0
+
+      - name: Build adash at the release profile
+        working-directory: Ada/adash
+        run: alr -n build --release
+
+      - name: Build the test crate at the release profile
+        working-directory: Ada/adash/adash_tests
+        run: alr -n build --release
+
+      # Built again, because building the test crate rebuilds its path
+      # dependency -- including the shell in bin -- at whatever profile that
+      # build chose. The suite runs `bin/adash`, so the last word on what is in
+      # `bin` has to be this one.
+      - name: Put the release shell back in bin
+        working-directory: Ada/adash
+        run: |
+          alr -n build --release
+          ./bin/adash --version
+
+      - name: Run the conformance suite against it
+        working-directory: Ada/adash/adash_tests
+        run: ./bin/adash_conformance
+
+      - name: Run the AUnit suite against it
+        working-directory: Ada/adash/adash_tests
+        run: |
+          set -eu
+
+          # The same watchdog as the matrix job's: eight cases drive the shell
+          # through a terminal, and one waiting for a byte that never comes
+          # would otherwise hold the job until the six-hour limit.
+          ./bin/adash_tests &
+          suite=$!
+          ( sleep 900; kill -9 "${suite}" 2>/dev/null || true ) &
+          watchdog=$!
+          wait "${suite}"
+          status=$?
+          kill "${watchdog}" 2>/dev/null || true
+          exit "${status}"
