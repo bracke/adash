@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 597 messages in 22 groups.
+There are 624 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -476,6 +476,42 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `config.too-large` | {path} holds more than this shell will read at once; the defaults are in force. |
 | `config.newer-schema` | {path} was written by a newer Adash (schema {detail}); unknown settings were ignored. |
 | `config.migrated` | {path} was written for schema {detail} and has been brought forward. |
+
+## TOML, as the parser under the configuration reader names it
+
+tomllib answers with a key rather than a sentence, and says in its own source
+that the sentences belong to whoever renders them. These are those sentences,
+quoted into `config.syntax`, which supplies the file and the position.
+
+| Identifier | Says |
+|---|---|
+| `toml.error.none` | nothing went wrong |
+| `toml.error.unexpected-end` | the file ended in the middle of something |
+| `toml.error.unexpected-character` | a character that cannot appear here |
+| `toml.error.expected-newline` | a newline was expected: TOML puts one key and value on a line |
+| `toml.error.expected-key` | a key was expected |
+| `toml.error.expected-equals` | an equals sign was expected after the key |
+| `toml.error.expected-value` | a value was expected after the equals sign |
+| `toml.error.unterminated-table-header` | a table header was not closed |
+| `toml.error.unterminated-string` | a string was not closed before the line ended |
+| `toml.error.unterminated-array` | an array was not closed |
+| `toml.error.unterminated-inline-table` | an inline table was not closed |
+| `toml.error.invalid-escape` | a backslash followed by something that is not an escape |
+| `toml.error.invalid-unicode-escape` | an escape whose digits are not hexadecimal, or that names no character |
+| `toml.error.invalid-encoding` | bytes that are not valid UTF-8, which a TOML file has to be |
+| `toml.error.unescaped-control-character` | a control character written where an escape is required |
+| `toml.error.invalid-number` | a number written in a form TOML does not define |
+| `toml.error.number-out-of-range` | a number too large for this host to hold |
+| `toml.error.invalid-date-time` | a date or a time that names a moment that does not exist |
+| `toml.error.invalid-literal` | a bare word that is neither true nor false |
+| `toml.error.duplicate-key` | the same key given twice in one table |
+| `toml.error.duplicate-table` | a table header repeated |
+| `toml.error.key-is-not-a-table` | a table header naming something that is already a value |
+| `toml.error.inline-table-is-closed` | an inline table added to after its brace closed |
+| `toml.error.not-an-array-of-tables` | a header naming an array of tables where there is none, or the other way about |
+| `toml.error.table-defined-by-dotted-key` | a table opened again after a dotted key had already defined it |
+| `toml.error.depth-exceeded` | nesting deeper than this shell reads |
+| `toml.error.document-too-large` | more than this shell will read at once |
 
 ## Settings — the one-line summary of each
 

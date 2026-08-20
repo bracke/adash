@@ -298,6 +298,32 @@ package body Adash.Messages.Rendering is
              (1 => Named (Fills, Item.Text (Quoted, Quoted_Arguments))));
    end Text;
 
+   ----------
+   -- Text --
+   ----------
+
+   function Text
+     (Item             : Catalog;
+      Id               : Message_Id;
+      Arguments        : Argument_List;
+      Quoted_Key       : String;
+      Fills            : String;
+      Quoted_Arguments : Argument_List := No_Arguments) return String is
+   begin
+      if Quoted_Key = "" then
+         return Item.Text (Id, Arguments);
+      end if;
+
+      --  Rendered first and passed on as an ordinary argument, exactly as the
+      --  Message_Id overload does it, so a catalog that cannot answer for one
+      --  of the two still says which one it was.
+      return Item.Text
+        (Id,
+         Arguments
+         & Argument_List'
+             (1 => Named (Fills, Item.Text (Quoted_Key, Quoted_Arguments))));
+   end Text;
+
    -----------
    -- Close --
    -----------

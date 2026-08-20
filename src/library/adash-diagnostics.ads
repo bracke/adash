@@ -129,7 +129,14 @@ package Adash.Diagnostics is
       Quoted    : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
       Fills     : String := "";
       Quoted_Arguments : Adash.Messages.Argument_List :=
-        Adash.Messages.No_Arguments)
+        Adash.Messages.No_Arguments;
+
+      --  A quoted message that is not one of Adash's own, named by catalog
+      --  key. What a library below the presentation boundary answers with:
+      --  tomllib says `toml.error.expected-key` and leaves the sentence to
+      --  whoever renders it. Fills the same placeholder Quoted does, and a
+      --  diagnostic carries one or the other rather than both.
+      Quoted_Key : String := "")
       return Diagnostic;
 
    --  Build a diagnostic from an operational failure.
@@ -247,6 +254,11 @@ package Adash.Diagnostics is
    --  @param Item Diagnostic to inspect.
    --  @return The placeholder Detail's text fills, without braces.
    function Detail_Placeholder (Item : Diagnostic) return String;
+
+   --  @param Item Diagnostic to inspect.
+   --  @return The catalog key of the quoted message, or "" when it quotes
+   --          none by key.
+   function Detail_Key (Item : Diagnostic) return String;
 
    --  The quoted message's own arguments.
    --
@@ -399,6 +411,7 @@ private
       Quote          : Ada.Strings.Unbounded.Unbounded_String;
 
       Detail         : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
+      Detail_Key     : Ada.Strings.Unbounded.Unbounded_String;
       Fills          : Adash.Messages.Placeholder_Name := [others => ' '];
       Detail_Count   : Natural range 0 .. Max_Arguments := 0;
       Detail_Args    : Argument_Storage;

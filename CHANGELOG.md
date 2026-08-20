@@ -399,6 +399,20 @@ what changed.
 
 ### Fixed
 
+- **A configuration mistake is a sentence, not a key.** The TOML parser under
+  the configuration reader answers with a catalog key -- and says so in its own
+  source, where `Identifier` is written: the identifiers are keys, and the
+  sentences belong to whoever renders them. Nobody had rendered them, so a
+  broken `config.toml` came back as `line 1, column 1: toml.error.expected-key`,
+  a machine's name for the mistake standing where a sentence about it belongs.
+  The twenty-seven sentences are in the catalog now and quoted into
+  `config.syntax`, which supplies the file and the position. A diagnostic can
+  carry a quoted message named by key as well as by `Message_Id`, which is what
+  a library below the presentation boundary can offer; the mapping from
+  tomllib's codes is written out in Adash, over an enumeration with no
+  `others`, so a code added upstream stops the build until somebody writes the
+  sentence for it.
+
 - **Numbers in diagnostics are written the way a reader writes them.**
   `Integer'Image` puts a blank where the minus sign would go, and forty-nine
   message arguments passed it straight through: `line  1, column  1`, `expects

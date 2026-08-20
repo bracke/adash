@@ -113,6 +113,32 @@ package Adash.Messages.Rendering is
       Fills            : String;
       Quoted_Arguments : Argument_List := No_Arguments) return String;
 
+   --  Render a message that embeds another named by catalog key.
+   --
+   --  The same shape as the overload above, for a quoted message that is not
+   --  one of Adash's own. A library below the presentation boundary answers
+   --  with a key -- tomllib says `toml.error.expected-key` and explains in its
+   --  own source that a consumer is expected to carry the sentence -- and a
+   --  key is not a Message_Id, so it cannot go through the overload above and
+   --  must not be printed as it stands. It went out as it stood until this
+   --  existed: `config.toml: line 1, column 1: toml.error.expected-key`.
+   --
+   --  @param Item Catalog to render from.
+   --  @param Id The outer message.
+   --  @param Arguments Its arguments, less the one filled from Quoted_Key.
+   --  @param Quoted_Key The catalog key of the message rendered into the outer
+   --         one. An empty key quotes nothing.
+   --  @param Fills The placeholder the quoted text fills, without braces.
+   --  @param Quoted_Arguments The quoted message's own arguments.
+   --  @return Rendered text, or the invariant fallback form on any failure.
+   function Text
+     (Item             : Catalog;
+      Id               : Message_Id;
+      Arguments        : Argument_List;
+      Quoted_Key       : String;
+      Fills            : String;
+      Quoted_Arguments : Argument_List := No_Arguments) return String;
+
    --  Render a message addressed by catalog key.
    --
    --  Adash's own messages go through the Message_Id overload above, which is

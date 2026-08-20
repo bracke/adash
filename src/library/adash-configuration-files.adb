@@ -112,18 +112,98 @@ package body Adash.Configuration.Files is
         Adash.Source.Make_Origin (Adash.Source.Origin_File, Origin_Name);
 
       procedure Complain
-        (Message   : Msg.Message_Id;
-         Level     : Adash.Diagnostics.Severity;
-         Arguments : Msg.Argument_List;
-         Quoted    : Msg.Message_Id := Msg.Msg_Error_None;
-         Given     : Msg.Argument_List := Msg.No_Arguments);
+        (Message    : Msg.Message_Id;
+         Level      : Adash.Diagnostics.Severity;
+         Arguments  : Msg.Argument_List;
+         Quoted     : Msg.Message_Id := Msg.Msg_Error_None;
+         Given      : Msg.Argument_List := Msg.No_Arguments;
+         Quoted_Key : String := "");
+
+      --  What tomllib called the mistake, as a sentence this repository's
+      --  catalog answers for.
+      --
+      --  tomllib says so itself, where its own `Identifier` is written: the
+      --  identifiers are catalog keys, and the sentences belong to whoever
+      --  renders them. Until this existed the key went out as it stood --
+      --  `config.toml: line 1, column 1: toml.error.expected-key` -- which is
+      --  a machine's name for the mistake standing where a sentence about it
+      --  belongs.
+      --
+      --  Written out here rather than taken from `Identifier`, for two
+      --  reasons. The spelling this shell renders is then this shell's own, so
+      --  a rename upstream cannot quietly turn every configuration complaint
+      --  into a fallback form; and the case is over tomllib's enumeration with
+      --  no `others`, so a code added there stops this compiling until somebody
+      --  writes the sentence for it.
+      function Toml_Key (Code : Tomllib.Errors.Error_Code) return String;
+
+      function Toml_Key (Code : Tomllib.Errors.Error_Code) return String is
+      begin
+         case Code is
+            when Tomllib.Errors.No_Error =>
+               return "toml.error.none";
+            when Tomllib.Errors.Unexpected_End =>
+               return "toml.error.unexpected-end";
+            when Tomllib.Errors.Unexpected_Character =>
+               return "toml.error.unexpected-character";
+            when Tomllib.Errors.Expected_Newline =>
+               return "toml.error.expected-newline";
+            when Tomllib.Errors.Expected_Key =>
+               return "toml.error.expected-key";
+            when Tomllib.Errors.Expected_Equals =>
+               return "toml.error.expected-equals";
+            when Tomllib.Errors.Expected_Value =>
+               return "toml.error.expected-value";
+            when Tomllib.Errors.Unterminated_Table_Header =>
+               return "toml.error.unterminated-table-header";
+            when Tomllib.Errors.Unterminated_String =>
+               return "toml.error.unterminated-string";
+            when Tomllib.Errors.Unterminated_Array =>
+               return "toml.error.unterminated-array";
+            when Tomllib.Errors.Unterminated_Inline_Table =>
+               return "toml.error.unterminated-inline-table";
+            when Tomllib.Errors.Invalid_Escape =>
+               return "toml.error.invalid-escape";
+            when Tomllib.Errors.Invalid_Unicode_Escape =>
+               return "toml.error.invalid-unicode-escape";
+            when Tomllib.Errors.Invalid_Encoding =>
+               return "toml.error.invalid-encoding";
+            when Tomllib.Errors.Unescaped_Control_Character =>
+               return "toml.error.unescaped-control-character";
+            when Tomllib.Errors.Invalid_Number =>
+               return "toml.error.invalid-number";
+            when Tomllib.Errors.Number_Out_Of_Range =>
+               return "toml.error.number-out-of-range";
+            when Tomllib.Errors.Invalid_Date_Time =>
+               return "toml.error.invalid-date-time";
+            when Tomllib.Errors.Invalid_Literal =>
+               return "toml.error.invalid-literal";
+            when Tomllib.Errors.Duplicate_Key =>
+               return "toml.error.duplicate-key";
+            when Tomllib.Errors.Duplicate_Table =>
+               return "toml.error.duplicate-table";
+            when Tomllib.Errors.Key_Is_Not_A_Table =>
+               return "toml.error.key-is-not-a-table";
+            when Tomllib.Errors.Inline_Table_Is_Closed =>
+               return "toml.error.inline-table-is-closed";
+            when Tomllib.Errors.Not_An_Array_Of_Tables =>
+               return "toml.error.not-an-array-of-tables";
+            when Tomllib.Errors.Table_Defined_By_Dotted_Key =>
+               return "toml.error.table-defined-by-dotted-key";
+            when Tomllib.Errors.Depth_Exceeded =>
+               return "toml.error.depth-exceeded";
+            when Tomllib.Errors.Document_Too_Large =>
+               return "toml.error.document-too-large";
+         end case;
+      end Toml_Key;
 
       procedure Complain
-        (Message   : Msg.Message_Id;
-         Level     : Adash.Diagnostics.Severity;
-         Arguments : Msg.Argument_List;
-         Quoted    : Msg.Message_Id := Msg.Msg_Error_None;
-         Given     : Msg.Argument_List := Msg.No_Arguments)
+        (Message    : Msg.Message_Id;
+         Level      : Adash.Diagnostics.Severity;
+         Arguments  : Msg.Argument_List;
+         Quoted     : Msg.Message_Id := Msg.Msg_Error_None;
+         Given      : Msg.Argument_List := Msg.No_Arguments;
+         Quoted_Key : String := "")
       is
       begin
          Report.Emit
@@ -136,7 +216,8 @@ package body Adash.Configuration.Files is
                Arguments => Arguments,
                Quoted    => Quoted,
                Fills     => "detail",
-               Quoted_Arguments => Given));
+               Quoted_Arguments => Given,
+               Quoted_Key       => Quoted_Key));
       end Complain;
 
    begin
@@ -156,7 +237,8 @@ package body Adash.Configuration.Files is
             [Msg.Named ("path", Origin_Name),
              Msg.Named ("line", Long_Long_Integer (Error.At_Position.Line)),
              Msg.Named ("column", Long_Long_Integer (Error.At_Position.Column)),
-             Msg.Named ("detail", Tomllib.Errors.Identifier (Error.Code))]);
+             Msg.Named ("detail", "")],
+            Quoted_Key => Toml_Key (Error.Code));
          return;
       end if;
 

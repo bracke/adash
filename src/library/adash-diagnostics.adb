@@ -57,7 +57,8 @@ package body Adash.Diagnostics is
       Quoted    : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
       Fills     : String := "";
       Quoted_Arguments : Adash.Messages.Argument_List :=
-        Adash.Messages.No_Arguments)
+        Adash.Messages.No_Arguments;
+      Quoted_Key : String := "")
       return Diagnostic
    is
       Result : Diagnostic;
@@ -81,8 +82,10 @@ package body Adash.Diagnostics is
          Result.Arguments (Index) := Arguments (Arguments'First + Index - 1);
       end loop;
 
-      Result.Detail := Quoted;
-      Result.Fills  := Adash.Messages.To_Placeholder (Fills);
+      Result.Detail     := Quoted;
+      Result.Detail_Key :=
+        Ada.Strings.Unbounded.To_Unbounded_String (Quoted_Key);
+      Result.Fills      := Adash.Messages.To_Placeholder (Fills);
       Result.Detail_Count :=
         Natural'Min (Quoted_Arguments'Length, Max_Arguments);
 
@@ -218,6 +221,13 @@ package body Adash.Diagnostics is
    begin
       return Item.Detail;
    end Detail;
+
+   ----------------
+   -- Detail_Key --
+   ----------------
+
+   function Detail_Key (Item : Diagnostic) return String
+   is (Ada.Strings.Unbounded.To_String (Item.Detail_Key));
 
    -------------------------
    -- Detail_Placeholder --

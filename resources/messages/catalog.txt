@@ -369,6 +369,40 @@ en.config.too-large = {path} holds more than this shell will read at once; the d
 en.config.newer-schema = {path} was written by a newer Adash (schema {detail}); unknown settings were ignored.
 en.config.migrated = {path} was written for schema {detail} and has been brought forward.
 
+# -- TOML, as the parser under the configuration reader names it ---------------
+#
+#  tomllib answers with a key rather than a sentence, and says in its own source
+#  that the sentences belong to whoever renders them. These are those sentences.
+#  They are quoted into config.syntax, which supplies the file and the position.
+
+en.toml.error.none = nothing went wrong
+en.toml.error.unexpected-end = the file ended in the middle of something
+en.toml.error.unexpected-character = a character that cannot appear here
+en.toml.error.expected-newline = a newline was expected: TOML puts one key and value on a line
+en.toml.error.expected-key = a key was expected
+en.toml.error.expected-equals = an equals sign was expected after the key
+en.toml.error.expected-value = a value was expected after the equals sign
+en.toml.error.unterminated-table-header = a table header was not closed
+en.toml.error.unterminated-string = a string was not closed before the line ended
+en.toml.error.unterminated-array = an array was not closed
+en.toml.error.unterminated-inline-table = an inline table was not closed
+en.toml.error.invalid-escape = a backslash followed by something that is not an escape
+en.toml.error.invalid-unicode-escape = an escape whose digits are not hexadecimal, or that names no character
+en.toml.error.invalid-encoding = bytes that are not valid UTF-8, which a TOML file has to be
+en.toml.error.unescaped-control-character = a control character written where an escape is required
+en.toml.error.invalid-number = a number written in a form TOML does not define
+en.toml.error.number-out-of-range = a number too large for this host to hold
+en.toml.error.invalid-date-time = a date or a time that names a moment that does not exist
+en.toml.error.invalid-literal = a bare word that is neither true nor false
+en.toml.error.duplicate-key = the same key given twice in one table
+en.toml.error.duplicate-table = a table header repeated
+en.toml.error.key-is-not-a-table = a table header naming something that is already a value
+en.toml.error.inline-table-is-closed = an inline table added to after its brace closed
+en.toml.error.not-an-array-of-tables = a header naming an array of tables where there is none, or the other way about
+en.toml.error.table-defined-by-dotted-key = a table opened again after a dotted key had already defined it
+en.toml.error.depth-exceeded = nesting deeper than this shell reads
+en.toml.error.document-too-large = more than this shell will read at once
+
 # -- History ------------------------------------------------------------------
 
 en.history.unreadable = {path} could not be read; this session starts with no history.

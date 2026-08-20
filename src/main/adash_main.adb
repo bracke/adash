@@ -234,11 +234,23 @@ procedure Adash_Main is
                      when Adash.Diagnostics.Severity_Warning => Adash.Terminal.Role_Warning,
                      when others                             => Adash.Terminal.Role_Error);
                Said : constant String :=
-                 Catalog.Text (Adash.Diagnostics.Message (Item),
-                               Adash.Diagnostics.Arguments (Item),
-                               Adash.Diagnostics.Detail (Item),
-                               Adash.Diagnostics.Detail_Placeholder (Item),
-                               Adash.Diagnostics.Detail_Arguments (Item));
+                 (if Adash.Diagnostics.Detail_Key (Item) = ""
+                  then Catalog.Text
+                         (Adash.Diagnostics.Message (Item),
+                          Adash.Diagnostics.Arguments (Item),
+                          Adash.Diagnostics.Detail (Item),
+                          Adash.Diagnostics.Detail_Placeholder (Item),
+                          Adash.Diagnostics.Detail_Arguments (Item))
+
+                  --  A quoted message that is not one of Adash's own, named
+                  --  by key because the library that answered with it is
+                  --  below the boundary that renders.
+                  else Catalog.Text
+                         (Adash.Diagnostics.Message (Item),
+                          Adash.Diagnostics.Arguments (Item),
+                          Adash.Diagnostics.Detail_Key (Item),
+                          Adash.Diagnostics.Detail_Placeholder (Item),
+                          Adash.Diagnostics.Detail_Arguments (Item)));
 
                --  Where to find it, in front of what it says -- but only for a
                --  file. A line typed at a prompt is on the screen already, and
