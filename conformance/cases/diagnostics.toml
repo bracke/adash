@@ -74,7 +74,7 @@ quit (0);"""
 exit_status = 0
 output = []
 diagnostics = [
-  "!error.wrong_argument_count{name=Env_Value,expected= 1,found= 0}!",
+  "!error.wrong_argument_count{name=Env_Value,expected=1,found=0}!",
 ]
 
 [[case]]
@@ -184,7 +184,7 @@ known before the program runs is checked before it runs.
 script = "type Big is array (1 .. 5000) of Integer;\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.array_too_long{name=Big,limit= 4096}!",
+  "!error.array_too_long{name=Big,limit=4096}!",
 ]
 
 [[case]]
@@ -250,7 +250,7 @@ under the complaint, innermost first, up to the four a diagnostic carries.
 arguments = ["{root}/conformance/fixtures/modules/ambiguous.adash"]
 exit_status = 2
 diagnostics = [
-  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/ambiguous.adash,line=9,column=11,text=!error.ambiguous_call{name=F,count= 2}!}!",
+  "!line.diagnostic_at{path={root}/conformance/fixtures/modules/ambiguous.adash,line=9,column=11,text=!error.ambiguous_call{name=F,count=2}!}!",
   "put_line (F'Image);",
   "          ^",
   "!line.diagnostic_at{path={root}/conformance/fixtures/modules/ambiguous.adash,line=7,column=10,text=!note.declared_here!}!",

@@ -394,7 +394,7 @@ id = "types.an-aggregate-fills-every-component"
 requirement = "One value per component, no more and no fewer. A record half-filled would leave slots holding whatever the frame held before."
 script = "type Line is record Number : Integer; Text : String; end record; L : Line := (1, \"x\", 2); quit (0);"
 exit_status = 0
-diagnostics = ["!error.aggregate_wrong_count{name=Line,expected= 2,found= 3}!"]
+diagnostics = ["!error.aggregate_wrong_count{name=Line,expected=2,found=3}!"]
 
 [[case]]
 id = "limits.a-list-counted-by-another-name-is-refused-too"
@@ -414,11 +414,11 @@ script = "X : Integer := 1; case X is when 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 1
 exit_status = 0
 diagnostics = [
   "!error.syntax.unexpected{found=65,expected==>}!",
-  "!error.too_many_at_once{limit= 64,what=!list.choices!}!",
+  "!error.too_many_at_once{limit=64,what=!list.choices!}!",
   "!error.syntax.unexpected{found=when,expected=end}!",
-  "!error.too_many_at_once{limit= 64,what=!list.handlers!}!",
+  "!error.too_many_at_once{limit=64,what=!list.handlers!}!",
   "!error.syntax.unexpected{found=N17,expected=:}!",
-  "!error.too_many_at_once{limit= 16,what=!list.names!}!",
+  "!error.too_many_at_once{limit=16,what=!list.names!}!",
   "!error.syntax.unexpected{found=begin,expected=is}!",
 ]
 
@@ -446,8 +446,8 @@ script = "type Wide is record F1 : Integer; F2 : Integer; F3 : Integer; F4 : Int
 exit_status = 0
 diagnostics = [
   "!error.syntax.unexpected{found=F65,expected=end}!",
-  "!error.too_many_at_once{limit= 64,what=!list.components!}!",
-  "!error.too_many_parameters{name=Many,limit= 16}!",
+  "!error.too_many_at_once{limit=64,what=!list.components!}!",
+  "!error.too_many_parameters{name=Many,limit=16}!",
 ]
 
 [[case]]
@@ -610,7 +610,7 @@ script = "type Row is array (1 .. 6) of Integer; A : Row := (1, 2, 3, 4, 5, 6); 
 exit_status = 0
 output = [" 2"]
 diagnostics = [
-  "!error.no_such_slice{name=Row (2 .. 4),first= 1,last= 4}!",
+  "!error.no_such_slice{name=Row (2 .. 4),first=1,last=4}!",
   "!error.program_raised_detail{exception=Index_Error,detail=!error.machine.outside_array{position=5,type=Line (2 .. 3)}!}!",
 ]
 
@@ -673,9 +673,9 @@ refusal an array's own bound gets, and says so in the same words.
 script = "type Row is array (1 .. 4) of Integer; A : Row := (1, 2, 3, 4); B : Row := (5, 6, 7, 8); I : Integer := 2; A (0 .. 2) := B (1 .. 3); A (3 .. 2) := B (3 .. 2); A (I .. I + 1) := B (1 .. 2);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.no_such_slice{name=Row,first= 0,last= 2}!",
-  "!error.no_such_slice{name=Row,first= 3,last= 2}!",
-  "!error.no_such_slice{name=Row,first= 3,last= 2}!",
+  "!error.no_such_slice{name=Row,first=0,last=2}!",
+  "!error.no_such_slice{name=Row,first=3,last=2}!",
+  "!error.no_such_slice{name=Row,first=3,last=2}!",
   "!error.array_bound_not_static!",
 ]
 
@@ -785,9 +785,9 @@ read.
 script = "type Counts is array (1 .. 3) of Integer; X : Counts := (1 => 7, 3 => 9);\ntype C2 is array (1 .. 3) of Integer; Y : C2 := (1 => 7, 1 => 8, 3 => 9);\ntype C3 is array (1 .. 3) of Integer; Z : C3 := (1 => 7, 2 => 8, 3 => 9, 4 => 10);\ntype C4 is array (1 .. 3) of Integer; W : C4 := (1 => 1, 2 => 2, 3 => 3, others => 0);\ntype C5 is array (1 .. 3) of Integer; V : C5 := (others => 0, 1 => 1);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.aggregate_wrong_count{name=Counts,expected= 3,found= 2}!",
-  "!error.part_given_twice{name= 1}!",
-  "!error.no_such_component{name= 4,found=C3}!",
+  "!error.aggregate_wrong_count{name=Counts,expected=3,found=2}!",
+  "!error.part_given_twice{name=1}!",
+  "!error.no_such_component{name=4,found=C3}!",
   "!error.aggregate.others_covers_nothing!",
   "!error.case.others_not_last!",
 ]
@@ -837,7 +837,7 @@ there are.
 """
 script = "type Row is array (1 .. 3) of Integer; procedure Take (V : Row) is begin put_line (V (1)'Image); end Take;\nTake ((1, 2));\nquit (0);"
 exit_status = 0
-diagnostics = ["!error.aggregate_wrong_count{name=Row,expected= 3,found= 2}!"]
+diagnostics = ["!error.aggregate_wrong_count{name=Row,expected=3,found=2}!"]
 
 [[case]]
 id = "types.an-array-type-is-written-where-a-type-mark-stands"

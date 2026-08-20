@@ -259,7 +259,7 @@ package body Adash.Language.Parser is
                Extent    => Here,
                Arguments =>
                  [1 => Adash.Messages.Named
-                         ("limit", Natural'Image (Limit))],
+                         ("limit", Long_Long_Integer (Limit))],
                Quoted    => What,
                Fills     => "what"));
 

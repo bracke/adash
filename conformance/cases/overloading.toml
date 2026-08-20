@@ -69,7 +69,7 @@ requirement = "Arguments that fit none of the declarations say so, and say how m
 script = "procedure P (A : Integer) is begin null; end P; procedure P (A : String) is begin null; end P; P (1.5);"
 exit_status = 0
 output = []
-diagnostics = ["!error.no_matching_subprogram{name=P,count= 2}!"]
+diagnostics = ["!error.no_matching_subprogram{name=P,count=2}!"]
 
 [[case]]
 id = "over.shell-names-are-reserved"
@@ -114,7 +114,7 @@ candidates fit. Reported rather than resolved to whichever came last.
 script = "function F return Integer is begin return 1; end F; function F return String is begin return \"s\"; end F; put_line (F);"
 exit_status = 0
 output = []
-diagnostics = ["!error.ambiguous_call{name=F,count= 2}!"]
+diagnostics = ["!error.ambiguous_call{name=F,count=2}!"]
 
 [[case]]
 id = "over.comparison-settles-it"
@@ -138,8 +138,8 @@ script = "function F return Integer is begin return 1; end F; function F return 
 exit_status = 0
 output = []
 diagnostics = [
-  "!error.ambiguous_call{name=F,count= 2}!",
-  "!error.ambiguous_call{name=F,count= 2}!",
+  "!error.ambiguous_call{name=F,count=2}!",
+  "!error.ambiguous_call{name=F,count=2}!",
 ]
 
 [[case]]
@@ -173,7 +173,7 @@ call that fits too many declarations.
 """
 script = "type Warm is (Red, Amber); type Signal is (Red, Green); put_line (Red'Image);\nquit (0);"
 exit_status = 0
-diagnostics = ["!error.ambiguous_literal{name=Red,count= 2}!"]
+diagnostics = ["!error.ambiguous_literal{name=Red,count=2}!"]
 
 [[case]]
 id = "overloading.but-one-type-still-names-a-value-once"
@@ -227,8 +227,8 @@ answer too: both readings exist and nothing chooses between them.
 script = "type Warm is (Red, Amber); type Signal is (Red, Green); if Red = Red then put_line (\"never\"); end if;\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.ambiguous_literal{name=Red,count= 2}!",
-  "!error.ambiguous_literal{name=Red,count= 2}!",
+  "!error.ambiguous_literal{name=Red,count=2}!",
+  "!error.ambiguous_literal{name=Red,count=2}!",
 ]
 
 [[case]]
@@ -286,8 +286,8 @@ neither does the operator between them.
 script = "function F return Integer is begin return 1; end F; function F return Float is begin return 2.0; end F; function G return Integer is begin return 9; end G; function G return Float is begin return 1.0; end G; if F = G then put_line (\"never\"); end if;\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.ambiguous_call{name=F,count= 2}!",
-  "!error.ambiguous_call{name=G,count= 2}!",
+  "!error.ambiguous_call{name=F,count=2}!",
+  "!error.ambiguous_call{name=G,count=2}!",
 ]
 
 [[case]]
@@ -334,7 +334,7 @@ what is reported is the argument.
 script = "function Make return Integer is begin return 7; end Make; function Make return String is begin return \"seven\"; end Make; function Show (V : Integer) return Integer is begin return V; end Show; function Show (V : String) return String is begin return V; end Show;\nput_line (Show (Make)'Image);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.ambiguous_call{name=Make,count= 2}!",
+  "!error.ambiguous_call{name=Make,count=2}!",
 ]
 
 [[case]]
@@ -381,8 +381,8 @@ only where the consequence showed up.
 script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F; procedure P (A : Integer; B : Integer) is begin put_line (\"i\"); end P; procedure P (A : String; B : String) is begin put_line (\"s\"); end P;\nP (F, F);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.ambiguous_call{name=F,count= 2}!",
-  "!error.ambiguous_call{name=F,count= 2}!",
+  "!error.ambiguous_call{name=F,count=2}!",
+  "!error.ambiguous_call{name=F,count=2}!",
 ]
 
 [[case]]
@@ -425,8 +425,8 @@ could answer and no context requires anything of the whole.
 script = "function F return Integer is begin return 7; end F; function F return String is begin return \"s\"; end F; function G return Float is begin return 1.5; end G; function G return String is begin return \"g\"; end G;\nput_line (F & G);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.ambiguous_call{name=F,count= 2}!",
-  "!error.ambiguous_call{name=G,count= 2}!",
+  "!error.ambiguous_call{name=F,count=2}!",
+  "!error.ambiguous_call{name=G,count=2}!",
 ]
 
 [[case]]
@@ -489,6 +489,6 @@ script = "function A return Integer is begin return 1; end A;\nfunction A return
 exit_status = 0
 output = []
 diagnostics = [
-  "!error.ambiguous_call{name=A,count= 2}!",
-  "!error.ambiguous_call{name=A,count= 2}!",
+  "!error.ambiguous_call{name=A,count=2}!",
+  "!error.ambiguous_call{name=A,count=2}!",
 ]

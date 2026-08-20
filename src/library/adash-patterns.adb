@@ -133,7 +133,6 @@ package body Adash.Patterns is
       return False;
    end Holds_A_Pattern;
 
-
    --------------------------
    -- Holds_A_Brace_Group --
    --------------------------

@@ -123,7 +123,7 @@ id = "generics.the-actuals-must-match-the-formals"
 requirement = "One type per formal. A generic instantiated with too few has a name in its body that nothing binds."
 script = "generic type Element is private; procedure P (X : Element); procedure P (X : Element) is begin null; end P; procedure Q is new P; quit (0);"
 exit_status = 0
-diagnostics = ["!error.generic_wrong_actuals{name=P,expected= 1,found= 0}!"]
+diagnostics = ["!error.generic_wrong_actuals{name=P,expected=1,found=0}!"]
 
 [[case]]
 id = "generics.only-a-generic-can-be-instantiated"

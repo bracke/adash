@@ -118,7 +118,7 @@ requirement = "A call with the wrong number of arguments is reported, not run."
 script = "procedure P (N : Integer) is begin put_line (N); end P; P;"
 exit_status = 0
 output = []
-diagnostics = ["!error.wrong_argument_count{name=P,expected= 1,found= 0}!"]
+diagnostics = ["!error.wrong_argument_count{name=P,expected=1,found=0}!"]
 
 [[case]]
 id = "sub.nested-declaration"
@@ -226,7 +226,7 @@ requirement = "An expression passed where the body writes back has nowhere for t
 script = "procedure P (N : out Integer) is begin N := 1; end P; P (1 + 2);"
 exit_status = 0
 output = []
-diagnostics = ["!error.actual_not_variable{position= 1,mode=out}!"]
+diagnostics = ["!error.actual_not_variable{position=1,mode=out}!"]
 
 [[case]]
 id = "sub.declaration-survives-a-line"
@@ -532,7 +532,7 @@ id = "params.a-call-with-no-parentheses-still-needs-what-has-no-default"
 requirement = "Leaving out a parameter with no default is a wrong call however it is written, and the count is what there is to say about a call with nothing in it."
 script = "procedure Note (Text : String) is begin put_line (Text); end Note; Note; quit (0);"
 exit_status = 0
-diagnostics = ["!error.wrong_argument_count{name=Note,expected= 1,found= 0}!"]
+diagnostics = ["!error.wrong_argument_count{name=Note,expected=1,found=0}!"]
 
 [[case]]
 id = "exceptions.a-program-may-declare-and-raise-its-own"

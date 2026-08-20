@@ -1586,6 +1586,22 @@ package body Adash.Messages is
               Value => US.To_Unbounded_String (Value));
    end Named;
 
+   -----------
+   -- Named --
+   -----------
+
+   function Named (Name : String; Value : Long_Long_Integer) return Argument is
+      Image : constant String := Long_Long_Integer'Image (Value);
+   begin
+      --  The blank Ada leaves where a minus sign would go, and nothing else: a
+      --  negative number keeps its sign.
+      return Named
+        (Name,
+         (if Image (Image'First) = ' '
+          then Image (Image'First + 1 .. Image'Last)
+          else Image));
+   end Named;
+
    ----------
    -- Name --
    ----------

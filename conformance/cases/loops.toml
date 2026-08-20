@@ -491,7 +491,7 @@ script = "type C is array (1 .. 4) of Integer; F : C := (1 .. 2 => 7, others => 
 exit_status = 0
 output = ["run: 7 7 0", "whole: 5 5"]
 diagnostics = [
-  "!error.part_given_twice{name= 2}!",
-  "!error.part_given_twice{name= 3}!",
-  "!error.no_such_component{name= 5,found=K}!",
+  "!error.part_given_twice{name=2}!",
+  "!error.part_given_twice{name=3}!",
+  "!error.no_such_component{name=5,found=K}!",
 ]

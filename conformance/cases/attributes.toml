@@ -149,7 +149,7 @@ script = "N : Integer := Integer'Value; quit (0);"
 exit_status = 0
 output = []
 diagnostics = [
-  "!error.wrong_argument_count{name=Value,expected= 1,found= 0}!",
+  "!error.wrong_argument_count{name=Value,expected=1,found=0}!",
 ]
 
 [[case]]

@@ -684,6 +684,19 @@ package Adash.Messages is
    --  @return Argument ready to pass to Adash.Messages.Rendering.
    function Named (Name : String; Value : String) return Argument;
 
+   --  Build a named argument whose value is a number.
+   --
+   --  Ada's `Integer'Image` puts a blank where the minus sign would go, and a
+   --  caller that passed it straight through wrote it into the sentence: `line
+   --  1, column  1`, `expects  2 and was given  3`. Every message that
+   --  carries a number went through the same two lines of trimming, or forgot
+   --  to. This is those two lines, once, so that a call site cannot forget.
+   --
+   --  @param Name Placeholder name, without braces, as the catalog spells it.
+   --  @param Value The number, written as a reader writes one.
+   --  @return Argument ready to pass to Adash.Messages.Rendering.
+   function Named (Name : String; Value : Long_Long_Integer) return Argument;
+
    --  The placeholder name of an argument.
    --
    --  @param Item Argument to inspect.

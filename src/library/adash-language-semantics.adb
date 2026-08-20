@@ -1543,14 +1543,20 @@ package body Adash.Language.Semantics is
       -------------
 
       function Accepts (About : Signature) return String is
+         --  Written as a reader writes a number, which is what
+         --  `Messages.Named` does for a number given to it directly. This one
+         --  is a phrase rather than a number -- `1 .. 4`, `2 or more` -- so it
+         --  is built here, and it has to trim the same blank.
+         function Count (Value : Natural) return String
+         is (Ada.Strings.Fixed.Trim
+               (Natural'Image (Value), Ada.Strings.Both));
       begin
          if About.Minimum = About.Maximum then
-            return Natural'Image (About.Minimum);
+            return Count (About.Minimum);
          elsif About.Maximum = Natural'Last then
-            return Natural'Image (About.Minimum) & " or more";
+            return Count (About.Minimum) & " or more";
          else
-            return Natural'Image (About.Minimum) & " .."
-                   & Natural'Image (About.Maximum);
+            return Count (About.Minimum) & " .. " & Count (About.Maximum);
          end if;
       end Accepts;
 
@@ -2713,7 +2719,7 @@ package body Adash.Language.Semantics is
                                 (Adash.Errors.Error_Ambiguous_Literal, Node,
                                  [Adash.Messages.Named ("name", Name),
                                   Adash.Messages.Named
-                                    ("count", Natural'Image (Named))],
+                                    ("count", Long_Long_Integer (Named))],
                                  Visible_Name (Name));
                               Note (Node, Types.Type_None);
                               return Types.Type_None;
@@ -2771,8 +2777,7 @@ package body Adash.Language.Semantics is
                               [Adash.Messages.Named ("name", Name),
                                Adash.Messages.Named
                                  ("count",
-                                  Natural'Image (if Fitting = 0 then Offered
-                                                 else Fitting))],
+                                  Long_Long_Integer (if Fitting = 0 then Offered else Fitting))],
                               Visible_Name (Name));
                            Note (Node, Types.Type_None);
                            return Types.Type_None;
@@ -2797,7 +2802,7 @@ package body Adash.Language.Semantics is
                                   Adash.Messages.Named
                                     ("expected", Accepts (About)),
                                   Adash.Messages.Named
-                                    ("found", Natural'Image (0))]);
+                                    ("found", 0)]);
                               Note (Node, Types.Type_None);
                               return Types.Type_None;
                            end if;
@@ -3063,9 +3068,9 @@ package body Adash.Language.Semantics is
                            [Adash.Messages.Named
                               ("name", Types.Name (Expected)),
                             Adash.Messages.Named
-                              ("expected", Natural'Image (Wanted)),
+                              ("expected", Long_Long_Integer (Wanted)),
                             Adash.Messages.Named
-                              ("found", Natural'Image (Given))]);
+                              ("found", Long_Long_Integer (Given))]);
                         Note (Node, Types.Type_None);
                         return Types.Type_None;
                      end if;
@@ -3191,9 +3196,8 @@ package body Adash.Language.Semantics is
                                              One,
                                              [Adash.Messages.Named
                                                 ("name",
-                                                 Long_Long_Integer'Image
-                                                   (if Low < Base then Low
-                                                    else High)),
+                                                 (if Low < Base
+                                                  then Low else High)),
                                               Adash.Messages.Named
                                                 ("found",
                                                  Types.Name (Expected))]);
@@ -3212,8 +3216,7 @@ package body Adash.Language.Semantics is
                                                       One,
                                                       [1 => Adash.Messages.Named
                                                               ("name",
-                                                               Long_Long_Integer'Image
-                                                                 (Each))],
+                                                               Each)],
                                                       Also      => Filled (Here),
                                                       Also_Says =>
                                                         Adash.Messages
@@ -3275,9 +3278,7 @@ package body Adash.Language.Semantics is
                                     Complain
                                       (Adash.Errors.Error_No_Such_Component,
                                        One,
-                                       [Adash.Messages.Named
-                                          ("name",
-                                           Long_Long_Integer'Image (Where)),
+                                       [Adash.Messages.Named ("name", Where),
                                         Adash.Messages.Named
                                           ("found", Types.Name (Expected))]);
                                     Sound := False;
@@ -3291,9 +3292,7 @@ package body Adash.Language.Semantics is
                                        Complain
                                          (Adash.Errors.Error_Part_Given_Twice,
                                           One,
-                                          [1 => Adash.Messages.Named
-                                                  ("name",
-                                                   Long_Long_Integer'Image (Where))],
+                                          [1 => Adash.Messages.Named ("name", Where)],
                                           Also      => Filled (Slot),
                                           Also_Says =>
                                             Adash.Messages.Msg_Note_First_Here);
@@ -3428,9 +3427,9 @@ package body Adash.Language.Semantics is
                                  [Adash.Messages.Named
                                     ("name", Types.Name (Expected)),
                                   Adash.Messages.Named
-                                    ("expected", Natural'Image (Wanted)),
+                                    ("expected", Long_Long_Integer (Wanted)),
                                   Adash.Messages.Named
-                                    ("found", Natural'Image (Covered))]);
+                                    ("found", Long_Long_Integer (Covered))]);
                            end if;
                         end;
                      end if;
@@ -3916,9 +3915,9 @@ package body Adash.Language.Semantics is
                                  [Adash.Messages.Named
                                     ("name", Types.Name (Of_Array)),
                                   Adash.Messages.Named
-                                    ("first", Long_Long_Integer'Image (Low)),
+                                    ("first", Low),
                                   Adash.Messages.Named
-                                    ("last", Long_Long_Integer'Image (High))]);
+                                    ("last", High)]);
                               Note (Node, Types.Type_None);
                               return Types.Type_None;
                            end if;
@@ -3962,9 +3961,9 @@ package body Adash.Language.Semantics is
                           (Adash.Errors.Error_Wrong_Argument_Count, Node,
                            [Adash.Messages.Named ("name", Name),
                             Adash.Messages.Named
-                              ("expected", Natural'Image (1)),
+                              ("expected", 1),
                             Adash.Messages.Named
-                              ("found", Natural'Image (Given))]);
+                              ("found", Long_Long_Integer (Given))]);
                         Note (Node, Types.Type_None);
                         return Types.Type_None;
                      end if;
@@ -4617,9 +4616,9 @@ package body Adash.Language.Semantics is
                               [Adash.Messages.Named
                                  ("name", S.Text (Tree, Attribute)),
                                Adash.Messages.Named
-                                 ("expected", Natural'Image (1)),
+                                 ("expected", 1),
                                Adash.Messages.Named
-                                 ("found", Natural'Image (Given))]);
+                                 ("found", Long_Long_Integer (Given))]);
                            Note (Node, Types.Type_None);
                            return Types.Type_None;
                         end if;
@@ -4921,8 +4920,7 @@ package body Adash.Language.Semantics is
                            [Adash.Messages.Named ("name", Name),
                             Adash.Messages.Named
                               ("count",
-                               Natural'Image (if Fitting = 0 then Offered
-                                              else Fitting))],
+                               Long_Long_Integer (if Fitting = 0 then Offered else Fitting))],
                            Visible_Name (Name));
                      end if;
 
@@ -4987,7 +4985,7 @@ package body Adash.Language.Semantics is
                         [Adash.Messages.Named ("name", Name),
                          Adash.Messages.Named ("expected", " 1"),
                          Adash.Messages.Named
-                           ("found", Natural'Image (Given))]);
+                           ("found", Long_Long_Integer (Given))]);
                      Note (Node, Types.Type_None);
                      return Types.Type_None;
                   end if;
@@ -5023,7 +5021,7 @@ package body Adash.Language.Semantics is
                                  [Adash.Messages.Named ("name", Name),
                                   Adash.Messages.Named ("expected", Expected),
                                   Adash.Messages.Named
-                                    ("found", Natural'Image (Given))]);
+                                    ("found", Long_Long_Integer (Given))]);
                            end if;
 
                            --  Where each parameter's value comes from. A call
@@ -5240,7 +5238,7 @@ package body Adash.Language.Semantics is
                                          (Adash.Errors.Error_Actual_Not_Variable,
                                           Given_Node,
                                           [Adash.Messages.Named
-                                             ("position", Natural'Image (Index)),
+                                             ("position", Long_Long_Integer (Index)),
                                            Adash.Messages.Named
                                              ("mode",
                                               (if Passed = Symbols.Mode_Out
@@ -5525,9 +5523,9 @@ package body Adash.Language.Semantics is
                           (Adash.Errors.Error_Wrong_Argument_Count, Node,
                            [Adash.Messages.Named ("name", Name),
                             Adash.Messages.Named
-                              ("expected", Natural'Image (1)),
+                              ("expected", 1),
                             Adash.Messages.Named
-                              ("found", Natural'Image (0))]);
+                              ("found", 0)]);
                      else
                         Complain
                           (Adash.Errors.Error_Attribute_Not_Defined, Attribute,
@@ -5875,9 +5873,9 @@ package body Adash.Language.Semantics is
                           (Adash.Errors.Error_Generic_Wrong_Actuals, Node,
                            [Adash.Messages.Named ("name", Source),
                             Adash.Messages.Named
-                              ("expected", Natural'Image (Wanted)),
+                              ("expected", Long_Long_Integer (Wanted)),
                             Adash.Messages.Named
-                              ("found", Natural'Image (Offered))]);
+                              ("found", Long_Long_Integer (Offered))]);
                         Note (Node, Types.Type_None);
                         return;
                      end if;
@@ -6062,11 +6060,10 @@ package body Adash.Language.Semantics is
                              (Adash.Errors.Error_Wrong_Argument_Count, Node,
                               [Adash.Messages.Named ("name", Name),
                                Adash.Messages.Named
-                                 ("expected", Natural'Image (1)),
+                                 ("expected", 1),
                                Adash.Messages.Named
                                  ("found",
-                                  Natural'Image
-                                    (S.Child_Count (Tree, Given)))]);
+                                  Long_Long_Integer (S.Child_Count (Tree, Given)))]);
 
                         elsif not Named
                           or else Symbols.Fold (Asked)
@@ -6120,11 +6117,10 @@ package body Adash.Language.Semantics is
                              (Adash.Errors.Error_Wrong_Argument_Count, Node,
                               [Adash.Messages.Named ("name", Name),
                                Adash.Messages.Named
-                                 ("expected", Natural'Image (1)),
+                                 ("expected", 1),
                                Adash.Messages.Named
                                  ("found",
-                                  Natural'Image
-                                    (S.Child_Count (Tree, Given)))]);
+                                  Long_Long_Integer (S.Child_Count (Tree, Given)))]);
 
                         elsif Symbols.Fold (Name) = "locking_policy" then
                            if not Named
@@ -6184,11 +6180,10 @@ package body Adash.Language.Semantics is
                              (Adash.Errors.Error_Wrong_Argument_Count, Node,
                               [Adash.Messages.Named ("name", Name),
                                Adash.Messages.Named
-                                 ("expected", Natural'Image (1)),
+                                 ("expected", 1),
                                Adash.Messages.Named
                                  ("found",
-                                  Natural'Image
-                                    (S.Child_Count (Tree, Given)))]);
+                                  Long_Long_Integer (S.Child_Count (Tree, Given)))]);
 
                         elsif not Named
                           or else Symbols.Fold (Asked)
@@ -6250,11 +6245,10 @@ package body Adash.Language.Semantics is
                              (Adash.Errors.Error_Wrong_Argument_Count, Node,
                               [Adash.Messages.Named ("name", Name),
                                Adash.Messages.Named
-                                 ("expected", Natural'Image (3)),
+                                 ("expected", 3),
                                Adash.Messages.Named
                                  ("found",
-                                  Natural'Image
-                                    (S.Child_Count (Tree, Given)))]);
+                                  Long_Long_Integer (S.Child_Count (Tree, Given)))]);
 
                         elsif not Named
                           or else Symbols.Fold (Asked)
@@ -6294,9 +6288,9 @@ package body Adash.Language.Semantics is
                            Complain
                              (Adash.Errors.Error_Empty_Priority_Range, Node,
                               [Adash.Messages.Named
-                                 ("first", Long_Long_Integer'Image (First)),
+                                 ("first", First),
                                Adash.Messages.Named
-                                 ("last", Long_Long_Integer'Image (Last))]);
+                                 ("last", Last)]);
 
                         else
                            Give_Dispatching
@@ -6356,10 +6350,10 @@ package body Adash.Language.Semantics is
                           (Adash.Errors.Error_Wrong_Argument_Count, Node,
                            [Adash.Messages.Named ("name", Name),
                             Adash.Messages.Named
-                              ("expected", Natural'Image (0)),
+                              ("expected", 0),
                             Adash.Messages.Named
                               ("found",
-                               Natural'Image (S.Child_Count (Tree, Given)))]);
+                               Long_Long_Integer (S.Child_Count (Tree, Given)))]);
                      end if;
 
                   elsif S.Child_Count (Tree, Given) /= 1 then
@@ -6367,10 +6361,10 @@ package body Adash.Language.Semantics is
                        (Adash.Errors.Error_Wrong_Argument_Count, Node,
                         [Adash.Messages.Named ("name", Name),
                          Adash.Messages.Named
-                           ("expected", Natural'Image (1)),
+                           ("expected", 1),
                          Adash.Messages.Named
                            ("found",
-                            Natural'Image (S.Child_Count (Tree, Given)))]);
+                            Long_Long_Integer (S.Child_Count (Tree, Given)))]);
 
                   else
                      declare
@@ -7778,7 +7772,7 @@ package body Adash.Language.Semantics is
                              (Adash.Errors.Error_Array_Too_Long, Bounds,
                               [Adash.Messages.Named ("name", Name),
                                Adash.Messages.Named
-                                 ("limit", Natural'Image (Max_Elements))]);
+                                 ("limit", Long_Long_Integer (Max_Elements))]);
                            Sound := False;
 
                         else
@@ -8153,7 +8147,7 @@ package body Adash.Language.Semantics is
                                  [Adash.Messages.Named
                                     ("name", Types.Name (Named_As)),
                                   Adash.Messages.Named
-                                    ("limit", Natural'Image (Max_Elements))]);
+                                    ("limit", Long_Long_Integer (Max_Elements))]);
                               return Types.Type_None;
                            end if;
 
@@ -8207,7 +8201,7 @@ package body Adash.Language.Semantics is
                            [Adash.Messages.Named
                               ("name", Types.Name (Named_As)),
                             Adash.Messages.Named
-                              ("limit", Natural'Image (Max_Elements))]);
+                              ("limit", Long_Long_Integer (Max_Elements))]);
                         return Types.Type_None;
                      end if;
 
@@ -8357,9 +8351,9 @@ package body Adash.Language.Semantics is
                            [Adash.Messages.Named
                               ("name", Types.Name (Declared)),
                             Adash.Messages.Named
-                              ("expected", Natural'Image (Expected)),
+                              ("expected", Long_Long_Integer (Expected)),
                             Adash.Messages.Named
-                              ("found", Natural'Image (Offered))]);
+                              ("found", Long_Long_Integer (Offered))]);
 
                      else
                         for Index in 1 .. Offered loop
@@ -9355,7 +9349,7 @@ package body Adash.Language.Semantics is
               (Adash.Errors.Error_Too_Many_Parameters, Name_Node,
                [Adash.Messages.Named ("name", Name),
                 Adash.Messages.Named
-                  ("limit", Natural'Image (Symbols.Max_Parameters))]);
+                  ("limit", Long_Long_Integer (Symbols.Max_Parameters))]);
             Note (Node, Types.Type_None);
             return;
          end if;
@@ -9413,8 +9407,8 @@ package body Adash.Language.Semantics is
             Complain (Adash.Errors.Error_Wrong_Argument_Count, Node,
                       [Adash.Messages.Named ("name", Name),
                        Adash.Messages.Named
-                         ("expected", Natural'Image (Symbols.Max_Parameters)),
-                       Adash.Messages.Named ("found", Natural'Image (Count))]);
+                         ("expected", Long_Long_Integer (Symbols.Max_Parameters)),
+                       Adash.Messages.Named ("found", Long_Long_Integer (Count))]);
             return;
          end if;
 

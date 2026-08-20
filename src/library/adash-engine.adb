@@ -1048,7 +1048,7 @@ package body Adash.Engine is
                Arguments =>
                  [Adash.Messages.Named ("name", S.Text (Tree, Named)),
                   Adash.Messages.Named
-                    ("limit", Natural'Image (Max_Kept))]));
+                    ("limit", Long_Long_Integer (Max_Kept))]));
       end Not_Remembered;
 
       --  Keep one declaration as the source text it was written as.
@@ -1568,7 +1568,7 @@ package body Adash.Engine is
                                     Ada.Strings.Unbounded.To_String
                                       (Given.Key)),
                                  Adash.Messages.Named
-                                   ("limit", Natural'Image (Max_Kept))]));
+                                   ("limit", Long_Long_Integer (Max_Kept))]));
                      end if;
                   end;
                end loop;

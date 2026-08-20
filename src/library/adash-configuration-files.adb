@@ -154,8 +154,8 @@ package body Adash.Configuration.Files is
            (Msg.Msg_Config_Syntax,
             Adash.Diagnostics.Severity_Error,
             [Msg.Named ("path", Origin_Name),
-             Msg.Named ("line", Positive'Image (Error.At_Position.Line)),
-             Msg.Named ("column", Positive'Image (Error.At_Position.Column)),
+             Msg.Named ("line", Long_Long_Integer (Error.At_Position.Line)),
+             Msg.Named ("column", Long_Long_Integer (Error.At_Position.Column)),
              Msg.Named ("detail", Tomllib.Errors.Identifier (Error.Code))]);
          return;
       end if;

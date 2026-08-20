@@ -269,7 +269,7 @@ script = "S : String := Output_Of; quit (0);"
 exit_status = 0
 output = []
 diagnostics = [
-  "!error.wrong_argument_count{name=Output_Of,expected= 1 .. 4,found= 0}!",
+  "!error.wrong_argument_count{name=Output_Of,expected=1 .. 4,found=0}!",
 ]
 
 [[case]]

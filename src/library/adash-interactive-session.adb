@@ -1091,8 +1091,7 @@ package body Adash.Interactive.Session is
                      [Msg.Named ("path", Adash.Persistence.History.Path),
                       Msg.Named
                         ("detail",
-                         Natural'Image
-                           (Adash.Persistence.History.Skipped (Stored)))],
+                         Long_Long_Integer (Adash.Persistence.History.Skipped (Stored)))],
                      Adash.Terminal.Role_Warning);
                end if;
 

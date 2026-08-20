@@ -214,7 +214,7 @@ rather than pass.
 script = "task D is entry E1; entry E2; entry E3; entry E4; entry E5; entry E6; entry E7; entry E8; entry E9; entry E10; entry E11; entry E12; entry E13; entry E14; entry E15; entry E16; entry E17; entry E18; entry E19; entry E20; entry E21; entry E22; entry E23; entry E24; entry E25; entry E26; entry E27; entry E28; entry E29; entry E30; entry E31; entry E32; entry E33; end D; task body D is begin select accept E1; or accept E2; or accept E3; or accept E4; or accept E5; or accept E6; or accept E7; or accept E8; or accept E9; or accept E10; or accept E11; or accept E12; or accept E13; or accept E14; or accept E15; or accept E16; or accept E17; or accept E18; or accept E19; or accept E20; or accept E21; or accept E22; or accept E23; or accept E24; or accept E25; or accept E26; or accept E27; or accept E28; or accept E29; or accept E30; or accept E31; or accept E32; or accept E33; end select; end D; D.E33;\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.too_many_at_once{limit= 32,what=!list.alternatives!}!",
+  "!error.too_many_at_once{limit=32,what=!list.alternatives!}!",
 ]
 
 [[case]]
@@ -353,7 +353,7 @@ id = "rendezvous.a-call-is-matched-against-the-entry-profile"
 requirement = "An entry call is a call, and takes what the entry was declared with -- the same rule and the same message as a subprogram's."
 script = "task Server is entry Put (Which : Integer); end Server; task body Server is begin accept Put (Which : Integer) do null; end Put; end Server; Server.Put (1, 2);\nquit (0);"
 exit_status = 0
-diagnostics = ["!error.wrong_argument_count{name=Server.Put,expected= 1,found= 2}!"]
+diagnostics = ["!error.wrong_argument_count{name=Server.Put,expected=1,found=2}!"]
 
 [[case]]
 id = "rendezvous.an-entry-call-may-name-its-arguments"
@@ -701,7 +701,7 @@ id = "discriminants.every-one-must-be-given"
 requirement = "By position, all of them: a discriminant has no default here, and an object with one missing would run with a value nobody wrote."
 script = "task type Worker (Number : Integer) is entry Report; end Worker; task body Worker is begin accept Report; end Worker; A : Worker;\nquit (0);"
 exit_status = 0
-diagnostics = ["!error.discriminants_wrong_count{name=Worker,expected= 1,found= 0}!"]
+diagnostics = ["!error.discriminants_wrong_count{name=Worker,expected=1,found=0}!"]
 
 [[case]]
 id = "discriminants.one-task-has-nowhere-to-be-given-them"
@@ -1276,7 +1276,7 @@ id = "protected-types.every-discriminant-must-be-given"
 requirement = "By position, all of them, for the same reason a task type's are: there are no defaults here, and an object with one missing would run with a value nobody wrote."
 script = "protected type Capped (Limit : Integer) is procedure Add; end Capped; protected body Capped is Held : Integer := 0; procedure Add is begin Held := Held + 1; end Add; end Capped; A : Capped;\nquit (0);"
 exit_status = 0
-diagnostics = ["!error.discriminants_wrong_count{name=Capped,expected= 1,found= 0}!"]
+diagnostics = ["!error.discriminants_wrong_count{name=Capped,expected=1,found=0}!"]
 
 [[case]]
 id = "protected-types.one-object-has-nowhere-to-be-given-them"
@@ -1335,7 +1335,7 @@ counting.
 """
 script = "task type Worker (Number : Integer; Called : String := \"x\") is entry Report; end Worker; task body Worker is begin accept Report; end Worker; A : Worker;\nquit (0);"
 exit_status = 0
-diagnostics = ["!error.discriminants_wrong_count{name=Worker,expected= 2,found= 0}!"]
+diagnostics = ["!error.discriminants_wrong_count{name=Worker,expected=2,found=0}!"]
 
 [[case]]
 id = "discriminants.a-default-must-fit-what-it-defaults"
@@ -2022,7 +2022,7 @@ id = "blocking.the-pragma-takes-nothing"
 requirement = "It says something about the whole program, and there is nothing to say it about."
 script = "pragma Detect_Blocking (1);\nquit (0);"
 exit_status = 0
-diagnostics = ["!error.wrong_argument_count{name=Detect_Blocking,expected= 0,found= 1}!"]
+diagnostics = ["!error.wrong_argument_count{name=Detect_Blocking,expected=0,found=1}!"]
 
 [[case]]
 id = "restrictions.a-program-may-forbid-itself-something"
@@ -2275,7 +2275,7 @@ script = "pragma Locking_Policy (\"ceiling_locking\");\npragma Task_Dispatching_
 exit_status = 0
 diagnostics = [
   "!error.unknown_policy{name=ceiling_locking}!",
-  "!error.wrong_argument_count{name=Task_Dispatching_Policy,expected= 1,found= 0}!",
+  "!error.wrong_argument_count{name=Task_Dispatching_Policy,expected=1,found=0}!",
 ]
 
 [[case]]
@@ -2341,7 +2341,7 @@ exit_status = 0
 diagnostics = [
   "!error.unknown_profile{name=Restricted}!",
   "!error.unknown_profile{name=ravenscar}!",
-  "!error.wrong_argument_count{name=Profile,expected= 1,found= 0}!",
+  "!error.wrong_argument_count{name=Profile,expected=1,found=0}!",
 ]
 
 [[case]]
@@ -2446,9 +2446,9 @@ they stand, and the pragma takes a policy and two of them.
 script = "pragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 30, 20);\npragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 0, 99);\npragma Priority_Specific_Dispatching (FIFO_Within_Priorities, 20);\npragma Priority_Specific_Dispatching (EDF_Across_Priorities, 0, 10);\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.empty_priority_range{first= 30,last= 20}!",
+  "!error.empty_priority_range{first=30,last=20}!",
   "!error.priority_not_static!",
-  "!error.wrong_argument_count{name=Priority_Specific_Dispatching,expected= 3,found= 2}!",
+  "!error.wrong_argument_count{name=Priority_Specific_Dispatching,expected=3,found=2}!",
   "!error.unknown_policy{name=EDF_Across_Priorities}!",
 ]
 

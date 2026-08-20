@@ -399,6 +399,25 @@ what changed.
 
 ### Fixed
 
+- **Numbers in diagnostics are written the way a reader writes them.**
+  `Integer'Image` puts a blank where the minus sign would go, and forty-nine
+  message arguments passed it straight through: `line  1, column  1`, `expects
+   1 and was given  0`, `more than  4096`. Seventy-eight conformance
+  expectations had the blank written into them, which is how long it had been
+  there. `Messages.Named` takes a number now and does the trimming once, so a
+  call site cannot forget; the two places that build a *phrase* around numbers
+  (`1 .. 4`, `2 or more`) trim it themselves and say why.
+
+- **The build says nothing again, and CI is what will notice next time.** Four
+  complaints had accumulated where nobody could see them -- two blank lines, a
+  `use` clause with no effect, a redundant conversion, a variable that could be
+  constant -- because `alr build` exits 0 with warnings on its output and an
+  incremental build does not recompile the file that carries one. The rule that
+  a clean build says nothing was being checked by hand, against a build that
+  had not compiled the file. Both workflows now read the build's output and
+  fail on any line that names a file and a position: a fresh runner compiles
+  everything, which is exactly where the question belongs.
+
 - **A script that begins with a byte-order mark runs.** It is what a Windows
   editor writes when it saves as UTF-8, so it arrives on files nobody edited by
   hand, and it was read as a character: the script was refused for a stray

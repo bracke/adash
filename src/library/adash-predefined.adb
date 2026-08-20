@@ -310,7 +310,6 @@ package body Adash.Predefined is
        Description => Adash.Messages.Msg_Predefined_Input_Timed_Out_Hint,
        Status => Available),
 
-
       (Id => Entity_Exists, Name => Named ("Exists"),
        Sort => Sort_Function,
        Of_Type => Types.Type_Boolean, Parameter_Count => 1,

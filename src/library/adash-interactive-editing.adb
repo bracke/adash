@@ -1470,7 +1470,7 @@ package body Adash.Interactive.Editing is
                         --  the kill took out can be kept without each kill
                         --  having to hand it back.
                         Before : constant String := Line.Text;
-                        Point  : constant Natural := Natural (Line.Cursor);
+                        Point  : constant Natural := Line.Cursor;
                      begin
                         case Event.Kind is
                            when Key_Kill_To_End =>
