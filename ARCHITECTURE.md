@@ -231,6 +231,11 @@ These hold at every commit, not only at a release:
 - Internal packages are not cross-subsystem APIs.
 - Interactive and scripting modes share one language implementation and one engine.
 - Operational errors are structured; diagnostics are presentation-independent.
+  `adash_check` enforces the boundary that makes the second half true: only a
+  frontend may name `Adash.Messages.Rendering`. Below it a message is named and
+  not rendered, because rendering needs a catalog and a locale and a subsystem
+  that had one would be choosing a diagnostic's language from underneath the
+  frontend that knows.
 - No hard-coded user-facing strings; no direct terminal escape sequences.
 - No direct operating-system layer inside Adash; no non-Ada repository tooling.
 - Every public API is documented and tested; every observable feature has

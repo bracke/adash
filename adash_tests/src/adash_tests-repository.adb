@@ -61,6 +61,7 @@ package body Adash_Tests.Repository is
    Key_Layer_Engine     : constant String := "tooling.check.layer.engine";
    Key_Layer_Foundation : constant String := "tooling.check.layer.foundation";
    Key_Layer_Internal   : constant String := "tooling.check.layer.internal";
+   Key_Layer_Rendering  : constant String := "tooling.check.layer.rendering";
    Key_Inventory_Missing    : constant String := "tooling.check.inventory_missing";
    Key_Inventory_Unlisted   : constant String := "tooling.check.inventory_unlisted";
    Key_Grammar_Missing      : constant String :=
@@ -2120,6 +2121,18 @@ package body Adash_Tests.Repository is
             Refuse (Key_Layer_Foundation);
          elsif Is_Internal (Named) then
             Refuse (Key_Layer_Internal);
+
+         --  The presentation boundary, which `Adash.Messages.Rendering` states
+         --  in its own specification: "a subsystem below the presentation
+         --  boundary may name a message and may not render one -- that is the
+         --  whole point of the boundary". Naming is a Message_Id and travels
+         --  anywhere; rendering needs a catalog and a locale, and a subsystem
+         --  that acquired one would be deciding what language a diagnostic is
+         --  in from underneath the frontend that knows.
+         elsif Named = "Adash.Messages.Rendering"
+           and then not Is_A_Frontend (Mine)
+         then
+            Refuse (Key_Layer_Rendering);
          end if;
       end Judge;
 

@@ -25,6 +25,15 @@ what changed.
   exceptions are the manifest's own `sh -c` test action and the CI workflow,
   and neither is a file this could see.
 
+- **The presentation boundary is checked too.** `Adash.Messages.Rendering` says
+  in its own specification that "a subsystem below the presentation boundary
+  may name a message and may not render one — that is the whole point of the
+  boundary", and nothing enforced it. Only a frontend may name that package
+  now: below it a message travels as a `Message_Id`, because rendering needs a
+  catalog and a locale, and a subsystem holding those would be choosing a
+  diagnostic's language from underneath the frontend that knows. It held
+  already — two units render, the interactive session and the main program.
+
 - **The layering invariant is checked rather than asserted.**
   `ARCHITECTURE.md` lists "package dependencies are acyclic and point downward"
   among the invariants that "hold at every commit", and nothing checked the
