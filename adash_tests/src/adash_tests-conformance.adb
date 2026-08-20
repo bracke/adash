@@ -8,6 +8,9 @@ with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Fs;
 with Hostkit.Host;
+with Ada.Text_IO;
+
+with Hostkit.Process;
 with Hostkit.Spawn;
 
 with Tomllib.Documents;
@@ -631,6 +634,9 @@ package body Adash_Tests.Conformance is
    --  The shell under test, with whatever suffix this host puts on a binary.
    function Shell_In (Root : String) return String;
 
+   --  Which profile the shell in `Root/bin` was built at, asked of it once.
+   function Profile_Of (Root : String) return String;
+
    --  Replace every marker in one string.
    function Expanded (Item : String; Root : String; Files : String)
       return String;
@@ -713,8 +719,28 @@ package body Adash_Tests.Conformance is
       --  other two never run.
       On_This_Os : constant String :=
         Filled (Upcasing, "{os}", Adash.Version.Host_Operating_System);
+
+      On_This_Arch : constant String :=
+        Filled (On_This_Os, "{arch}", Adash.Version.Host_Architecture);
    begin
-      return Filled (On_This_Os, "{arch}", Adash.Version.Host_Architecture);
+      --  `{profile}` for the same reason, and it was missing for a reason
+      --  worth writing down: three cases spelled `profile=development` out,
+      --  so the suite could only be run against a development build. The
+      --  profile a user would ship -- `-O3`, inlining -- had never been run
+      --  through this suite, and the reproducibility this repository claims
+      --  rests on the suite comparing observable output.
+      --
+      --  Taken from the binary under test, because nothing else knows it.
+      --  This program links its own copy of the library, and Alire builds a
+      --  path dependency in its own profile -- so `Adash.Version.Build_Profile`
+      --  here is the profile of *this* build and says nothing about the shell
+      --  in `bin`. Asking the shell leaves the field itself unasserted, which
+      --  is the honest trade: what these cases still pin is the shape of the
+      --  line, the host and the architecture, and that the answer is one of
+      --  the three profiles a build can have -- `Profile_Of` refuses anything
+      --  else, so a shell that answered `profile=banana` fails here rather
+      --  than being copied into the expectation.
+      return Filled (On_This_Arch, "{profile}", Profile_Of (Root));
    end Expanded;
 
    function Rooted
@@ -1044,6 +1070,96 @@ package body Adash_Tests.Conformance is
    --
    --  @param Root The repository root.
    --  @return The path to the built shell.
+
+   --  Remembered, because every marker expansion would otherwise start a
+   --  process: one `--version` for the whole run.
+   Asked_Profile : Unbounded_String;
+
+   function Profile_Of (Root : String) return String is
+      Wanted : constant String := "build profile ";
+
+      Arguments : Hostkit.String_Vectors.Vector;
+      Outcome   : Hostkit.Process.Process_Outcome;
+
+      --  Run_Captured writes to a file rather than into its answer, so the
+      --  answer is read back from one. In the host's temporary directory: a
+      --  case's own store is per case, and this is asked once for the run.
+      Said_Path : constant String :=
+        Hostkit.Fs.Join (Hostkit.Fs.Temp_Directory,
+                         "adash-conformance-version.txt");
+
+      Found : Unbounded_String;
+
+      procedure Take (Line : String);
+
+      procedure Take (Line : String) is
+         At_It : constant Natural := Ada.Strings.Fixed.Index (Line, Wanted);
+      begin
+         if At_It = 0 or else Length (Found) > 0 then
+            return;
+         end if;
+
+         declare
+            From : constant Positive := At_It + Wanted'Length;
+            Stop : Natural := From;
+         begin
+            while Stop <= Line'Last and then Line (Stop) in 'a' .. 'z' loop
+               Stop := Stop + 1;
+            end loop;
+
+            declare
+               Named : constant String := Line (From .. Stop - 1);
+            begin
+               --  One of the three, or nothing: a profile this program does
+               --  not recognise is a change worth failing on rather than
+               --  copying into an expectation.
+               if Named = "release"
+                 or else Named = "validation"
+                 or else Named = "development"
+               then
+                  Found := To_Unbounded_String (Named);
+               end if;
+            end;
+         end;
+      end Take;
+
+      File : Ada.Text_IO.File_Type;
+   begin
+      if Length (Asked_Profile) > 0 then
+         return To_String (Asked_Profile);
+      end if;
+
+      Arguments.Append (To_Unbounded_String ("--version"));
+
+      Outcome :=
+        Hostkit.Process.Run_Captured
+          (Program     => Shell_In (Root),
+           Arguments   => Arguments,
+           Stdout_Path => Said_Path,
+           Timeout_Ms  => 10_000);
+
+      if not Outcome.Started or else Outcome.Timed_Out then
+         return "";
+      end if;
+
+      begin
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Said_Path);
+
+         while not Ada.Text_IO.End_Of_File (File) loop
+            Take (Ada.Text_IO.Get_Line (File));
+         end loop;
+
+         Ada.Text_IO.Close (File);
+      exception
+         when others =>
+            if Ada.Text_IO.Is_Open (File) then
+               Ada.Text_IO.Close (File);
+            end if;
+      end;
+
+      Asked_Profile := Found;
+      return To_String (Found);
+   end Profile_Of;
 
    function Shell_In (Root : String) return String is
       Plain : constant String :=

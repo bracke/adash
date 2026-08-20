@@ -11,6 +11,17 @@ what changed.
 
 ### Added
 
+- **The conformance suite runs against a release build.** Three cases spelled
+  `profile=development` into their expected output, so a release build failed
+  them — which means the profile a user would actually ship (`-O3`, inlining)
+  had never been through the suite at all, while `RELEASE.md` rests its
+  reproducibility claim on that suite comparing observable output. The runner
+  fills `{profile}` from the binary under test, beside the `{os}` and `{arch}`
+  markers that exist for the same reason, and refuses a profile that is not one
+  of the three a build can have. A release build now passes all 841 cases, and
+  the arithmetic checks Adash reports failures from are still there under `-O3`
+  — measured, not assumed.
+
 - **A benchmark for what a session's own history costs it.** `analyse a line
   beside 128 declarations`: a submission is analysed together with everything
   the session still holds, so the same line that takes about 3 ms on its own

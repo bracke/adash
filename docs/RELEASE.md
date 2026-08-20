@@ -25,6 +25,16 @@ a per-case report is what you want rather than one assertion message.
 not the library — that is the point of it — so a stale binary means a stale
 verdict.
 
+**Run it against a release build as well**, which until 2026-08-20 nobody
+could: three cases spelled `profile=development` into their expected output, so
+a release build failed them and the profile a user would ship had never been
+through the suite. The runner fills `{profile}` from the binary under test now,
+and a release build passes all of them. `alr build --release` in the root, then
+the suite; `alr build` puts the development build back. What the release
+profile changes is `-O3` and inlining — the checks Adash reports failures from
+(`Constraint_Error` on overflow, on a bad `'Val`, on an index outside a String)
+are all still there, which was worth measuring rather than assuming.
+
 ## What each check is for
 
 | Check | Fails when |

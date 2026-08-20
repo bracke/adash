@@ -802,7 +802,7 @@ script = "run (\"{shell}\", \"--version\");\nquit (Status);"
 exit_status = 0
 output = [
   "!version.line{version=0.1.0-dev}!",
-  "!version.build{profile=development,os={os},arch={arch}}!",
+  "!version.build{profile={profile},os={os},arch={arch}}!",
   "!version.prerelease_notice!",
 ]
 diagnostics = []
