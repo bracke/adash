@@ -399,6 +399,18 @@ what changed.
 
 ### Fixed
 
+- **Start-up stopped growing with the square of what the user had typed.** The
+  history loader keeps the newest `history.limit` lines by dropping the older
+  ones, and it dropped them **one at a time** — each `Delete_First` shifting
+  every line after it. On a log this shell had written itself in a day's use
+  (7584 lines), that was 1.8 seconds of pure computation before the first
+  prompt; a file script, which loads no history, took 0.06. Dropped in one move
+  now: 8000 lines cost 0.03 seconds instead of 1.8, and the growth is gone.
+  Nothing had measured it — the benchmark beside it times *encoding one line* —
+  so `read a saved history log` is a figure now, with a ceiling, and a unit
+  case pins which lines survive, since dropping from the wrong end would leave
+  a history that reads back as somebody's first hundred commands for ever.
+
 - **Three ways to end the session with a GNAT traceback, from one line each.**
   `put_line (-9223372036854775808)` — the smallest whole number this build
   holds — read the magnitude first and raised `Constraint_Error` out of

@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 627 messages in 23 groups.
+There are 628 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -701,6 +701,7 @@ quoted into `config.syntax`, which supplies the file and the position.
 | `tooling.bench.what.complete` | complete a command prefix |
 | `tooling.bench.what.complete_program` | complete a program name |
 | `tooling.bench.what.history` | encode a history entry |
+| `tooling.bench.what.history_load` | read a saved history log |
 | `tooling.bench.what.config` | parse a configuration file |
 | `tooling.bench.what.session` | open an engine session |
 | `tooling.check.header` | Adash repository check |

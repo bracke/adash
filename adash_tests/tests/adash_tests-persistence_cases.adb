@@ -1,5 +1,7 @@
 with Ada.Directories;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with Ada.Text_IO;
 
 with AUnit.Assertions;
 
@@ -413,6 +415,71 @@ package body Adash_Tests.Persistence_Cases is
               "a removed session history file still had entries");
    end A_Session_Can_Keep_Its_Own_History;
 
+   procedure A_Long_Log_Keeps_Its_Newest_Lines
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Long_Log_Keeps_Its_Newest_Lines
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+
+      File : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-test-long-history.jsonl");
+
+      Written : Ada.Text_IO.File_Type;
+
+      Stored : Adash.Persistence.History.Log;
+      Result : Adash.Persistence.Outcome;
+
+      Total : constant := 4_000;
+      Kept  : constant := 100;
+   begin
+      Ada.Text_IO.Create (Written, Ada.Text_IO.Out_File, File);
+
+      for Line in 1 .. Total loop
+         Ada.Text_IO.Put_Line
+           (Written,
+            Adash.Persistence.History.Encode
+              ("line" & Ada.Strings.Fixed.Trim
+                          (Natural'Image (Line), Ada.Strings.Both) & ";"));
+      end loop;
+
+      Ada.Text_IO.Close (Written);
+
+      Adash.Persistence.History.Load (Stored, Result, Limit => Kept,
+                                      From => File);
+
+      Assert (Adash.Persistence.History.Count (Stored) = Kept,
+              "a log longer than the limit did not come back at the limit:"
+              & Natural'Image (Adash.Persistence.History.Count (Stored)));
+
+      --  The *newest* lines, in order, which is what the loop this replaced
+      --  did one deletion at a time -- and what a bulk delete has to do the
+      --  same way round. Dropping from the wrong end would leave a history
+      --  that reads back as somebody's first hundred commands for ever.
+      Assert (Adash.Persistence.History.Entry_At (Stored, 1)
+              = "line" & Ada.Strings.Fixed.Trim
+                           (Natural'Image (Total - Kept + 1),
+                            Ada.Strings.Both) & ";",
+              "the oldest kept line is not the one after the ones dropped: "
+              & Adash.Persistence.History.Entry_At (Stored, 1));
+
+      Assert (Adash.Persistence.History.Entry_At (Stored, Kept)
+              = "line" & Ada.Strings.Fixed.Trim
+                           (Natural'Image (Total), Ada.Strings.Both) & ";",
+              "the newest line is not last: "
+              & Adash.Persistence.History.Entry_At (Stored, Kept));
+
+      declare
+         Gone_File : Adash.Persistence.Outcome;
+         Gone_Lock : Adash.Persistence.Outcome;
+      begin
+         Adash.Persistence.Remove (File, Gone_File);
+         Adash.Persistence.Remove (File & ".lock", Gone_Lock);
+      end;
+   end A_Long_Log_Keeps_Its_Newest_Lines;
+
    procedure An_Abandoned_Session_File_Is_Found
      (Test : in out AUnit.Test_Cases.Test_Case'Class)
    is
@@ -779,6 +846,8 @@ package body Adash_Tests.Persistence_Cases is
                         & "as too large");
       Register_Routine (T, Forgetting_Leaves_What_The_File_Did_Not_Hold'Access,
                         "forgetting leaves what a file did not hold");
+      Register_Routine (T, A_Long_Log_Keeps_Its_Newest_Lines'Access,
+                        "a log longer than the limit keeps its newest lines");
    end Register_Tests;
 
 end Adash_Tests.Persistence_Cases;

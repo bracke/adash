@@ -65,6 +65,13 @@ complete_program = 400000
 
 history = 100
 
+# Reading a log of eight thousand lines and keeping the last thousand. This
+# was 1.8 seconds when the excess was dropped one line at a time; it is a few
+# hundred microseconds of file reading and JSON now. The bound is set well
+# above the slowest host for the same reason `complete_program`'s is: it reads
+# a file, and a busy runner's filesystem is not this shell's doing.
+history_load = 40000
+
 # Start-up, once per session. Nobody types while these run, but they are what
 # stands between pressing return on `adash` and seeing a prompt.
 config = 400

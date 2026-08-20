@@ -317,9 +317,17 @@ package body Adash.Persistence.History is
       --  read: finding the tail of a file needs the whole file, and seeking
       --  backwards through variable-length lines is a great deal of machinery
       --  for a file measured in kilobytes.
-      while Natural (Into.Lines.Length) > Limit loop
-         Into.Lines.Delete_First;
-      end loop;
+      --
+      --  In one move. This was a loop calling `Delete_First` once per line to
+      --  drop, and each of those shifts everything after it: dropping seven
+      --  thousand lines to keep a thousand moved eight million strings and
+      --  took 1.8 seconds, on a file this shell had written itself by being
+      --  used. Startup grew with the square of what the user had typed, which
+      --  is the shape nobody notices until the day it is unbearable.
+      if Natural (Into.Lines.Length) > Limit then
+         Into.Lines.Delete_First
+           (Ada.Containers.Count_Type (Natural (Into.Lines.Length) - Limit));
+      end if;
    end Load;
 
    ------------

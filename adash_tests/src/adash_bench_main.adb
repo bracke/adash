@@ -1,4 +1,5 @@
 with Ada.Command_Line;
+with Ada.Directories;
 with Ada.Real_Time;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
@@ -606,6 +607,53 @@ begin
 
    IO.New_Line;
    IO.Put_Line (Say ("tooling.bench.group.startup"));
+
+   --  Reading the history happens once, and grows with what the user has
+   --  typed rather than with anything in the program they are about to run.
+   --
+   --  Measured because it was the one start-up cost that grew with the square
+   --  of the file: the loader kept the last thousand lines by deleting the
+   --  earlier ones one at a time, each of which shifted everything after it,
+   --  so a log this shell had written itself by being used for a day cost 1.8
+   --  seconds before the first prompt. Nothing measured loading a log -- the
+   --  figure beside it measures *encoding one line* -- so the only way to
+   --  notice was to sit and wait.
+   declare
+      Stored : Adash.Persistence.History.Log;
+      Result : Adash.Persistence.Outcome;
+
+      Sample_Path : constant String :=
+        Ada.Directories.Compose
+          (Ada.Directories.Current_Directory, "adash-bench-history.jsonl");
+
+      Sample : Ada.Text_IO.File_Type;
+   begin
+      --  Eight thousand lines with a limit of a thousand: seven thousand to
+      --  drop, which is what the quadratic loop charged for.
+      Ada.Text_IO.Create (Sample, Ada.Text_IO.Out_File, Sample_Path);
+
+      for Line in 1 .. 8_000 loop
+         Ada.Text_IO.Put_Line
+           (Sample,
+            Adash.Persistence.History.Encode
+              ("put_line (""line" & Natural'Image (Line) & """);"));
+      end loop;
+
+      Ada.Text_IO.Close (Sample);
+
+      for Index in 1 .. Repetitions loop
+         Started := RT.Clock;
+         Adash.Persistence.History.Load
+           (Stored, Result, Limit => 1_000, From => Sample_Path);
+         Samples (Index) := RT.Clock - Started;
+      end loop;
+
+      Ada.Directories.Delete_File (Sample_Path);
+
+      pragma Assert (Adash.Persistence.History.Count (Stored) = 1_000);
+   end;
+
+   Report ("history_load", Samples);
 
    --  Reading the configuration happens once, and is the one thing between the
    --  user pressing return on `adash` and seeing a prompt.
