@@ -55,9 +55,24 @@ them.
 check GNAT offers; the release profile does not. A figure from one says nothing
 about the other, which is why the report prints which profile it came from.
 
-**A budget.** Nothing fails when a figure moves. What the report is for is
-noticing that something moved, and the fastest-versus-median gap is the one
-thing in it that is a defect signal rather than a measurement.
+**A budget.** A figure that moves inside its bound fails nothing, and the report
+is for noticing that it moved. Three things do fail the run, and `adash_bench`
+exits non-zero for each: a figure over its ceiling in `benchmarks/ceilings.toml`,
+a median more than four times the operation's own fastest run (above 20 us),
+and a figure with no rule recorded for it at all. The ceilings are set an order
+of magnitude above what the operations take and from the *slowest* CI host, so
+one of them being reached is a change in what the operation does rather than a
+busy machine. Watch it fail before believing it: set a ceiling to 1 and run.
+
+**Comparable across the same machine on a different day.** The clock matters
+more than the load does. A laptop under the `powersave` governor sat at 1.40
+GHz of a 5.13 GHz maximum while these lines were written, and *every* row --
+including `load and validate UTF-8`, which is a memcpy and a scan -- came out
+about 3.4 times the figure recorded below, which is the clock ratio and nothing
+else. Before reading a uniform slowdown as a regression, read
+`/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor` and the running MHz in
+`/proc/cpuinfo`. A regression in one pass moves one row; a slower clock moves
+all of them by the same factor.
 
 ## When a figure moves
 

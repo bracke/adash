@@ -56,7 +56,10 @@ would be quoted long after anybody remembered that.
 ## What this build does
 
 On a development build (`-Og`), 200 repetitions, on a sixteen-core machine
-carrying a load average of about 1.5 while the figures were taken. One run of
+carrying a load average of about 1.5 while the figures were taken, and at its
+full clock -- which is the condition worth stating, because the same machine
+under the `powersave` governor at 1.40 GHz of 5.13 produces every row about 3.4
+times larger and nothing else changed. See `docs/benchmark-guide.md`. One run of
 four, all of which agreed: analysis fell between 493 and 549 us across them and
 every other row within about three percent, so a reader should take the
 row-to-row *shape* from this and not the last digit.
