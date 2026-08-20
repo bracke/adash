@@ -234,6 +234,8 @@ package body Adash.Messages is
             return "lower.write_back_not_variable";
          when Msg_Lower_Float_Literal =>
             return "lower.float_literal";
+         when Msg_Lower_Whole_Literal =>
+            return "lower.whole_literal";
          when Msg_Lower_Unresolved_Name =>
             return "lower.unresolved_name";
          when Msg_Lower_Variable_Of_Type =>
@@ -1343,6 +1345,7 @@ package body Adash.Messages is
             | Msg_Expected_Interpolation_Rest | Msg_Expected_End_Of_Input
             | Msg_Lower_Call_Wrong_Count
             | Msg_Lower_Write_Back_Not_Variable | Msg_Lower_Float_Literal
+            | Msg_Lower_Whole_Literal
             | Msg_Lower_Unresolved_Name | Msg_Lower_This_Operator
             | Msg_Lower_Float_Operation | Msg_Lower_Joining_Letters
             | Msg_Lower_String_Operation | Msg_Lower_String_Concatenation

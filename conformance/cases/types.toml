@@ -9,6 +9,35 @@
 suite = "types"
 
 [[case]]
+id = "numbers.the-smallest-whole-number-can-be-written-and-negated"
+requirement = """
+The smallest whole number this build holds has no positive counterpart, and
+that shows up in three places a user can reach in one line.
+
+Writing it: Ada folds a minus in front of a literal while the number is still
+universal, which is what makes `-9223372036854775808` legal where
+`9223372036854775808` is not. Lowering the minus as an instruction read the
+magnitude first and `Constraint_Error` came out of `'Value`, past the engine
+and out of the process -- a GNAT traceback for a typed line, and the session
+gone.
+
+Negating it and taking its absolute value: both overflow, and both instructions
+were the only arithmetic in the machine with no guard around them, so they
+ended the session the same way. They report what every other overflow reports.
+
+A number too large to hold at all is refused as one this build cannot hold,
+which is the same shape of refusal a Float literal gets.
+"""
+script = "put_line (-9223372036854775808);\nX : Integer := Integer'First; put_line (-X);\nY : Integer := Integer'First; put_line (abs Y);\nput_line (9223372036854775808);\nput_line (\"still here\");\nquit (0);"
+exit_status = 0
+output = ["-9223372036854775808", "still here"]
+diagnostics = [
+  "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.arithmetic!}!",
+  "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.arithmetic!}!",
+  "!error.not_lowerable{construct=!lower.whole_literal!}!",
+]
+
+[[case]]
 id = "types.an-enumeration-declares-its-values"
 requirement = """
 `type Colour is (Red, Green, Blue);` names a type and its values in one line.

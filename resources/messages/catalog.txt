@@ -139,6 +139,7 @@ en.expected.end_of_input = end of input
 en.lower.call_wrong_count = a call with the wrong number of arguments
 en.lower.write_back_not_variable = a write-back argument that is not a variable
 en.lower.float_literal = a Float literal this build cannot hold
+en.lower.whole_literal = a whole number this build cannot hold
 en.lower.unresolved_name = an unresolved name
 en.lower.variable_of_type = a variable of type {type}
 en.lower.call_to = a call to {name}

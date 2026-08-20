@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 626 messages in 23 groups.
+There are 627 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -559,6 +559,7 @@ quoted into `config.syntax`, which supplies the file and the position.
 | `lower.call_wrong_count` | a call with the wrong number of arguments |
 | `lower.write_back_not_variable` | a write-back argument that is not a variable |
 | `lower.float_literal` | a Float literal this build cannot hold |
+| `lower.whole_literal` | a whole number this build cannot hold |
 | `lower.unresolved_name` | an unresolved name |
 | `lower.variable_of_type` | a variable of type {type} |
 | `lower.call_to` | a call to {name} |

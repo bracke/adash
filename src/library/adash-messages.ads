@@ -187,6 +187,7 @@ package Adash.Messages is
       Msg_Lower_Call_Wrong_Count,
       Msg_Lower_Write_Back_Not_Variable,
       Msg_Lower_Float_Literal,
+      Msg_Lower_Whole_Literal,
       Msg_Lower_Unresolved_Name,
       Msg_Lower_Variable_Of_Type,
       Msg_Lower_Call_To,

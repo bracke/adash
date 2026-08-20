@@ -857,6 +857,14 @@ package body Adash.Language.Evaluation is
          Text    : String);
 
       function Place_Of (Sym : Symbols.Symbol) return Place;
+
+      --  Push an integer literal, with the minus in front of it if there was
+      --  one. Together rather than separately because the sign belongs to the
+      --  number: the smallest whole number this build holds has no positive
+      --  counterpart, so reading `9223372036854775808` on the way to negating
+      --  it fails where reading `-9223372036854775808` succeeds.
+      procedure Emit_Whole_Literal (Node : S.Node_Id; Negated : Boolean);
+
       procedure Emit_Expression (Node : S.Node_Id);
       procedure Emit_Statement (Node : S.Node_Id);
       procedure Emit_Sequence (Node : S.Node_Id);
@@ -3520,6 +3528,23 @@ package body Adash.Language.Evaluation is
             Refuse (Node, Adash.Messages.Msg_Lower_Float_Literal);
       end Emit_Spelled;
 
+      -------------------------
+      -- Emit_Whole_Literal --
+      -------------------------
+
+      procedure Emit_Whole_Literal (Node : S.Node_Id; Negated : Boolean) is
+         Text : constant String :=
+           (if Negated then "-" else "") & S.Text (Tree, Node);
+      begin
+         Emit_1 (VM.Push_Whole, VM.Whole_Number'Value (Text));
+      exception
+         when Constraint_Error =>
+            --  A number the analyser accepted and this build cannot hold.
+            --  Refused by name: it left `'Value` as a Constraint_Error before,
+            --  went past the engine, and ended the session with a traceback.
+            Refuse (Node, Adash.Messages.Msg_Lower_Whole_Literal);
+      end Emit_Whole_Literal;
+
       ------------
       -- Refuse --
       ------------
@@ -3669,8 +3694,7 @@ package body Adash.Language.Evaluation is
 
          case S.Kind (Tree, Node) is
             when S.Node_Integer_Literal =>
-               Emit_1
-                 (VM.Push_Whole, VM.Whole_Number'Value (S.Text (Tree, Node)));
+               Emit_Whole_Literal (Node => Node, Negated => False);
 
             when S.Node_Character_Literal =>
                declare
@@ -3823,6 +3847,25 @@ package body Adash.Language.Evaluation is
                Emit_Expression (S.First (Tree, Node));
 
             when S.Node_Unary_Operation =>
+               --  A minus in front of a literal belongs to the literal.
+               --
+               --  Ada folds it while the number is still universal, which is
+               --  what makes `-9223372036854775808` a legal Integer: the
+               --  positive half of it is not one. Lowering the minus as an
+               --  instruction pushes the magnitude first, and reading that
+               --  magnitude raised `Constraint_Error` out of `'Value` --
+               --  through the engine and out of the process, ending the
+               --  session with a GNAT traceback for a line a user can type.
+               if S.Operator (Tree, Node) = S.Op_Minus
+                 and then S.Kind (Tree, S.First (Tree, Node))
+                          = S.Node_Integer_Literal
+               then
+                  Emit_Whole_Literal
+                    (Node    => S.First (Tree, Node),
+                     Negated => True);
+                  return;
+               end if;
+
                Emit_Expression (S.First (Tree, Node));
 
                case S.Operator (Tree, Node) is

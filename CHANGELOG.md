@@ -399,6 +399,22 @@ what changed.
 
 ### Fixed
 
+- **Three ways to end the session with a GNAT traceback, from one line each.**
+  `put_line (-9223372036854775808)` — the smallest whole number this build
+  holds — read the magnitude first and raised `Constraint_Error` out of
+  `'Value`, past the engine and out of the process. Ada folds a minus in front
+  of a literal while the number is still universal, which is exactly what makes
+  that number writable, so the lowering folds it too. `-X` and `abs X` on the
+  same value overflow, and those two instructions were the only arithmetic in
+  the machine with no guard around them; they report what every other overflow
+  reports. And a literal too large to hold at all is now refused by name rather
+  than crashing, the way a Float literal already was.
+
+  `error.machine.arithmetic` came off the list of diagnostics no case can
+  produce while this was written. It had been filed among the machine's
+  defensive checks — "a case that could produce one would be a case that had
+  broken the machine on purpose" — and `1 / 0` reaches it.
+
 - **Three things stop a `cd`, and they are told apart.** `Set_Directory` raises
   the same exception for a directory that is not there and one this user may
   not enter, and the shell took the exception's word for it — so `cd` into a

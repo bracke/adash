@@ -1336,13 +1336,19 @@ package body Adash_Tests.Repository is
         --  no room, a return with nowhere to go -- and a case that could
         --  produce one would be a case that had broken the machine on purpose
         --  through an interface that does not exist.
+        --
+        --  `error.machine.arithmetic` was listed here with them and is not one
+        --  of them: it is Ada's own arithmetic failure, and `1 / 0` reaches it
+        --  from a line anybody can type. Nothing had spelled it out in a case
+        --  until the smallest whole number needed one, because it arrives
+        --  quoted inside `error.program_raised_detail` and a case that expects
+        --  the outer message does not name the inner one.
         new String'("error.machine.stack_full"),
         new String'("error.machine.stack_empty"),
         new String'("error.machine.no_place"),
         new String'("error.machine.no_store_place"),
         new String'("error.machine.swap_empty"),
         new String'("error.machine.not_a_number"),
-        new String'("error.machine.arithmetic"),
         new String'("error.machine.no_frame_room"),
         new String'("error.machine.no_return_to"),
         new String'("error.machine.no_shell"),

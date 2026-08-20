@@ -2136,10 +2136,25 @@ package body Adash.Machine is
                begin
                   if Only.Kind /= Cell_Whole then
                      Fail (Broken, "Program_Error", M.Msg_Machine_Not_A_Number);
-                  elsif Here.Code = Negate_Whole then
-                     Push ((Cell_Whole, -Only.Whole));
                   else
-                     Push ((Cell_Whole, abs Only.Whole));
+                     --  Guarded like every other arithmetic instruction, which
+                     --  these two were not: the smallest number has no
+                     --  positive counterpart, so `-X` and `abs X` on it
+                     --  overflow. Unguarded, the Constraint_Error left the
+                     --  machine, left the engine, and ended the session with a
+                     --  GNAT traceback -- for a program a user can type in one
+                     --  line.
+                     begin
+                        if Here.Code = Negate_Whole then
+                           Push ((Cell_Whole, -Only.Whole));
+                        else
+                           Push ((Cell_Whole, abs Only.Whole));
+                        end if;
+                     exception
+                        when Constraint_Error =>
+                           Fail (Raised, "Constraint_Error",
+                                 M.Msg_Machine_Arithmetic);
+                     end;
                   end if;
                end;
 
