@@ -407,6 +407,8 @@ package body Adash.Messages is
             return "list.choices";
          when Msg_List_Handlers                =>
             return "list.handlers";
+         when Msg_List_Nesting                 =>
+            return "list.nesting";
          when Msg_Case_Not_Discrete        =>
             return "error.case.not_discrete";
          when Msg_Case_Choice_Not_Static   =>
@@ -849,6 +851,7 @@ package body Adash.Messages is
             | Msg_List_Arguments
             | Msg_List_Choices
             | Msg_List_Handlers
+            | Msg_List_Nesting
             | Msg_Application_Name
             | Msg_Application_Summary
             | Msg_Version_Prerelease_Notice

@@ -34,7 +34,30 @@ package body Adash.Language.Parser is
       --  an unfinished submission from a wrong one: `if C then` ran out, and
       --  `if C than` met something it did not expect.
       Ran_Out  : Boolean := False;
+
+      --  True once a rule has refused something no more input can mend.
+      --
+      --  Depth is the case: a hundred brackets is over the limit whatever
+      --  follows them, so a frontend that asked for another line would be
+      --  asking for one that cannot help. The same rule the scanner's
+      --  complaints get -- see `Adash.Engine.Wants_More` -- reached from the
+      --  other side, because this refusal is the parser's own.
+      Refused_Outright : Boolean := False;
+
+      --  How deep the expression rules have recursed.
+      --
+      --  `(((…1…)))` is parsed by six routines calling each other in a ring,
+      --  so a hundred brackets is six hundred frames of a rule that carries
+      --  its own locals -- and a hundred brackets on one line ended the
+      --  session with `raised STORAGE_ERROR`, which is a stack this build
+      --  cannot grow rather than a program it cannot read. Statements do not
+      --  have this shape: a hundred and fifty nested `if`s parse and run.
+      Depth    : Natural := 0;
    end record;
+
+   --  How many of those a submission may have. Far past anything a person
+   --  writes and far short of the stack: eighty parse today, a hundred do not.
+   Maximum_Nesting : constant := 64;
 
    ---------------------------------------------------------------------------
 
@@ -190,6 +213,16 @@ package body Adash.Language.Parser is
       is
          Ended : constant Boolean := At_End;
       begin
+         --  Nothing more after a refusal that ended the parse.
+         --
+         --  Unwinding a hundred brackets asks for a `)` at every level on the
+         --  way out, so one refusal for depth arrived with sixty complaints
+         --  behind it, each naming a bracket the user can see. The first one
+         --  says the whole of it.
+         if State.Refused_Outright then
+            return;
+         end if;
+
          if Ended then
             State.Ran_Out := True;
          end if;
@@ -993,7 +1026,28 @@ package body Adash.Language.Parser is
       --  Ada, so `a or b and c` has no reading a user could rely on; every
       --  other language answers it with a precedence rule that half its users
       --  remember wrongly.
+      --  The recursion this counts, wrapped so that every path out of it puts
+      --  the count back: an expression that refused half-way through would
+      --  otherwise leave the depth raised for the rest of the submission.
+      function Parse_Expression_Body return S.Node_Id;
+
       function Parse_Expression_Rule return S.Node_Id is
+      begin
+         if State.Depth >= Maximum_Nesting then
+            Too_Many (Adash.Messages.Msg_List_Nesting, Maximum_Nesting);
+            State.Refused_Outright := True;
+            Recover;
+            return Error_Node (Here);
+         end if;
+
+         State.Depth := State.Depth + 1;
+
+         return Result : constant S.Node_Id := Parse_Expression_Body do
+            State.Depth := State.Depth - 1;
+         end return;
+      end Parse_Expression_Rule;
+
+      function Parse_Expression_Body return S.Node_Id is
          Start : constant Adash.Source.Span := Here;
          Left  : S.Node_Id := Parse_Relation;
          First_Op : S.Operation := S.Op_None;
@@ -1070,7 +1124,7 @@ package body Adash.Language.Parser is
          end loop;
 
          return Left;
-      end Parse_Expression_Rule;
+      end Parse_Expression_Body;
 
       ------------------------------------------------------------------
       --  Statements
@@ -4272,7 +4326,10 @@ package body Adash.Language.Parser is
          end;
       end if;
 
-      Unfinished := State.Ran_Out;
+      --  Not unfinished when something was refused outright: what ran out
+      --  after that is the recovery walking to the end, not a line the user
+      --  can still finish.
+      Unfinished := State.Ran_Out and then not State.Refused_Outright;
    end Run;
 
    -----------

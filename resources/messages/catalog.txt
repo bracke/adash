@@ -275,6 +275,7 @@ en.list.statements = statements
 en.list.arguments = arguments
 en.list.choices = choices
 en.list.handlers = handlers
+en.list.nesting = levels of nesting in one expression
 en.error.open_by_element = {name} is as long as what was passed to it, so the whole of it is not replaced: assign a slice of it, or one element at a time
 en.error.needs_bounds = a variable of {name} says how long it is, as {name} (1 .. 4), and its first index is one
 en.error.no_such_slice = {name} has no elements {first} .. {last}

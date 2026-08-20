@@ -9,6 +9,33 @@
 suite = "types"
 
 [[case]]
+id = "limits.an-expression-nested-past-what-the-stack-holds-is-refused"
+requirement = """
+Six routines call each other in a ring to parse an expression, so a hundred
+brackets on one line is six hundred frames of a rule that carries its own
+locals -- and a hundred brackets ended the session with `raised STORAGE_ERROR`,
+which is a stack this build cannot grow rather than a program it cannot read.
+A line anybody can type must not do that.
+
+Sixty-four levels, far past anything a person writes and far short of where the
+stack gives out: eighty parsed before this bound existed and a hundred did not.
+Statements do not have the shape -- a hundred and fifty nested `if`s parse and
+run -- so this counts expressions.
+
+Refused rather than left unfinished, too. No amount of further typing reduces
+the nesting, so a frontend that asked for another line would be asking for one
+that cannot help; the same rule an unclosed literal gets.
+
+And once, not sixty times. Unwinding a hundred brackets asks for a `)` at every
+level on the way out, so the refusal first arrived with a complaint per bracket
+behind it. The first one says the whole of it.
+"""
+script = "put_line (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));\nput_line (\"still here\");\nquit (0);"
+exit_status = 0
+output = ["still here"]
+diagnostics = ["!error.too_many_at_once{limit=64,what=!list.nesting!}!"]
+
+[[case]]
 id = "strings.looking-for-nothing-is-not-there"
 requirement = """
 `Index` is documented as answering rather than raising -- "answering zero

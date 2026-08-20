@@ -339,7 +339,9 @@ Configuration pragmas: `Priority`, `Detect_Blocking`, `Restrictions`,
 restriction this build cannot keep is **refused rather than accepted and
 ignored**.
 
-At most fifteen tasks at once. A select offers at most thirty-two alternatives, and one with more is refused where it is written — as is any construct with more parts than this build carries: a subprogram takes at most sixteen parameters, a record sixty-four components, an enumeration two hundred and fifty-six values, a sequence five hundred and twelve statements, a case two hundred and fifty-six alternatives and sixty-four choices in one of them, a body sixty-four handlers.
+At most fifteen tasks at once. A select offers at most thirty-two alternatives, and one with more is refused where it is written — as is any construct with more parts than this build carries: a subprogram takes at most sixteen parameters, a record sixty-four components, an enumeration two hundred and fifty-six values, a sequence five hundred and twelve statements, a case two hundred and fifty-six alternatives and sixty-four choices in one of them, a body sixty-four handlers, and **an expression sixty-four levels of nesting**.
+
+That last one is a stack rather than a table. Six routines call each other in a ring to parse an expression, so a hundred brackets on one line is six hundred frames — and a hundred brackets used to end the session with `raised STORAGE_ERROR`. Statements do not have the shape: a hundred and fifty nested `if`s parse and run.
 
 ## The shell inside the language
 

@@ -452,6 +452,27 @@ what changed.
 
 ### Fixed
 
+- **A deeply nested expression is refused instead of ending the session.**
+  `put_line ((((…1…))))` a hundred brackets deep raised `STORAGE_ERROR` out of
+  the process: six parsing routines call each other in a ring, so a hundred
+  levels is six hundred frames of a rule carrying its own locals. Sixty-four
+  levels is the bound now — eighty parsed before it existed, a hundred did not
+  — and the refusal is a diagnostic like every other bound this build has.
+  Statements never had the shape: a hundred and fifty nested `if`s parse and
+  run. The refusal says so **once**: unwinding a hundred brackets asks for a
+  `)` at every level on the way out, so it first arrived with a complaint per
+  bracket behind it. And it is a refusal rather than an unfinished line, since
+  no amount of further typing reduces nesting.
+
+- **The conformance runner no longer collides with itself.** Every run used one
+  store directory name, so two suites at once — which is what happens the
+  moment somebody starts one while another is still going — wrote into each
+  other's files and produced failures neither run's shell had caused. A run
+  claims a root of its own by making it, puts every case's store inside it, and
+  takes the lot away when it ends. Removing it needs care one case earns: it
+  makes a directory with no permissions on purpose, and `Delete_Tree` stopped
+  there, leaving 697 of 841 stores behind and swallowing the reason.
+
 - **`resource_limit` reads what the caller wrote before it asks what the host
   has.** A value that is not a number is a mistake in the program and travels
   with it; a host without that limit is a fact about where it is running.

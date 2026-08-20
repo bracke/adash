@@ -7,6 +7,7 @@ with Ada.Strings.Fixed;
 with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Fs;
+with Hostkit.Metadata;
 with Hostkit.Host;
 with Ada.Text_IO;
 
@@ -62,8 +63,113 @@ package body Adash_Tests.Conformance is
    --
    --  The directory need not exist. A store that cannot be reached is a session
    --  with no history, which is a perfectly good thing for a case to observe.
-   Scratch_Root : constant String :=
-     Hostkit.Fs.Join (Hostkit.Fs.Temp_Directory, "adash-conformance-store");
+   --  One root per *run*, claimed by making it.
+   --
+   --  It used to be one name shared by every run on the machine, so two suites
+   --  at once -- which is what happens the moment somebody starts one while
+   --  another is still going -- wrote into each other's stores: a case reading
+   --  back the file it had just written found the other run's, and four or
+   --  five cases failed with answers neither run had produced. Claimed by
+   --  creating it rather than by asking the clock: the first name nobody else
+   --  has made is this run's, and `Create_Directory` refusing is how one run
+   --  learns that another got there first.
+   function Claim_A_Root return String;
+
+   function Claim_A_Root return String is
+      Base : constant String :=
+        Hostkit.Fs.Join (Hostkit.Fs.Temp_Directory, "adash-conformance-store");
+   begin
+      for Attempt in 1 .. 4_096 loop
+         declare
+            Wanted : constant String :=
+              Base & "-run-"
+              & Ada.Strings.Fixed.Trim
+                  (Natural'Image (Attempt), Ada.Strings.Both);
+         begin
+            if not Ada.Directories.Exists (Wanted) then
+               begin
+                  Ada.Directories.Create_Directory (Wanted);
+                  return Wanted;
+               exception
+                  when others =>
+                     null;  --  Another run made it first; try the next.
+               end;
+            end if;
+         end;
+      end loop;
+
+      --  Four thousand stores left behind is a machine nobody has cleaned in a
+      --  long time, and a shared root is still better than refusing to run.
+      return Base;
+   end Claim_A_Root;
+
+   Scratch_Root : constant String := Claim_A_Root;
+
+   --  Take the run's stores away.
+   --
+   --  Public because the run ends where the caller says it does, and a suite
+   --  that left its scratch behind on every run would fill the host's
+   --  temporary directory a case at a time.
+   procedure Forget_The_Stores;
+
+   procedure Forget_The_Stores is
+
+      --  A directory a case made unenterable is still this run's to remove.
+      --
+      --  One case makes `files/locked` with no permissions, because a write
+      --  the host refuses is a thing worth asserting -- and `Delete_Tree`
+      --  stops at it, so the first attempt at cleaning up left six hundred and
+      --  ninety-seven of eight hundred and forty-one stores behind and
+      --  swallowed the exception that said why. The mode goes back on the way
+      --  down; a host that will not set one (Windows has no bits of this kind)
+      --  had no such directory to begin with.
+      procedure Open_Up (Where : String);
+
+      procedure Open_Up (Where : String) is
+         Ignored : Boolean;
+      begin
+         Ignored := Hostkit.Metadata.Set_Permissions (Where, 8#700#);
+
+         declare
+            Search : Ada.Directories.Search_Type;
+            Item   : Ada.Directories.Directory_Entry_Type;
+         begin
+            Ada.Directories.Start_Search
+              (Search, Where, "*",
+               [Ada.Directories.Directory => True, others => False]);
+
+            while Ada.Directories.More_Entries (Search) loop
+               Ada.Directories.Get_Next_Entry (Search, Item);
+
+               declare
+                  Name : constant String :=
+                    Ada.Directories.Simple_Name (Item);
+               begin
+                  if Name /= "." and then Name /= ".." then
+                     Open_Up (Ada.Directories.Full_Name (Item));
+                  end if;
+               end;
+            end loop;
+
+            Ada.Directories.End_Search (Search);
+         end;
+      exception
+         when others =>
+            null;
+      end Open_Up;
+
+   begin
+      if Ada.Directories.Exists (Scratch_Root) then
+         Open_Up (Scratch_Root);
+         Ada.Directories.Delete_Tree (Scratch_Root);
+      end if;
+   exception
+      when others =>
+         --  A store the host will not remove is not worth failing a run over:
+         --  what it costs is a directory, and what refusing would cost is the
+         --  answer the suite just produced.
+         null;
+   end Forget_The_Stores;
 
    --  How many cases have been run, which is what makes each store distinct.
    Executions : Natural := 0;
@@ -88,8 +194,12 @@ package body Adash_Tests.Conformance is
    ----------------
 
    function Next_Store return String is
+      --  Inside the run's own root, so the run can take all of them away when
+      --  it ends. As siblings of the root they outlived it: eight hundred and
+      --  forty-one directories per run, left in the host's temporary
+      --  directory for somebody else to wonder about.
       Store : constant String :=
-        Scratch_Root & "-" & Trimmed (Executions + 1);
+        Hostkit.Fs.Join (Scratch_Root, Trimmed (Executions + 1));
    begin
       Executions := Executions + 1;
 
@@ -635,7 +745,7 @@ package body Adash_Tests.Conformance is
    function Shell_In (Root : String) return String;
 
    --  Which profile the shell in `Root/bin` was built at, asked of it once.
-   function Profile_Of (Root : String) return String;
+   function Profile_Of (Root : String; Files : String) return String;
 
    --  Replace every marker in one string.
    function Expanded (Item : String; Root : String; Files : String)
@@ -740,7 +850,19 @@ package body Adash_Tests.Conformance is
       --  the three profiles a build can have -- `Profile_Of` refuses anything
       --  else, so a shell that answered `profile=banana` fails here rather
       --  than being copied into the expectation.
-      return Filled (On_This_Arch, "{profile}", Profile_Of (Root));
+      declare
+         Named : constant String := Profile_Of (Root, Files);
+      begin
+         --  Left as it stands when the shell could not be asked. Expanding it
+         --  to nothing produced `profile=` in the expectation, which reads as
+         --  a case asserting something odd rather than as a harness that could
+         --  not do its job; `{profile}` in a failure message says which it is.
+         if Named = "" then
+            return On_This_Arch;
+         end if;
+
+         return Filled (On_This_Arch, "{profile}", Named);
+      end;
    end Expanded;
 
    function Rooted
@@ -1075,18 +1197,25 @@ package body Adash_Tests.Conformance is
    --  process: one `--version` for the whole run.
    Asked_Profile : Unbounded_String;
 
-   function Profile_Of (Root : String) return String is
+   function Profile_Of (Root : String; Files : String) return String is
       Wanted : constant String := "build profile ";
 
       Arguments : Hostkit.String_Vectors.Vector;
       Outcome   : Hostkit.Process.Process_Outcome;
 
       --  Run_Captured writes to a file rather than into its answer, so the
-      --  answer is read back from one. In the host's temporary directory: a
-      --  case's own store is per case, and this is asked once for the run.
+      --  answer is read back from one.
+      --
+      --  Under the store this run was given, not a fixed name in the host's
+      --  temporary directory. The fixed name was shared by every conformance
+      --  run on the machine at once: two of them overlapping -- which happens
+      --  the moment somebody runs the suite while another is still going --
+      --  had one writing the file while the other read it, and a probe that
+      --  came back empty made three cases fail with `profile=` and an
+      --  expectation nobody had written. A harness that is flaky about what it
+      --  expects is worse than one that is wrong about it.
       Said_Path : constant String :=
-        Hostkit.Fs.Join (Hostkit.Fs.Temp_Directory,
-                         "adash-conformance-version.txt");
+        Hostkit.Fs.Join (Files, "adash-conformance-version.txt");
 
       Found : Unbounded_String;
 
@@ -1235,6 +1364,10 @@ package body Adash_Tests.Conformance is
             Run_File (Binary, Root, To_String (Names.Element (Index)), Into);
          end loop;
       end;
+
+      --  The stores go with the run that made them. `Run_Examples` may follow
+      --  this and make more; it takes its own away the same way.
+      Forget_The_Stores;
    end Run;
 
    -------------------
@@ -1388,6 +1521,8 @@ package body Adash_Tests.Conformance is
             end if;
          end;
       end loop;
+
+      Forget_The_Stores;
    end Run_Examples;
 
 end Adash_Tests.Conformance;
