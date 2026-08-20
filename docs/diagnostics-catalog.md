@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 629 messages in 23 groups.
+There are 633 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -734,6 +734,10 @@ quoted into `config.syntax`, which supplies the file and the position.
 | `tooling.check.grammar_missing` | the grammar reference has no production naming {name}, which the parser can build |
 | `tooling.check.grammar_unknown` | the grammar reference names {name}, which the syntax has no such node for |
 | `tooling.check.forbidden_dependency` | {path} depends on {unit}, which Adash may not use directly; see AI.md |
+| `tooling.check.layer.frontend` | {path} names {unit}, which belongs to a frontend: dependencies point downward |
+| `tooling.check.layer.engine` | {path} names {unit}, and only a frontend may name the engine |
+| `tooling.check.layer.foundation` | {path} is a foundation and names {unit}, which is above it |
+| `tooling.check.layer.internal` | {path} names {unit}, which is another subsystem's internal package |
 | `tooling.check.result_pass` | PASS |
 | `tooling.check.result_fail` | FAIL |
 

@@ -50,6 +50,14 @@ package body Adash_Tests.Repository is
    Key_Prose_As_Text        : constant String :=
      "tooling.check.prose_as_text";
    Key_Forbidden_Dependency : constant String := "tooling.check.forbidden_dependency";
+   --  One key per rule rather than one with the rule as an argument: the
+   --  argument would have been an English phrase written in Ada source, which
+   --  is the thing `Check_No_Prose_In_Source` forbids -- and it caught this
+   --  while it was being written, which is the check earning its keep.
+   Key_Layer_Frontend   : constant String := "tooling.check.layer.frontend";
+   Key_Layer_Engine     : constant String := "tooling.check.layer.engine";
+   Key_Layer_Foundation : constant String := "tooling.check.layer.foundation";
+   Key_Layer_Internal   : constant String := "tooling.check.layer.internal";
    Key_Inventory_Missing    : constant String := "tooling.check.inventory_missing";
    Key_Inventory_Unlisted   : constant String := "tooling.check.inventory_unlisted";
    Key_Grammar_Missing      : constant String :=
@@ -1889,6 +1897,238 @@ package body Adash_Tests.Repository is
       end;
    end Check_The_Documented_Catalogue;
 
+   ----------------------
+   -- Check_Layering --
+   ----------------------
+
+   --  "Package dependencies are acyclic and point downward", says
+   --  ARCHITECTURE.md, under a heading that says these invariants "hold at
+   --  every commit, not only at a release". Nothing checked the downward half.
+   --
+   --  Acyclic is Ada's own rule for specs and needs no help here. What this
+   --  checks is the part the compiler does not: the four edges the layer
+   --  diagram forbids without ambiguity.
+   --
+   --    * Nothing outside a frontend depends on a frontend. `Interactive` and
+   --      `Scripting` are the top of the diagram; a subsystem that reached one
+   --      would be a subsystem that only works in a session.
+   --    * Nothing below the engine depends on the engine. The engine
+   --      coordinates the subsystems; a subsystem that called back into it
+   --      would make the coordination circular in fact if not in Ada.
+   --    * A foundation depends on nothing above it. "The foundations know
+   --      nothing about the shell" is the sentence in that file.
+   --    * A package the inventory marks `internal` is used only inside its own
+   --      subsystem, which is what "Internal packages are not cross-subsystem
+   --      APIs" means.
+   --
+   --  Sideways edges are deliberately not judged: the diagram puts Commands
+   --  beside Execution and Predefined beside Language without saying which of
+   --  a pair may name the other, and a check that guessed would either pass on
+   --  everything or condemn the arrangement the code already has. Settling
+   --  that is a decision about the architecture rather than a reading of it.
+   procedure Check_Layering (Root : String; Into : in out Report);
+
+   procedure Check_Layering (Root : String; Into : in out Report) is
+      Inventory : constant String :=
+        Read_If_Present (Join (Root, "repository.toml"));
+
+      --  The subsystem the inventory gives a unit, or that of the nearest
+      --  ancestor it names: a child package belongs where its parent does.
+      function Subsystem_Of (Unit : String) return String;
+
+      function Subsystem_Of (Unit : String) return String is
+         Wanted : Natural;
+         Tried  : US.Unbounded_String := US.To_Unbounded_String (Unit);
+      begin
+         loop
+            Wanted :=
+              Project_Tools.Text.Index_From
+                (Inventory, "name = """ & US.To_String (Tried) & """",
+                 Inventory'First);
+
+            if Wanted /= 0 then
+               return Project_Tools.TOML.String_Value_After
+                        (Inventory, "subsystem = ", Wanted);
+            end if;
+
+            declare
+               Text : constant String := US.To_String (Tried);
+               Dot  : Natural := 0;
+            begin
+               for Index in reverse Text'Range loop
+                  if Text (Index) = '.' then
+                     Dot := Index;
+                     exit;
+                  end if;
+               end loop;
+
+               exit when Dot = 0;
+               Tried := US.To_Unbounded_String (Text (Text'First .. Dot - 1));
+            end;
+         end loop;
+
+         return "";
+      end Subsystem_Of;
+
+      --  Whether the inventory calls a unit internal.
+      function Is_Internal (Unit : String) return Boolean;
+
+      function Is_Internal (Unit : String) return Boolean is
+         Wanted : constant Natural :=
+           Project_Tools.Text.Index_From
+             (Inventory, "name = """ & Unit & """", Inventory'First);
+      begin
+         return Wanted /= 0
+           and then Project_Tools.TOML.String_Value_After
+                      (Inventory, "visibility = ", Wanted) = "internal";
+      end Is_Internal;
+
+      function Is_A_Frontend (Subsystem : String) return Boolean
+      is (Subsystem = "interactive" or else Subsystem = "scripting");
+
+      function Is_A_Foundation (Subsystem : String) return Boolean
+      is (Subsystem = "errors" or else Subsystem = "source"
+          or else Subsystem = "diagnostics" or else Subsystem = "version");
+
+      --  Everything a foundation may not name. Written out rather than
+      --  derived, because "above" is what this check exists to define.
+      function Is_Above_A_Foundation (Subsystem : String) return Boolean
+      is (Subsystem = "engine" or else Subsystem = "execution"
+          or else Subsystem = "language" or else Subsystem = "commands"
+          or else Subsystem = "predefined" or else Subsystem = "machine"
+          or else Subsystem = "configuration"
+          or else Subsystem = "persistence" or else Subsystem = "filesystem"
+          or else Subsystem = "terminal" or else Subsystem = "platform"
+          or else Is_A_Frontend (Subsystem));
+
+      procedure Judge (Path : String; Mine : String; Named : String);
+
+      procedure Judge (Path : String; Mine : String; Named : String) is
+         Theirs : constant String := Subsystem_Of (Named);
+
+         procedure Refuse (Key : String);
+
+         procedure Refuse (Key : String) is
+         begin
+            Add (Into, Key,
+                 [Msg.Named ("path", Ada.Directories.Simple_Name (Path)),
+                  Msg.Named ("unit", Named)]);
+         end Refuse;
+      begin
+         if Theirs = "" or else Theirs = Mine then
+            return;
+         end if;
+
+         Into.Checks_Run := Into.Checks_Run + 1;
+
+         if Is_A_Frontend (Theirs) and then not Is_A_Frontend (Mine) then
+            Refuse (Key_Layer_Frontend);
+         elsif Theirs = "engine" and then not Is_A_Frontend (Mine) then
+            Refuse (Key_Layer_Engine);
+         elsif Is_A_Foundation (Mine)
+           and then Is_Above_A_Foundation (Theirs)
+         then
+            Refuse (Key_Layer_Foundation);
+         elsif Is_Internal (Named) then
+            Refuse (Key_Layer_Internal);
+         end if;
+      end Judge;
+
+   begin
+      if Inventory = "" then
+         return;
+      end if;
+
+      for Path of Source_Files (Root) loop
+         declare
+            Full : constant String := US.To_String (Path);
+
+            --  `adash-language-parser.adb` is `Adash.Language.Parser`.
+            Base : constant String :=
+              Ada.Directories.Base_Name (Ada.Directories.Simple_Name (Full));
+
+            Unit : String := Base;
+
+            Content : constant String := Read_If_Present (Full);
+            Cursor  : Positive := Content'First;
+         begin
+            for Index in Unit'Range loop
+               if Unit (Index) = '-' then
+                  Unit (Index) := '.';
+               end if;
+            end loop;
+
+            declare
+               Named : String := Unit;
+               Start : Boolean := True;
+            begin
+               for Index in Named'Range loop
+                  if Start then
+                     Named (Index) :=
+                       Ada.Characters.Handling.To_Upper (Named (Index));
+                     Start := False;
+                  elsif Named (Index) = '.' or else Named (Index) = '_' then
+                     Start := True;
+                  end if;
+               end loop;
+
+               declare
+                  Mine : constant String := Subsystem_Of (Named);
+               begin
+                  if Mine /= "" then
+                     while Cursor <= Content'Last loop
+                        declare
+                           --  The unit name, and the clause is recognised by
+                           --  looking back at the line rather than by
+                           --  searching for the two words together: the two
+                           --  words together are a literal this repository's
+                           --  own prose rule would read as a sentence.
+                           At_Name : constant Natural :=
+                             Project_Tools.Text.Index_From
+                               (Content, "Adash", Cursor);
+                        begin
+                           exit when At_Name = 0;
+
+                           declare
+                              Line_From : Natural := At_Name;
+                              Stop      : Natural := At_Name;
+                           begin
+                              while Line_From > Content'First
+                                and then Content (Line_From - 1)
+                                         /= Ada.Characters.Latin_1.LF
+                              loop
+                                 Line_From := Line_From - 1;
+                              end loop;
+
+                              while Stop <= Content'Last
+                                and then Content (Stop) /= ';'
+                                and then Content (Stop) /= ' '
+                                and then Content (Stop)
+                                         /= Ada.Characters.Latin_1.LF
+                              loop
+                                 Stop := Stop + 1;
+                              end loop;
+
+                              if Ada.Strings.Fixed.Trim
+                                   (Content (Line_From .. At_Name - 1),
+                                    Ada.Strings.Both)
+                                 = "with"
+                              then
+                                 Judge (Full, Mine,
+                                        Content (At_Name .. Stop - 1));
+                              end if;
+                           end;
+
+                           Cursor := At_Name + 1;
+                        end;
+                     end loop;
+                  end if;
+               end;
+            end;
+         end;
+      end loop;
+   end Check_Layering;
+
    procedure Check_No_Forbidden_Units (Root : String; Into : in out Report) is
    begin
       for Path of Source_Files (Root) loop
@@ -1917,6 +2157,7 @@ package body Adash_Tests.Repository is
    procedure Check (Root : String; Into : in out Report) is
    begin
       Check_Grammar_Covers_The_Syntax (Root, Into);
+      Check_Layering (Root, Into);
       Check_Required_Files (Root, Into);
       Check_Required_Directories (Root, Into);
       Check_Version_Consistency (Root, Into);

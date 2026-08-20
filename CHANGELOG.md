@@ -11,6 +11,17 @@ what changed.
 
 ### Added
 
+- **The layering invariant is checked rather than asserted.**
+  `ARCHITECTURE.md` lists "package dependencies are acyclic and point downward"
+  among the invariants that "hold at every commit", and nothing checked the
+  downward half — acyclic is Ada's own rule for specs, but the direction is
+  not. `adash_check` now reads every `with` of an Adash unit, looks up both
+  subsystems in `repository.toml`, and refuses four edges: a frontend named
+  from below, the engine named from below, a foundation naming anything above
+  it, and another subsystem's `internal` package. They hold today — 200 checks,
+  no findings — and each was watched failing before being believed. Sideways
+  edges are deliberately not judged, and the file now says why.
+
 - **The conformance suite runs against a release build.** Three cases spelled
   `profile=development` into their expected output, so a release build failed
   them — which means the profile a user would actually ship (`-O3`, inlining)
