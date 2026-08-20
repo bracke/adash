@@ -229,6 +229,13 @@ treated one as a boundary would mean different things in different places.
 `Index` answering zero rather than raising is what lets a script test before it
 slices. A `String` begins at one, so zero is a position no string has.
 
+**A `Piece` that is empty answers zero as well.** Ada's own `Index` raises on
+one, and raising is the thing this call is documented not to do: a separator
+read out of a configuration that did not have it would have ended the session
+rather than the search. Zero sends a caller down the branch they wrote for "not
+there", which is the only branch that makes sense for a piece that is nowhere
+and everywhere at once.
+
 ## Time
 
 | Call | Answers | Notes |

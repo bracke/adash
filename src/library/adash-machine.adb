@@ -2579,11 +2579,23 @@ package body Adash.Machine is
                   --  Zero when it is not there, which is what Ada's own Index
                   --  answers and what lets a caller test without a second
                   --  question.
+                  --
+                  --  Including when there is nothing to look for. Ada's Index
+                  --  raises Pattern_Error on an empty pattern, and that came
+                  --  out of the process: `Index (Line, Sep)` with `Sep` unset
+                  --  -- read out of a configuration that did not have it, say
+                  --  -- ended the session with `raised ADA.STRINGS.
+                  --  PATTERN_ERROR`. The documented promise is that this
+                  --  answers rather than raising, so it answers: zero, the
+                  --  position no string has, which sends a caller down the
+                  --  branch it wrote for "not there" instead of slicing at a
+                  --  place that means nothing.
                   Push ((Cell_Whole,
-                         Whole_Number
-                           (Ada.Strings.Fixed.Index
-                              (To_String (Left.Text),
-                               To_String (Right.Text)))));
+                         (if Length (Right.Text) = 0 then 0
+                          else Whole_Number
+                                 (Ada.Strings.Fixed.Index
+                                    (To_String (Left.Text),
+                                     To_String (Right.Text))))));
                end;
 
             when Text_Starts | Text_Ends =>

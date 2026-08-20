@@ -407,6 +407,15 @@ what changed.
 
 ### Fixed
 
+- **`Index (Whole, "")` answers zero instead of ending the session.** Ada's own
+  `Index` raises `Pattern_Error` when the piece is empty, and that exception
+  came out of the process — a separator read out of a configuration that did
+  not carry it would end the session rather than the search. Answering rather
+  than raising is what this call is documented for: "`Index` answering zero
+  rather than raising is what lets a script test before it slices". Zero is the
+  position no string has, and it sends a caller down the branch they already
+  wrote for "not there".
+
 - **Start-up stopped growing with the square of what the user had typed.** The
   history loader keeps the newest `history.limit` lines by dropping the older
   ones, and it dropped them **one at a time** — each `Delete_First` shifting

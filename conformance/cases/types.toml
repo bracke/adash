@@ -9,6 +9,24 @@
 suite = "types"
 
 [[case]]
+id = "strings.looking-for-nothing-is-not-there"
+requirement = """
+`Index` is documented as answering rather than raising -- "answering zero
+rather than raising is what lets a script test before it slices" -- and Ada's
+own `Index` raises `Pattern_Error` when the piece is empty. That exception came
+out of the process: a separator read out of a configuration that did not carry
+it ended the session instead of the search.
+
+Zero, then, which is the position no string has and the branch a caller already
+wrote for "not there". A piece that is nowhere and everywhere at once has no
+other answer that a script about to slice can use.
+"""
+script = "put_line (Index (\"abc\", \"\"));\nput_line (Index (\"abc\", \"b\"));\nput_line (Index (\"\", \"\"));\nput_line (\"still here\");\nquit (0);"
+exit_status = 0
+output = ["0", "2", "0", "still here"]
+diagnostics = []
+
+[[case]]
 id = "numbers.the-smallest-whole-number-can-be-written-and-negated"
 requirement = """
 The smallest whole number this build holds has no positive counterpart, and
