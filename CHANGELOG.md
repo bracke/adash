@@ -452,6 +452,17 @@ what changed.
 
 ### Fixed
 
+- **`resource_limit` reads what the caller wrote before it asks what the host
+  has.** A value that is not a number is a mistake in the program and travels
+  with it; a host without that limit is a fact about where it is running.
+  Asking the host first told a Windows user their host has no limits and sent
+  the typo home with the script — and the case that asserts the refusal had to
+  be gated to the two hosts where the answer came out right, which is how this
+  was found. Auditing why each of the nine skipped conformance cases is skipped
+  is worth doing: a case gated to make a run green is the same sin as a matrix
+  reduced to make one green. The other gates all name a thing Windows does not
+  have — signals, rlimits, `exec`, a creation mask, job control — and stay.
+
 - **`Index (Whole, "")` answers zero instead of ending the session.** Ada's own
   `Index` raises `Pattern_Error` when the piece is empty, and that exception
   came out of the process — a separator read out of a configuration that did

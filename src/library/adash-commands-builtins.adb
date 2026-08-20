@@ -1805,24 +1805,35 @@ package body Adash.Commands.Builtins is
                                     [1 => M.Named ("resource", Named)]);
                   end if;
 
-                  if not Hostkit.Limits.Applies (Wanted) then
-                     return Failed (Adash.Errors.Error_No_Resource_Limits,
-                                    M.No_Arguments);
-                  end if;
-
-                  if Given = 1 then
-                     Report (Wanted);
-                     return Adash.Execution.Success;
-                  end if;
-
+                  --  What the caller wrote, before what the host has.
+                  --
+                  --  A value that is not a number is a mistake in the program
+                  --  and travels with it; a host without this limit is a fact
+                  --  about where the program is running. Asking the host first
+                  --  told a Windows user their host has no limits and left the
+                  --  typo for whoever next ran the script on Linux -- and the
+                  --  case that asserts the refusal had to be gated to two
+                  --  hosts, which is how this was found. The same order as
+                  --  `redirect` and `run_instead`, for the same reason.
                   declare
-                     Text  : constant String := Argument (Arguments, 2);
+                     Text  : constant String :=
+                       (if Given >= 2 then Argument (Arguments, 2) else "");
                      Value : Hostkit.Limits.Amount;
                   begin
-                     if not Limit_Value (Text, Value) then
+                     if Given >= 2 and then not Limit_Value (Text, Value) then
                         return Failed
                           (Adash.Errors.Error_Limit_Not_A_Number,
                            [1 => M.Named ("text", Text)]);
+                     end if;
+
+                     if not Hostkit.Limits.Applies (Wanted) then
+                        return Failed (Adash.Errors.Error_No_Resource_Limits,
+                                       M.No_Arguments);
+                     end if;
+
+                     if Given = 1 then
+                        Report (Wanted);
+                        return Adash.Execution.Success;
                      end if;
 
                      --  The host refuses a soft limit above the ceiling and a

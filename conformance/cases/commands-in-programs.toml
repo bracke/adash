@@ -596,12 +596,19 @@ A limit is digits or the word `unlimited`. Sizes here are bytes rather than the
 kilobytes some shells count in, so a value read wrongly would be wrong by a
 factor of a thousand rather than obviously wrong -- and a limit somebody meant
 to raise and instead lowered is a script that fails somewhere else entirely.
+
+On every host, which it was not. The command asked whether the host has this
+limit before it looked at what the caller wrote, so a Windows user was told
+their host has no limits and the typo went home with the script -- and this
+case had to be gated to the two hosts where the answer came out right. A value
+that is not a number is a mistake in the program and travels with it; a host
+without the limit is a fact about where it is running. The argument is read
+first now, as `redirect` and `run_instead` already read theirs.
 """
 script = "resource_limit (\"open_files\", \"many\");\nquit (0);"
 exit_status = 0
 output = []
 diagnostics = ["!error.limit_not_a_number{text=many}!"]
-platforms = ["linux", "macos"]
 
 [[case]]
 id = "resources.a-host-without-limits-says-so"
