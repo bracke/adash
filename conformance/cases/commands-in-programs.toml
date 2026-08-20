@@ -1466,3 +1466,33 @@ output = [
   "!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!",
 ]
 diagnostics = ["!error.no_matching_files{pattern=nothing*here}!"]
+
+[[case]]
+id = "combinations.a-program-that-takes-over-writes-where-the-shell-was-sent"
+requirement = """
+`redirect` moves the process's own stream, and `run_instead` keeps the process
+-- so the program that takes over writes where the shell was writing. That is
+not a coincidence of the two features but the point of both: one moves a
+descriptor the process holds, the other keeps the process holding it.
+
+A shell that started a child and exited with its status would get this wrong in
+a way nobody would notice until the log was empty.
+"""
+script = "cd (\"{store}\"); redirect (\"output\", \"taken.log\"); run_instead (\"{emit}\", \"the program that took over\");"
+exit_status = 0
+output = []
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
+id = "combinations.two-pipelines-share-one-redirected-stream"
+requirement = """
+Two pipelines run one after the other into a stream the session redirected: what
+they wrote is in the file, in the order they ran. One file description rather
+than two opens, which is why the second does not start again at the beginning
+and overwrite the first.
+"""
+script = "cd (\"{store}\"); redirect (\"output\", \"both.log\"); pipe (\"{emit}\", \"first\"); pipe_run; pipe (\"{emit}\", \"second\"); pipe_run; redirect_back (\"output\"); Held : String := Read_File (\"both.log\"); put_line (Index (Held, \"first\") > 0 and then Index (Held, \"second\") > Index (Held, \"first\"));"
+exit_status = 0
+output = ["TRUE"]
+diagnostics = []

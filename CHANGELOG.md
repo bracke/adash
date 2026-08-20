@@ -11,6 +11,13 @@ what changed.
 
 ### Added
 
+- **Two more combinations**: a program that takes over with `run_instead` writes
+  where the shell was sent by `redirect` — one feature moves a descriptor the
+  process holds, the other keeps the process holding it — and two pipelines run
+  into one redirected stream land in it in order, because there is one file
+  description rather than two opens. A third was probed and needs no case: a
+  signal arriving while a suspended job is brought to the foreground reaches its
+  handler, which the three signal cases already cover between them.
 - **Six cases for features in combination** — stopping still runs both kinds of
   handler and in which order; a pipeline's status is its last stage's, so a
   failing first stage does not stop a submission and a failing last one does; a
