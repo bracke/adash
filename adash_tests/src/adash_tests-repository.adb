@@ -1352,12 +1352,13 @@ package body Adash_Tests.Repository is
         new String'("error.directory_denied"),
         new String'("error.execution_cancelled"),
 
-        --  Bounds a case would have to spend real time or real disk to reach:
-        --  a source over the read limit -- which the limit does not in fact
-        --  govern, so this one is a question about the limit rather than a
-        --  case waiting to be written -- and four thousand matching names.
-        new String'("error.source_too_large"),
-        new String'("error.too_many_matches"),
+        --  Two bounds were listed here as ones no case could reach, on the
+        --  grounds that reaching them would cost real time or real disk.
+        --  Neither was true when it was measured: a nineteen-megabyte script
+        --  is refused in a third of a second, and four thousand one hundred
+        --  empty files take a second and a half to make. Both have cases now.
+        --  What that cost was, for years, is two bounds nobody had ever seen
+        --  hold.
 
         --  A fallback that nothing reaches any more: every operand shape has
         --  something more specific to say -- a type says it is a type, a

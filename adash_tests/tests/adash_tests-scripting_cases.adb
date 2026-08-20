@@ -552,6 +552,15 @@ package body Adash_Tests.Scripting_Cases is
       Assert (Report.Count > 0,
               "a script past the limit was refused without saying so");
 
+      --  And refused for its size, which is the whole claim. A file this
+      --  large is also a file that can fail to open, be read short, or be
+      --  taken for a directory, and every one of those is Script_Unreadable
+      --  with a diagnostic of its own: asserting only that something was said
+      --  passes on all of them, so it was not asserting what it was named
+      --  after.
+      Assert (Reported (Report, Adash.Errors.Error_Source_Too_Large),
+              "a script past the limit was refused for some other reason");
+
       Ada.Directories.Delete_File (Path);
    end A_Script_Too_Large_Is_Refused;
 

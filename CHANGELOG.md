@@ -11,6 +11,19 @@ what changed.
 
 ### Added
 
+- **Two bounds nobody had ever watched hold now have cases.** `adash_check`
+  lets a diagnostic be listed as one no case can produce, with a reason; two
+  were listed on the grounds that reaching them would cost real time or real
+  disk. Measured, neither did: a nineteen-megabyte script is refused in a third
+  of a second, and four thousand one hundred empty files take a second and a
+  half to make. `error.too_many_matches` has a conformance case that makes them
+  and asks for `*.log`, and the unit case that grows a script past the read
+  limit now asserts `error.source_too_large` **by name** rather than only that
+  something was said — a file that large can also fail to open or be read
+  short, and each of those is the same outcome with a different diagnostic, so
+  the case was not asserting what it was named after. The list they were on is
+  empty of size bounds now.
+
 - **Three cases for what a script is made of** — a byte-order mark at the start
   is skipped, one in the middle is still refused, and a non-breaking space
   between two tokens costs exactly one complaint that names it `U+00A0`. The

@@ -668,6 +668,25 @@ output = []
 diagnostics = ["!error.no_matching_files{pattern=nothing*here}!"]
 
 [[case]]
+id = "patterns.a-pattern-that-names-more-than-this-build-holds-is-refused"
+requirement = """
+A pattern is matched into a bounded list, and a directory somebody else fills
+can be larger than it. Refused whole, with the bound in the message, rather
+than run against the first four thousand of them -- a command given some of
+what it asked for is worse than one given none, because what it did is decided
+by what happened to be listed first.
+
+Four thousand one hundred files is what it takes to reach it, which is why this
+case makes them: the bound was listed for years as one no case could produce,
+on the grounds that it would cost real disk. It costs a second and a half of
+empty files.
+"""
+script = "cd (\"{store}\");\nfor I in 1 .. 4100 loop write_file (\"x\", \"f\" & I'Image & \".log\"); end loop;\nrun_matching (\"{emit}\", \"kept\", \"*.log\");\nquit (0);"
+exit_status = 0
+output = []
+diagnostics = ["!error.too_many_matches{pattern=*.log,limit=4096}!"]
+
+[[case]]
 id = "matching.a-dot-file-answers-only-a-dotted-pattern"
 requirement = """
 `*` does not name a file whose name begins with a dot, and a pattern that begins
