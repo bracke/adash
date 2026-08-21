@@ -301,6 +301,47 @@ output = ["here 3"]
 diagnostics = []
 
 [[case]]
+id = "source.a-module-moves-the-session-it-was-read-into"
+requirement = """
+A sourced file runs *in this session*, which is the whole reason `source`
+exists rather than `run`. So a module that pushes a directory has pushed the
+session's directory: the caller stands where the module left it, and what the
+module set aside is on the caller's stack to pop.
+
+Worth asserting because the alternative is defensible and wrong here. A module
+that moved only itself would be a module that could not set up a working
+directory for the script that read it, which is one of the two things a module
+is for -- the other being declarations, which the cases below cover.
+
+Named by path rather than as a module, because the search for a bare name does
+not include the directory the shell happens to be standing in -- see
+`source.says-where-it-looked`, which is the case for that.
+"""
+script = "cd (\"{store}\"); make_directory (\"below\"); write_file (\"push_directory (\"\"below\"\");\" & Character'Val (10), \"mover.adash\"); source (\"./mover.adash\"); put_line (Ends_With (Current_Directory, \"below\")); directories;\nquit (0);"
+exit_status = 0
+output = [
+  "TRUE",
+  "!line.set_aside{number=1,path={store}}!",
+]
+diagnostics = []
+
+[[case]]
+id = "source.a-failure-in-a-module-stops-a-stopping-script"
+requirement = """
+`stop.on-failure` ends the submission at the first command that fails, and a
+sourced file is part of the submission that read it -- so a failure inside a
+module stops the module *and* the script that sourced it, at that command.
+
+The other reading would be that a module is a thing you call and come back
+from, which is what `run` is for. This is the one that matches "a script is one
+submission": the module's next line does not run, and neither does the caller's.
+"""
+script = "cd (\"{store}\"); settings (\"stop.on-failure\", \"true\"); write_file (\"run (\"\"{emit}\"\", \"\"--exit=4\"\"); put_line (\"\"module went on\"\");\" & Character'Val (10), \"failing.adash\"); source (\"./failing.adash\"); put_line (\"caller went on\");"
+exit_status = 4
+output = ["!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!"]
+diagnostics = []
+
+[[case]]
 id = "source.and-a-script-is-one-submission"
 requirement = """
 What a sourced file declares reaches the next submission, and a script file is
