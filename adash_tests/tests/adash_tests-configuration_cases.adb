@@ -329,6 +329,54 @@ package body Adash_Tests.Configuration_Cases is
       Survives ("[history]" & Newline & "enabled = 1",
                 Adash.Messages.Msg_Config_Wrong_Type);
 
+      --  And it says what sort was wanted, not which of that sort would have
+      --  been in range: a value that is not a number at all is not answered
+      --  with `expects between 1 and 4096`, which explains the second thing
+      --  wrong with it. The `settings` command has always said `a whole
+      --  number` here; the file reader said the range until this was written.
+      declare
+         Chosen : C.Settings;
+         Report : D.List;
+         Said   : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
+      begin
+         F.Read_From ("[history]" & Newline & "limit = ""many""",
+                      "<test>", Chosen, Report);
+
+         for Index in 1 .. Report.Count loop
+            if D.Message (Report.Element (Index))
+                 = Adash.Messages.Msg_Config_Wrong_Type
+            then
+               Said := D.Detail (Report.Element (Index));
+            end if;
+         end loop;
+
+         Assert (Said = Adash.Messages.Msg_Config_Wants_Whole,
+                 "a value of the wrong type was answered with "
+                 & Adash.Messages.Key (Said));
+      end;
+
+      --  A range is still what an out-of-range number is answered with.
+      declare
+         Chosen : C.Settings;
+         Report : D.List;
+         Said   : Adash.Messages.Message_Id := Adash.Messages.Msg_Error_None;
+      begin
+         F.Read_From ("[history]" & Newline & "limit = 0",
+                      "<test>", Chosen, Report);
+
+         for Index in 1 .. Report.Count loop
+            if D.Message (Report.Element (Index))
+                 = Adash.Messages.Msg_Config_Out_Of_Range
+            then
+               Said := D.Detail (Report.Element (Index));
+            end if;
+         end loop;
+
+         Assert (Said = Adash.Messages.Msg_Config_Wants_Range,
+                 "a number outside the range was answered with "
+                 & Adash.Messages.Key (Said));
+      end;
+
       --  A number outside the setting's range, and a word it does not offer.
       Survives ("[history]" & Newline & "limit = 0",
                 Adash.Messages.Msg_Config_Out_Of_Range);

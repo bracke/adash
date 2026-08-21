@@ -77,6 +77,26 @@ package body Adash.Configuration.Files is
       end case;
    end Expected;
 
+   --  What to say when the *type* is wrong rather than the value.
+   --
+   --  `limit = "many"` is not a number at all, and answering `read.limit
+   --  expects between 1 and 4096` explains a range to somebody who wrote text:
+   --  the range is only the second thing wrong with it. The `settings` command
+   --  has said `a whole number` here all along, and this is the same mistake
+   --  read from a file.
+   --
+   --  The other kinds already name what they want rather than which of it:
+   --  `true or false`, `one of ...`, `text of at most ...`.
+   function Expected_Type (Which : Setting_Id) return Msg.Message_Id
+   is (if Kind (Which) = Integer_Setting
+       then Msg.Msg_Config_Wants_Whole
+       else Expected (Which));
+
+   function Expected_Type_Given (Which : Setting_Id) return Msg.Argument_List
+   is (if Kind (Which) = Integer_Setting
+       then Msg.No_Arguments
+       else Expected_Given (Which));
+
    function Expected_Given (Which : Setting_Id) return Msg.Argument_List is
    begin
       case Kind (Which) is
@@ -303,7 +323,8 @@ package body Adash.Configuration.Files is
                                 (Msg.Msg_Config_Wrong_Type,
                                  Adash.Diagnostics.Severity_Error,
                                  [1 => Msg.Named ("key", Full)],
-                                 Expected (Which), Expected_Given (Which));
+                                 Expected_Type (Which),
+                                 Expected_Type_Given (Which));
                            else
                               Set_Boolean
                                 (Into, Which,
@@ -317,7 +338,8 @@ package body Adash.Configuration.Files is
                                 (Msg.Msg_Config_Wrong_Type,
                                  Adash.Diagnostics.Severity_Error,
                                  [1 => Msg.Named ("key", Full)],
-                                 Expected (Which), Expected_Given (Which));
+                                 Expected_Type (Which),
+                                 Expected_Type_Given (Which));
 
                            elsif not Set_Integer
                                        (Into, Which,
@@ -340,7 +362,8 @@ package body Adash.Configuration.Files is
                                 (Msg.Msg_Config_Wrong_Type,
                                  Adash.Diagnostics.Severity_Error,
                                  [1 => Msg.Named ("key", Full)],
-                                 Expected (Which), Expected_Given (Which));
+                                 Expected_Type (Which),
+                                 Expected_Type_Given (Which));
 
                            elsif not Set_Choice
                                        (Into, Which,
@@ -360,7 +383,8 @@ package body Adash.Configuration.Files is
                                 (Msg.Msg_Config_Wrong_Type,
                                  Adash.Diagnostics.Severity_Error,
                                  [1 => Msg.Named ("key", Full)],
-                                 Expected (Which), Expected_Given (Which));
+                                 Expected_Type (Which),
+                                 Expected_Type_Given (Which));
 
                            elsif not Set_Text
                                        (Into, Which,
