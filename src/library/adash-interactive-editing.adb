@@ -951,10 +951,13 @@ package body Adash.Interactive.Editing is
          --  Back to the first row of what was drawn last time, and clear all
          --  of it. Erasing only the current row would leave the rest of a
          --  wrapped line on screen.
-         for Step in 1 .. Drawn_Row loop
-            Ignored := Hostkit.Terminal_Control.Control
-              (Output, Hostkit.Terminal_Control.Move_Up);
-         end loop;
+         --  One sequence, not one per cell. `Control` takes the distance and
+         --  writes nothing at all for zero; walking it a step at a time meant
+         --  a keystroke on a sixty-character line sent a few hundred
+         --  three-byte moves, which is invisible on a local terminal and is
+         --  the whole cost of typing over a link.
+         Ignored := Hostkit.Terminal_Control.Control
+           (Output, Hostkit.Terminal_Control.Move_Up, Drawn_Row);
 
          Ignored := Hostkit.Terminal_Control.Control
            (Output, Hostkit.Terminal_Control.To_First_Column);
@@ -969,10 +972,8 @@ package body Adash.Interactive.Editing is
             end if;
          end loop;
 
-         for Step in 1 .. Drawn_Rows loop
-            Ignored := Hostkit.Terminal_Control.Control
-              (Output, Hostkit.Terminal_Control.Move_Up);
-         end loop;
+         Ignored := Hostkit.Terminal_Control.Control
+           (Output, Hostkit.Terminal_Control.Move_Up, Drawn_Rows);
 
          Ignored := Hostkit.Terminal_Control.Control
            (Output, Hostkit.Terminal_Control.To_First_Column);
@@ -1032,10 +1033,9 @@ package body Adash.Interactive.Editing is
                Ignored := Emit (Shown_Prompt);
                Ignored := Emit (Text (First .. Stop));
 
-               for Step in 1 .. Shown - (Line.Cursor_Cells - Skipped) loop
-                  Ignored := Hostkit.Terminal_Control.Control
-                    (Output, Hostkit.Terminal_Control.Move_Left);
-               end loop;
+               Ignored := Hostkit.Terminal_Control.Control
+                 (Output, Hostkit.Terminal_Control.Move_Left,
+                  Shown - (Line.Cursor_Cells - Skipped));
 
                Drawn_Row  := 0;
                Drawn_Rows := 0;
@@ -1047,18 +1047,15 @@ package body Adash.Interactive.Editing is
 
             --  The cursor is at the end of what was written; bring it to where
             --  the point actually is.
-            for Step in 1 .. Last_Row - Cursor_Row loop
-               Ignored := Hostkit.Terminal_Control.Control
-                 (Output, Hostkit.Terminal_Control.Move_Up);
-            end loop;
+            Ignored := Hostkit.Terminal_Control.Control
+              (Output, Hostkit.Terminal_Control.Move_Up,
+               Last_Row - Cursor_Row);
 
             Ignored := Hostkit.Terminal_Control.Control
               (Output, Hostkit.Terminal_Control.To_First_Column);
 
-            for Step in 1 .. Cursor_Col loop
-               Ignored := Hostkit.Terminal_Control.Control
-                 (Output, Hostkit.Terminal_Control.Move_Right);
-            end loop;
+            Ignored := Hostkit.Terminal_Control.Control
+              (Output, Hostkit.Terminal_Control.Move_Right, Cursor_Col);
 
             Drawn_Row  := Cursor_Row;
             Drawn_Rows := Last_Row;
