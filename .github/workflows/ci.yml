@@ -133,6 +133,35 @@ jobs:
             exit 1
           fi
 
+      # Alire fetches AUnit from GitHub the first time this crate is built,
+      # and a runner's network is not this repository -- the same reasoning as
+      # the three tries on the clones above. One run failed on two hosts in the
+      # same minute: `curl ... exited with code 6` on macOS, and on Ubuntu a
+      # release integrity test that expected one sha512 and got another, which
+      # is what a download that arrived truncated looks like. Both read like a
+      # real failure of the commit under test, and neither was one.
+      #
+      # Fetching first also keeps the build step's output about the build: a
+      # download's progress bar in the middle of it is one more thing between a
+      # reader and the compiler's own words.
+      - name: Fetch the test crate's dependencies
+        working-directory: Ada/adash/adash_tests
+        shell: bash
+        run: |
+          set -u
+
+          for try in 1 2 3; do
+            if alr -n update; then
+              exit 0
+            fi
+
+            echo "alr update did not finish (try ${try})"
+            sleep $((try * 10))
+          done
+
+          echo "alr update failed three times; this is the runner's network"
+          exit 1
+
       - name: Build the test crate
         working-directory: Ada/adash/adash_tests
         shell: bash
@@ -324,6 +353,35 @@ jobs:
       - name: Build adash at the release profile
         working-directory: Ada/adash
         run: alr -n build --release
+
+      # Alire fetches AUnit from GitHub the first time this crate is built,
+      # and a runner's network is not this repository -- the same reasoning as
+      # the three tries on the clones above. One run failed on two hosts in the
+      # same minute: `curl ... exited with code 6` on macOS, and on Ubuntu a
+      # release integrity test that expected one sha512 and got another, which
+      # is what a download that arrived truncated looks like. Both read like a
+      # real failure of the commit under test, and neither was one.
+      #
+      # Fetching first also keeps the build step's output about the build: a
+      # download's progress bar in the middle of it is one more thing between a
+      # reader and the compiler's own words.
+      - name: Fetch the test crate's dependencies
+        working-directory: Ada/adash/adash_tests
+        shell: bash
+        run: |
+          set -u
+
+          for try in 1 2 3; do
+            if alr -n update; then
+              exit 0
+            fi
+
+            echo "alr update did not finish (try ${try})"
+            sleep $((try * 10))
+          done
+
+          echo "alr update failed three times; this is the runner's network"
+          exit 1
 
       - name: Build the test crate at the release profile
         working-directory: Ada/adash/adash_tests
