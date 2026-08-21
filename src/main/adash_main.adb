@@ -408,6 +408,33 @@ procedure Adash_Main is
       begin
          Adash.Configuration.Files.Load (Chosen, Read, Report);
          Adash.Engine.Apply_Settings (Session, Chosen);
+
+         --  Including the colour policy, which the settings carry and the
+         --  engine does not act on: it holds them for the commands that read
+         --  them, and what colour is is the terminal's. The interactive
+         --  session does this for itself a few lines after its own
+         --  Apply_Settings; a script did not, so `color = "never"` still
+         --  coloured a script run at a terminal and `always` coloured nothing
+         --  when it was piped -- the one setting that did not reach a script,
+         --  under a comment above saying a script gets the user's settings
+         --  too.
+         --
+         --  In both frontends rather than in the engine: the engine naming the
+         --  terminal would be a new sideways edge in the layering, and this is
+         --  eight lines.
+         declare
+            Word : constant String :=
+              Adash.Configuration.Choice_Value
+                (Chosen, Adash.Configuration.Color_Setting);
+         begin
+            if Word = "always" then
+               Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Always);
+            elsif Word = "never" then
+               Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Never);
+            else
+               Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Auto);
+            end if;
+         end;
       end;
 
       --  Startup runs for a script too: a script that behaved differently from
@@ -440,8 +467,11 @@ procedure Adash_Main is
 
 begin
    --  Auto: style a terminal, leave a pipe alone, and honour NO_COLOR.
-   --  Configuration and a command-line switch will feed this once
-   --  Adash.Configuration exists; until then the default is the policy.
+   --
+   --  The policy until the settings are read, which happens once a script or a
+   --  session has somewhere to put them. Anything this program says before
+   --  that -- a catalog that would not open, a switch it does not know -- is
+   --  styled by this.
    Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Auto);
 
    Catalog.Open;

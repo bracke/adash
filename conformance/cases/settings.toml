@@ -74,3 +74,23 @@ output = []
 diagnostics = [
   "!error.setting_unknown{key=nope}!",
 ]
+
+[[case]]
+id = "settings.color-reaches-a-script-too"
+requirement = """
+`color` says when coloured output is produced, and a script ignored it: the
+policy was read and applied where an interactive session starts, and a script
+run went on under `auto`. So `color = "never"` still coloured a script run at a
+terminal, and `always` coloured nothing when the script was piped -- under a
+comment in the main program saying a script gets the user's settings too,
+because a script and a session that behaved differently would be two shells.
+
+Run down a pipe, which is what this suite does, `always` is the choice that can
+be seen: `auto` produces nothing here whether or not the setting arrives, so it
+would pass without the fix. The escape byte is named as a number rather than
+written, because an escape in a source file is what `adash_check` refuses.
+"""
+script = "make_directory (\"{store}/adash\");\nwrite_file (\"color = \"\"always\"\"\" & Character'Val (10), \"{store}/adash/config.toml\");\nwrite_file (\"run (\"\"/nonesuch-for-colour\"\");\" & Character'Val (10), \"{store}/probe.adash\");\nset (\"XDG_CONFIG_HOME={store}\");\nS : String := All_Of (\"{shell}\", \"{store}/probe.adash\");\nif Index (S, \"\" & Character'Val (27)) = 0 then put_line (\"no colour\"); else put_line (\"coloured\"); end if;\nquit (0);"
+exit_status = 0
+output = ["coloured"]
+diagnostics = []
