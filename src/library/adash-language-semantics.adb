@@ -811,6 +811,25 @@ package body Adash.Language.Semantics is
       function Visible (Name : String) return Symbols.Symbol
       is (Chain.Lookup (Visible_Name (Name)));
 
+      --  Whether this name's own declaration already went wrong.
+      --
+      --  Only the kinds that carry a type can be asked: a procedure, a package
+      --  and an exception have no type and are not broken for want of one, and
+      --  a test that forgot the difference let `abort P` through analysis and
+      --  into a Program_Error at run time.
+      --  A name that is not declared at all is not this: nothing said why,
+      --  because there is nothing to say it about, and the caller's own
+      --  complaint is the only one the reader will get. A symbol that is
+      --  nothing reads as a variable with no type -- the first kind and the
+      --  first type -- and a test that forgot to ask whether it exists
+      --  silenced every undeclared name in a handler, a raise and a call.
+      function Unresolved (Item : Symbols.Symbol) return Boolean
+      is (not Symbols.Is_Nothing (Item)
+          and then Symbols.Kind (Item) in Symbols.Symbol_Variable
+                                        | Symbols.Symbol_Constant
+                                        | Symbols.Symbol_Parameter
+          and then Types."=" (Symbols.Of_Type (Item), Types.Type_None));
+
       --  Write an exception's declared spelling back into the tree.
       --
       --  Ada does not distinguish `OOPS` from `Oops`, and a name a `use` made
@@ -5055,8 +5074,13 @@ package body Adash.Language.Semantics is
                   end if;
 
                   if not Symbols.Is_Callable (Found) then
-                     Complain (Adash.Errors.Error_Not_Callable, Prefix,
-                               [1 => Adash.Messages.Named ("name", Name)]);
+                     --  Unless its own declaration went wrong, in which case
+                     --  that is what to fix and it was said where it happened.
+                     if not Unresolved (Found) then
+                        Complain (Adash.Errors.Error_Not_Callable, Prefix,
+                                  [1 => Adash.Messages.Named ("name", Name)]);
+                     end if;
+
                      Note (Node, Types.Type_None);
                      return Types.Type_None;
                   end if;
@@ -6032,6 +6056,11 @@ package body Adash.Language.Semantics is
                      Complain (Adash.Errors.Error_Name_Undeclared, Named,
                                [1 => Adash.Messages.Named ("name", Name)]);
 
+                  elsif Unresolved (Found) then
+                     --  Its declaration went wrong and said so. What it is not
+                     --  follows from that rather than adding to it.
+                     null;
+
                   elsif Symbols.Kind (Found) /= Symbols.Symbol_Package then
                      Complain (Adash.Errors.Error_Not_A_Package, Named,
                                [1 => Adash.Messages.Named ("name", Name)]);
@@ -6547,6 +6576,13 @@ package body Adash.Language.Semantics is
                      if Symbols.Is_Nothing (Found) then
                         Complain (Adash.Errors.Error_Name_Undeclared, Named,
                                   [1 => Adash.Messages.Named ("name", Name)]);
+                     elsif Unresolved (Found) then
+                        --  Declared, under a type that did not resolve. Why
+                        --  is on the line that declared it; saying it is not a
+                        --  task as well answers a question the reader did not
+                        --  ask.
+                        null;
+
                      elsif not Types.Is_Task (Symbols.Of_Type (Found))
                        or else Symbols.Kind (Found) = Symbols.Symbol_Type
                      then
@@ -6781,6 +6817,10 @@ package body Adash.Language.Semantics is
                           (Adash.Errors.Error_Raise_Outside_A_Handler, Node,
                            Adash.Messages.No_Arguments);
                      end if;
+
+                  elsif Unresolved (Visible (S.Text (Tree, What))) then
+                     --  Reported where it was declared.
+                     null;
 
                   elsif not Adash.Predefined.Is_Exception
                               (S.Text (Tree, What))
@@ -7888,8 +7928,29 @@ package body Adash.Language.Semantics is
                   end if;
 
                   if not Sound then
-                     Note (Node, Types.Type_None);
-                     return;
+                     --  Declared anyway, under a type nobody knows. The
+                     --  mistake in the definition has been reported; leaving
+                     --  the name undeclared as well means every use of it
+                     --  reports again, and `type R is record A : Nope; end
+                     --  record; V : R;` answered `Nope is not declared` and
+                     --  then `R is not declared` -- the second about a name
+                     --  the reader can see they wrote. Nothing carries: a
+                     --  submission the analyser refused leaves the session as
+                     --  it found it.
+                     declare
+                        Ignored : Adash.Errors.Error_Info;
+                        Made    : constant Boolean :=
+                          Chain.Declare_Symbol
+                            (Symbols.Make
+                               (Full_Name (Name), Symbols.Symbol_Type,
+                                Types.Type_None, Origin,
+                                S.Extent (Tree, Name_Node)),
+                             Ignored);
+                        pragma Unreferenced (Made);
+                     begin
+                        Note (Node, Types.Type_None);
+                        return;
+                     end;
                   end if;
 
                   Into.Shapes.Append (Built);
@@ -9281,6 +9342,9 @@ package body Adash.Language.Semantics is
                              (Adash.Errors.Error_Case_Others_Not_Last,
                               Which, Adash.Messages.No_Arguments);
                         end if;
+
+                     elsif Unresolved (Visible (S.Text (Tree, Which))) then
+                        null;
 
                      elsif not Adash.Predefined.Is_Exception
                                  (S.Text (Tree, Which))

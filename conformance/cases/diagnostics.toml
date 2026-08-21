@@ -709,3 +709,54 @@ output = []
 diagnostics = [
   "!error.syntax.unexpected{found=put_line,expected=;}!",
 ]
+
+[[case]]
+id = "diagnostics.a-refused-declaration-is-still-a-name"
+requirement = """
+One mistake, one complaint, and the name the reader wrote goes on meaning
+something for the rest of the submission.
+
+`type R is record A : Nope; end record;` names a type nothing declares. That is
+reported. The declaration is then refused -- and the name was left undeclared
+too, so `V : R;` came back with `R is not declared` about a name the reader can
+see they wrote, once for every use. A refused type is now declared under a type
+nobody knows, which is the truth about it, and nothing downstream asks it
+anything.
+
+One submission, which is what this is about. Nothing carries: a submission the
+analyser refused leaves the session as it found it, so by the next submission
+the name really is gone and `R is not declared` is then the truth.
+
+`abort V` is the other half. A name declared under a type that did not resolve
+is not a task, and saying so answers a question the reader did not ask.
+"""
+script = "type R is record A : Nope; end record; V : R; W : R; X : Nope; abort X; X (1); use X; raise X;"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.name_undeclared{name=Nope}!",
+  "!error.name_undeclared{name=Nope}!",
+]
+
+[[case]]
+id = "diagnostics.a-name-that-is-fine-is-still-judged"
+requirement = """
+The silence above is earned by a declaration that already failed, and by
+nothing else. A name whose declaration is sound answers for what it is, at
+every place that asks: a call, a `use`, a raise, a handler's choice, an abort.
+
+A procedure and a package have no type of their own, so a test for "its type
+did not resolve" that forgot the difference would silence all of these. One
+did, and `abort P` on a procedure went through analysis and raised
+Program_Error where the program ran instead.
+"""
+script = "N : Integer := 1; N (1);\nN : Integer := 1; use N;\nN : Integer := 1; raise N;\nprocedure P is begin null; end P; abort P;\npackage Q is M : Integer := 1; end Q; raise Q;"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.not_callable{name=N}!",
+  "!error.not_a_package{name=N}!",
+  "!error.not_an_exception{name=N}!",
+  "!error.not_a_task{name=P}!",
+  "!error.not_an_exception{name=Q}!",
+]
