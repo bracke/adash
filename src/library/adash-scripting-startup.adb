@@ -149,6 +149,15 @@ package body Adash.Scripting.Startup is
       --  Whatever happened, the shell comes up. Refusing to start over a
       --  broken startup file would leave a user without the tool they would
       --  fix it with.
+      --
+      --  Including when what happened was `quit`. A startup file runs before
+      --  there is a session to end, so its request is withdrawn here rather
+      --  than carried into one: standing, it ended the session after its first
+      --  submission and reported the startup file's status instead of the
+      --  session's -- and on the script path it replaced the script's status
+      --  with the startup file's. What a startup file's `quit` still does is
+      --  end that file, which is the submission it is in.
+      Adash.Engine.Clear_Exit_Request (Session);
    end Run_All;
 
 end Adash.Scripting.Startup;

@@ -89,8 +89,37 @@ Run down a pipe, which is what this suite does, `always` is the choice that can
 be seen: `auto` produces nothing here whether or not the setting arrives, so it
 would pass without the fix. The escape byte is named as a number rather than
 written, because an escape in a source file is what `adash_check` refuses.
+
+The file is planted in both places a host looks -- `{store}/adash` and
+`{store}/Library/Application Support/adash`. The runner points
+`XDG_CONFIG_HOME`, `APPDATA` and `HOME` at the store and each host reads its
+own: writing only the first passed on Linux and failed on macOS and Windows,
+where the nested shell found no configuration and used the default.
 """
-script = "make_directory (\"{store}/adash\");\nwrite_file (\"color = \"\"always\"\"\" & Character'Val (10), \"{store}/adash/config.toml\");\nwrite_file (\"run (\"\"/nonesuch-for-colour\"\");\" & Character'Val (10), \"{store}/probe.adash\");\nset (\"XDG_CONFIG_HOME={store}\");\nS : String := All_Of (\"{shell}\", \"{store}/probe.adash\");\nif Index (S, \"\" & Character'Val (27)) = 0 then put_line (\"no colour\"); else put_line (\"coloured\"); end if;\nquit (0);"
+script = "make_directory (\"{store}/adash\");\nmake_directory (\"{store}/Library/Application Support/adash\");\nSaid : String := \"color = \"\"always\"\"\" & Character'Val (10);\nwrite_file (Said, \"{store}/adash/config.toml\");\nwrite_file (Said, \"{store}/Library/Application Support/adash/config.toml\");\nwrite_file (\"run (\"\"/nonesuch-for-colour\"\");\" & Character'Val (10), \"{store}/probe.adash\");\nset (\"XDG_CONFIG_HOME={store}\");\nset (\"HOME={store}\");\nset (\"APPDATA={store}\");\nS : String := All_Of (\"{shell}\", \"{store}/probe.adash\");\nif Index (S, \"\" & Character'Val (27)) = 0 then put_line (\"no colour\"); else put_line (\"coloured\"); end if;\nquit (0);"
 exit_status = 0
 output = ["coloured"]
+diagnostics = []
+
+[[case]]
+id = "startup.a-quit-in-a-startup-file-does-not-end-the-session"
+requirement = """
+A startup file is read while the shell is coming up, so a `quit` in one is a
+request nobody is driving yet. Standing, it made every session one submission
+long: the loop saw the request before the first line and stopped after it,
+reporting the startup file's status rather than the session's. On the script
+path it was quieter and still wrong -- the script ran whole and exited with the
+startup file's number.
+
+Withdrawn where the startup files finish, beside the rule that was already
+written there: whatever happened, the shell comes up. What a `quit` in a startup
+file still does is end that file, which is the submission it is in.
+
+Run as a nested shell, because the suite's own session has no startup file, and
+planted in both places a host looks: the runner points `XDG_CONFIG_HOME`,
+`APPDATA` and `HOME` at the store, and each host reads its own of the three.
+"""
+script = "make_directory (\"{store}/adash\");\nmake_directory (\"{store}/Library/Application Support/adash\");\nSaid : String := \"quit (7);\" & Character'Val (10) & \"put_line (\"\"must not appear\"\");\" & Character'Val (10);\nwrite_file (Said, \"{store}/adash/startup.adash\");\nwrite_file (Said, \"{store}/Library/Application Support/adash/startup.adash\");\nset (\"XDG_CONFIG_HOME={store}\");\nset (\"HOME={store}\");\nset (\"APPDATA={store}\");\nwrite_file (\"put_line (\"\"one\"\");\" & Character'Val (10) & \"put_line (\"\"two\"\");\" & Character'Val (10) & \"quit (3);\" & Character'Val (10), \"{store}/probe.adash\");\nS : String := Output_Of (\"{shell}\", \"{store}/probe.adash\");\nput_line (\"lines=[\" & Trim (S) & \"] status=\" & Trim (Status'Image));\nquit (0);"
+exit_status = 0
+output = ["lines=[one", "two] status=3"]
 diagnostics = []

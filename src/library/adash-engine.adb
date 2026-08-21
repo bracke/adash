@@ -1929,6 +1929,15 @@ package body Adash.Engine is
       return Item.Shell.Exit_Requested;
    end Exit_Requested;
 
+   ---------------------------
+   -- Clear_Exit_Request --
+   ---------------------------
+
+   procedure Clear_Exit_Request (Item : in out Session) is
+   begin
+      Item.Shell.Exit_Requested := False;
+   end Clear_Exit_Request;
+
    ------------------
    -- Exit_Status --
    ------------------

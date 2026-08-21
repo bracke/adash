@@ -276,6 +276,21 @@ package Adash.Engine is
 
    function Exit_Requested (Item : Session) return Boolean;
 
+   --  Withdraw a request to end the session.
+   --
+   --  For the one caller that runs submissions *before* there is a session to
+   --  end: a startup file is read while the shell is coming up, and a `quit`
+   --  in one is a request nobody is driving yet. Left standing, it ended the
+   --  session after its first submission and reported the startup file's
+   --  status instead of the session's -- so a startup file with a `quit` in it
+   --  made every session one line long.
+   --
+   --  Not for anything else. A frontend that withdrew a request made by the
+   --  work it is driving would be deciding not to stop when it was told to.
+   --
+   --  @param Item The session.
+   procedure Clear_Exit_Request (Item : in out Session);
+
    --  The status the session should end with.
    --
    --  @param Item Session to inspect.
