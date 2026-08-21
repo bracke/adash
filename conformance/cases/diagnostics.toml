@@ -638,41 +638,20 @@ name rather than left to run out of stack somewhere in the analyser or the
 lowering -- both of which recurse once per level, so what a user would otherwise
 see is the shell dying without a word.
 
-The number is `Adash.Language.Max_Nesting`. This case carries twenty-two so that
+The number is `Adash.Language.Max_Nesting`. This case carries twenty-one so that
 a change to the limit is a change to this case as well.
 
-The refusal stops the analysis of that subprogram where it stands, so the parser
-meets an `end` where it wanted a body -- once for every subprogram still open.
-Twenty-one complaints follow the first, and they are written out rather than
-trimmed: that wall is what a user actually sees, and somebody who improves it to
-stop after the first will find this case and change it on purpose.
+One complaint, naming the subprogram that is one too deep. The program is
+well formed Ada apart from its depth, which is the only thing this case is
+about: an earlier version of it left every level without its `begin`, and the
+twenty-two syntax complaints that came back were read as the cost of the limit
+rather than as the cost of the mistake in the case.
 """
-script = "procedure P0 is procedure P1 is procedure P2 is procedure P3 is procedure P4 is procedure P5 is procedure P6 is procedure P7 is procedure P8 is procedure P9 is procedure P10 is procedure P11 is procedure P12 is procedure P13 is procedure P14 is procedure P15 is procedure P16 is procedure P17 is procedure P18 is procedure P19 is procedure P20 is procedure P21 is begin null; end P21; end P20; end P19; end P18; end P17; end P16; end P15; end P14; end P13; end P12; end P11; end P10; end P9; end P8; end P7; end P6; end P5; end P4; end P3; end P2; end P1; end P0;"
+script = "procedure P0 is procedure P1 is procedure P2 is procedure P3 is procedure P4 is procedure P5 is procedure P6 is procedure P7 is procedure P8 is procedure P9 is procedure P10 is procedure P11 is procedure P12 is procedure P13 is procedure P14 is procedure P15 is procedure P16 is procedure P17 is procedure P18 is procedure P19 is procedure P20 is begin null; end P20; begin null; end P19; begin null; end P18; begin null; end P17; begin null; end P16; begin null; end P15; begin null; end P14; begin null; end P13; begin null; end P12; begin null; end P11; begin null; end P10; begin null; end P9; begin null; end P8; begin null; end P7; begin null; end P6; begin null; end P5; begin null; end P4; begin null; end P3; begin null; end P2; begin null; end P1; begin null; end P0;"
 exit_status = 2
 output = []
 diagnostics = [
   "!error.nested_subprogram{name=P19}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
-  "!error.syntax.unexpected{found=end,expected=begin}!",
 ]
 
 [[case]]
@@ -709,4 +688,24 @@ output = []
 diagnostics = [
   "!error.lexical.bracket_aggregate{character=[}!",
   "!error.lexical.bracket_aggregate{character=]}!",
+]
+
+[[case]]
+id = "syntax.a-repaired-parse-does-not-run"
+requirement = """
+`put_line ("a") put_line ("b")` is Ada without the semicolon between the two
+calls. The parser says so, and it used to say so *after* printing both lines
+and reporting success -- the recovery that lets a reader see more than one
+mistake per submission also let the submission run, because a repaired parse
+left no error node and an error node is what stops one.
+
+Every other way a parse can go wrong already refuses the whole submission. This
+one does too now: nothing runs, and the status says the submission was not
+understood.
+"""
+script = "put_line (\"a\") put_line (\"b\");"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.syntax.unexpected{found=put_line,expected=;}!",
 ]

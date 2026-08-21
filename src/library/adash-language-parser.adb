@@ -257,6 +257,21 @@ package body Adash.Language.Parser is
                         Adash.Messages.Named ("expected", Expected)]),
                Quoted    => Named,
                Fills     => "expected"));
+
+         --  A parse that had to be repaired to continue is not the program
+         --  its author wrote, and running it anyway ran one: `put_line ("a")
+         --  put_line ("b")` -- Ada without the semicolon between them --
+         --  printed both lines, complained twice, and reported success. Every
+         --  other way a parse can go wrong already leaves an error node, and
+         --  the engine stops on one. A recovered mistake leaves one too, so
+         --  what a reader is told and what the shell does agree.
+         declare
+            Ignored : constant S.Node_Id :=
+              S.Add_Leaf (Into, S.Node_Error, Here);
+            pragma Unreferenced (Ignored);
+         begin
+            null;
+         end;
       end Complain;
 
       procedure Complain (Named : Adash.Messages.Message_Id) is
