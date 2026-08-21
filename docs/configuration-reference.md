@@ -41,6 +41,18 @@ never finishes prints no trace at all, which is the one case `set -x` is most
 often reached for. Feeding the script in on standard input instead makes each
 line its own submission and the trace arrives with it.
 
+`color` decides when styling is written, and what it decides against is where
+the output is going, not what kind of run this is: a script and a session
+follow the same setting.
+
+- **`auto`** styles a terminal and leaves a pipe alone, and produces nothing
+  when **`NO_COLOR`** is set in the environment, whatever its value -- the
+  convention every tool that honours it follows.
+- **`always`** styles both, and overrides `NO_COLOR`: a setting written by hand
+  in this shell's own configuration is a later and more specific instruction
+  than an environment variable that speaks to every program at once.
+- **`never`** styles nothing, and needs no environment variable to say so.
+
 `read.limit` is in **mebibytes**, and is the most any one read will hold: a file
 for `Read_File`, a program's output for `Output_Of`, a line for `Read_Line`. The
 shell's own reads — a script file, a module read into one, a configuration file,
