@@ -118,7 +118,7 @@ overloads like one and the context settles which is meant.
 
 **Subtypes** carry a range that is checked wherever a value arrives: an object's
 initialisation, an assignment, an argument, a result, and on the way back out of
-an `out` parameter. The bounds must be known before the program runs.
+an `out` parameter. The bounds are written out rather than worked out.
 
 **Records and arrays** hold simple values only, get positional and named
 aggregates with `others`, component selection, indexing with a bounds check,
@@ -127,7 +127,7 @@ what it holds where nothing else does — `type Line is record Number : Integer
 := 0; ... end record;` — and the default is a literal, as a parameter's is. It
 is written into the object where the object is declared; a component with no
 default holds nothing until something assigns it. An array's bounds
-are known before the program runs and it holds at most 4096 elements.
+are written out rather than worked out, and it holds at most 4096 elements.
 
 An array type is also written where an object's type mark stands —
 `A : array (1 .. 3) of Integer := (1, 2, 3);` — which is Ada's anonymous array
@@ -136,7 +136,9 @@ the object is carried between submissions as the definition it was written
 with.
 
 **An array is sliced** — `A (2 .. 3) := B (1 .. 2)`, and `=` between two of
-them. A slice's ends are known before the program runs, as the array's own are;
+them. A slice's ends are ordinary values, worked out where the slice stands and
+checked against the array it cuts — the array's own bounds are the written-out
+ones, not the slice's;
 it is as long as what goes into it, checked where it is written; and it is a
 place rather than a value, so it stands where a run of slots is copied or
 compared and nowhere else. There is no null slice: a run of no slots is not a
@@ -174,7 +176,7 @@ known here. An index or a slice outside what was passed raises.
 
 Every part gets exactly one value. A part left out, a part named twice, an index
 the array does not have, and an `others` that answers for nothing are each
-refused by name. An index is a value known before the program runs. An aggregate
+refused by name. An index is written out rather than worked out. An aggregate
 is written wherever a value of the type is: a declaration, an assignment, or an
 argument at a call, where it is built in a run of the caller's own slots.
 
@@ -193,8 +195,16 @@ the text itself. The four position attributes are defined for the discrete types
 `'Range` is `'First .. 'Last` and stands wherever a range stands. `'Count` is
 asked inside the body of the unit that declares the entry.
 
-An attribute is a **value known before the program runs**, so it may stand where
-a case choice, a subtype bound or an aggregate's index stands.
+**Written out, not worked out.** Where this language wants a value before the
+program runs, it takes one term: a literal, or an attribute. `1 .. 3` and
+`1 .. A'Length` stand where a bound, a case choice or an aggregate's index is
+wanted. `1 .. 2 + 1` does not, and neither does a named constant, though Ada
+works both out — the rule here is about the shape of what is written, not about
+what could in principle be computed. A parameter's default is narrower still:
+a literal and nothing else.
+
+An attribute is a value of that kind, which is why it may stand where a case
+choice, a subtype bound or an aggregate's index stands.
 
 **A qualified expression** — `Small'(Red)`, `Integer'(Make)`, `Row'(1, 2)` —
 says which reading is meant, and the subtype's constraint applies to what it
@@ -230,8 +240,8 @@ Assignment, `if`/`elsif`/`else`, `case`, `loop`, `while`, `for`, `exit`,
 below.
 
 A **`case`** must account for every value of its type; one that misses a value is
-refused rather than run. Choices are values known before the program runs, or
-ranges of them, or `others`, which comes last.
+refused rather than run. Choices are written out rather than
+worked out, or ranges of them, or `others`, which comes last.
 
 A **`for` loop** counts over a range or over a named type, and over any discrete
 type either way: `for I in 1 .. 5`, `for C in 'a' .. 'z'`, `for What in Verdict`,

@@ -2537,7 +2537,23 @@ package body Adash.Language.Semantics is
          --  then read back under the name the parser gave it.
          if S.Kind (Tree, Node) = S.Node_Array_Declaration then
             Analyse_Statement (Node);
-            return Named_Type (S.First (Tree, Node));
+
+            --  Read back only if it is there. The name the parser made for an
+            --  anonymous array type is one nobody can write, and when the
+            --  declaration above was refused -- a bound that is not written
+            --  out, an empty range, too many elements -- it said so already.
+            --  Going on to look the name up turned one mistake into three
+            --  complaints, the second of which quoted `A'array` at a reader
+            --  who had typed no such thing.
+            declare
+               Made : constant S.Node_Id := S.First (Tree, Node);
+            begin
+               if Symbols.Is_Nothing (Visible (S.Text (Tree, Made))) then
+                  return Types.Type_None;
+               end if;
+
+               return Named_Type (Made);
+            end;
          end if;
 
          declare
@@ -3063,10 +3079,16 @@ package body Adash.Language.Semantics is
                   --  what the context asked for. Ada says the same, and it is
                   --  why one cannot stand where nothing is expected.
                   if not Types.Is_Composite (Expected) then
-                     Complain
-                       (Adash.Errors.Error_Aggregate_Not_Expected, Node,
-                        [1 => Adash.Messages.Named
-                                ("found", Types.Name (Expected))]);
+                     --  Unless nobody knows what was expected: a type that did
+                     --  not resolve has already been reported, and saying an
+                     --  aggregate cannot stand where `` is wanted names the
+                     --  hole rather than the mistake.
+                     if Expected /= Types.Type_None then
+                        Complain
+                          (Adash.Errors.Error_Aggregate_Not_Expected, Node,
+                           [1 => Adash.Messages.Named
+                                   ("found", Types.Name (Expected))]);
+                     end if;
 
                      for Index in 1 .. Given loop
                         declare
@@ -7549,6 +7571,16 @@ package body Adash.Language.Semantics is
                   Unnamed : constant Boolean :=
                     Ada.Strings.Fixed.Index (Name, "'") > 0;
 
+                  --  What a diagnostic calls it. The name of an anonymous
+                  --  array type is the object's with an apostrophe in it, and
+                  --  a reader told that `A'array` is empty goes looking for
+                  --  something they never wrote. They wrote `A`.
+                  Spoken : constant String :=
+                    (if Unnamed
+                     then Name (Name'First
+                                .. Ada.Strings.Fixed.Index (Name, "'") - 1)
+                     else Name);
+
                   --  Whether a part may hold this. A composite inside a
                   --  composite is refused: reaching into one would need an
                   --  offset made of two offsets, and every place that walks a
@@ -7563,7 +7595,7 @@ package body Adash.Language.Semantics is
                   then
                      Complain (Adash.Errors.Error_Name_Is_Predefined,
                                Name_Node,
-                               [1 => Adash.Messages.Named ("name", Name)]);
+                               [1 => Adash.Messages.Named ("name", Spoken)]);
                      Note (Node, Types.Type_None);
                      return;
                   end if;
@@ -7692,7 +7724,7 @@ package body Adash.Language.Semantics is
                            --  about one mistake.
                            Complain
                              (Adash.Errors.Error_Record_Is_Empty, Node,
-                              [1 => Adash.Messages.Named ("name", Name)]);
+                              [1 => Adash.Messages.Named ("name", Spoken)]);
                            Sound := False;
                         end if;
 
@@ -7775,7 +7807,7 @@ package body Adash.Language.Semantics is
                               Complain
                                 (Adash.Errors.Error_Part_Not_Simple,
                                  S.Third (Tree, Node),
-                                 [Adash.Messages.Named ("name", Name),
+                                 [Adash.Messages.Named ("name", Spoken),
                                   Adash.Messages.Named
                                     ("found", Types.Name (Held))]);
                            end if;
@@ -7799,14 +7831,14 @@ package body Adash.Language.Semantics is
                         elsif Low > High then
                            Complain
                              (Adash.Errors.Error_Array_Is_Empty, Bounds,
-                              [1 => Adash.Messages.Named ("name", Name)]);
+                              [1 => Adash.Messages.Named ("name", Spoken)]);
                            Sound := False;
 
                         elsif High - Low + 1 > Long_Long_Integer (Max_Elements)
                         then
                            Complain
                              (Adash.Errors.Error_Array_Too_Long, Bounds,
-                              [Adash.Messages.Named ("name", Name),
+                              [Adash.Messages.Named ("name", Spoken),
                                Adash.Messages.Named
                                  ("limit", Long_Long_Integer (Max_Elements))]);
                            Sound := False;

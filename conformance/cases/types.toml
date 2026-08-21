@@ -576,13 +576,17 @@ each other's value, which is the same rule that stops a slice of two being
 assigned where three are wanted. A value of another array type says nothing
 about how long this variable is, and the complaint is about the value rather
 than about a missing length -- the honest one of the two.
+
+A refused length is one complaint. This case used to carry a second, saying an
+aggregate cannot stand where `` is wanted: a type that never resolved has no
+name to put in the sentence, and the reason it never resolved was reported on
+the line above.
 """
 script = "type Line is array (Integer range <>) of Integer; X : Line;\ntype Line is array (Integer range <>) of Integer; Y : Line (2 .. 4) := (1, 2, 3);\ntype Line is array (Integer range <>) of Integer; A : Line (1 .. 3) := (1, 2, 3); B : Line (1 .. 2) := (1, 2); A := B;\ntype Line is array (Integer range <>) of Integer; type Row is array (1 .. 2) of Integer; R : Row := (1, 2); W : Line := R;\nquit (0);"
 exit_status = 0
 diagnostics = [
   "!error.needs_bounds{name=Line}!",
   "!error.needs_bounds{name=Line}!",
-  "!error.aggregate_not_expected{found=}!",
   "!error.type_mismatch{found=Line (1 .. 2),expected=Line (1 .. 3)}!",
   "!error.type_mismatch{found=Row,expected=Line}!",
 ]
@@ -604,7 +608,6 @@ exit_status = 0
 output = [" 3 3 2 2", " 2 8"]
 diagnostics = [
   "!error.needs_bounds{name=Line}!",
-  "!error.aggregate_not_expected{found=}!",
 ]
 
 [[case]]
@@ -1144,3 +1147,58 @@ output = [
   "C:\\Users\\bent",
 ]
 diagnostics = []
+
+[[case]]
+id = "types.static-means-written-out-not-worked-out"
+requirement = """
+Where this language wants a value before the program runs it takes one term: a
+literal or an attribute. Ada works out `2 + 1` and the value of a named
+constant and calls both static; this does neither, and the reference said
+"known before the program runs" in six places, which describes Ada's rule
+rather than this one.
+
+A slice is the other half of the same correction: its ends are ordinary values,
+worked out where it stands. The reference had them written out like an array's.
+"""
+script = "A : array (1 .. 3) of Integer := (1, 2, 3);\nB : array (1 .. A'Length) of Integer := (4, 5, 6);\nS : String := \"hello world\";\nN : Integer := 2;\nput_line (S (N .. N + 3));\nput_line (Trim (B (3)'Image));\nquit (0);"
+exit_status = 0
+output = ["ello", "6"]
+diagnostics = []
+
+[[case]]
+id = "types.a-constant-is-not-a-written-out-value"
+requirement = """
+Each of the three places says which one it is refusing, rather than one message
+about staticness in general: a bound, a choice, and a subtype's range are
+different things to have got wrong.
+"""
+script = "C : constant Integer := 3;\nA : array (1 .. C) of Integer := (1, 2, 3);\nsubtype Small is Integer range 1 .. C;\nN : Integer := 2;\ncase N is when 1 + 1 => put_line (\"computed\"); when others => put_line (\"other\"); end case;"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.array_bound_not_static!",
+  "!error.subtype.bound_not_static!",
+  "!error.case.choice_not_static!",
+]
+
+[[case]]
+id = "types.an-anonymous-array-is-named-after-its-object"
+requirement = """
+`A : array (1 .. 3) of Integer` has a type nobody named, so the parser gives it
+one nobody can write: the object's, with an apostrophe in it. That name is for
+the analyser to look things up by and was reaching diagnostics -- a reader was
+told `A'array` is empty, and went looking for something they never typed.
+
+A bound that is not written out used to cost three complaints for one mistake:
+the refusal, then the internal name reported as undeclared because the refused
+declaration never declared it, then an aggregate said to stand where `` is
+wanted. The refusal is the whole of it.
+"""
+script = "A : array (3 .. 1) of Integer := (1, 2, 3);\nC : constant Integer := 3;\nB : array (1 .. C) of Integer := (1, 2, 3);\ntype Counts is array (3 .. 1) of Integer;"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.array_is_empty{name=A}!",
+  "!error.array_bound_not_static!",
+  "!error.array_is_empty{name=Counts}!",
+]
