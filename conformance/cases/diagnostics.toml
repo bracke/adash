@@ -783,6 +783,13 @@ by the time the pipeline runs there is nothing left to point at.
 `command not found: `. Both are asked before it asks the host whether it can
 become a program at all, so a host without that call answers the same way.
 
+The last of them were found by asking every command in the table rather than by
+meeting them: `set ("")` said ` is not of the form NAME=VALUE`, the two signal
+commands said `no signal here is called ;`, and everything that takes a file to
+redirect into said `could not open  for redirection`. `pipe_from_text` is
+exempt and stays exempt: its argument is the text to feed in, and feeding in
+nothing is a thing somebody may mean.
+
 `umask ("")` and `help ("")` are the sharpest of them: ` is not a mask: a mask
 is octal digits` and ` is not available in this build` *begin* with the hole. The hooks -- `on_exit`, `on_failure`, `on_signal`,
 `on_interrupt` -- had been answering an empty name with the wrong-number-of-
@@ -792,7 +799,7 @@ its own `{found}` unfilled.
 A failing command does not stop the sequence, so the session's own status is
 nought: what each of these sets is `Status`, which is what a script tests.
 """
-script = "cd (\"\");\nrun (\"\");\nsettings (\"\", \"1\");\nunset (\"\");\nsource (\"\");\nstart (\"\");\npipe (\"\");\nwrite_file (\"text\", \"\");\nmake_directory (\"\");\nremove_file (\"\");\nrename (\"\", \"\");\numask (\"\");\nresource_limit (\"\", \"1\");\nredirect (\"\", \"out.txt\");\npush_directory (\"\");\non_exit (\"\");\nhelp (\"\");\nrun_instead (\"\");"
+script = "cd (\"\");\nrun (\"\");\nsettings (\"\", \"1\");\nunset (\"\");\nsource (\"\");\nstart (\"\");\npipe (\"\");\nwrite_file (\"text\", \"\");\nmake_directory (\"\");\nremove_file (\"\");\nrename (\"\", \"\");\numask (\"\");\nresource_limit (\"\", \"1\");\nredirect (\"\", \"out.txt\");\npush_directory (\"\");\non_exit (\"\");\nhelp (\"\");\nrun_instead (\"\");\nset (\"\");\non_signal (\"\", \"H\");\nsignal_process (1, \"\");\nredirect_append (\"output\", \"\");\nrun_into (\"\", \"{emit}\");\npipe (\"{emit}\");\npipe_into (\"\");"
 exit_status = 0
 output = []
 diagnostics = [
@@ -814,6 +821,12 @@ diagnostics = [
   "!error.command.name_is_empty{name=on_exit}!",
   "!error.command.name_is_empty{name=help}!",
   "!error.command.name_is_empty{name=run_instead}!",
+  "!error.command.name_is_empty{name=set}!",
+  "!error.command.name_is_empty{name=on_signal}!",
+  "!error.command.name_is_empty{name=signal_process}!",
+  "!error.command.name_is_empty{name=redirect_append}!",
+  "!error.command.name_is_empty{name=run_into}!",
+  "!error.command.name_is_empty{name=pipe_into}!",
 ]
 
 [[case]]

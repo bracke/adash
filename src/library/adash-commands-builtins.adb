@@ -710,6 +710,15 @@ package body Adash.Commands.Builtins is
                --  NAME=VALUE and nothing else. A `set` that accepted a bare
                --  name would have to decide what it meant -- empty, or unset --
                --  and either choice surprises half its users.
+               if Text = "" then
+                  --  ` is not of the form NAME=VALUE` begins with the hole
+                  --  where the assignment should be. Nothing was given, which
+                  --  is not the same as something of the wrong shape.
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                if Split = 0 then
                   return Failed (Adash.Errors.Error_Command_Bad_Assignment,
                                  [1 => M.Named ("text", Text)]);
@@ -848,6 +857,16 @@ package body Adash.Commands.Builtins is
                      M.No_Arguments);
                end if;
 
+               --  `could not open  for redirection` stops where the file
+               --  should be. `pipe_from_text` is exempt: its argument is the
+               --  text to feed in, and feeding in nothing is a thing to mean.
+               if Id = Command_Pipe_From and then Argument (Arguments, 1) = ""
+               then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                if Id = Command_Pipe_From_Text then
                   Adash.Filesystem.Hold
                     (Shell.Pipeline_Input, Argument (Arguments, 1), Put_There);
@@ -947,6 +966,12 @@ package body Adash.Commands.Builtins is
                       then Adash.Errors.Error_Pipeline_Given_Up
                       else Adash.Errors.Error_Empty_Pipeline),
                      M.No_Arguments);
+               end if;
+
+               if Argument (Arguments, 1) = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
                end if;
 
                if not Adash.Execution.Redirection.Add (Attach, Asked, Refused)
@@ -1184,6 +1209,14 @@ package body Adash.Commands.Builtins is
 
                use type Adash.Filesystem.Written;
             begin
+               --  And no file where one of these takes a file: the same
+               --  sentence-with-a-hole, from the other end.
+               if Redirects and then Argument (Arguments, 1) = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                --  Nothing to run. Refused here rather than handed to the host,
                --  which answers that it could not find it and leaves the
                --  reader with `command not found: ` -- a sentence that stops
@@ -2350,6 +2383,15 @@ package body Adash.Commands.Builtins is
                            [1 => M.Named ("text", Handler)]);
                      end if;
 
+                     if Named = "" then
+                        --  `no signal here is called ; ...` stops where the
+                        --  name should be.
+                        return Failed
+                          (Adash.Errors.Error_Command_Name_Is_Empty,
+                           [1 => M.Named
+                                   ("name", M.Value (Describe (Id).Name))]);
+                     end if;
+
                      if not Signal_Named (Named, Which) then
                         return Failed (Adash.Errors.Error_Unknown_Signal,
                                        [1 => M.Named ("signal", Named)]);
@@ -2386,6 +2428,13 @@ package body Adash.Commands.Builtins is
                        (Adash.Errors.Error_Signal_Refused,
                         [M.Named ("signal", Named),
                          M.Named ("process", Argument (Arguments, 1))]);
+                  end if;
+
+                  if Named = "" then
+                     return Failed
+                       (Adash.Errors.Error_Command_Name_Is_Empty,
+                        [1 => M.Named
+                                ("name", M.Value (Describe (Id).Name))]);
                   end if;
 
                   if not Signal_Named (Named, Which) then
@@ -2507,6 +2556,16 @@ package body Adash.Commands.Builtins is
                   Opened : D.Descriptor;
                   Placed : Boolean := True;
                begin
+                  if Argument (Arguments, 2) = "" then
+                     --  `could not open  for redirection` stops where the
+                     --  file should be. No file was named, which is its own
+                     --  mistake and not a file that would not open.
+                     return Failed
+                       (Adash.Errors.Error_Command_Name_Is_Empty,
+                        [1 => M.Named
+                                ("name", M.Value (Describe (Id).Name))]);
+                  end if;
+
                   if Path = ""
                     or else not D.Open_File
                                   (Path,
