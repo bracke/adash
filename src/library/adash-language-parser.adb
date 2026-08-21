@@ -1851,17 +1851,20 @@ package body Adash.Language.Parser is
          if Is_Word (T.Word_Use) then
             Advance;
 
-            if T.Kind (Current) /= T.Token_Identifier then
-               Complain (Adash.Messages.Msg_Expected_Package_Name);
-               Recover;
-               return Error_Node (Adash.Source.Join (Start, Just_Consumed));
-            end if;
-
             declare
-               Named : constant S.Node_Id :=
-                 S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
+               --  Whole, dots and all: a package written inside another is
+               --  reached as `Outer.Inner`, and reading a single identifier
+               --  here meant the one form that names it could not be opened
+               --  with a `use` at all.
+               Read  : Boolean;
+               Named : constant S.Node_Id := Parse_Type_Mark (Read);
             begin
-               Advance;
+               if not Read then
+                  Complain (Adash.Messages.Msg_Expected_Package_Name);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
 
                declare
                   Ignored : constant Boolean :=
@@ -2001,19 +2004,25 @@ package body Adash.Language.Parser is
                   end if;
 
                   Count := Count + 1;
-                  Names (Count) :=
-                    S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
-                  Advance;
+
+                  --  Whole, dots and all, so that a task named under the unit
+                  --  that holds it is refused by what it is rather than by a
+                  --  complaint about a full stop.
+                  declare
+                     Read : Boolean;
+                  begin
+                     Names (Count) := Parse_Type_Mark (Read);
+
+                     if not Read then
+                        Complain (Adash.Messages.Msg_Expected_Task_Name);
+                        Recover;
+                        return Error_Node
+                          (Adash.Source.Join (Start, Just_Consumed));
+                     end if;
+                  end;
 
                   exit when not Is_Symbol (T.Delim_Comma);
                   Advance;
-
-                  if T.Kind (Current) /= T.Token_Identifier then
-                     Complain (Adash.Messages.Msg_Expected_Task_Name);
-                     Recover;
-                     return Error_Node
-                       (Adash.Source.Join (Start, Just_Consumed));
-                  end if;
                end loop;
 
                declare
@@ -2107,16 +2116,24 @@ package body Adash.Language.Parser is
                --  target is one.
                Which_One : S.Node_Id := S.No_Node;
             begin
-               if T.Kind (Current) /= T.Token_Identifier then
-                  Complain (Adash.Messages.Msg_Expected_Subprogram_Name);
-                  Recover;
-                  return Error_Node
-                    (Adash.Source.Join (Start, Just_Consumed));
-               end if;
+               --  Read whole, dots and all. A requeue may name only an
+               --  entry of its own unit, and stating that is the analyser's
+               --  job: reading a single identifier here meant `requeue
+               --  Other.E;` came back as a complaint about a full stop, which
+               --  says nothing about the rule it broke.
+               declare
+                  Read  : Boolean;
+                  Whole : constant S.Node_Id := Parse_Type_Mark (Read);
+               begin
+                  if not Read then
+                     Complain (Adash.Messages.Msg_Expected_Subprogram_Name);
+                     Recover;
+                     return Error_Node
+                       (Adash.Source.Join (Start, Just_Consumed));
+                  end if;
 
-               Named :=
-                 S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
-               Advance;
+                  Named := Whole;
+               end;
 
                --  `requeue Later (Which);` -- which member of a family the
                --  caller is moved to. An expression, because which member is

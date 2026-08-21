@@ -2896,3 +2896,21 @@ diagnostics = [
   "!error.name_undeclared{name=Never_Declared}!",
   "!error.syntax.unexpected{found=;,expected=!expected.task_name!}!",
 ]
+
+[[case]]
+id = "tasking.a-requeue-is-refused-by-the-rule-it-breaks"
+requirement = """
+A requeue may name only an entry of its own unit, and that is the analyser's
+rule to state. The parser read a single identifier, so `requeue Other.E;` came
+back as a complaint about a full stop -- which says nothing about the rule it
+broke, and leaves a reader who removes the dot no better off.
+
+`abort` reads its names the same way, and is refused by what the name denotes.
+"""
+script = "task A is entry E; end A;\ntask B is entry F; end B;\ntask body A is begin accept E do requeue B.F; end E; end A;\nabort Nowhere.T;"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.requeue_not_an_entry{name=B.F}!",
+  "!error.name_undeclared{name=Nowhere.T}!",
+]

@@ -182,3 +182,31 @@ script = "Oops : exception;\nbegin raise OOPS; exception when oops => put_line (
 exit_status = 1
 output = ["caught", "predefined too"]
 diagnostics = ["!error.program_raised{exception=Oops}!"]
+
+[[case]]
+id = "packages.a-package-inside-a-package-can-be-opened"
+requirement = """
+`Outer.Inner.Go` reaches a package written inside another, and `use` is how Ada
+drops a prefix. Reading a single identifier after `use` meant the one form that
+names a nested package could not be opened at all, and what came back was a
+complaint about a full stop rather than anything about packages.
+"""
+script = "package Outer is package Inner is N : Integer := 7; end Inner; end Outer;\nuse Outer.Inner;\nput_line (Trim (N'Image));\nquit (0);"
+exit_status = 0
+output = ["7"]
+diagnostics = []
+
+[[case]]
+id = "packages.use-names-a-package-and-says-so-when-it-does-not"
+requirement = """
+The name after `use` is judged for what it denotes, whichever form it takes.
+A member that is not a package is refused as one, and a name that denotes
+nothing is refused as undeclared -- both quoting the whole name as written.
+"""
+script = "package Outer is N : Integer := 1; end Outer;\nuse Outer.N;\nuse Nowhere.At_All;"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.not_a_package{name=Outer.N}!",
+  "!error.name_undeclared{name=Nowhere.At_All}!",
+]
