@@ -485,6 +485,18 @@ what changed.
   makes a directory with no permissions on purpose, and `Delete_Tree` stopped
   there, leaving 697 of 841 stores behind and swallowing the reason.
 
+- **A handler that is not a name is refused where it is written.**
+  `on_failure`, `on_exit` and `on_signal` take the *name* of a subprogram to
+  call, and anything non-empty was accepted — so somebody who has used a shell
+  where the argument is code writes `on_failure ("put_line (""x"");")`, and this
+  shell took it and then reported a syntax error about a semicolon at the moment
+  some *other* command failed. Two mistakes at once, neither of them where the
+  reader was looking. The argument is checked when it is given now: a name is a
+  letter or underscore followed by letters, digits and underscores, and may be
+  dotted, since a handler in a package is `P.Note`. Whether that name exists is
+  still asked when the handler runs, because a session may declare it after
+  registering it.
+
 - **`resource_limit` reads what the caller wrote before it asks what the host
   has.** A value that is not a number is a mistake in the program and travels
   with it; a host without that limit is a fact about where it is running.

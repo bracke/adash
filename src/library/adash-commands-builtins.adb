@@ -90,6 +90,53 @@ package body Adash.Commands.Builtins is
       return 0;
    end Assignment_Split;
 
+   --  Whether a handler argument is the name of something to call.
+   --
+   --  `on_failure`, `on_exit` and `on_signal` take a name, not a program: they
+   --  call it later, and later is when text that is not a name was found out.
+   --  `on_failure ("put_line (""x"");")` -- which is what somebody writes who
+   --  has used a shell where the argument is code -- registered happily and
+   --  then, at the moment some *other* command failed, produced a syntax error
+   --  about a semicolon. Asked here, the answer arrives where the mistake is.
+   --
+   --  Dotted, because a handler in a package is `P.Note` and that is a name.
+   function Is_A_Name (Text : String) return Boolean;
+
+   function Is_A_Name (Text : String) return Boolean is
+      After_Dot : Boolean := True;
+   begin
+      if Text'Length = 0 then
+         return False;
+      end if;
+
+      for Index in Text'Range loop
+         declare
+            Letter : constant Character := Text (Index);
+         begin
+            if Letter = '.' then
+               if After_Dot or else Index = Text'Last then
+                  return False;
+               end if;
+
+               After_Dot := True;
+
+            elsif Letter in 'A' .. 'Z' | 'a' .. 'z' | '_' then
+               After_Dot := False;
+
+            elsif Letter in '0' .. '9' then
+               if After_Dot then
+                  return False;
+               end if;
+
+            else
+               return False;
+            end if;
+         end;
+      end loop;
+
+      return not After_Dot;
+   end Is_A_Name;
+
    --  Whether an argument is an assignment rather than a program or one of its
    --  arguments. What separates the two in `run_with ("A=1", "B=2", "sort")`.
    function Is_An_Assignment (Text : String) return Boolean
@@ -2209,6 +2256,12 @@ package body Adash.Commands.Builtins is
                            [1 => M.Named ("name", "on_signal")]);
                      end if;
 
+                     if not Is_A_Name (Handler) then
+                        return Failed
+                          (Adash.Errors.Error_Handler_Not_A_Name,
+                           [1 => M.Named ("text", Handler)]);
+                     end if;
+
                      if not Signal_Named (Named, Which) then
                         return Failed (Adash.Errors.Error_Unknown_Signal,
                                        [1 => M.Named ("signal", Named)]);
@@ -2454,6 +2507,11 @@ package body Adash.Commands.Builtins is
                                  [1 => M.Named ("name", "on_failure")]);
                end if;
 
+               if not Is_A_Name (Name) then
+                  return Failed (Adash.Errors.Error_Handler_Not_A_Name,
+                                 [1 => M.Named ("text", Name)]);
+               end if;
+
                Shell.Failure_Handlers.Prepend
                  (Ada.Strings.Unbounded.To_Unbounded_String (Name));
 
@@ -2467,6 +2525,11 @@ package body Adash.Commands.Builtins is
                if Name = "" then
                   return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
                                  [1 => M.Named ("name", "on_exit")]);
+               end if;
+
+               if not Is_A_Name (Name) then
+                  return Failed (Adash.Errors.Error_Handler_Not_A_Name,
+                                 [1 => M.Named ("text", Name)]);
                end if;
 
                --  Most recent first, so that cleanups undo in the order that

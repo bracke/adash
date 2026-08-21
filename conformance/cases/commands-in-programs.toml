@@ -1596,6 +1596,30 @@ output = [
 diagnostics = ["!error.no_matching_files{pattern=nothing*here}!"]
 
 [[case]]
+id = "handlers.a-handler-is-a-name-and-is-refused-where-it-is-written"
+requirement = """
+`on_failure`, `on_exit` and `on_signal` take the *name* of a subprogram to
+call, not a program to run. Somebody who has used a shell where the argument is
+code writes `on_failure ("put_line (""x"");")` -- and this shell used to take
+it, then find out at the moment some other command failed, reporting a syntax
+error about a semicolon nobody had written as a program. Two mistakes at once,
+neither of them where the reader was looking.
+
+Refused where it is written, then. A name is a letter or an underscore followed
+by letters, digits and underscores, and may be dotted, because a handler in a
+package is `P.Note`. Whether that name exists is a different question and is
+still asked when the handler runs: a session may declare it afterwards.
+"""
+script = "on_failure (\"put_line (\"\"x\"\");\");\non_exit (\"2bad\");\non_signal (\"terminate\", \"not a name\");\nprocedure Note is begin put_line (To_Upper (\"noted\")); end Note; on_failure (\"Note\"); run (\"{emit}\", \"--exit=3\");\nquit (0);"
+exit_status = 0
+output = ["NOTED"]
+diagnostics = [
+  "!error.handler_not_a_name{text=put_line (\"x\");}!",
+  "!error.handler_not_a_name{text=2bad}!",
+  "!error.handler_not_a_name{text=not a name}!",
+]
+
+[[case]]
 id = "combinations.a-program-that-takes-over-leaves-a-job-behind"
 requirement = """
 `run_instead` keeps the process and replaces what is running in it, and a job

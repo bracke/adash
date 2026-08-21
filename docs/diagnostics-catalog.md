@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 637 messages in 23 groups.
+There are 638 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -140,6 +140,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.directory_not_found` | no such directory: {path} |
 | `error.directory_denied` | permission denied for directory: {path} |
 | `error.not_a_directory` | {path} is not a directory |
+| `error.handler_not_a_name` | a handler is the name of a subprogram to run, and {text} is not a name |
 | `error.module_not_found` | no script called {name}: {where} |
 | `error.source_unreadable` | could not read source: {source} |
 | `error.source_too_large` | {source} holds more source than this shell will read at once |

@@ -323,6 +323,8 @@ package body Adash.Messages is
          when Msg_Directory_Not_Found        => return "error.directory_not_found";
          when Msg_Directory_Denied           => return "error.directory_denied";
          when Msg_Not_A_Directory            => return "error.not_a_directory";
+         when Msg_Handler_Not_A_Name         =>
+            return "error.handler_not_a_name";
          when Msg_Source_Unreadable          => return "error.source_unreadable";
          when Msg_Source_Too_Large           => return "error.source_too_large";
          when Msg_Module_Not_Found          => return "error.module_not_found";
@@ -923,6 +925,9 @@ package body Adash.Messages is
             | Msg_Directory_Denied
             | Msg_Not_A_Directory =>
             return [1 => N ("path")];
+
+         when Msg_Handler_Not_A_Name =>
+            return [1 => N ("text")];
 
          when Msg_Module_Not_Found =>
             return [N ("name"), N ("where")];

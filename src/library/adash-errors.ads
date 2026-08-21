@@ -190,6 +190,13 @@ package Adash.Errors is
       --  or a path that names the wrong kind of thing entirely.
       Error_Not_A_Directory,
 
+      --  A handler that is not the name of a subprogram. `on_failure`,
+      --  `on_exit` and `on_signal` take a name to call, not a program to run,
+      --  and text that is neither was found out only when the handler ran --
+      --  as a syntax error about a semicolon the user never wrote as a
+      --  program, arriving at the moment of some *other* failure.
+      Error_Handler_Not_A_Name,
+
       --  Source acquisition.
       Error_Source_Unreadable,
 
