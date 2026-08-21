@@ -102,6 +102,15 @@ package body Adash.Language.Scopes is
       end;
    end Adopt;
 
+   -------------------------
+   -- Declare_Privately --
+   -------------------------
+
+   procedure Declare_Privately (Item : in out Chain; Owner : String) is
+   begin
+      Item.Keeping := Ada.Strings.Unbounded.To_Unbounded_String (Owner);
+   end Declare_Privately;
+
    function Declare_Symbol
      (Item         : in out Chain;
       Entry_To_Add : Symbols.Symbol;
@@ -175,7 +184,16 @@ package body Adash.Language.Scopes is
       end;
 
       Item.Clash := Adash.Source.Nowhere;
-      Item.Entries.Append (Entry_To_Add);
+      declare
+         Added : Symbols.Symbol := Entry_To_Add;
+      begin
+         if Ada.Strings.Unbounded.Length (Item.Keeping) > 0 then
+            Symbols.Keep_For
+              (Added, Ada.Strings.Unbounded.To_String (Item.Keeping));
+         end if;
+
+         Item.Entries.Append (Added);
+      end;
 
       declare
          Innermost : Scope := Item.Levels.Last_Element;

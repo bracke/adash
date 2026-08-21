@@ -1610,7 +1610,9 @@ package body Adash.Engine is
             --  of the block the bridge lives in so the status below can ask.
             Halted_Here : Boolean := False;
          begin
-            Adash.Language.Semantics.Analyse (Work.Tree, Origin, Analysis, Report);
+            Adash.Language.Semantics.Analyse
+              (Work.Tree, Origin, Analysis, Report,
+               Carried => Outcome.Carried_Bytes);
 
             if not Adash.Language.Semantics.Is_Legal (Analysis) then
                Outcome.Kind := Not_Understood;

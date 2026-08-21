@@ -172,6 +172,24 @@ package Adash.Language.Symbols is
    --  @return True when the shell provides it.
    function Is_Provided (Item : Symbol) return Boolean;
 
+   --  The package body this name belongs to, or "".
+   --
+   --  A package body's own declarations are that body's business: a helper
+   --  written there is not part of what the package offers, and leaving them
+   --  reachable as `P.Helper` made every helper part of the interface by
+   --  accident -- and made a later declaration of that name somebody else's
+   --  collision.
+   --
+   --  @param Item Symbol to inspect.
+   --  @return The body's name, or "" when the name is not kept.
+   function Kept_By (Item : Symbol) return String;
+
+   --  Keep this name for a package body.
+   --
+   --  @param Item Symbol to change.
+   --  @param Owner The body's name.
+   procedure Keep_For (Item : in out Symbol; Owner : String);
+
    --  The subprogram an exception was declared inside, or "".
    --
    --  Two exceptions of one name in two subprograms are two exceptions, and
@@ -414,6 +432,9 @@ private
       --  The subprogram this was declared inside, for an exception. Empty for
       --  everything else, and for one declared anywhere else.
       Within : Ada.Strings.Unbounded.Unbounded_String;
+
+      --  The package body that keeps this name, or empty.
+      Kept : Ada.Strings.Unbounded.Unbounded_String;
 
       --  Meaningful only for a function or a procedure. Zero elsewhere, which
       --  is also the right answer there: nothing else can be called, so

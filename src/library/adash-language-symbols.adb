@@ -43,6 +43,7 @@ package body Adash.Language.Symbols is
    begin
       return (Name    => To_Unbounded_String (Name),
               Within  => <>,
+              Kept    => <>,
               Key     => To_Unbounded_String (Fold (Name)),
               Kind    => Kind,
               Of_Type => Of_Type,
@@ -72,6 +73,24 @@ package body Adash.Language.Symbols is
    begin
       return Item.Provided;
    end Is_Provided;
+
+   ---------------
+   -- Kept_By --
+   ---------------
+
+   function Kept_By (Item : Symbol) return String is
+   begin
+      return To_String (Item.Kept);
+   end Kept_By;
+
+   ----------------
+   -- Keep_For --
+   ----------------
+
+   procedure Keep_For (Item : in out Symbol; Owner : String) is
+   begin
+      Item.Kept := To_Unbounded_String (Owner);
+   end Keep_For;
 
    ----------------------
    -- Declared_Within --
@@ -115,6 +134,7 @@ package body Adash.Language.Symbols is
       return
         (Name       => To_Unbounded_String (Name),
          Within     => <>,
+         Kept       => <>,
          Key        => To_Unbounded_String (Fold (Name)),
          Kind       => Kind,
          Of_Type    => Of_Type,

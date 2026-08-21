@@ -62,10 +62,20 @@ package Adash.Language.Semantics is
    --  @param Into The conclusions, replaced.
    --  @param Report Where semantic diagnostics go.
    procedure Analyse
-     (Tree   : in out Syntax.Tree;
-      Origin : Adash.Source.Origin;
-      Into   : out Analysis;
-      Report : in out Adash.Diagnostics.List);
+     (Tree    : in out Syntax.Tree;
+      Origin  : Adash.Source.Origin;
+      Into    : out Analysis;
+      Report  : in out Adash.Diagnostics.List;
+      Carried : Natural := 0);
+   --  @param Carried How many bytes at the front of this program the shell
+   --         wrote itself: the declarations a session holds, replayed so that
+   --         a name typed earlier still means something, and one assignment
+   --         per carried variable putting its value back. Those assignments
+   --         name members by their full names -- `P.Inner.M := 4;` -- because
+   --         a dotted name cannot be declared, and that is the shell writing
+   --         from outside a body about names the body keeps. Rules about who
+   --         may name what apply to what a *user* wrote, which is everything
+   --         after this.
 
    --  Whether the program may be evaluated.
    --

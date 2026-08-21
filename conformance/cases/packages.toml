@@ -210,3 +210,47 @@ diagnostics = [
   "!error.not_a_package{name=Outer.N}!",
   "!error.name_undeclared{name=Nowhere.At_All}!",
 ]
+
+[[case]]
+id = "packages.a-body-keeps-its-own-declarations"
+requirement = """
+Ada makes a package body's own declarations the body's business: a helper
+written there is not part of what the package offers. Reaching them as
+`P.Helper` made every helper part of the interface by accident, and made a
+later declaration of that name somebody else's collision.
+
+Judged where the reference is written rather than at lookup. The analyser
+resolves a body's own names again once the body is read -- qualified, and with
+no prefix -- so a filter at lookup refuses what the body itself wrote; four
+attempts died there.
+
+And judged only over what the *user* wrote. A session replays what it holds in
+front of every submission, and among that is one assignment per carried
+variable written with the member's full name -- `P.Held := 4;` -- because a
+dotted name cannot be declared and the value has to go back into what the
+replayed declaration re-elaborated. That is the shell writing, from outside a
+body, about a name the body keeps.
+"""
+script = "package P is procedure Go; end P;\npackage body P is Held : Integer := 7; procedure Secret is begin null; end Secret; procedure Go is begin null; end Go; end P;\nput_line (Trim (P.Held'Image));\nP.Secret;\nuse P;\nput_line (Trim (Held'Image));"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.name_undeclared{name=P.Held}!",
+  "!error.name_undeclared{name=P.Secret}!",
+  "!error.name_undeclared{name=Held}!",
+]
+
+[[case]]
+id = "packages.a-body-still-reaches-what-it-declared"
+requirement = """
+The other half, and the one that is easy to break: everything the body wrote
+still works, and the state a package holds still survives a submission.
+
+`C.Bump` twice running counts to two. That is the assignment the session
+replays doing its job -- and it names `C.N` from outside `C`, which is the rule
+above being asked about text the user did not write.
+"""
+script = "package P is procedure Go; end P;\npackage body P is package Inner is M : Integer := 4; end Inner; procedure Helper is begin put_line (\"helper\"); end Helper; procedure Go is begin Helper; put_line (Trim (Inner.M'Image)); end Go; end P;\nP.Go;\npackage C is procedure Bump; function Value return Integer; end C;\npackage body C is N : Integer := 0; procedure Bump is begin N := N + 1; end Bump; function Value return Integer is begin return N; end Value; end C;\nC.Bump;\nC.Bump;\nput_line (Trim (C.Value'Image));\nquit (0);"
+exit_status = 0
+output = ["helper", "4", "2"]
+diagnostics = []

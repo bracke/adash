@@ -1,4 +1,5 @@
 private with Ada.Containers.Vectors;
+private with Ada.Strings.Unbounded;
 
 with Adash.Errors;
 with Adash.Source;
@@ -88,6 +89,12 @@ package Adash.Language.Scopes is
      (Item         : in out Chain;
       Entry_To_Add : Symbols.Symbol;
       Error        : out Adash.Errors.Error_Info) return Boolean;
+
+   --  Keep what is declared next for a package body.
+   --
+   --  @param Item Chain to change.
+   --  @param Owner The body's name, or "" to stop keeping names.
+   procedure Declare_Privately (Item : in out Chain; Owner : String);
    --  Where the symbol that refused the last declaration was declared.
    --
    --  "X is already declared" is only actionable if the reader is told where
@@ -210,6 +217,9 @@ private
       Levels : Scope_Vectors.Vector;
 
       Started : Boolean := False;
+
+      --  The package body whose declarations are being read, when one is.
+      Keeping : Ada.Strings.Unbounded.Unbounded_String;
 
       --  Where the symbol that refused the last declaration was declared; see
       --  Clashed_At.

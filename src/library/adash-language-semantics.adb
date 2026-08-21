@@ -577,10 +577,11 @@ package body Adash.Language.Semantics is
    -------------
 
    procedure Analyse
-     (Tree   : in out Syntax.Tree;
-      Origin : Adash.Source.Origin;
-      Into   : out Analysis;
-      Report : in out Adash.Diagnostics.List)
+     (Tree    : in out Syntax.Tree;
+      Origin  : Adash.Source.Origin;
+      Into    : out Analysis;
+      Report  : in out Adash.Diagnostics.List;
+      Carried : Natural := 0)
    is
       Chain : Adash.Language.Scopes.Chain;
 
@@ -1203,6 +1204,80 @@ package body Adash.Language.Semantics is
         (Node          : S.Node_Id;
          Expected      : Types.Type_Kind := Types.Type_None;
          For_Statement : Boolean := False) return Types.Type_Kind;
+      --  Who may name what a package body kept.
+      --
+      --  A pass of its own, after everything has a meaning, and asking two
+      --  questions of each name: did the *user* write it, and is it inside the
+      --  body that keeps it.
+      --
+      --  Not at lookup, where four attempts died. The analyser resolves a
+      --  body's own names again once the body is read -- qualified, with no
+      --  prefix -- so a filter there refuses what the body itself wrote.
+      --
+      --  And not over the whole program, where the fifth died. A session
+      --  replays what it holds in front of every submission, and among that
+      --  is one assignment per carried variable, written with the member's
+      --  full name: `P.Inner.M := 4;`, because a dotted name cannot be
+      --  declared and the value has to go back into what the replayed
+      --  declaration re-elaborated. That is the shell writing, from outside a
+      --  body, about a name the body keeps -- exactly what this rule forbids a
+      --  user to do. `Carried` is where the shell's own text ends.
+      procedure Judge_What_Bodies_Keep (Node : S.Node_Id; Inside : String);
+
+      procedure Judge_What_Bodies_Keep (Node : S.Node_Id; Inside : String) is
+      begin
+         if not S.Is_Present (Node) then
+            return;
+         end if;
+
+         if S.Kind (Tree, Node) = S.Node_Package_Body then
+            declare
+               Named  : constant S.Node_Id := S.First (Tree, Node);
+               Deeper : constant String :=
+                 (if Inside = "" then S.Text (Tree, Named)
+                  else Inside & "." & S.Text (Tree, Named));
+            begin
+               for Index in 1 .. S.Child_Count (Tree, Node) loop
+                  Judge_What_Bodies_Keep (S.Child (Tree, Node, Index), Deeper);
+               end loop;
+
+               return;
+            end;
+         end if;
+
+         if S.Kind (Tree, Node) in S.Node_Name | S.Node_Selected
+           and then Natural (S.Extent (Tree, Node).First) > Carried
+         then
+            declare
+               Owner : constant String :=
+                 Symbols.Kept_By (Symbol_Of (Into, Node));
+            begin
+
+               if Owner /= ""
+                 and then Inside /= Owner
+                 and then not (Inside'Length > Owner'Length
+                               and then Inside (Inside'First
+                                                .. Inside'First + Owner'Length)
+                                          = Owner & ".")
+               then
+                  Legal := False;
+                  Complain
+                    (Adash.Errors.Error_Name_Undeclared, Node,
+                     [1 => Adash.Messages.Named
+                             ("name",
+                              (if S.Kind (Tree, Node) = S.Node_Name
+                               then S.Text (Tree, Node)
+                               else Dotted (Tree, Node)))]);
+                  return;
+               end if;
+            end;
+         end if;
+
+         for Index in 1 .. S.Child_Count (Tree, Node) loop
+            Judge_What_Bodies_Keep (S.Child (Tree, Node, Index), Inside);
+         end loop;
+      end Judge_What_Bodies_Keep;
+
       procedure Analyse_Statement (Node : S.Node_Id);
       procedure Analyse_Sequence (Node : S.Node_Id);
 
@@ -7595,6 +7670,12 @@ package body Adash.Language.Semantics is
                   --  member an ordinary symbol everywhere below here.
                   declare
                      Was_Spec : constant Boolean := In_Package_Spec;
+
+                     --  A package body's own declarations are kept for it.
+                     --  Who may name one is settled afterwards, by where the
+                     --  reference is; this records whose they are.
+                     Body_Now : constant Boolean :=
+                       S.Kind (Tree, Node) = S.Node_Package_Body;
                   begin
                      In_Package_Spec :=
                        S.Kind (Tree, Node) = S.Node_Package_Declaration;
@@ -7602,7 +7683,17 @@ package body Adash.Language.Semantics is
                      Prefix :=
                        Ada.Strings.Unbounded.To_Unbounded_String
                          (Under (Outer, Name));
+
+                     if Body_Now then
+                        Chain.Declare_Privately (Under (Outer, Name));
+                     end if;
+
                      Analyse_Sequence (Held);
+
+                     if Body_Now then
+                        Chain.Declare_Privately ("");
+                     end if;
+
                      Prefix :=
                        Ada.Strings.Unbounded.To_Unbounded_String (Outer);
 
@@ -9805,6 +9896,9 @@ package body Adash.Language.Semantics is
       --  ones inside a body were reported as that body closed; these are what
       --  is left.
       Report_Missing_Bodies (0);
+
+      --  And who may name what a package body kept.
+      Judge_What_Bodies_Keep (Syntax.Root (Tree), "");
 
       Into.Legal := Legal;
       Into.Analysed := True;
