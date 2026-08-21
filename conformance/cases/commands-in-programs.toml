@@ -1709,6 +1709,27 @@ diagnostics = [
 ]
 
 [[case]]
+id = "combinations.a-program-that-takes-over-runs-no-exit-handler"
+requirement = """
+`internal-commands.md` says it in the row for `run_instead`: "Nothing runs
+after it, including `on_exit`." Nothing asserted it, and it is the sort of
+claim a reader has to be able to trust -- somebody registers a cleanup, execs a
+program at the end of a script, and the cleanup silently does not happen.
+
+It cannot happen, which is the point: `run_instead` replaces what is running in
+this process, so there is no shell left to run a handler. The same is true of
+`exec` in every shell that has one. A shell that ran the handlers first would
+be inventing a behaviour the call does not have -- and hiding, from a script
+that meant to hand over cleanly, that its cleanup ran before the program it
+handed to.
+"""
+script = "procedure Bye is begin put_line (To_Upper (\"cleanup\")); end Bye; on_exit (\"Bye\"); run_instead (\"{emit}\", \"took over\"); put_line (\"never\");"
+exit_status = 0
+output = ["took over"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
 id = "combinations.a-program-that-takes-over-leaves-a-job-behind"
 requirement = """
 `run_instead` keeps the process and replaces what is running in it, and a job
