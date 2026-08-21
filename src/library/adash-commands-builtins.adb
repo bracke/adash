@@ -2556,8 +2556,19 @@ package body Adash.Commands.Builtins is
                --  program that is not there is not there on any host, and a
                --  refusal naming the platform would send somebody who mistyped
                --  a name looking in the wrong place.
-               if Named_As = "" or else Hostkit.Process.Locate (Named_As) = ""
-               then
+               --
+               --  Nothing and a name that is not there are two mistakes, not
+               --  one: folded together they answered `command not found: `,
+               --  which stops where the name should be. Both are asked before
+               --  the capability below, so both say the same thing on a host
+               --  that has no such call at all.
+               if Named_As = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
+               if Hostkit.Process.Locate (Named_As) = "" then
                   return Failed (Adash.Errors.Error_Command_Not_Found,
                                  [1 => M.Named ("command", Named_As)]);
                end if;
