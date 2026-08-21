@@ -316,13 +316,17 @@ is for -- the other being declarations, which the cases below cover.
 Named by path rather than as a module, because the search for a bare name does
 not include the directory the shell happens to be standing in -- see
 `source.says-where-it-looked`, which is the case for that.
+
+The stack is asserted by popping it rather than by listing it. `directories`
+prints the path it set aside, and on macOS the shell's answer is the canonical
+`/private/var/...` while the store this case was given is the `/var/...` the
+runner knows it by -- the same directory, spelled two ways, and a case that
+compared them failed on one host of the three. Popping asks the question
+without naming the answer.
 """
-script = "cd (\"{store}\"); make_directory (\"below\"); write_file (\"push_directory (\"\"below\"\");\" & Character'Val (10), \"mover.adash\"); source (\"./mover.adash\"); put_line (Ends_With (Current_Directory, \"below\")); directories;\nquit (0);"
+script = "cd (\"{store}\"); make_directory (\"below\"); write_file (\"push_directory (\"\"below\"\");\" & Character'Val (10), \"mover.adash\"); source (\"./mover.adash\"); put_line (Ends_With (Current_Directory, \"below\")); pop_directory; put_line (Ends_With (Current_Directory, \"files\"));\nquit (0);"
 exit_status = 0
-output = [
-  "TRUE",
-  "!line.set_aside{number=1,path={store}}!",
-]
+output = ["TRUE", "TRUE"]
 diagnostics = []
 
 [[case]]
