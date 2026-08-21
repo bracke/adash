@@ -172,6 +172,29 @@ package Adash.Language.Symbols is
    --  @return True when the shell provides it.
    function Is_Provided (Item : Symbol) return Boolean;
 
+   --  The subprogram an exception was declared inside, or "".
+   --
+   --  Two exceptions of one name in two subprograms are two exceptions, and
+   --  what runs tells them apart by the text they settled on -- so the text
+   --  has to differ. A package prefixes what it holds and answers this by
+   --  itself; a subprogram does not prefix its locals, and without this a
+   --  handler naming an unrelated `Oops` caught the one raised inside
+   --  `Attempt`.
+   --
+   --  Recorded rather than derived, and used only where a name is settled: it
+   --  changes what a raise and a handler compare, and nothing about how a
+   --  name is looked up.
+   --
+   --  @param Item Symbol to inspect.
+   --  @return The enclosing subprogram's name, or "".
+   function Declared_Within (Item : Symbol) return String;
+
+   --  Say which subprogram this was declared inside.
+   --
+   --  @param Item Symbol to change.
+   --  @param Unit The enclosing subprogram's name.
+   procedure Declare_Within (Item : in out Symbol; Unit : String);
+
    --  Declare a subprogram.
    --
    --  Separate from Make because a subprogram carries something no other
@@ -387,6 +410,10 @@ private
       --  declared it. Such a symbol has no position, so nothing may report one
       --  for it.
       Provided : Boolean := False;
+
+      --  The subprogram this was declared inside, for an exception. Empty for
+      --  everything else, and for one declared anywhere else.
+      Within : Ada.Strings.Unbounded.Unbounded_String;
 
       --  Meaningful only for a function or a procedure. Zero elsewhere, which
       --  is also the right answer there: nothing else can be called, so

@@ -42,6 +42,7 @@ package body Adash.Language.Symbols is
    is
    begin
       return (Name    => To_Unbounded_String (Name),
+              Within  => <>,
               Key     => To_Unbounded_String (Fold (Name)),
               Kind    => Kind,
               Of_Type => Of_Type,
@@ -72,6 +73,24 @@ package body Adash.Language.Symbols is
       return Item.Provided;
    end Is_Provided;
 
+   ----------------------
+   -- Declared_Within --
+   ----------------------
+
+   function Declared_Within (Item : Symbol) return String is
+   begin
+      return To_String (Item.Within);
+   end Declared_Within;
+
+   ---------------------
+   -- Declare_Within --
+   ---------------------
+
+   procedure Declare_Within (Item : in out Symbol; Unit : String) is
+   begin
+      Item.Within := To_Unbounded_String (Unit);
+   end Declare_Within;
+
    -----------------
    -- Is_Nothing --
    -----------------
@@ -95,6 +114,7 @@ package body Adash.Language.Symbols is
    begin
       return
         (Name       => To_Unbounded_String (Name),
+         Within     => <>,
          Key        => To_Unbounded_String (Fold (Name)),
          Kind       => Kind,
          Of_Type    => Of_Type,

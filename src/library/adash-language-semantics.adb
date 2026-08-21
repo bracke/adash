@@ -844,7 +844,16 @@ package body Adash.Language.Semantics is
          Found   : constant Symbols.Symbol := Visible (Written);
       begin
          if Symbols."=" (Symbols.Kind (Found), Symbols.Symbol_Exception) then
-            S.Set_Text (Tree, Which, Symbols.Name (Found));
+            --  Under the subprogram that declared it, where one did. Two
+            --  exceptions of one name in two subprograms are two exceptions,
+            --  and what runs compares the text of a raise against the text of
+            --  each handler: settled on the bare name, an outer handler
+            --  naming an unrelated `Oops` caught the one raised inside
+            --  `Attempt`. `Attempt.Oops` is also what a reader is told when
+            --  nobody catches it, which names the one they wrote.
+            S.Set_Text
+              (Tree, Which,
+               Under (Symbols.Declared_Within (Found), Symbols.Name (Found)));
             return;
          end if;
 
@@ -1063,6 +1072,13 @@ package body Adash.Language.Semantics is
       --  "am I inside one" and "may I declare one here" are different
       --  questions and only a count answers both.
       Subprogram_Depth : Natural := 0;
+
+      --  The subprogram whose body is being analysed, innermost outward as a
+      --  dotted path, or empty at the top level. Only exceptions are declared
+      --  with it: two of one name in two subprograms are two exceptions, and
+      --  what runs tells them apart by the text a raise and a handler settled
+      --  on, so that text has to differ.
+      Inside_Subprogram : Ada.Strings.Unbounded.Unbounded_String;
 
       --  A specification still waiting for its body.
       --
@@ -6789,13 +6805,20 @@ package body Adash.Language.Semantics is
                   Named : constant S.Node_Id := S.First (Tree, Node);
                   Name  : constant String := S.Text (Tree, Named);
                   Error : Adash.Errors.Error_Info;
+
+                  Made : Symbols.Symbol :=
+                    Symbols.Make
+                      (Full_Name (Name), Symbols.Symbol_Exception,
+                       Types.Type_None, Origin, S.Extent (Tree, Named));
                begin
-                  if not Chain.Declare_Symbol
-                    (Symbols.Make
-                       (Full_Name (Name), Symbols.Symbol_Exception,
-                        Types.Type_None, Origin, S.Extent (Tree, Named)),
-                     Error)
-                  then
+                  --  Which subprogram it belongs to, if any. A package already
+                  --  prefixes what it holds; a subprogram does not prefix its
+                  --  locals, so this is what keeps two `Oops` apart.
+                  Symbols.Declare_Within
+                    (Made,
+                     Ada.Strings.Unbounded.To_String (Inside_Subprogram));
+
+                  if not Chain.Declare_Symbol (Made, Error) then
                      Legal := False;
                      Refuse_Declaration (Error, Named);
                   end if;
@@ -9486,6 +9509,8 @@ package body Adash.Language.Semantics is
          Outer_Loops   : constant Natural := Loop_Depth;
          Outer_Returns : constant Types.Type_Kind := Returns;
          Outer_Unknown : constant Boolean := Returns_Unknown;
+         Outer_Inside  : constant Ada.Strings.Unbounded.Unbounded_String :=
+           Inside_Subprogram;
       begin
          --  More parameters than a profile carries. Refused by name rather
          --  than kept as the first sixteen: a declaration silently shortened
@@ -9675,6 +9700,10 @@ package body Adash.Language.Semantics is
          Chain.Enter;
          Subprogram_Depth := Subprogram_Depth + 1;
          Master_Depth     := Master_Depth + 1;
+         Inside_Subprogram :=
+           Ada.Strings.Unbounded.To_Unbounded_String
+             (Under (Ada.Strings.Unbounded.To_String (Inside_Subprogram),
+                     Name));
          Returns          := Yields;
          Returns_Unknown  :=
            S.Is_Present (Result) and then Yields = Types.Type_None;
@@ -9712,6 +9741,7 @@ package body Adash.Language.Semantics is
 
          Subprogram_Depth := Subprogram_Depth - 1;
          Master_Depth     := Master_Depth - 1;
+         Inside_Subprogram := Outer_Inside;
          Returns          := Outer_Returns;
          Returns_Unknown  := Outer_Unknown;
          Loop_Depth       := Outer_Loops;

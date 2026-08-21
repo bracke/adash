@@ -683,3 +683,41 @@ output = []
 diagnostics = [
   "!error.not_lowerable{construct=!lower.whole_literal!}!",
 ]
+
+[[case]]
+id = "exceptions.two-of-one-name-in-two-places-are-two-exceptions"
+requirement = """
+An exception declared inside a subprogram is that subprogram's. Another of the
+same name declared outside is a different exception, and a handler naming the
+outer one must not catch the inner one -- Ada's rule, and the reason a name is
+not an identity.
+
+What runs compares the text a raise settled on against the text of each
+handler. A package prefixes what it holds, so `Fault.Refused` was already
+distinct; a subprogram does not prefix its locals, so both settled on `Oops`
+and the outer handler caught what `Attempt` raised. They settle on
+`Attempt.Oops` and `Oops` now, which is also what a reader is told when nobody
+catches it: the exception they wrote, under the subprogram they wrote it in.
+
+The recorded subprogram changes nothing about how a name is looked up. `raise
+Oops` inside `Attempt` still finds the nearer declaration, exactly as every
+other name does.
+"""
+script = "Oops : exception;\nprocedure Attempt is Oops : exception; begin raise Oops; end Attempt;\nbegin Attempt; exception when Oops => put_line (\"the outer one\"); when others => put_line (\"distinct\"); end;\nprocedure Held is Oops : exception; begin raise Oops; exception when Oops => put_line (\"its own\"); end Held;\nHeld;\nquit (0);"
+exit_status = 0
+output = ["distinct", "its own"]
+diagnostics = []
+
+[[case]]
+id = "exceptions.an-uncaught-one-is-named-where-it-was-declared"
+requirement = """
+The other half: what a reader is told when nothing catches it. An exception
+declared inside a subprogram is named under that subprogram, which is where
+they will find it.
+"""
+script = "procedure Attempt is Oops : exception; begin raise Oops; end Attempt;\nAttempt;"
+exit_status = 1
+output = []
+diagnostics = [
+  "!error.program_raised{exception=Attempt.Oops}!",
+]
