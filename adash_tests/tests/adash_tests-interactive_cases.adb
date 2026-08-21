@@ -2412,6 +2412,64 @@ package body Adash_Tests.Interactive_Cases is
    --  be UTF-8, and the shell would report that instead of answering -- which
    --  is the failure this asserts the absence of, by asking for an answer only
    --  a whole deletion can produce.
+   ----------------------------------------------------
+   -- A_Redraw_Does_Not_Walk_The_Cursor --
+   ----------------------------------------------------
+
+   --  What reaches the terminal, rather than what the line ends up saying.
+   --
+   --  Every other test here asks what the shell *did*: the character went, the
+   --  handler ran, the job took the terminal. None of them can see how much
+   --  was written to say it, and the editor was walking the cursor to the
+   --  point one cell at a time -- a keystroke on a sixty-character line sent a
+   --  few hundred three-byte moves, and the cost of typing a line was
+   --  quadratic in its length. Every test passed before and after the fix,
+   --  which is what this exists to stop happening again.
+   --
+   --  A count rather than a shape: the editor may draw a line however it
+   --  likes, and what is refused is drawing it a cell at a time. The bound is
+   --  generous -- a redraw legitimately moves by one where the distance is one
+   --  -- and a walk would be in the hundreds.
+   procedure A_Redraw_Does_Not_Walk_The_Cursor
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+
+      Escape : constant String := [1 => Character'Val (27)];
+
+      --  Move the cursor one column right, which is what a walk is made of.
+      Step : constant String := Escape & "[1C";
+
+      Typed : constant String (1 .. 60) := [others => 'x'];
+
+      Walked : Natural := 0;
+      Most   : constant := 40;
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into (Session, "put_line (""" & Typed & """);");
+      Type_Into (Session, String'(1 => Character'Val (13)));
+
+      Assert (Waited_For (Session, Typed),
+              "the line never came back from the terminal");
+
+      Walked := Times_Seen (Session, Step);
+
+      Assert (Walked <= Most,
+              "the editor walked the cursor" & Natural'Image (Walked)
+              & " single columns to draw a line of" & Natural'Image (Typed'Length)
+              & "; it has a distance to move and Hostkit.Terminal_Control"
+              & " takes one");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end after a long line");
+   end A_Redraw_Does_Not_Walk_The_Cursor;
+
    procedure Backspace_Removes_A_Character_Through_A_Terminal
      (T : in out AUnit.Test_Cases.Test_Case'Class)
    is
@@ -3914,6 +3972,9 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine
         (T, Backspace_Removes_A_Character_Through_A_Terminal'Access,
          "backspace removes a character through a terminal");
+      Register_Routine
+        (T, A_Redraw_Does_Not_Walk_The_Cursor'Access,
+         "a redraw moves the cursor by a distance, not a cell at a time");
       Register_Routine (T, A_Terminal_Says_What_Reaches_A_Program'Access,
                         "a terminal says what reaches a program on it");
       Register_Routine (T, An_Interrupt_At_The_Prompt_Abandons_The_Line'Access,
