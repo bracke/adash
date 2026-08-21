@@ -1242,3 +1242,22 @@ diagnostics = [
   "!error.program_raised_detail{exception=Storage_Error,detail=!error.machine.text_too_long{width=10000000,limit=1000000}!}!",
   "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.places_refused{places=21}!}!",
 ]
+
+[[case]]
+id = "text.a-brace-expansion-past-the-bound-counts-zero"
+requirement = """
+Braces multiply, so a short line can name more strings than a machine has room
+for: `{a,b}` twenty times is a million. The bound is 4096, and past it
+`Braces_Count` answers 0 -- which is a count no ordinary text has, since a text
+with no group stands for itself and counts one. A script that loops from one to
+the count therefore does nothing at all rather than the first four thousand of
+a million, and can test for it.
+
+A function has no other way to say this: it answers with a value or not at all.
+The same bound reached by `run_matching`, which is a command and has somewhere
+to put a refusal, is refused by name with the pattern and the limit in it.
+"""
+script = "T : String := \"{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}\";\nput_line (Trim (Braces_Count (T)'Image) & \" [\" & Braces_At (T, 1) & \"]\");\nput_line (Trim (Braces_Count (\"{a,b}{c,d}\")'Image) & \" \" & Braces_At (\"{a,b}{c,d}\", 3));\nput_line (Trim (Braces_Count (\"plain\")'Image) & \" \" & Braces_At (\"plain\", 1));\nquit (0);"
+exit_status = 0
+output = ["0 []", "4 bc", "1 plain"]
+diagnostics = []

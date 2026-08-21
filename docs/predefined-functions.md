@@ -127,8 +127,8 @@ either way.
 | `File_At (Directory; Position)` | `String` | one of them, sorted, counting from one |
 | `Match_Count (Pattern)` | `Integer` | how many paths a pattern names: `*`, `?` and `[class]` in the last segment, sorted, dot files only when the pattern starts with a dot |
 | `Match_At (Pattern, Position)` | `String` | one of them, counting from one, with the pattern's own directory part still on it |
-| `Braces_Count (Text)` | `Integer` | how many strings a text with brace groups stands for: two alternatives are two, a range counts, two groups multiply, and text with no group stands for itself |
-| `Braces_At (Text, Position)` | `String` | one of them, counting from one, in the order they are written |
+| `Braces_Count (Text)` | `Integer` | how many strings a text with brace groups stands for: two alternatives are two, a range counts, two groups multiply, and text with no group stands for itself; **0** when it would make more than 4096, which is more than this shell will build |
+| `Braces_At (Text, Position)` | `String` | one of them, counting from one, in the order they are written; nothing past the end, and nothing at all when the count is 0 |
 | `Left_Aligned (Text, Width)` | `String` | padded on the right with spaces; text already longer comes back whole; a width that would make more than a million characters raises `Storage_Error` |
 | `Right_Aligned (Text, Width)` | `String` | padded on the left with spaces, under the same bound |
 | `Zero_Padded (Text, Width)` | `String` | padded on the left with zeros, for a number in a name or a time, under the same bound |
@@ -163,6 +163,18 @@ something asks. The names are sorted, and `.` and `..` are left out.
 in front of a line feed is part of the line ending a Windows file has and goes
 with it, and a lone carriage return is left where it is. Nothing puts them back
 on the way out — see `write_file` in the command reference for why.
+
+**Zero is an answer here, and it is the only one these can give.** A function
+answers with a value or not at all -- there is no way for one to refuse the way
+a command does -- so `Braces_Count` says 0 for a text that would make more than
+4096 strings, and 0 is a count no ordinary text has: a text with no group in it
+stands for itself, which is one. A script that loops `for I in 1 .. Braces_Count
+(T)` therefore does nothing rather than part of the job, and can ask.
+
+`run_matching` is the same bound with somewhere to put the answer: it refuses
+the line by name, quoting the pattern and the limit, because a command that ran
+over the first four thousand of five would do half a job and report that it had
+done it.
 
 `Read_File` answers with nothing for a file that is not there, a file this shell
 cannot read, a file that is not UTF-8, and a **directory** — all the same

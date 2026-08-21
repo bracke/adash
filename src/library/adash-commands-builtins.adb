@@ -2757,6 +2757,14 @@ package body Adash.Commands.Builtins is
                declare
                   Wanted : Command_Id;
                begin
+                  if Argument (Arguments, 1) = "" then
+                     --  ` is not available in this build` begins with the hole
+                     --  where the name should be.
+                     return Failed
+                       (Adash.Errors.Error_Command_Name_Is_Empty,
+                        [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+                  end if;
+
                   if not Find (Argument (Arguments, 1), Wanted) then
                      return Failed (Adash.Errors.Error_Command_Unavailable,
                                     [1 => M.Named ("name",

@@ -779,8 +779,8 @@ The commands that write -- `write_file`, `make_directory`, `remove_file`,
 rest say. A `pipe` stage with no program is refused where it is added, because
 by the time the pipeline runs there is nothing left to point at.
 
-`umask ("")` is the sharpest of them: ` is not a mask: a mask is octal digits`
-*begins* with the hole. The hooks -- `on_exit`, `on_failure`, `on_signal`,
+`umask ("")` and `help ("")` are the sharpest of them: ` is not a mask: a mask
+is octal digits` and ` is not available in this build` *begin* with the hole. The hooks -- `on_exit`, `on_failure`, `on_signal`,
 `on_interrupt` -- had been answering an empty name with the wrong-number-of-
 arguments message, which blames the count when the count is right and leaves
 its own `{found}` unfilled.
@@ -788,7 +788,7 @@ its own `{found}` unfilled.
 A failing command does not stop the sequence, so the session's own status is
 nought: what each of these sets is `Status`, which is what a script tests.
 """
-script = "cd (\"\");\nrun (\"\");\nsettings (\"\", \"1\");\nunset (\"\");\nsource (\"\");\nstart (\"\");\npipe (\"\");\nwrite_file (\"text\", \"\");\nmake_directory (\"\");\nremove_file (\"\");\nrename (\"\", \"\");\numask (\"\");\nresource_limit (\"\", \"1\");\nredirect (\"\", \"out.txt\");\npush_directory (\"\");\non_exit (\"\");"
+script = "cd (\"\");\nrun (\"\");\nsettings (\"\", \"1\");\nunset (\"\");\nsource (\"\");\nstart (\"\");\npipe (\"\");\nwrite_file (\"text\", \"\");\nmake_directory (\"\");\nremove_file (\"\");\nrename (\"\", \"\");\numask (\"\");\nresource_limit (\"\", \"1\");\nredirect (\"\", \"out.txt\");\npush_directory (\"\");\non_exit (\"\");\nhelp (\"\");"
 exit_status = 0
 output = []
 diagnostics = [
@@ -808,6 +808,7 @@ diagnostics = [
   "!error.command.name_is_empty{name=redirect}!",
   "!error.command.name_is_empty{name=push_directory}!",
   "!error.command.name_is_empty{name=on_exit}!",
+  "!error.command.name_is_empty{name=help}!",
 ]
 
 [[case]]
