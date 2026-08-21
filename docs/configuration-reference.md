@@ -27,11 +27,19 @@ the setting keeps what it had.
 | `editing.enabled` | true or false | `true` | `Adash.Interactive.Editing` |
 | `startup.session` | true or false | `true` | `Adash.Scripting.Startup` |
 
-`trace.commands` announces each internal command before it runs — what `set -x`
-is for elsewhere. On **standard error** and as a note, so what a script writes is
-still what a script writes: tracing that wrote into a pipeline's data is a thing
-every shell user has been bitten by once. The command that turns it on is not
-traced, because it was not on when it ran.
+`trace.commands` announces each internal command it runs — what `set -x` is for
+elsewhere. On **standard error** and as a note, so what a script writes is still
+what a script writes: tracing that wrote into a pipeline's data is a thing every
+shell user has been bitten by once. The command that turns it on is not traced,
+because it was not on when it ran.
+
+**A note is part of its submission's report, and a report is written when the
+submission ends.** At a prompt that is every line, so the trace arrives beside
+the work it describes. A script file is *one* submission, so its whole trace
+arrives at the end, after everything the script printed — and a script that
+never finishes prints no trace at all, which is the one case `set -x` is most
+often reached for. Feeding the script in on standard input instead makes each
+line its own submission and the trace arrives with it.
 
 `read.limit` is in **mebibytes**, and is the most any one read will hold: a file
 for `Read_File`, a program's output for `Output_Of`, a line for `Read_Line`. The

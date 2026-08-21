@@ -1772,6 +1772,14 @@ user has been bitten by once. As a structured line like everything else, so a
 tool reading a session can tell a trace from a result.
 
 The command that turns it on is not traced, because it was not on when it ran.
+
+A note is part of its submission's report, and a report is written when the
+submission ends: at a prompt that is every line, and a script file is one
+submission, so a script's whole trace arrives after everything it printed. A
+script that never finishes prints no trace at all. This case is one submission
+and says nothing about that ordering -- the runner compares output and
+diagnostics as two lists -- so the timing is written down in
+`docs/configuration-reference.md` rather than pinned here.
 """
 script = """
 settings ("trace.commands", "true");
