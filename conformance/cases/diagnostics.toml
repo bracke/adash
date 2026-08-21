@@ -122,7 +122,7 @@ where the first declaration is now travels as a related location, and the
 engine gives it a line from the buffer it was analysed in.
 """
 script = "Total : Integer := 1; Total : Integer := 2; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.name_already_declared{name=Total}!",
@@ -309,7 +309,7 @@ Said about the name, because that is what a user has to change, and at the name
 rather than at the operator.
 """
 script = "X : String := \"a\" & New_Line;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.procedure_has_no_value{name=New_Line}!"]
 
@@ -324,7 +324,7 @@ call as a statement is analysed knowing that a callee yielding nothing is what
 it wants, which is why the check reads the context rather than the call.
 """
 script = "X : Integer := 1 + Put_Line (\"x\");"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.procedure_has_no_value{name=Put_Line}!"]
 
@@ -336,7 +336,7 @@ construct this build could not lower, naming an empty type. What is wrong with
 the program is the same thing in all three places, so it is said the same way.
 """
 script = "X : String := New_Line;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.procedure_has_no_value{name=New_Line}!"]
 
@@ -358,7 +358,7 @@ one -- and the three after the first named the byte *following* the mistake,
 which is not where the mistake is.
 """
 script = "put_line (\"a\" # \"b\");"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.lexical.stray_character{character=#}!"]
 
@@ -414,7 +414,7 @@ mistyped byte came back as an unterminated string, a missing bracket and a
 missing semicolon, none of which the user had written.
 """
 script = "put_line (f\"a \"\" b\");"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.lexical.quote_in_interpolation!"]
 
@@ -447,7 +447,7 @@ Nothing runs: the line prints nothing, because a submission the scanner
 complained about is one whose text is not the program its author meant.
 """
 script = "put_line (f\"closes } nothing\");"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.lexical.brace_unescaped!"]
 
@@ -541,7 +541,7 @@ invisible in an editor, which is the whole point of the case: a person changing
 this file must not tidy it away.
 """
 script = "X : Integer := 1 + 2;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.lexical.stray_character{character=U+00A0}!"]
 
@@ -626,7 +626,7 @@ is a mistake somebody made writing the bounds down rather than a thing they
 wanted.
 """
 script = "type A is array (5 .. 1) of Integer;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.array_is_empty{name=A}!"]
 
@@ -648,7 +648,7 @@ trimmed: that wall is what a user actually sees, and somebody who improves it to
 stop after the first will find this case and change it on purpose.
 """
 script = "procedure P0 is procedure P1 is procedure P2 is procedure P3 is procedure P4 is procedure P5 is procedure P6 is procedure P7 is procedure P8 is procedure P9 is procedure P10 is procedure P11 is procedure P12 is procedure P13 is procedure P14 is procedure P15 is procedure P16 is procedure P17 is procedure P18 is procedure P19 is procedure P20 is procedure P21 is begin null; end P21; end P20; end P19; end P18; end P17; end P16; end P15; end P14; end P13; end P12; end P11; end P10; end P9; end P8; end P7; end P6; end P5; end P4; end P3; end P2; end P1; end P0;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.nested_subprogram{name=P19}!",

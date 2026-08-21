@@ -64,14 +64,14 @@ diagnostics = []
 id = "packages.a-body-without-a-specification-is-refused"
 requirement = "Ada requires the specification, and so does this: it is what a caller reads and what a name resolves against."
 script = "package body Nowhere is X : Integer := 1; end Nowhere; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.package_not_declared{name=Nowhere}!"]
 
 [[case]]
 id = "packages.use-needs-a-package"
 requirement = "Named by what it is, because `X is not declared` would be wrong and `wrong argument` would be baffling."
 script = "X : Integer := 1; use X; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.not_a_package{name=X}!"]
 
 [[case]]
@@ -115,21 +115,21 @@ diagnostics = []
 id = "generics.a-generic-needs-a-body-to-copy"
 requirement = "Said where the instantiation is written, rather than left to produce a subprogram that does nothing."
 script = "generic type Element is private; procedure P (X : Element); procedure Q is new P (Integer); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.body_missing{name=P}!"]
 
 [[case]]
 id = "generics.the-actuals-must-match-the-formals"
 requirement = "One type per formal. A generic instantiated with too few has a name in its body that nothing binds."
 script = "generic type Element is private; procedure P (X : Element); procedure P (X : Element) is begin null; end P; procedure Q is new P; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.generic_wrong_actuals{name=P,expected=1,found=0}!"]
 
 [[case]]
 id = "generics.only-a-generic-can-be-instantiated"
 requirement = "Named by what it is: an ordinary subprogram has nothing to make a new one from."
 script = "procedure P is begin null; end P; procedure Q is new P (Integer); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.not_a_generic{name=P}!"]
 
 [[case]]

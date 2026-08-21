@@ -249,6 +249,21 @@ package body Adash.Interactive.Session is
       Stopped_By_A_Failure : Boolean := False;
       Failing_Status : Adash.Execution.Exit_Status := Adash.Execution.Success;
 
+      --  A submission the *language* refused, in a session that is a script.
+      --
+      --  A script in a file is one submission, so its status leaves with it: a
+      --  file that raises exits 1 and one that does not parse exits 2. The same
+      --  script fed in on standard input is many submissions and ended 0 --
+      --  `echo 'raise Constraint_Error;' | adash` said nothing was wrong, and a
+      --  build system reading that zero would carry on. Remembered here so end
+      --  of input can answer with it.
+      --
+      --  Only what the language refused: a *command* that failed leaves a
+      --  script's status alone unless `stop.on-failure` is on, which is the
+      --  rule above this one and is deliberately not changed here.
+      Script_Failed  : Boolean := False;
+      Script_Failure : Adash.Execution.Exit_Status := Adash.Execution.Success;
+
       Stdout_Is_Terminal : constant Boolean :=
         Adash.Terminal.Is_Terminal (Adash.Terminal.Standard_Output);
       Stderr_Is_Terminal : constant Boolean :=
@@ -1213,6 +1228,24 @@ package body Adash.Interactive.Session is
                         On_Output => Output_To'Unchecked_Access);
 
                      Render_Diagnostics;
+
+                     --  The same memory the loop below keeps. This is the
+                     --  submission a script most often fails on -- text that
+                     --  stopped in the middle of something, found out only at
+                     --  end of input -- and it is submitted here rather than
+                     --  in the loop, so the loop's answer never sees it.
+                     if not Reading_From_A_Terminal
+                       and then not Script_Failed
+                       and then (Adash.Engine."=" (Answer.Kind,
+                                                   Adash.Engine.Not_Understood)
+                                 or else Answer.Status.Kind in
+                                           Adash.Execution.Exit_Parse_Failure
+                                         | Adash.Execution.Exit_Semantic_Failure
+                                         | Adash.Execution.Exit_Internal_Failure)
+                     then
+                        Script_Failed  := True;
+                        Script_Failure := Answer.Status;
+                     end if;
                   end;
                end if;
 
@@ -1487,6 +1520,22 @@ package body Adash.Interactive.Session is
                   --  the other way round -- carrying on past a failure is what
                   --  the setting was turned on to prevent, and the status has
                   --  to leave with it or a build system reads the zero.
+                  --  Remembered before the setting is consulted, because it
+                  --  applies whether or not the setting is on: a script that
+                  --  raised has failed, and the status says so at the end even
+                  --  where the shell went on reading.
+                  if not Reading_From_A_Terminal
+                    and then not Script_Failed
+                    and then (Answer.Kind = Adash.Engine.Not_Understood
+                              or else Answer.Status.Kind in
+                                        Adash.Execution.Exit_Parse_Failure
+                                      | Adash.Execution.Exit_Semantic_Failure
+                                      | Adash.Execution.Exit_Internal_Failure)
+                  then
+                     Script_Failed  := True;
+                     Script_Failure := Answer.Status;
+                  end if;
+
                   if Last_Failed
                     and then not Reading_From_A_Terminal
                     and then Adash.Configuration.Boolean_Value
@@ -1543,7 +1592,12 @@ package body Adash.Interactive.Session is
       end if;
 
       --  Ended by end of input rather than by asking. That is a successful
-      --  session, not a failed one.
+      --  session, not a failed one -- unless it was a script rather than a
+      --  person, and something in it did not run.
+      if Script_Failed then
+         return Adash.Execution.Numeric (Script_Failure);
+      end if;
+
       return 0;
    end Run;
 

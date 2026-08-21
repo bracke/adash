@@ -32,7 +32,7 @@ diagnostics = [
 id = "source.needs-one-argument"
 requirement = "source takes exactly one path, and says so rather than guessing."
 script = "source;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.wrong_argument_count{name=source,expected=1,found=0}!"]
 

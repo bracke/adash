@@ -54,7 +54,7 @@ diagnostics = []
 id = "spec.body-missing"
 requirement = "A name with nothing behind it is refused rather than run up to the point it is called."
 script = "procedure P (N : Integer); put_line (\"after\");"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.body_missing{name=P}!"]
 
@@ -65,7 +65,7 @@ A body whose profile differs is a second subprogram, not this one's body, so
 the specification is still waiting.
 """
 script = "procedure P (N : Integer); procedure P (S : String) is begin null; end P;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.body_missing{name=P}!"]
 
@@ -73,7 +73,7 @@ diagnostics = ["!error.body_missing{name=P}!"]
 id = "spec.duplicate"
 requirement = "Two specifications of one profile: the second is a redeclaration."
 script = "procedure P (N : Integer); procedure P (N : Integer);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.body_missing{name=P}!",

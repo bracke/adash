@@ -77,7 +77,7 @@ Ada 2022 expects a String in the braces. This rewrites to concatenation, so the
 rule and the message are the ones `&` already had.
 """
 script = "N : Integer := 5; put_line (f\"n is {N}\");"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.operator_not_defined{operator=&,left=String,right=Integer}!"]
 
@@ -88,7 +88,7 @@ An escape Ada 2022 does not define. `\\e` is an escape in other languages and
 not in this one; GNAT rejects it, and so does this.
 """
 script = "put_line (f\"a \\e b\");"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.lexical.bad_escape{text=\\e}!",

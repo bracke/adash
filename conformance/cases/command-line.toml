@@ -164,7 +164,7 @@ stops.
 """
 script = """
 if 1 = 1 then"""
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.syntax.missing{expected=end}!",

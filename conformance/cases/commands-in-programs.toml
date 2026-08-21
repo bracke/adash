@@ -46,7 +46,7 @@ diagnostics = []
 id = "commands.wrong-type-is-refused"
 requirement = "A command's arguments are type-checked before anything runs, rather than discovered by the command failing to convert them."
 script = "quit (\"later\");"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.type_mismatch{found=String,expected=Integer}!",
@@ -1480,6 +1480,68 @@ diagnostics = [
   "!error.no_creation_mask!",
 ]
 platforms = ["windows"]
+
+[[case]]
+id = "scripts.a-script-on-standard-input-reports-what-a-file-would"
+requirement = """
+`adash x.adash` and `adash < x.adash` are the same script, so they end with the
+same status. They did not: a file is one submission and its status leaves with
+it -- 1 for a program that raised, 2 for one that did not parse -- while the
+same text on standard input is many submissions and ended 0 whatever happened
+in them. `echo 'raise Constraint_Error;' | adash` said nothing was wrong, and a
+build system reading that zero carried on.
+
+Only what the *language* refused is carried. A command that failed leaves the
+status alone unless `stop.on-failure` is on, which is a separate rule and is
+unchanged; and a session with somebody typing at it still ends 0, because a
+shell that exited non-zero over a typo an hour earlier would be one nobody
+could use.
+
+This case is that agreement, asserted from the side the runner can reach: every
+case here is a script on standard input, so the ninety-three of them that
+contain a deliberate mistake now say 1 or 2 where they used to say 0.
+"""
+script = "put_line (To_Upper (\"before\"));\nraise Constraint_Error;\nput_line (To_Upper (\"after\"));"
+exit_status = 1
+output = ["BEFORE", "AFTER"]
+diagnostics = ["!error.program_raised{exception=Constraint_Error}!"]
+
+[[case]]
+id = "combinations.an-exit-handler-runs-when-the-program-raises"
+requirement = """
+The other way a submission ends. `stop.on-failure` is a command failing, and
+the case below asserts that cleanup still runs for it; this is a program
+raising, which ends the submission without any command having failed at all --
+so `on_failure` is *not* told, and `on_exit` still is.
+
+A cleanup skipped because the program raised would be a temporary directory
+left behind by the scripts most likely to have made one, which is the same
+reason the case below exists. And the status is the raise's: a handler that ran
+does not turn a failure into a success.
+"""
+script = "procedure Cleanup is begin put_line (To_Upper (\"cleanup\")); end Cleanup; procedure Noticed is begin put_line (To_Upper (\"noticed\")); end Noticed; on_exit (\"Cleanup\"); on_failure (\"Noticed\"); put_line (To_Upper (\"before\")); raise Constraint_Error;"
+exit_status = 1
+output = ["BEFORE", "CLEANUP"]
+diagnostics = ["!error.program_raised{exception=Constraint_Error}!"]
+
+[[case]]
+id = "combinations.a-capture-is-not-the-sessions-stream"
+requirement = """
+`redirect` moves the shell's own output, and `Output_Of` reads a program's --
+two things that both concern where output goes, and they must not be the same
+thing. A capture that followed the session's redirection would answer with
+nothing at all, and the file would quietly grow the text the script was asking
+about; a redirection the capture escaped would put the program's output on the
+terminal instead of in the answer.
+
+So: the capture answers, and the file the session was redirected into stays
+empty, because nothing was written to the session's own stream while it was
+pointed there.
+"""
+script = "cd (\"{store}\"); redirect (\"output\", \"aside.txt\"); Held : String := Output_Of (\"{emit}\", \"captured\"); redirect_back (\"output\"); put_line (\"[\" & Trim (Held) & \"]\"); put_line (\"[\" & Trim (Read_File (\"aside.txt\")) & \"]\");\nquit (0);"
+exit_status = 0
+output = ["[captured]", "[]"]
+diagnostics = []
 
 [[case]]
 id = "combinations.stopping-still-runs-the-handlers"

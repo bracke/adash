@@ -59,7 +59,7 @@ diagnostics = []
 id = "over.same-profile-refused"
 requirement = "Same name and same parameter types: no call could tell them apart."
 script = "procedure P (A : Integer) is begin null; end P; procedure P (B : Integer) is begin null; end P;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.name_already_declared{name=P}!"]
 
@@ -67,7 +67,7 @@ diagnostics = ["!error.name_already_declared{name=P}!"]
 id = "over.no-match"
 requirement = "Arguments that fit none of the declarations say so, and say how many there were."
 script = "procedure P (A : Integer) is begin null; end P; procedure P (A : String) is begin null; end P; P (1.5);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.no_matching_subprogram{name=P,count=2}!"]
 
@@ -79,7 +79,7 @@ any type, so a user's version would fit every call the original does and every
 one would be ambiguous -- a declaration whose every use is an error.
 """
 script = "procedure Put_Line (X : Integer) is begin null; end Put_Line;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.name_is_predefined{name=Put_Line}!"]
 
@@ -112,7 +112,7 @@ put_line takes any type, so it requires nothing of its argument and both
 candidates fit. Reported rather than resolved to whichever came last.
 """
 script = "function F return Integer is begin return 1; end F; function F return String is begin return \"s\"; end F; put_line (F);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.ambiguous_call{name=F,count=2}!"]
 
@@ -135,7 +135,7 @@ Only when exactly one operand is open. Two ambiguous calls say nothing about
 each other, and neither does the operator between them.
 """
 script = "function F return Integer is begin return 1; end F; function F return String is begin return \"s\"; end F; if F = F then null; end if;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.ambiguous_call{name=F,count=2}!",

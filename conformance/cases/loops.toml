@@ -44,7 +44,7 @@ diagnostics = []
 id = "loops.exit-outside-a-loop-is-refused"
 requirement = "An exit with nothing to leave is a fault in the program, so the analyser refuses it rather than the lowering reporting that this build cannot run it -- which would say Adash is incomplete when what is wrong is the exit."
 script = "exit;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.exit_outside_loop!"]
 
@@ -60,7 +60,7 @@ diagnostics = []
 id = "loops.return-with-a-value-is-refused"
 requirement = "A return carrying a value is a function's, and this subset has no functions to write one in. Refused rather than treated as a bare return with the value discarded."
 script = "return 1;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.not_lowerable{construct=!lower.return_with_value!}!",
@@ -163,7 +163,7 @@ exists to prevent, and an Integer has too many values for anything but `others`
 to finish the job.
 """
 script = "X : Integer := 2; case X is when 1 => null; end case; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.case.incomplete{found=Integer}!",
@@ -173,7 +173,7 @@ diagnostics = [
 id = "case.refuses-a-value-covered-twice"
 requirement = "Two alternatives covering one value would make which runs depend on the order they were written."
 script = "X : Integer := 2; case X is when 1 .. 3 => null; when 2 => null; when others => null; end case; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.case.choice_covered_twice!",
@@ -188,7 +188,7 @@ and `others`, so a variable as a choice is refused by name rather than accepted
 and compared at run time.
 """
 script = "X : Integer := 2; Y : Integer := 3; case X is when Y => null; when others => null; end case; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.case.choice_not_static!",
@@ -198,7 +198,7 @@ diagnostics = [
 id = "case.refuses-others-out-of-place"
 requirement = "others covers what is left, so anything after it would cover nothing."
 script = "X : Integer := 2; case X is when others => null; when 1 => null; end case; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.case.others_not_last!",
@@ -208,7 +208,7 @@ diagnostics = [
 id = "case.refuses-a-backwards-range"
 requirement = "A range whose first value is past its last covers nothing, which is never what somebody writing one meant."
 script = "X : Integer := 2; case X is when 5 .. 1 => null; when others => null; end case; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.case.range_is_empty!",
@@ -218,7 +218,7 @@ diagnostics = [
 id = "case.refuses-what-is-not-discrete"
 requirement = "A String has no successor and a Float has no next value, so neither can be covered. Ada says the same."
 script = "S : String := \"a\"; case S is when \"a\" => null; when others => null; end case; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.case.not_discrete{found=String}!",
@@ -233,7 +233,7 @@ not cover every value of Integer -- which is true, and is not what is wrong
 with it.
 """
 script = "X : Integer := 3; case X is"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.syntax.missing{expected=end}!",
@@ -317,7 +317,7 @@ diagnostics = []
 id = "membership.bounds-must-match-the-value"
 requirement = "The value settles what the bounds must be, and a bound of another type is reported against the bound. Complaining about the value instead would name the one thing that is not in doubt."
 script = "put_line (3 in \"a\" .. \"z\"); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = [
   "!error.type_mismatch{found=String,expected=Integer}!",
   "!error.type_mismatch{found=String,expected=Integer}!",

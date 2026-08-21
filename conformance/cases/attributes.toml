@@ -78,7 +78,7 @@ characters bracketed -- not the text itself. Returning the text would be the
 plausible wrong answer.
 """
 script = "S : String := \"hi\"; put_line (S'Image);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.attribute_not_defined{attribute=Image,found=String}!"]
 
@@ -93,7 +93,7 @@ takes is a question this machine can answer, so the example is one it still
 cannot.
 """
 script = "X : Integer := 5; put_line (X'Alignment);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.attribute_not_defined{attribute=Alignment,found=Integer}!"]
 
@@ -132,7 +132,7 @@ diagnostics = []
 id = "attributes.text-that-is-not-a-value-raises"
 requirement = "What Ada does: reading a number from text that does not hold one raises rather than answering with a number nobody wrote."
 script = "N : Integer := Integer'Value (\"nope\"); quit (0);"
-exit_status = 0
+exit_status = 1
 output = []
 diagnostics = [
   "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.bad_value_text{text=nope}!}!",
@@ -146,7 +146,7 @@ Analysing the prefix as a value would have said `Integer is not a type`, which
 is both wrong and baffling.
 """
 script = "N : Integer := Integer'Value; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.wrong_argument_count{name=Value,expected=1,found=0}!",
@@ -156,7 +156,7 @@ diagnostics = [
 id = "attributes.a-string-has-no-value-attribute"
 requirement = "Reading a String back from a String is not defined in Ada and is not invented here."
 script = "S : String := String'Value (\"x\"); quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.attribute_not_defined{attribute=Value,found=String}!",
@@ -198,14 +198,14 @@ something nobody wrote. Checked in one place -- the conversion back from a
 position -- so `'Val`, `'Succ` and `'Pred` cannot each remember it differently.
 """
 script = "put_line (Character'Val (300) & \"\"); quit (0);"
-exit_status = 0
+exit_status = 1
 diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.position_outside{position=300,type=Character}!}!"]
 
 [[case]]
 id = "attributes.succ-past-the-last-raises-too"
 requirement = "The same check, reached the other way, which is the point of having only one."
 script = "put_line (Character'Succ (Character'Last) & \"\"); quit (0);"
-exit_status = 0
+exit_status = 1
 diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.position_outside{position=256,type=Character}!}!"]
 
 [[case]]
@@ -224,14 +224,14 @@ diagnostics = []
 id = "attributes.only-discrete-types-have-positions"
 requirement = "Ada's rule: a Float has no next value and a String has no position. Refused by name rather than answered with something plausible."
 script = "put_line (Float'Pos (1.0)'Image); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.attribute_not_defined{attribute=Pos,found=Float}!"]
 
 [[case]]
 id = "attributes.a-string-has-no-type-bounds"
 requirement = "`String'First` is not this language's question. A String's bounds belong to a String that exists, and `S'First` on one is answered; the type has none to give."
 script = "put_line (String'First'Image); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.attribute_not_defined{attribute=First,found=String}!"]
 
 [[case]]

@@ -102,7 +102,7 @@ compared by its literals: two enumerations that look alike are still two types,
 and a value of one is not a value of the other.
 """
 script = "type A is (Low, High); type B is (Small, Large); X : A := Low; X := Small; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.type_mismatch{found=B,expected=A}!"]
 
 [[case]]
@@ -114,7 +114,7 @@ nobody notices -- which is exactly what an Integer standing in for a colour
 cannot give you.
 """
 script = "type Colour is (Red, Green, Blue); C : Colour := Red; case C is when Red => put_line (\"r\"); when Green => put_line (\"g\"); end case; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.case.incomplete{found=Colour}!"]
 
 [[case]]
@@ -137,7 +137,7 @@ diagnostics = []
 id = "types.a-position-outside-an-enumeration-raises"
 requirement = "Checked in one place, the conversion back from a position, so `'Val`, `'Succ` and `'Pred` cannot each remember it differently."
 script = "type Colour is (Red, Green, Blue); put_line (Colour'Succ (Blue)); quit (0);"
-exit_status = 0
+exit_status = 1
 diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.position_outside{position=3,type=Colour}!}!"]
 
 [[case]]
@@ -173,7 +173,7 @@ the check happens where a value arrives rather than where it is read -- so the
 line that is wrong is the line that reports.
 """
 script = "subtype Percent is Integer range 0 .. 100; P : Percent := 50; put_line (Trim (P'Image)); P := 101; quit (0);"
-exit_status = 0
+exit_status = 1
 output = ["50"]
 diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=101,type=Percent}!}!"]
 
@@ -194,7 +194,7 @@ diagnostics = []
 id = "types.a-subtype-checks-an-argument"
 requirement = "A value arriving in a parameter is a value arriving somewhere, and the check belongs there for the same reason it belongs on an assignment."
 script = "subtype Percent is Integer range 0 .. 100; procedure Take (P : Percent) is begin put_line (Trim (P'Image)); end Take; Take (40); Take (400); quit (0);"
-exit_status = 0
+exit_status = 1
 output = ["40"]
 diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=400,type=Percent}!}!"]
 
@@ -206,14 +206,14 @@ nothing about the constraint on the other end. Ada checks on the copy back, and
 without this a variable would quietly hold a value it says it cannot.
 """
 script = "subtype Small is Integer range 0 .. 3; procedure Wide (X : out Integer) is begin X := 99; end Wide; S : Small := 1; Wide (S); quit (0);"
-exit_status = 0
+exit_status = 1
 diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=99,type=Small}!}!"]
 
 [[case]]
 id = "types.a-subtype-of-an-enumeration"
 requirement = "A range narrows any discrete type, and a value outside it is reported as the name somebody wrote rather than as a position."
 script = "type Colour is (Red, Green, Blue, White); subtype Warm is Colour range Red .. Green; W : Warm := Red; for C in Warm loop put_line (C); end loop; W := Blue; quit (0);"
-exit_status = 0
+exit_status = 1
 output = ["Red", "Green"]
 diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=Blue,type=Warm}!}!"]
 
@@ -221,21 +221,21 @@ diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!
 id = "types.a-subtype-bound-must-be-known-before-it-runs"
 requirement = "The check the lowering emits is two numbers in an instruction. A bound computed at run time would be a different mechanism, and half-supporting one is worse than refusing it."
 script = "N : Integer := 3; subtype Bad is Integer range 1 .. N; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.subtype.bound_not_static!"]
 
 [[case]]
 id = "types.a-subtype-that-admits-nothing-is-refused"
 requirement = "Ada allows a null subtype; this refuses one, because every value would fail the check and a declaration nothing can satisfy is a mistake rather than an intention."
 script = "subtype Bad is Integer range 5 .. 1; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.subtype.range_is_empty!"]
 
 [[case]]
 id = "types.only-a-discrete-type-can-be-narrowed"
 requirement = "Ada allows a range on a Float; admitting one here without the check would be a constraint that does nothing, which is worse than saying so."
 script = "subtype Bad is Float range 1.0 .. 2.0; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.subtype.not_discrete{found=Float}!"]
 
 [[case]]
@@ -292,14 +292,14 @@ is analysed before it is judged, which is also what lets a name in it resolve
 to the symbol Static_Default asks about.
 """
 script = "type A is (Low); type B is (High); procedure P (C : A := High) is begin null; end P; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.type_mismatch{found=B,expected=A}!"]
 
 [[case]]
 id = "types.an-enumeration-does-not-concatenate"
 requirement = "Ada does not define `&` between a String and an enumeration either. `'Image` is how a value becomes text, and `put_line` takes one directly."
 script = "type Colour is (Red); put_line (\"it is \" & Red); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.operator_not_defined{operator=&,left=String,right=Colour}!"]
 
 [[case]]
@@ -319,7 +319,7 @@ something it says it cannot hold -- which the caller would then store into a
 variable of that subtype without a second thought.
 """
 script = "subtype Digit is Integer range 0 .. 9; function Half (N : Integer) return Digit is begin return N / 2; end Half; put_line (Trim (Half (8)'Image)); put_line (Trim (Half (40)'Image)); quit (0);"
-exit_status = 0
+exit_status = 1
 output = ["4"]
 diagnostics = ["!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.outside_bounds{position=20,type=Digit}!}!"]
 
@@ -396,7 +396,7 @@ whatever the next variable holds, which is worse than stopping. The message
 names the array and the index that was asked for.
 """
 script = "type Counts is array (1 .. 3) of Integer; C : Counts := (1, 2, 3); put_line (Trim (C (9)'Image)); quit (0);"
-exit_status = 0
+exit_status = 1
 diagnostics = ["!error.program_raised_detail{exception=Index_Error,detail=!error.machine.outside_array{position=9,type=Counts}!}!"]
 
 [[case]]
@@ -428,14 +428,14 @@ would need an offset made of two offsets, and every place that walks a value
 would have to recur. Said plainly rather than half-supported.
 """
 script = "type Inner is record N : Integer; T : String; end record; type Outer is record Part : Inner; Also : Integer; end record; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.part_not_simple{name=Part,found=Inner}!"]
 
 [[case]]
 id = "types.a-function-does-not-return-a-composite"
 requirement = "A function's result is what it leaves on the stack, and a composite is a run of slots rather than a value: there is nowhere for one to be left."
 script = "type Line is record Number : Integer; Text : String; end record; function Make return Line is L : Line := (1, \"x\"); begin return L; end Make; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = [
   "!error.result_not_simple{name=Make,found=Line}!",
   # And then the body is a procedure as far as everything after this is
@@ -453,21 +453,21 @@ has a text form where the whole has none. Refused by the analyser rather than
 by the lowering, so the message is a decision rather than a gap.
 """
 script = "type Line is record Number : Integer; Text : String; end record; L : Line := (1, \"x\"); put_line (L); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.cannot_write{name=put_line,found=Line}!"]
 
 [[case]]
 id = "types.an-aggregate-needs-a-composite-to-build"
 requirement = "An aggregate has no type of its own: what it builds is what the context asked for, which is Ada's rule and why one cannot stand where nothing is expected."
 script = "X : Integer := (1, 2); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.aggregate_not_expected{found=Integer}!"]
 
 [[case]]
 id = "types.an-aggregate-fills-every-component"
 requirement = "One value per component, no more and no fewer. A record half-filled would leave slots holding whatever the frame held before."
 script = "type Line is record Number : Integer; Text : String; end record; L : Line := (1, \"x\", 2); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.aggregate_wrong_count{name=Line,expected=2,found=3}!"]
 
 [[case]]
@@ -528,7 +528,7 @@ diagnostics = [
 id = "types.an-array-bound-must-be-known-before-it-runs"
 requirement = "An array is a run of slots in a frame whose size is decided when the program is built."
 script = "N : Integer := 3; type Bad is array (1 .. N) of Integer; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.array_bound_not_static!"]
 
 [[case]]
@@ -788,7 +788,7 @@ diagnostics = [
 id = "types.a-record-with-no-components-is-refused"
 requirement = "Ada writes one as `null record`, a spelling this language does not have. A record holding nothing cannot be told from any other, so there is no reading of it worth accepting."
 script = "type Nothing is record end record; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.record_is_empty{name=Nothing}!"]
 
 [[case]]
@@ -1009,7 +1009,7 @@ error here says the same thing: what may follow is the parenthesis that closes
 the call.
 """
 script = "put_line (if 1 < 2 then \"yes\" else \"no\");\nput_line (if 1 < 2 then \"a\" else \"b\", \"c\");"
-exit_status = 0
+exit_status = 2
 output = ["yes"]
 diagnostics = [
   "!error.syntax.unexpected{found=,,expected=)}!",

@@ -34,7 +34,18 @@ A position that was not given reads as the empty string rather than failing.
 
 The script's own exit status is what `quit` was given, or 0 when it runs off the
 end. An unhandled exception ends it with a failure status and reports which
-exception it was.
+exception it was, and source that does not parse or does not analyse ends it
+with 2.
+
+**The same script on standard input reports the same status.** `adash x.adash`
+and `adash < x.adash` differ in how the text arrives — a file is one submission,
+standard input is one per line — and they used to differ in what they told
+whoever ran them: everything piped in ended 0 unless it called `quit`, so a
+script that raised looked like a script that worked. What the *language*
+refused is carried to the end of the input now. A command that failed still
+leaves the status alone unless `stop.on-failure` is on, and a session with
+somebody typing at it still ends 0, because a shell that exited non-zero over a
+typo an hour earlier would be one nobody could use.
 
 ## Reading input
 

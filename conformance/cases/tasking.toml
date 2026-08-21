@@ -111,7 +111,7 @@ diagnostics = []
 id = "tasks.a-body-needs-a-declaration"
 requirement = "Ada requires the declaration, and so does this: it is what a name resolves against."
 script = "task body Nowhere is begin null; end Nowhere; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.package_not_declared{name=Nowhere}!"]
 
 [[case]]
@@ -122,7 +122,7 @@ go on, and saying so beats stopping quietly. A shell that hung on a script
 would be a shell somebody has to kill.
 """
 script = "protected Gate is entry Pass; end Gate; protected body Gate is Opened : Boolean := False; entry Pass when Opened is begin null; end Pass; end Gate; task Waiter; task body Waiter is begin Gate.Pass; end Waiter; put_line (\"main done\");"
-exit_status = 0
+exit_status = 1
 output = ["main done"]
 diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.tasks_stuck!}!"]
 
@@ -261,7 +261,7 @@ diagnostics = []
 id = "abort.only-a-task-can-be-aborted"
 requirement = "Named by what it is. A name that denotes something else has no strand to stop."
 script = "X : Integer := 1; abort X; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.not_a_task{name=X}!"]
 
 [[case]]
@@ -273,7 +273,7 @@ message is a decision rather than a gap -- which is why an entry has a symbol
 kind of its own rather than borrowing a procedure's.
 """
 script = "protected Gate is procedure Shut; end Gate; protected body Gate is procedure Shut is begin null; end Shut; end Gate; select Gate.Shut; null; else null; end select; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.not_an_entry{name=Gate.Shut}!"]
 
 [[case]]
@@ -345,7 +345,7 @@ a parameter that was accepted and never given a value would be read as whatever
 its slot held.
 """
 script = "protected Guard is entry Wait_For (Which : Integer); end Guard; protected body Guard is entry Wait_For (Which : Integer) when True is begin null; end Wait_For; end Guard; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.protected_entry_parameters{name=Wait_For}!"]
 
 [[case]]

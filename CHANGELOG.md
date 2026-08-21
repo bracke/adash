@@ -485,6 +485,22 @@ what changed.
   makes a directory with no permissions on purpose, and `Delete_Tree` stopped
   there, leaving 697 of 841 stores behind and swallowing the reason.
 
+- **A script on standard input reports what the same script in a file would.**
+  `adash x.adash` exits 1 for a program that raised and 2 for one that did not
+  parse; `adash < x.adash` exited **0** for both, because a file is one
+  submission whose status leaves with it while standard input is one submission
+  per line and end of input was always a success. `echo 'raise
+  Constraint_Error;' | adash` said nothing was wrong. What the language refused
+  — a parse failure, a semantic failure, a raise — is carried to the end of the
+  input now; a command that failed still leaves the status alone unless
+  `stop.on-failure` is on, and a session with somebody typing at it still ends
+  0, because a shell that exited non-zero over a typo an hour earlier would be
+  one nobody could use. **Ninety-three conformance cases changed with it**: each
+  feeds its script on standard input, and the ones containing a deliberate
+  mistake had been asserting the 0 this defect produced. Each now asserts the
+  status the same script gives as a file, which was checked against the file
+  path case by case.
+
 - **A handler that is not a name is refused where it is written.**
   `on_failure`, `on_exit` and `on_signal` take the *name* of a subprogram to
   call, and anything non-empty was accepted — so somebody who has used a shell

@@ -266,7 +266,7 @@ diagnostics = ["err"]
 id = "capture.needs-a-program"
 requirement = "It takes a program and up to three arguments, so a call with none is refused by the analyser rather than discovered when nothing runs."
 script = "S : String := Output_Of; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.wrong_argument_count{name=Output_Of,expected=1 .. 4,found=0}!",
@@ -449,7 +449,7 @@ machine's own instruction, so every way of reaching a position -- an index, a
 slice, a part of a part -- is checked in one place rather than in each of them.
 """
 script = "S : String := \"abc\"; put_line (S (9)); quit (0);"
-exit_status = 0
+exit_status = 1
 output = []
 diagnostics = [
   "!error.program_raised_detail{exception=Index_Error,detail=!error.machine.index_outside{position=9,length=3}!}!",
@@ -459,7 +459,7 @@ diagnostics = [
 id = "string.is-taken-apart-one-way"
 requirement = "One position or one range, and nothing else: two arguments is not an index and is refused by name."
 script = "S : String := \"abc\"; put_line (S (1, 2)); quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.string_index_malformed!",
@@ -469,7 +469,7 @@ diagnostics = [
 id = "string.only-a-string-has-a-length"
 requirement = "An attribute that means nothing for the type is refused rather than guessed at."
 script = "N : Integer := 3; put_line (N'Length); quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.attribute_not_defined{attribute=Length,found=Integer}!",
@@ -492,7 +492,7 @@ diagnostics = []
 id = "string.two-characters-are-not-a-string"
 requirement = "Refused as Ada refuses it, rather than quietly producing a two-character String."
 script = "C : Character := 'a'; put_line (C & C); quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.operator_not_defined{operator=&,left=Character,right=Character}!",

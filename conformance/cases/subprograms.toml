@@ -116,7 +116,7 @@ diagnostics = []
 id = "sub.wrong-argument-count"
 requirement = "A call with the wrong number of arguments is reported, not run."
 script = "procedure P (N : Integer) is begin put_line (N); end P; P;"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.wrong_argument_count{name=P,expected=1,found=0}!"]
 
@@ -166,7 +166,7 @@ A function whose end is reached has no value to give back, and says so rather
 than handing over whatever its frame held.
 """
 script = "function F return Integer is begin null; end F; X : Integer := F;"
-exit_status = 0
+exit_status = 1
 output = []
 diagnostics = ["!error.program_raised_detail{exception=Program_Error,detail=!error.machine.no_return_value!}!"]
 
@@ -216,7 +216,7 @@ diagnostics = []
 id = "sub.assign-to-in-parameter"
 requirement = "An in parameter is a value the body was given, not a place it may write."
 script = "procedure P (N : in Integer) is begin N := 1; end P; X : Integer := 0; P (X);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.not_assignable{name=N}!"]
 
@@ -224,7 +224,7 @@ diagnostics = ["!error.not_assignable{name=N}!"]
 id = "sub.out-needs-a-variable"
 requirement = "An expression passed where the body writes back has nowhere for the write to go."
 script = "procedure P (N : out Integer) is begin N := 1; end P; P (1 + 2);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.actual_not_variable{position=1,mode=out}!"]
 
@@ -281,7 +281,7 @@ value anyone chose.  stops the program without ending the session, so
 the next line still runs and finds nothing.
 """
 script = "Gone : Integer := 1; return;\nput_line (Gone);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = ["!error.name_undeclared{name=Gone}!"]
 
@@ -340,7 +340,7 @@ parsed as a statement here. A subset that accepted what Ada rejects would be
 teaching the wrong language.
 """
 script = "declare put_line (\"x\"); begin null; end; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.statement_among_declarations!",
@@ -422,7 +422,7 @@ and one accepted silently would never run. The four are the three Ada defines
 plus the one Ada.Strings defines for an index outside a string.
 """
 script = "begin null; exception when Nonsense_Error => null; end; quit (0);"
-exit_status = 0
+exit_status = 2
 output = []
 diagnostics = [
   "!error.not_an_exception{name=Nonsense_Error}!",
@@ -472,28 +472,28 @@ diagnostics = []
 id = "params.a-name-the-subprogram-has-not-got"
 requirement = "Named by name, because `wrong arguments` sends the reader back to count them."
 script = "procedure P (A : Integer) is begin null; end P; P (B => 1); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.no_such_parameter{name=P,parameter=B}!"]
 
 [[case]]
 id = "params.a-parameter-given-twice"
 requirement = "Positionally and then by name is the same parameter twice, and the second is not a second argument."
 script = "procedure P (A : Integer; B : Integer) is begin null; end P; P (1, A => 2); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.parameter_given_twice{name=P,parameter=A}!"]
 
 [[case]]
 id = "params.positional-after-named"
 requirement = "Ada's rule, and it exists because otherwise the position of the plain argument would depend on the names written around it."
 script = "procedure P (A : Integer; B : Integer) is begin null; end P; P (A => 1, 2); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.positional_after_named{name=P}!"]
 
 [[case]]
 id = "params.a-parameter-with-no-value-and-no-default"
 requirement = "Reported once and by name. The count check is left to say nothing here, because saying both would be two complaints about one mistake."
 script = "procedure P (A : Integer; B : Integer) is begin null; end P; P (A => 1); quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.parameter_not_given{name=P,parameter=B}!"]
 
 [[case]]
@@ -504,14 +504,14 @@ the *declaration*, and a name resolved at the call site is exactly what cannot
 do that. Refused rather than half-supported.
 """
 script = "N : Integer := 3; procedure P (A : Integer := N) is begin null; end P; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.default_not_literal{name=A}!"]
 
 [[case]]
 id = "params.a-written-back-parameter-has-no-default"
 requirement = "Ada's rule and a sensible one: a default is a value, and an `out` parameter is somewhere to put one rather than something to be given."
 script = "procedure P (A : out Integer := 1) is begin A := 2; end P; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.default_not_in_mode{name=A}!"]
 
 [[case]]
@@ -531,7 +531,7 @@ diagnostics = []
 id = "params.a-call-with-no-parentheses-still-needs-what-has-no-default"
 requirement = "Leaving out a parameter with no default is a wrong call however it is written, and the count is what there is to say about a call with nothing in it."
 script = "procedure Note (Text : String) is begin put_line (Text); end Note; Note; quit (0);"
-exit_status = 0
+exit_status = 2
 diagnostics = ["!error.wrong_argument_count{name=Note,expected=1,found=0}!"]
 
 [[case]]
