@@ -526,6 +526,7 @@ package Adash.Messages is
 
       --  Command failures.
       Msg_Command_Wrong_Arguments,
+      Msg_Command_Name_Is_Empty,
       Msg_Command_Unavailable,
       Msg_No_History_Here,
 

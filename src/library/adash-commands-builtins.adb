@@ -509,6 +509,12 @@ package body Adash.Commands.Builtins is
                                  M.No_Arguments);
                end if;
 
+               if Given > 0 and then Asked = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                if Target = "" then
                   return Failed (Adash.Errors.Error_Directory_Not_Found,
                                  [1 => M.Named ("path", Target)]);
@@ -709,6 +715,14 @@ package body Adash.Commands.Builtins is
             end;
 
          when Command_Unset =>
+            if Argument (Arguments, 1) = "" then
+               --  Nothing to remove, and saying so beats reporting success for
+               --  work that was not done.
+               return Failed
+                 (Adash.Errors.Error_Command_Name_Is_Empty,
+                  [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+            end if;
+
             Env.Unset (Shell.Environment, Argument (Arguments, 1));
             return Adash.Execution.Success;
 
@@ -762,6 +776,16 @@ package body Adash.Commands.Builtins is
             declare
                Args : Hostkit.String_Vectors.Vector;
             begin
+               --  A stage with no program is refused where it is added rather
+               --  than when the pipeline runs: what a reader has to fix is the
+               --  line they wrote, and by run time there is nothing left to
+               --  point at.
+               if Argument (Arguments, 1) = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                for Position in 2 .. Given loop
                   Args.Append
                     (Ada.Strings.Unbounded.To_Unbounded_String
@@ -1153,6 +1177,16 @@ package body Adash.Commands.Builtins is
 
                use type Adash.Filesystem.Written;
             begin
+               --  Nothing to run. Refused here rather than handed to the host,
+               --  which answers that it could not find it and leaves the
+               --  reader with `command not found: ` -- a sentence that stops
+               --  where the name should be.
+               if Argument (Arguments, First_Word) = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                if Sets_Variables then
                   --  Checked before anything runs: a command that took
                   --  `LC_ALL` and quietly ran without it would be worse than
@@ -2064,6 +2098,16 @@ package body Adash.Commands.Builtins is
                   Named_As : constant String := Argument (Arguments, 1);
                   Wanted   : constant String := Argument (Arguments, 2);
                begin
+                  if Named_As = "" then
+                     --  The empty text is its own mistake. Reported as one,
+                     --  because `no setting is called ` is a sentence that
+                     --  stops where the name should be and leaves a reader
+                     --  looking for a name they never wrote.
+                     return Failed
+                       (Adash.Errors.Error_Command_Name_Is_Empty,
+                        [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+                  end if;
+
                   if not Config.Find (Named_As, Which) then
                      --  Its own message rather than the file reader's. That
                      --  one says the key `was ignored`, which is true of a
@@ -2176,6 +2220,12 @@ package body Adash.Commands.Builtins is
                Path : constant String := Argument (Arguments, 2);
                Done : Adash.Filesystem.Written;
             begin
+               if Path = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                if Id = Command_Write_File then
                   Adash.Filesystem.Write (Path, What, Done);
                else
@@ -2546,6 +2596,12 @@ package body Adash.Commands.Builtins is
                Path : constant String := Argument (Arguments, 1);
                Done : Adash.Filesystem.Written;
             begin
+               if Path = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                if Id = Command_Remove_File then
                   Adash.Filesystem.Remove_File (Path, Done);
                else
@@ -2573,6 +2629,12 @@ package body Adash.Commands.Builtins is
                To   : constant String := Argument (Arguments, 2);
                Done : Adash.Filesystem.Written;
             begin
+               if From = "" or else To = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                if Id = Command_Rename then
                   Adash.Filesystem.Rename (From, To, Done);
                else
@@ -2600,6 +2662,12 @@ package body Adash.Commands.Builtins is
                Path : constant String := Argument (Arguments, 1);
                Done : Adash.Filesystem.Written;
             begin
+               if Path = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                Adash.Filesystem.Make_Directory (Path, Done);
 
                case Done is
@@ -2690,6 +2758,12 @@ package body Adash.Commands.Builtins is
                   --  file that was empty.
                   return Failed
                     (Adash.Errors.Error_Command_Unavailable,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
+               if Path = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
                      [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
                end if;
 

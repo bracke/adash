@@ -760,6 +760,7 @@ package body Adash.Messages is
          when Msg_Line_Command_Entry         => return "line.command_entry";
          when Msg_Line_Version               => return "line.version";
          when Msg_Command_Wrong_Arguments    => return "error.command.wrong_arguments";
+         when Msg_Command_Name_Is_Empty      => return "error.command.name_is_empty";
          when Msg_Command_Unavailable        => return "error.command.unavailable";
          when Msg_No_History_Here            => return "error.no_history_here";
          when Msg_History_Not_Forgotten      =>
@@ -1242,6 +1243,9 @@ package body Adash.Messages is
 
          when Msg_Command_Wrong_Arguments =>
             return [N ("name"), N ("found")];
+
+         when Msg_Command_Name_Is_Empty =>
+            return [1 => N ("name")];
 
          when Msg_Command_Unavailable =>
             return [1 => N ("name")];

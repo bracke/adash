@@ -51,6 +51,7 @@ package body Adash.Errors is
             | Error_Handler_Not_A_Name
             | Error_Package_Starts_A_Task
             | Error_Command_Wrong_Arguments
+            | Error_Command_Name_Is_Empty
             | Error_Command_Unavailable
             | Error_No_History_Here
             | Error_History_Not_Forgotten
@@ -461,6 +462,8 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Priority_Not_Static;
          when Error_Command_Wrong_Arguments =>
             return Adash.Messages.Msg_Command_Wrong_Arguments;
+         when Error_Command_Name_Is_Empty =>
+            return Adash.Messages.Msg_Command_Name_Is_Empty;
          when Error_Command_Unavailable    => return Adash.Messages.Msg_Command_Unavailable;
          when Error_No_History_Here        => return Adash.Messages.Msg_No_History_Here;
          when Error_History_Not_Forgotten  =>

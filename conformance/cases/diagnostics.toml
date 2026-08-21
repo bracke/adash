@@ -760,3 +760,41 @@ diagnostics = [
   "!error.not_a_task{name=P}!",
   "!error.not_an_exception{name=Q}!",
 ]
+
+[[case]]
+id = "commands.nothing-where-a-name-is-needed-is-its-own-mistake"
+requirement = """
+`cd ("")` reported `no such directory: ` and `run ("")` reported `command not
+found: ` -- sentences that stop where the name should be, and send a reader
+looking for something they never wrote. `settings ("", "1")` did the same, and
+`unset ("")` reported success for work it had not done.
+
+The mistake is the empty text, and it is the same mistake in each of them: a
+command that needs a name was given nothing. Said once, by name, before the
+command goes looking. `run` covers its whole family, so `start` and `run_with`
+say it too, each under its own name.
+
+The commands that write -- `write_file`, `make_directory`, `remove_file`,
+`rename`, `copy_file` -- said `nothing can be written at ` and now say what the
+rest say. A `pipe` stage with no program is refused where it is added, because
+by the time the pipeline runs there is nothing left to point at.
+
+A failing command does not stop the sequence, so the session's own status is
+nought: what each of these sets is `Status`, which is what a script tests.
+"""
+script = "cd (\"\");\nrun (\"\");\nsettings (\"\", \"1\");\nunset (\"\");\nsource (\"\");\nstart (\"\");\npipe (\"\");\nwrite_file (\"text\", \"\");\nmake_directory (\"\");\nremove_file (\"\");\nrename (\"\", \"\");"
+exit_status = 0
+output = []
+diagnostics = [
+  "!error.command.name_is_empty{name=cd}!",
+  "!error.command.name_is_empty{name=run}!",
+  "!error.command.name_is_empty{name=settings}!",
+  "!error.command.name_is_empty{name=unset}!",
+  "!error.command.name_is_empty{name=source}!",
+  "!error.command.name_is_empty{name=start}!",
+  "!error.command.name_is_empty{name=pipe}!",
+  "!error.command.name_is_empty{name=write_file}!",
+  "!error.command.name_is_empty{name=make_directory}!",
+  "!error.command.name_is_empty{name=remove_file}!",
+  "!error.command.name_is_empty{name=rename}!",
+]

@@ -511,6 +511,7 @@ package Adash.Errors is
 
       --  Internal commands.
       Error_Command_Wrong_Arguments,
+      Error_Command_Name_Is_Empty,
       Error_Command_Unavailable,
 
       --  A history was asked for where nothing is keeping one. Distinct from

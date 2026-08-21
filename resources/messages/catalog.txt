@@ -302,6 +302,7 @@ en.error.parameter_not_given = {name} was not given {parameter}, which has no de
 en.error.default_not_literal = the default for {name} is not a literal
 en.error.default_not_in_mode = {name} is written to rather than given, so it cannot have a default
 en.error.command.wrong_arguments = {name} was given the wrong number of arguments: {found}
+en.error.command.name_is_empty = {name} was given nothing where it needs a name
 en.error.too_many_kept = this session already carries {limit} definitions, so {name} will not be remembered
 en.error.empty_pipeline = nothing has been added to the pipeline
 en.error.pipeline_given_up = the pipeline was given up when it could not be placed or started, and nothing of it is left
