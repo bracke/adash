@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 640 messages in 23 groups.
+There are 641 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -740,6 +740,7 @@ quoted into `config.syntax`, which supplies the file and the position.
 | `tooling.check.forbidden_dependency` | {path} depends on {unit}, which Adash may not use directly; see AI.md |
 | `tooling.check.left_behind` | {path} is something the suite makes and does not clean up, and it has been committed |
 | `tooling.check.not_ada_tooling` | {path} is repository tooling that is not Ada |
+| `tooling.check.tree_rewrite` | {path} rewrites a syntax tree, which only the analyser may do |
 | `tooling.check.layer.frontend` | {path} names {unit}, which belongs to a frontend: dependencies point downward |
 | `tooling.check.layer.engine` | {path} names {unit}, and only a frontend may name the engine |
 | `tooling.check.layer.foundation` | {path} is a foundation and names {unit}, which is above it |

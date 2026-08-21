@@ -33,6 +33,23 @@ A command's arguments are values the machine evaluates. That is why `quit
 (Total);` after a loop works, why a command may stand inside an `if`, and why a
 declaration written before a command is still in scope after it.
 
+**A submission runs whole or not at all.** Three things stop one before
+anything happens, and each is reported where it is: text that is not valid
+UTF-8, a scanner complaint, and a parse the parser had to repair to carry on.
+The last one is why `put_line ("a") put_line ("b");` prints nothing -- the
+missing semicolon is a mistake in the program, and a program the parser guessed
+the shape of is not the one its author wrote. Recovery exists so that a reader
+is told about more than one mistake per submission, not so that a repaired
+program runs.
+
+A submission stopped this way reports that it was not understood, which is a
+failure a script carries: the shell's own exit status is not success, and
+`stop_on_failure` ends the script there. A submission the *analyser* refuses is
+stopped the same way and says so separately, because the two say different
+things about the program. A tree that did not parse is never analysed at all:
+what the analyser would make of a shape the parser guessed at is a complaint
+about a program nobody wrote.
+
 ## Running a program
 
 `run ("program", "argument", …)` starts a program, waits for it, and reports

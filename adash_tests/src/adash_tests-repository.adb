@@ -56,6 +56,7 @@ package body Adash_Tests.Repository is
    --  while it was being written, which is the check earning its keep.
    Key_Left_Behind      : constant String := "tooling.check.left_behind";
    Key_Not_Ada_Tooling  : constant String := "tooling.check.not_ada_tooling";
+   Key_Tree_Rewrite     : constant String := "tooling.check.tree_rewrite";
 
    Key_Layer_Frontend   : constant String := "tooling.check.layer.frontend";
    Key_Layer_Engine     : constant String := "tooling.check.layer.engine";
@@ -1987,6 +1988,54 @@ package body Adash_Tests.Repository is
       end loop;
    end Check_Tooling_Is_Ada;
 
+   ---------------------------
+   -- Check_Tree_Rewrites --
+   ---------------------------
+
+   --  `Adash.Language.Syntax.Set_Text` says in its own specification that
+   --  nothing but the analyser may rewrite a tree, and until this check
+   --  nothing held it to that. A node's extent points at what the user typed;
+   --  the text is what the phases after analysis compare and quote. They agree
+   --  only while one phase does the rewriting, and it has to be the phase that
+   --  can tell which declaration a written name means.
+   --
+   --  Two call sites today, both settling an exception's name. A third
+   --  anywhere else is how a diagnostic ends up quoting text that was never in
+   --  the source, which is the failure the specification warns about.
+   procedure Check_Tree_Rewrites (Root : String; Into : in out Report);
+
+   procedure Check_Tree_Rewrites (Root : String; Into : in out Report) is
+      --  The analyser, and the tree's own body where the operation lives.
+      Analyser : constant String := "adash-language-semantics.adb";
+      Owner    : constant String := "adash-language-syntax.adb";
+
+      --  Both spellings the codebase uses for the package.
+      Short : constant String := "S.Set_Text";
+      Whole : constant String := "Syntax.Set_Text";
+   begin
+      for Path of Source_Files (Root) loop
+         declare
+            Full : constant String := US.To_String (Path);
+            Name : constant String := Ada.Directories.Simple_Name (Full);
+         begin
+            if Name /= Analyser and then Name /= Owner then
+               Into.Checks_Run := Into.Checks_Run + 1;
+
+               declare
+                  Text : constant String := Read_If_Present (Full);
+               begin
+                  if Ada.Strings.Fixed.Index (Text, Short) > 0
+                    or else Ada.Strings.Fixed.Index (Text, Whole) > 0
+                  then
+                     Add (Into, Key_Tree_Rewrite,
+                          [1 => Msg.Named ("path", Name)]);
+                  end if;
+               end;
+            end if;
+         end;
+      end loop;
+   end Check_Tree_Rewrites;
+
    ----------------------
    -- Check_Layering --
    ----------------------
@@ -2262,6 +2311,7 @@ package body Adash_Tests.Repository is
       Check_Layering (Root, Into);
       Check_Nothing_Left_Behind (Root, Into);
       Check_Tooling_Is_Ada (Root, Into);
+      Check_Tree_Rewrites (Root, Into);
       Check_Required_Files (Root, Into);
       Check_Required_Directories (Root, Into);
       Check_Version_Consistency (Root, Into);

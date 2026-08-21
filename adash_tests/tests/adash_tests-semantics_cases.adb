@@ -23,6 +23,7 @@ package body Adash_Tests.Semantics_Cases is
 
    use type Ty.Type_Kind;
    use type Adash.Messages.Message_Id;
+   use type S.Node_Kind;
 
    --  Parse and analyse. Each call starts from empty, so counts are per case.
    procedure Check
@@ -307,6 +308,74 @@ package body Adash_Tests.Semantics_Cases is
       Assert (not Reported (Report, Adash.Errors.Error_Operator_Not_Defined),
               "an operator was blamed for an operand that never resolved");
    end One_Unknown_Type_Does_Not_Cascade;
+
+   procedure An_Exception_Settles_On_Its_Declaration
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Tree   : S.Tree;
+      Result : Sem.Analysis;
+      Report : D.List;
+
+      --  The name the program's one raise was left holding.
+      --
+      --  Walked from the root rather than counted through, because a Node_Id
+      --  is private and a test has no business making one.
+      function Raised_Name (Node : S.Node_Id) return String;
+
+      function Raised_Name (Node : S.Node_Id) return String is
+      begin
+         if not S.Is_Present (Node) then
+            return "";
+         end if;
+
+         if S.Kind (Tree, Node) = S.Node_Raise
+           and then S.Is_Present (S.First (Tree, Node))
+         then
+            return S.Text (Tree, S.First (Tree, Node));
+         end if;
+
+         for Index in 1 .. S.Child_Count (Tree, Node) loop
+            declare
+               Found : constant String :=
+                 Raised_Name (S.Child (Tree, Node, Index));
+            begin
+               if Found /= "" then
+                  return Found;
+               end if;
+            end;
+         end loop;
+
+         return "";
+      end Raised_Name;
+   begin
+      --  Ada does not distinguish `REFUSED` from `Refused`, and a name a `use`
+      --  made visible is the same name as the one written under its package.
+      --  What runs compares the text of a raise against the text of each
+      --  handler, so unless the analyser settles both on the declaration they
+      --  resolve to, one exception raised under one spelling walks past a
+      --  handler naming it under another.
+      Check ("package Fault is Refused : exception; end Fault;"
+             & "use Fault;"
+             & "raise REFUSED;", Tree, Result, Report);
+      Assert (Raised_Name (S.Root (Tree)) = "Fault.Refused",
+              "a raise was left naming " & Raised_Name (S.Root (Tree))
+              & " rather than the declaration it resolves to");
+
+      --  A predefined exception is declared by nobody, and settles on the
+      --  spelling the machine knows it by.
+      Check ("raise CONSTRAINT_ERROR;", Tree, Result, Report);
+      Assert (Raised_Name (S.Root (Tree)) = "Constraint_Error",
+              "a predefined exception was left naming "
+              & Raised_Name (S.Root (Tree)));
+
+      --  A name that denotes nothing is left exactly as it was written: the
+      --  diagnostic quotes it, and quoting something the user did not type
+      --  would send them looking for it.
+      Check ("Total : Integer := 1;", Tree, Result, Report);
+      Assert (Raised_Name (S.Root (Tree)) = "",
+              "a program with no raise in it reported one");
+   end An_Exception_Settles_On_Its_Declaration;
 
    procedure A_Tree_That_Did_Not_Parse_Is_Not_Analysed
      (Test : in out AUnit.Test_Cases.Test_Case'Class)
@@ -722,6 +791,9 @@ package body Adash_Tests.Semantics_Cases is
       Register_Routine
         (T, A_Tree_That_Did_Not_Parse_Is_Not_Analysed'Access,
          "semantics : a tree that did not parse is not analysed");
+      Register_Routine
+        (T, An_Exception_Settles_On_Its_Declaration'Access,
+         "semantics : an exception name settles on the declaration it means");
       Register_Routine
         (T, Commands_Are_Callable_Names'Access,
          "commands are callable names with typed profiles");

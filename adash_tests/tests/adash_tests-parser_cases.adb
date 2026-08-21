@@ -362,9 +362,25 @@ package body Adash_Tests.Parser_Cases is
 
       --  The tree stays walkable -- a highlighter still wants it -- and says
       --  it must not be evaluated.
-      Assert (S.Has_Errors (Tree) or else Report.Has_Blocking,
-              "a failed parse claimed to be clean");
+      --
+      --  Both, not either. This asked for `Has_Errors or else Has_Blocking`,
+      --  and a recovered parse satisfied it on the report alone while leaving
+      --  the tree unmarked -- which is what let `put_line ("a") put_line ("b")`
+      --  print both lines and report success. An error node is what the engine
+      --  stops on, so an error node is what this asks for.
+      Assert (S.Has_Errors (Tree),
+              "a repaired parse left no error node in the tree");
+      Assert (Report.Has_Blocking,
+              "a repaired parse reported nothing that blocks");
       Assert (S.Node_Count (Tree) > 0, "a failed parse produced no tree at all");
+
+      --  A call is the shape that exposed this. An assignment missing its
+      --  semicolon already left an error node by another path, so the
+      --  assertion above held whichever way `Complain` behaved and the hole
+      --  survived under a test that looked like it covered it.
+      Parse ("put_line (""a"") put_line (""b"");", Tree, Report);
+      Assert (S.Has_Errors (Tree),
+              "two calls with no semicolon between them parsed as clean");
 
       --  A clean parse says so.
       Parse ("X := 1;", Tree, Report);
