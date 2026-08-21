@@ -126,6 +126,24 @@ package body Adash.Language.Syntax is
       return To_String (Item.Nodes.Element (Positive (Node)).Text);
    end Text;
 
+   --------------
+   -- Set_Text --
+   --------------
+
+   procedure Set_Text (Item : in out Tree; Node : Node_Id; Text : String) is
+   begin
+      if Node = No_Node or else Natural (Node) > Natural (Item.Nodes.Length) then
+         return;
+      end if;
+
+      declare
+         Changed : Node_Record := Item.Nodes.Element (Positive (Node));
+      begin
+         Changed.Text := To_Unbounded_String (Text);
+         Item.Nodes.Replace_Element (Positive (Node), Changed);
+      end;
+   end Set_Text;
+
    ------------------
    -- Child_Count --
    ------------------

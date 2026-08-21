@@ -144,3 +144,41 @@ script = "package Config is L : Integer := 7; function F (N : Integer) return In
 exit_status = 0
 output = ["10", "17"]
 diagnostics = []
+
+[[case]]
+id = "packages.an-exception-a-package-holds-is-reached-by-its-name"
+requirement = """
+A package holds its exceptions beside its subprograms, and Ada reaches one the
+same way it reaches the rest: by naming it under its package. `use` is not the
+only door. Both spellings mean the same exception, so a handler naming it one
+way catches a raise that named it the other.
+"""
+script = "package Fault is Refused : exception; end Fault;\nuse Fault;\nbegin raise Fault.Refused; exception when Refused => put_line (\"by the short name\"); end;\nbegin raise Refused; exception when Fault.Refused => put_line (\"by the long one\"); end;\nquit (0);"
+exit_status = 0
+output = ["by the short name", "by the long one"]
+diagnostics = []
+
+[[case]]
+id = "packages.two-packages-may-hold-the-same-name"
+requirement = """
+What settles which exception was raised is the declaration it resolves to, not
+the word it was written with. Two packages holding an exception of the same
+name hold two exceptions, and a handler catches only its own.
+"""
+script = "package Left is Snag : exception; end Left;\npackage Right is Snag : exception; end Right;\nbegin raise Right.Snag; exception when Left.Snag => put_line (\"the wrong one\"); when Right.Snag => put_line (\"the right one\"); end;\nquit (0);"
+exit_status = 0
+output = ["the right one"]
+diagnostics = []
+
+[[case]]
+id = "packages.an-exceptions-name-does-not-care-about-case"
+requirement = """
+Ada does not distinguish `OOPS` from `Oops`, and an exception's name is a name
+like any other. Matching what was raised against what a handler names by the
+letters as typed made a handler that plainly names the exception walk past it.
+The message for one nobody catches quotes the name as it was declared.
+"""
+script = "Oops : exception;\nbegin raise OOPS; exception when oops => put_line (\"caught\"); end;\nbegin raise CONSTRAINT_ERROR; exception when Constraint_Error => put_line (\"predefined too\"); end;\nraise oOpS;"
+exit_status = 1
+output = ["caught", "predefined too"]
+diagnostics = ["!error.program_raised{exception=Oops}!"]

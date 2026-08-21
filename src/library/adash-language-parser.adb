@@ -1225,12 +1225,19 @@ package body Adash.Language.Parser is
             declare
                What : S.Node_Id := S.No_Node;
             begin
-               --  A name and nothing else: an exception is a name, so there is
-               --  no expression to parse and nothing an expression would add.
-               if T.Kind (Current) = T.Token_Identifier then
-                  What := S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
-                  Advance;
-               end if;
+               --  A name and nothing else: an exception is a name, so there
+               --  is no expression to parse and nothing an expression would
+               --  add. The name may be dotted, because a package holds its
+               --  exceptions beside its subprograms and `use` is not the only
+               --  way to reach one.
+               declare
+                  Read : Boolean;
+                  Name : constant S.Node_Id := Parse_Type_Mark (Read);
+               begin
+                  if Read then
+                     What := Name;
+                  end if;
+               end;
 
                declare
                   Ignored : constant Boolean :=
@@ -3517,16 +3524,22 @@ package body Adash.Language.Parser is
                        S.Add_Leaf (Into, S.Node_Others, Here);
                      Advance;
                   else
-                     Named (Chosen) :=
-                       S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
+                     declare
+                        Read : Boolean;
+                        Name : constant S.Node_Id := Parse_Type_Mark (Read);
+                     begin
+                        if not Read then
+                           Named (Chosen) :=
+                             S.Add_Leaf
+                               (Into, S.Node_Name, Here, T.Text (Current));
+                           Complain
+                             (Adash.Messages.Msg_Expected_Exception_Name);
+                           Recover;
+                           exit;
+                        end if;
 
-                     if T.Kind (Current) /= T.Token_Identifier then
-                        Complain (Adash.Messages.Msg_Expected_Exception_Name);
-                        Recover;
-                        exit;
-                     end if;
-
-                     Advance;
+                        Named (Chosen) := Name;
+                     end;
                   end if;
 
                   exit when not Is_Symbol (T.Delim_Bar);

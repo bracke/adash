@@ -811,6 +811,40 @@ package body Adash.Language.Semantics is
       function Visible (Name : String) return Symbols.Symbol
       is (Chain.Lookup (Visible_Name (Name)));
 
+      --  Write an exception's declared spelling back into the tree.
+      --
+      --  Ada does not distinguish `OOPS` from `Oops`, and a name a `use` made
+      --  visible denotes the same exception as the one written `P.Oops`. What
+      --  runs compares the text of the two names, so unless they are settled
+      --  here the same exception raised under one spelling walks past a
+      --  handler naming it under another.
+      procedure Settle_Exception_Name (Which : S.Node_Id);
+
+      procedure Settle_Exception_Name (Which : S.Node_Id) is
+         Written : constant String := S.Text (Tree, Which);
+         Found   : constant Symbols.Symbol := Visible (Written);
+      begin
+         if Symbols."=" (Symbols.Kind (Found), Symbols.Symbol_Exception) then
+            S.Set_Text (Tree, Which, Symbols.Name (Found));
+            return;
+         end if;
+
+         --  A predefined exception is not declared by anybody, so its
+         --  canonical spelling is the one the machine knows it by.
+         for Index in 1 .. Natural'Last loop
+            declare
+               Known : constant String := Adash.Predefined.Exception_At (Index);
+            begin
+               exit when Known = "";
+
+               if Symbols.Fold (Known) = Symbols.Fold (Written) then
+                  S.Set_Text (Tree, Which, Known);
+                  return;
+               end if;
+            end;
+         end loop;
+      end Settle_Exception_Name;
+
       function Visible_Name (Name : String) return String is
          Whole : constant String :=
            Ada.Strings.Unbounded.To_String (Prefix);
@@ -6728,7 +6762,9 @@ package body Adash.Language.Semantics is
                        (Adash.Errors.Error_Not_An_Exception, What,
                         [1 => Adash.Messages.Named
                                 ("name", S.Text (Tree, What))]);
+
                   else
+                     Settle_Exception_Name (What);
                      Note (What, Types.Type_None);
                   end if;
 
@@ -9215,6 +9251,9 @@ package body Adash.Language.Semantics is
                           (Adash.Errors.Error_Not_An_Exception, Which,
                            [1 => Adash.Messages.Named
                                    ("name", S.Text (Tree, Which))]);
+
+                     else
+                        Settle_Exception_Name (Which);
                      end if;
                   end;
                end loop;

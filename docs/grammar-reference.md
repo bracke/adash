@@ -143,6 +143,10 @@ type was given none.
                                                              -- Node_Procedure_Call
     null           ::= 'null' ';'                            -- Node_Null_Statement
     raise          ::= 'raise' [ name ] ';'                  -- Node_Raise
+                   --  The name is read whole, dots and all, into one
+                   --  Node_Name: an exception is not an expression, so
+                   --  there is nothing for a Node_Selected to select from.
+                   --  A handler's names are read the same way.
     exit           ::= 'exit' [ 'when' expression ] ';'      -- Node_Exit
     return         ::= 'return' [ expression ] ';'           -- Node_Return
     abort          ::= 'abort' name { ',' name } ';'         -- Node_Abort

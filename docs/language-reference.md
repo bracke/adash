@@ -312,6 +312,12 @@ name too: `Constraint_Error`, `Program_Error`, `Storage_Error`, `Tasking_Error`,
 `Index_Error`. **The list a handler may name is exactly the list that can be
 raised.** A program's own exception carries no message.
 
+An exception a package holds is named like anything else it holds — `Fault.Refused`,
+or plainly `Refused` under a `use Fault;`. Which exception was raised is settled by
+the declaration the name resolves to, not by the letters it was written with: the two
+spellings are one exception, `OOPS` and `Oops` are one exception, and two packages
+each holding a `Snag` hold two. A handler catches its own.
+
 ## Tasking
 
 Tasks are **interleaved, not parallel**: the machine runs one strand at a time

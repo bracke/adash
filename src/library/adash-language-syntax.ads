@@ -552,6 +552,22 @@ package Adash.Language.Syntax is
    --  @return Its text, or "" when it carries none.
    function Text (Item : Tree; Node : Node_Id) return String;
 
+   --  Settle a name on one spelling.
+   --
+   --  Ada compares names without regard to case, and a name reached through a
+   --  `use` is the same name as the one written with its package's prefix. The
+   --  analyser is the only phase that can tell which declaration a written
+   --  name means, so it is the phase that writes the declared spelling back --
+   --  and what runs afterwards compares text and gets the right answer.
+   --
+   --  Nothing else may rewrite a tree: a node's extent still points at what
+   --  the user typed, so a diagnostic quoting the source stays truthful.
+   --
+   --  @param Item Tree to change.
+   --  @param Node The node.
+   --  @param Text What it should now say.
+   procedure Set_Text (Item : in out Tree; Node : Node_Id; Text : String);
+
    --  @param Item Tree to inspect.
    --  @param Node The node.
    --  @return How many children it has.
