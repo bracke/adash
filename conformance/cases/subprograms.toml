@@ -638,3 +638,25 @@ diagnostics = [
   "!error.parameter_given_twice{name=Index,parameter=Whole}!",
   "!error.no_such_parameter{name=cd,parameter=Folder}!",
 ]
+
+[[case]]
+id = "subprograms.a-broken-result-type-is-not-a-procedure"
+requirement = """
+`function F return Nope` names a type nothing declares. That is one mistake and
+it is reported. What followed was a second complaint saying a procedure cannot
+return a value -- because a result type that did not resolve and no result type
+at all are the same value inside the analyser, and a function that lost its
+type became a procedure that never was one. A reader sent to the `return` has
+been sent to the wrong line.
+
+A procedure that really does return a value is still refused, including one
+written after a function whose type was refused: the two are told apart, and
+telling them apart is restored on the way out of each body.
+"""
+script = "function F return Nope is begin return 1; end F;\nprocedure P is begin return 2; end P;"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.name_undeclared{name=Nope}!",
+  "!error.return_with_value!",
+]

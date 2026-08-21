@@ -1070,6 +1070,14 @@ package body Adash.Language.Semantics is
       --  reader should not have to find that out from the lowering.
       Returns          : Types.Type_Kind := Types.Type_None;
 
+      --  Whether that Type_None means "a procedure" or "a function whose
+      --  result type did not resolve". The two are the same value and are not
+      --  the same thing: a `return 1;` inside the second is what the author
+      --  wrote, and telling them a procedure cannot return a value sends them
+      --  to the wrong line -- the one that named a type nothing declares was
+      --  reported already.
+      Returns_Unknown  : Boolean := False;
+
       Legal : Boolean := True;
 
       --  Whether this analysis has reported anything yet.
@@ -9128,7 +9136,9 @@ package body Adash.Language.Semantics is
                      Given : constant Types.Type_Kind :=
                        Analyse_Expression (S.First (Tree, Node), Returns);
                   begin
-                     if Subprogram_Depth > 0 and then Returns = Types.Type_None
+                     if Subprogram_Depth > 0
+                       and then Returns = Types.Type_None
+                       and then not Returns_Unknown
                      then
                         --  Inside a procedure. Outside any subprogram this is
                         --  how a submission ends early, which is meaningful and
@@ -9411,6 +9421,7 @@ package body Adash.Language.Semantics is
          --  statements that follow.
          Outer_Loops   : constant Natural := Loop_Depth;
          Outer_Returns : constant Types.Type_Kind := Returns;
+         Outer_Unknown : constant Boolean := Returns_Unknown;
       begin
          --  More parameters than a profile carries. Refused by name rather
          --  than kept as the first sixteen: a declaration silently shortened
@@ -9601,6 +9612,8 @@ package body Adash.Language.Semantics is
          Subprogram_Depth := Subprogram_Depth + 1;
          Master_Depth     := Master_Depth + 1;
          Returns          := Yields;
+         Returns_Unknown  :=
+           S.Is_Present (Result) and then Yields = Types.Type_None;
          Loop_Depth       := 0;
 
          for Index in 1 .. Count loop
@@ -9636,6 +9649,7 @@ package body Adash.Language.Semantics is
          Subprogram_Depth := Subprogram_Depth - 1;
          Master_Depth     := Master_Depth - 1;
          Returns          := Outer_Returns;
+         Returns_Unknown  := Outer_Unknown;
          Loop_Depth       := Outer_Loops;
          Chain.Leave;
       end Analyse_Subprogram;

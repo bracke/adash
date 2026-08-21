@@ -433,16 +433,21 @@ diagnostics = ["!error.part_not_simple{name=Part,found=Inner}!"]
 
 [[case]]
 id = "types.a-function-does-not-return-a-composite"
-requirement = "A function's result is what it leaves on the stack, and a composite is a run of slots rather than a value: there is nowhere for one to be left."
+requirement = """
+A function's result is what it leaves on the stack, and a composite is a run of
+slots rather than a value: there is nowhere for one to be left.
+
+One diagnostic. This case used to carry a second -- `return L;` reported as a
+value returned from a procedure -- on the reasoning that the body is a
+procedure as far as the analyser is concerned once the result type is refused.
+That is a fact about the analyser rather than about the program: the author
+wrote a function, and the line they are sent to is the one line here that is
+not the mistake.
+"""
 script = "type Line is record Number : Integer; Text : String; end record; function Make return Line is L : Line := (1, \"x\"); begin return L; end Make; quit (0);"
 exit_status = 2
 diagnostics = [
   "!error.result_not_simple{name=Make,found=Line}!",
-  # And then the body is a procedure as far as everything after this is
-  # concerned, so its `return L;` is a value returned from one. Two
-  # diagnostics about one mistake, which is honest: the second is what the
-  # body now is rather than a second opinion about the first.
-  "!error.return_with_value!",
 ]
 
 [[case]]
