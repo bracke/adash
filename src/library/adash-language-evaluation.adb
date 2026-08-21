@@ -3522,10 +3522,20 @@ package body Adash.Language.Evaluation is
 
       exception
          when Constraint_Error =>
-            --  A default semantics accepted and this cannot spell back. It
-            --  would be a defect here rather than in the program, and a
-            --  refusal names it instead of pushing something nobody wrote.
-            Refuse (Node, Adash.Messages.Msg_Lower_Float_Literal);
+            --  A default semantics accepted and this cannot spell back. A
+            --  refusal names it instead of pushing something nobody wrote --
+            --  and names the kind of literal it actually was: this said
+            --  `float literal` whatever had been written, so a default of
+            --  `99999999999999999999` for an Integer parameter was refused as
+            --  a float, which is not what the reader typed and not where they
+            --  would look.
+            Refuse
+              (Node,
+               (case Ty.Shape (Of_Type) is
+                   when Ty.Shape_Integer | Ty.Shape_Enumeration =>
+                      Adash.Messages.Msg_Lower_Whole_Literal,
+                   when others =>
+                      Adash.Messages.Msg_Lower_Float_Literal));
       end Emit_Spelled;
 
       -------------------------

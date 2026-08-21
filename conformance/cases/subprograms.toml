@@ -660,3 +660,26 @@ diagnostics = [
   "!error.name_undeclared{name=Nope}!",
   "!error.return_with_value!",
 ]
+
+[[case]]
+id = "params.a-default-that-cannot-be-spelled-back-says-which-kind"
+requirement = """
+A parameter's default is a literal, kept as text and spelled back where the
+call is lowered. One the analyser accepted and the lowering cannot read back --
+`99999999999999999999` for an `Integer` -- is refused rather than turned into
+something nobody wrote.
+
+It was refused as a *float* literal whatever had been written, because the
+handler that catches the reading named one message for every shape. A reader
+told their float literal is too large, having typed a whole number into an
+Integer parameter, is being sent to look for something that is not there.
+
+The refusal arrives at the call rather than at the declaration, because that is
+where a default is spelled back: one declaration, one refusal per call site.
+"""
+script = "procedure P (N : Integer := 99999999999999999999) is begin null; end P;\nP;"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.not_lowerable{construct=!lower.whole_literal!}!",
+]
