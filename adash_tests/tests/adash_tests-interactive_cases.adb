@@ -1,3 +1,4 @@
+with Ada.Environment_Variables;
 with Ada.Characters.Latin_1;
 with Ada.Command_Line;
 with Ada.Directories;
@@ -1213,8 +1214,16 @@ package body Adash_Tests.Interactive_Cases is
    --  @param Item The session to fill in.
    --  @return False when this host has no pseudo-terminals, in which case
    --          nothing was started and the caller has nothing to do.
+   --  @param Told What the child's environment holds beyond what it inherits,
+   --         one `NAME=VALUE` per entry. For a test that has to put something
+   --         where the shell will read it: a configuration file is found
+   --         through `XDG_CONFIG_HOME`, `APPDATA` or `HOME`, and each host
+   --         reads its own.
    function Start_On_A_Terminal
-     (Item : in out Terminal_Session; Script : String := "") return Boolean;
+     (Item   : in out Terminal_Session;
+      Script : String := "";
+      Told   : Hostkit.String_Vectors.Vector :=
+        Hostkit.String_Vectors.Empty_Vector) return Boolean;
 
    --  Type into the terminal, as a user would.
    procedure Type_Into (Item : in out Terminal_Session; Text : String);
@@ -1288,7 +1297,10 @@ package body Adash_Tests.Interactive_Cases is
    procedure Finish (Item : in out Terminal_Session; Ended : out Boolean);
 
    function Start_On_A_Terminal
-     (Item : in out Terminal_Session; Script : String := "") return Boolean
+     (Item   : in out Terminal_Session;
+      Script : String := "";
+      Told   : Hostkit.String_Vectors.Vector :=
+        Hostkit.String_Vectors.Empty_Vector) return Boolean
    is
       use type Hostkit.Spawn.Spawn_Outcome;
 
@@ -1330,6 +1342,20 @@ package body Adash_Tests.Interactive_Cases is
       --  over a different way entirely.
       Assert (Hostkit.Pty.Attach (Item.Pair, Options),
               "the terminal end could not be handed to the child");
+
+      if not Told.Is_Empty then
+         --  Replaced rather than added to: Hostkit.Spawn reads Environment
+         --  only when it is replacing, and a child given nothing else would
+         --  lose the PATH it needs to find a program at all.
+         Options.Replace_Environment := True;
+         Options.Environment.Append
+           (Ada.Strings.Unbounded.To_Unbounded_String
+              ("PATH=" & Ada.Environment_Variables.Value ("PATH", "")));
+
+         for Entry_Told of Told loop
+            Options.Environment.Append (Entry_Told);
+         end loop;
+      end if;
 
       Assert (Hostkit.Spawn.Start
                 (Shell_Under_Test, Args, Options, Item.Child)
@@ -2430,6 +2456,101 @@ package body Adash_Tests.Interactive_Cases is
    --  likes, and what is refused is drawing it a cell at a time. The bound is
    --  generous -- a redraw legitimately moves by one where the distance is one
    --  -- and a walk would be in the hundreds.
+   ------------------------------------------------
+   -- Colour_Reaches_A_Script_At_A_Terminal --
+   ------------------------------------------------
+
+   --  `color` decides when styling is written, and a script used to ignore it:
+   --  the policy was applied where an interactive session starts and nowhere
+   --  else, so a script run at a terminal coloured whatever the user had
+   --  written.
+   --
+   --  Only a terminal can say this. Down a pipe `auto` and `never` both
+   --  produce nothing, so the conformance case for the same fix has to use
+   --  `always`, which says the setting arrives but not that `never` is
+   --  obeyed. Here the shell is on a pseudo-terminal, where the default would
+   --  colour, and the file says not to.
+   procedure Colour_Reaches_A_Script_At_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Room : constant String :=
+        Hostkit.Fs.Create_Temporary_Directory ("adash-colour-test");
+
+      Escape : constant String := [1 => Character'Val (27)];
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+      Told    : Hostkit.String_Vectors.Vector;
+   begin
+      --  Where each host looks for a configuration file. The runner points all
+      --  three at one directory for the same reason.
+      Ada.Directories.Create_Path (Hostkit.Fs.Join (Room, "adash"));
+      Ada.Directories.Create_Path
+        (Hostkit.Fs.Join (Hostkit.Fs.Join (Room, "Library"),
+                          Hostkit.Fs.Join ("Application Support", "adash")));
+
+      for Where of Hostkit.String_Vectors.Vector'
+        ([Ada.Strings.Unbounded.To_Unbounded_String
+            (Hostkit.Fs.Join (Hostkit.Fs.Join (Room, "adash"), "config.toml")),
+          Ada.Strings.Unbounded.To_Unbounded_String
+            (Hostkit.Fs.Join
+               (Hostkit.Fs.Join
+                  (Hostkit.Fs.Join (Room, "Library"),
+                   Hostkit.Fs.Join ("Application Support", "adash")),
+                "config.toml"))])
+      loop
+         declare
+            File : Ada.Text_IO.File_Type;
+         begin
+            Ada.Text_IO.Create
+              (File, Ada.Text_IO.Out_File,
+               Ada.Strings.Unbounded.To_String (Where));
+            Ada.Text_IO.Put_Line (File, "color = ""never""");
+            Ada.Text_IO.Close (File);
+         end;
+      end loop;
+
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String
+           ("XDG_CONFIG_HOME=" & Room));
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String ("APPDATA=" & Room));
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String ("HOME=" & Room));
+
+      --  A *script*, which is the path that ignored the setting: the policy
+      --  was applied where an interactive session starts and nowhere else, so
+      --  a script at a terminal coloured whatever the user had written.
+      declare
+         Script : constant String := Hostkit.Fs.Join (Room, "probe.adash");
+         File   : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Script);
+         Ada.Text_IO.Put_Line (File, "run (""/nonesuch-for-colour"");");
+         Ada.Text_IO.Close (File);
+
+         if not Start_On_A_Terminal (Session, Script => Script, Told => Told)
+         then
+            return;
+         end if;
+      end;
+
+      Assert (Waited_For (Session, "nonesuch-for-colour"),
+              "the shell never reported the missing command");
+
+      --  The whole introducer, not `ESC [ 3 1`: that also begins "move the
+      --  cursor right thirty-one columns", which a redraw writes all the time
+      --  and which cost an hour of reading a passing shell as a failing one.
+      Assert (Times_Seen (Session, Escape & "[31;1m") = 0,
+              "a diagnostic at a terminal was coloured although the "
+              & "configuration said never");
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end");
+   end Colour_Reaches_A_Script_At_A_Terminal;
+
    procedure A_Redraw_Does_Not_Walk_The_Cursor
      (T : in out AUnit.Test_Cases.Test_Case'Class)
    is
@@ -3975,6 +4096,9 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine
         (T, A_Redraw_Does_Not_Walk_The_Cursor'Access,
          "a redraw moves the cursor by a distance, not a cell at a time");
+      Register_Routine
+        (T, Colour_Reaches_A_Script_At_A_Terminal'Access,
+         "the colour setting reaches a shell running at a terminal");
       Register_Routine (T, A_Terminal_Says_What_Reaches_A_Program'Access,
                         "a terminal says what reaches a program on it");
       Register_Routine (T, An_Interrupt_At_The_Prompt_Abandons_The_Line'Access,
