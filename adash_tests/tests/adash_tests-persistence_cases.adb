@@ -471,6 +471,37 @@ package body Adash_Tests.Persistence_Cases is
               "the newest line is not last: "
               & Adash.Persistence.History.Entry_At (Stored, Kept));
 
+      --  And the file still holds all of them.
+      --
+      --  The limit bounds what a *session* holds, not what the file keeps:
+      --  `forget ("…")` reaches a line older than the limit, which is only
+      --  possible because loading drops the excess rather than the file
+      --  losing it. A load that trimmed the file would take that away
+      --  silently, and the only symptom would be a `forget` that found
+      --  nothing.
+      declare
+         Held : Natural := 0;
+         Text : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Open (Text, Ada.Text_IO.In_File, File);
+
+         while not Ada.Text_IO.End_Of_File (Text) loop
+            declare
+               Ignored : constant String := Ada.Text_IO.Get_Line (Text);
+               pragma Unreferenced (Ignored);
+            begin
+               Held := Held + 1;
+            end;
+         end loop;
+
+         Ada.Text_IO.Close (Text);
+
+         Assert (Held = Total,
+                 "loading a log with a limit shortened the file:"
+                 & Natural'Image (Held) & " of" & Natural'Image (Total)
+                 & " lines left");
+      end;
+
       declare
          Gone_File : Adash.Persistence.Outcome;
          Gone_Lock : Adash.Persistence.Outcome;

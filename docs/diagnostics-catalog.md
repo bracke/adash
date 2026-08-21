@@ -523,7 +523,7 @@ quoted into `config.syntax`, which supplies the file and the position.
 |---|---|
 | `setting.color` | When coloured output is produced: auto, always or never. |
 | `setting.history-enabled` | Whether commands are recorded in the history file. |
-| `setting.history-limit` | How many history entries are kept. |
+| `setting.history-limit` | How many history entries a session holds and can recall. |
 | `setting.read-limit` | The most one read will hold, in mebibytes. |
 | `setting.trace` | Whether each command is announced before it runs. |
 | `setting.prompt-directory` | Whether the prompt shows the working directory. |

@@ -485,6 +485,16 @@ what changed.
   makes a directory with no permissions on purpose, and `Delete_Tree` stopped
   there, leaving 697 of 841 stores behind and swallowing the reason.
 
+- **`history.limit` says what it bounds.** The setting's own summary read "how
+  many history entries are kept", and the on-disk format said it "bounds what is
+  kept" — both of which read as the file, and the file is not what it bounds. A
+  session holds and recalls that many; the file goes on holding what was written
+  to it, which is exactly what lets `forget ("…")` reach a line older than the
+  limit — a property the paragraph beside it already depended on. Nothing trims
+  the file; `forget` is what takes something out of it. A unit case asserts that
+  loading with a limit leaves the file's length alone, because a load that
+  trimmed it would show up only as a `forget` that found nothing.
+
 - **A script on standard input reports what the same script in a file would.**
   `adash x.adash` exits 1 for a program that raised and 2 for one that did not
   parse; `adash < x.adash` exited **0** for both, because a file is one

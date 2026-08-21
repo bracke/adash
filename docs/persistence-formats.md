@@ -65,8 +65,15 @@ because a caller who names a line wants it gone and last week's copy is the same
 secret as this morning's. The read and the write happen under one lock, so a
 line another session appends meanwhile is not lost.
 
-`history.limit` bounds what is kept; `history.enabled` off means nothing is
-written at all, which is what somebody on a shared machine wants.
+`history.limit` bounds what a **session** holds and can recall, not what the
+file keeps. The file goes on holding what was written to it: that is what lets
+`forget ("…")` reach a line older than the limit, which the paragraph above
+depends on, and it is why loading is written to drop the excess in one move
+rather than a line at a time. Nothing trims the file — `forget` is what takes
+something out of it.
+
+`history.enabled` off means nothing is written at all, which is what somebody
+on a shared machine wants.
 
 With `history.per-session` on, a session writes its own file and merges it into
 the shared one when it ends. Two shells appending to a common file a line at a
