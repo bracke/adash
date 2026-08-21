@@ -830,3 +830,23 @@ diagnostics = [
   "!error.handler_not_a_name{text=not a name}!",
   "!error.handler_not_a_name{text=not a name}!",
 ]
+
+[[case]]
+id = "commands.a-capture-with-no-program-says-so-and-answers-nothing"
+requirement = """
+`Output_Of ("")` answered with nothing and said nothing. Nothing is also what a
+program that ran and printed nothing gives back, so a script could not tell the
+two apart -- and the name it passed had come from somewhere, usually a variable
+that had not been set.
+
+A function answers with a value or not at all, so the answer is still nothing.
+What changed is that the mistake is reported beside it, exactly as a program
+that could not be found already was, and as `run` reports the same empty name.
+"""
+script = "put_line (\"[\" & Output_Of (\"\") & \"]\");\nP : String := \"\"; put_line (\"[\" & All_Of (P) & \"]\");"
+exit_status = 0
+output = ["[]", "[]"]
+diagnostics = [
+  "!error.command.name_is_empty{name=Output_Of}!",
+  "!error.command.name_is_empty{name=All_Of}!",
+]

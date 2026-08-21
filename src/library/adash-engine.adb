@@ -285,9 +285,19 @@ package body Adash.Engine is
                   Sink.Shell.Pending := Adash.Execution.Pipelines.Empty_Plan;
 
                elsif Count = 0 or else Text_At (1) = "" then
-                  --  Nothing to run. Answered as empty rather than reported:
-                  --  the analyser has already required an argument, so this is
-                  --  a program that computed an empty program name.
+                  --  Nothing to run. Answered as empty, because a function has
+                  --  no other way to answer -- and reported, because empty is
+                  --  also what a program that ran and said nothing gives back,
+                  --  and a script cannot tell those apart. The same name asked
+                  --  of `run` is refused the same way; a program name that
+                  --  computed to nothing is a mistake wherever it is used.
+                  Sink.Notes.Emit
+                    (D.From_Error
+                       (Adash.Errors.Failure
+                          (Adash.Errors.Error_Command_Name_Is_Empty,
+                           [1 => Adash.Messages.Named ("name", Named)]),
+                        D.Severity_Error, D.Category_Execution,
+                        D.Owner_Commands));
                   return;
                end if;
 
