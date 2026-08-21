@@ -1013,6 +1013,33 @@ output = ["src/lib", "src/test"]
 diagnostics = []
 
 [[case]]
+id = "failure.a-capture-is-a-value-not-a-failing-command"
+requirement = """
+`stop.on-failure` stops a submission at the first *command* that fails.
+`Output_Of` is not a command: it is a function that runs a program and answers
+with what it said, which is how a script inspects something that may well fail
+-- and the documentation says as much where it warns that a command whose
+failure a script means to inspect must not run under the setting.
+
+So a capture does not stop the script. What it also must not do is report a
+failure the script did not have: it used to do exactly that, carrying on to the
+end and then exiting with the captured program's status, so a script that
+looked at the output of a failing program and decided everything was fine told
+whoever ran it that it was not. Stopping and reporting are the same event now.
+
+`Status` still says what the program did, which is what a script asks it.
+"""
+script = "settings (\"stop.on-failure\", \"true\"); Held : String := All_Of (\"{emit}\", \"said\", \"--exit=3\"); put_line (Trim (Held)); put_line (Status'Image); put_line (To_Upper (\"carried on\"));"
+exit_status = 0
+output = [
+  "!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!",
+  "said",
+  " 3",
+  "CARRIED ON",
+]
+diagnostics = []
+
+[[case]]
 id = "failure.stop-on-failure-ends-a-pipeline-too"
 requirement = """
 A pipeline is a way of running programs, so `stop.on-failure` has to mean the

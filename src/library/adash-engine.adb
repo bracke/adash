@@ -85,6 +85,18 @@ package body Adash.Engine is
 
       --  Where a variable's value goes on its way out of the machine.
       Keeping : access Held_Vectors.Vector;
+
+      --  Whether a failing command actually stopped this submission.
+      --
+      --  The status below is meant to report "a submission stopped by a
+      --  failing command", and it read `Last_Status` instead -- which a
+      --  *capture* also sets, because `Output_Of` runs a program and the
+      --  session's `Status` is documented to say what the last program did.
+      --  So a script under stop.on-failure that captured a program returning
+      --  3, looked at the text, and carried on to the end reported 3 to
+      --  whoever ran it while plainly having carried on. Stopping and
+      --  reporting are one thing now, and this is the flag that joins them.
+      Stopped : Boolean := False;
    end record;
 
    overriding procedure Invoke
@@ -786,6 +798,10 @@ package body Adash.Engine is
                  and then Adash.Configuration.Boolean_Value
                             (Sink.Shell.Chosen,
                              Adash.Configuration.Stop_On_Failure_Setting));
+
+      if Halt and then not Sink.Shell.Exit_Requested then
+         Sink.Stopped := True;
+      end if;
    end Invoke;
 
    use type Ev.Outcome;
@@ -1461,6 +1477,10 @@ package body Adash.Engine is
          declare
             Analysis : Adash.Language.Semantics.Analysis;
             Ran      : Ev.Outcome;
+
+            --  Whether a failing command stopped this submission, carried out
+            --  of the block the bridge lives in so the status below can ask.
+            Halted_Here : Boolean := False;
          begin
             Adash.Language.Semantics.Analyse (Work.Tree, Origin, Analysis, Report);
 
@@ -1498,7 +1518,8 @@ package body Adash.Engine is
                   Produced   => Item.Output'Unchecked_Access,
                   Notes      => Report'Unchecked_Access,
                   Written_To => On_Output,
-                  Keeping    => Handed_Back'Unchecked_Access);
+                  Keeping    => Handed_Back'Unchecked_Access,
+                  Stopped    => False);
             begin
                --  Kept before it runs, not after: a program that declares a
                --  subprogram and then fails half way through still declared
@@ -1572,6 +1593,8 @@ package body Adash.Engine is
                      end if;
                   end;
                end loop;
+
+               Halted_Here := Bridge.Stopped;
             end;
 
             Outcome.Kind := Language_Program;
@@ -1586,11 +1609,7 @@ package body Adash.Engine is
                   --  carried on: the carrying on is visible, and the zero is
                   --  what a build system believes.
                   Outcome.Status :=
-                    (if Adash.Configuration.Boolean_Value
-                          (Item.Shell.Chosen,
-                           Adash.Configuration.Stop_On_Failure_Setting)
-                       and then not Adash.Execution.Succeeded
-                                      (Item.Shell.Last_Status)
+                    (if Halted_Here
                      then Item.Shell.Last_Status
                      else Adash.Execution.Success);
 

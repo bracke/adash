@@ -485,6 +485,17 @@ what changed.
   makes a directory with no permissions on purpose, and `Delete_Tree` stopped
   there, leaving 697 of 841 stores behind and swallowing the reason.
 
+- **A capture no longer reports a failure the script did not have.** Under
+  `stop.on-failure`, `Output_Of` on a program that exits 3 did not stop the
+  submission — a capture is a value, and inspecting a program that may fail is
+  what captures are for — but the submission's status became 3 anyway. So a
+  script that read a failing program's output, decided everything was fine and
+  ran to the end told whoever ran it that it had failed. The code's own comment
+  said it reported "a submission **stopped by** a failing command", and it
+  reported one whether or not the submission stopped; stopping and reporting
+  are the same event now. `Status` still says what the program did, which is
+  what a script asks it.
+
 - **`history.limit` says what it bounds.** The setting's own summary read "how
   many history entries are kept", and the on-disk format said it "bounds what is
   kept" — both of which read as the file, and the file is not what it bounds. A

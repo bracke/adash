@@ -112,6 +112,13 @@ A command whose failure a script means to inspect must not run under it -- the
 same trap `set -e` has everywhere, and the reason this is a setting somebody
 turns on rather than the way the shell works.
 
+**A capture is a value, not a command.** `Output_Of`, `Error_Of` and `All_Of`
+run a program to answer a question, which is how a script inspects one that may
+fail, so they do not stop a submission and do not make it report a failure.
+`Status` still says what the program did. Stopping and reporting are the same
+event: a submission that carried on to the end reports what it did, and one
+that stopped reports what stopped it.
+
 ## The prompt
 
 `prompt.directory` and `prompt.failure` shape the built-in prompt. `prompt.format`
