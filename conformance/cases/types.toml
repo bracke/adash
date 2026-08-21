@@ -1207,3 +1207,38 @@ diagnostics = [
   "!error.array_bound_not_static!",
   "!error.array_is_empty{name=Counts}!",
 ]
+
+[[case]]
+id = "text.a-width-nobody-could-mean-is-refused-by-name"
+requirement = """
+The padding a formatter builds is a String on the stack, so
+`Right_Aligned ("x", 10_000_000)` asked for a frame the machine cannot have and
+ended the session with a GNAT traceback and no message -- the one answer a
+shell must never give. A million characters is past any column a terminal has,
+and past it the width is refused by name, catchable like any other raise.
+
+`Decimals` is the same principle at the other end. Its places are none to
+twenty, and outside that it used to push an empty text: a script that worked
+the number out and got it wrong printed nothing and carried on. It says so now.
+"""
+script = "begin put_line (Right_Aligned (\"x\", 10000000)); exception when Storage_Error => put_line (\"width refused\"); end;\nbegin put_line (Decimals (1.5, 21)); exception when Constraint_Error => put_line (\"places refused\"); end;\nput_line (Right_Aligned (\"x\", 4) & \"|\" & Decimals (1.5, 2));\nquit (0);"
+exit_status = 0
+output = ["width refused", "places refused", "   x|1.50"]
+diagnostics = []
+
+[[case]]
+id = "text.a-refused-width-says-so-when-nobody-catches-it"
+requirement = """
+The other side of `text.a-width-nobody-could-mean-is-refused-by-name`: with no
+handler in the way, each refusal is a diagnostic a reader sees, naming the
+width that was asked for and the bound it passed.
+
+Two submissions, because each ends its own.
+"""
+script = "put_line (Right_Aligned (\"x\", 10000000));\nput_line (Decimals (1.5, 21));"
+exit_status = 1
+output = []
+diagnostics = [
+  "!error.program_raised_detail{exception=Storage_Error,detail=!error.machine.text_too_long{width=10000000,limit=1000000}!}!",
+  "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.places_refused{places=21}!}!",
+]

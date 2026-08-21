@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 641 messages in 23 groups.
+There are 643 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -73,6 +73,8 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.machine.too_many_tasks` | more tasks at once than this build runs |
 | `error.machine.too_many_alternatives` | more alternatives in one select than this build offers at once |
 | `error.machine.queue_too_long` | more callers at one entry than this program allowed |
+| `error.machine.text_too_long` | a width of {width} would make a text longer than the {limit} characters this shell holds at once |
+| `error.machine.places_refused` | {places} decimal places is outside the none to twenty this shell writes |
 | `error.machine.task_ran_out` | a task ran out where this program said none would |
 | `error.machine.too_many_allowed` | more tasks at once than this program allowed itself |
 | `error.machine.blocking_in_protected` | an operation that may wait was run inside a protected operation, which would hold its lock against everybody |

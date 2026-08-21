@@ -2914,3 +2914,24 @@ diagnostics = [
   "!error.requeue_not_an_entry{name=B.F}!",
   "!error.name_undeclared{name=Nowhere.T}!",
 ]
+
+[[case]]
+id = "tasking.a-full-entry-queue-is-caught-where-it-is-raised"
+requirement = """
+`pragma Restrictions (Max_Entry_Queue_Length => 1)` is a promise the program
+made, and a caller that would break it is refused with Program_Error at the
+call -- which Ada raises at the caller, so a handler around the call catches it.
+
+It did not. The refusal was written as a Fail followed by a `return`, and that
+case stands inside the machine's own instruction loop: returning ended the run
+rather than continuing at the handler the Fail had just jumped to. What the
+program saw was no output, no diagnostic and a status of nought.
+
+Two callers and one place: whichever joins second is refused, both say the same
+thing, and the server takes the one that got in. One submission: a pragma binds
+the submission it stands in, and the tasks have to be in it.
+"""
+script = "pragma Restrictions (Max_Entry_Queue_Length => 1); task Server is entry Take; end Server; task body Server is begin delay 0.4; accept Take; end Server; task A; task body A is begin begin Server.Take; exception when Program_Error => put_line (\"refused\"); end; end A; task B; task body B is begin begin Server.Take; exception when Program_Error => put_line (\"refused\"); end; end B;"
+exit_status = 0
+output = ["refused"]
+diagnostics = []

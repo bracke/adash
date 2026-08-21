@@ -60,6 +60,16 @@ package Adash.Machine is
    --  one. Each costs a lock and a ceiling and nothing else.
    Max_Objects : constant := 64;
 
+   --  How long a text one padding may make.
+   --
+   --  The padding a formatter builds is a String on the stack, so a width
+   --  nobody could mean asks for a frame this machine cannot have:
+   --  `Right_Aligned ("x", 10_000_000)` ended the session with a GNAT
+   --  traceback and no message at all. A bound refuses it by name instead,
+   --  for the same reason `Adash.Language.Max_Elements` bounds an array --
+   --  and a million characters is past any column a terminal has.
+   Max_Text : constant := 1_000_000;
+
    --  How much room one task gets, in slots.
    --
    --  A strand has a region of the store and a region of the stack, and this

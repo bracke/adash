@@ -84,6 +84,8 @@ package Adash.Messages is
       Msg_Machine_Blocking_In_Protected,
       Msg_Machine_Too_Many_Allowed,
       Msg_Machine_Queue_Too_Long,
+      Msg_Machine_Text_Too_Long,
+      Msg_Machine_Places_Refused,
       Msg_Machine_Too_Many_Alternatives,
       Msg_Machine_Task_Ran_Out,
       Msg_Machine_No_Store_Place,

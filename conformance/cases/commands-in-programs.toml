@@ -1230,10 +1230,17 @@ disagree -- and this shell has one language.
 Text already longer than the width comes back whole rather than cut: a formatter
 that shortened a name to keep a column straight would lose the thing the line was
 written for.
+
+`Decimals (1.0, 99)` used to stand at the end of this line and answer with an
+empty text, which this case recorded as `[]`. Ninety-nine places is not a
+number anybody means, and an empty answer looks like an answer: a script that
+worked the places out and got them wrong printed nothing and carried on. It
+raises now, and is shown doing so in
+`text.a-width-nobody-could-mean-is-refused-by-name`.
 """
-script = "put_line (\"[\" & Left_Aligned (\"name\", 8) & \"|\" & Right_Aligned (\"7\", 4) & \"]\"); put_line (Zero_Padded (\"7\", 3) & \" \" & Zero_Padded (\"12345\", 3)); put_line (Decimals (3.14159, 2) & \" \" & Decimals (2.0, 0) & \" [\" & Decimals (1.0, 99) & \"]\");\nquit (0);"
+script = "put_line (\"[\" & Left_Aligned (\"name\", 8) & \"|\" & Right_Aligned (\"7\", 4) & \"]\"); put_line (Zero_Padded (\"7\", 3) & \" \" & Zero_Padded (\"12345\", 3)); put_line (Decimals (3.14159, 2) & \" \" & Decimals (2.0, 0));\nquit (0);"
 exit_status = 0
-output = ["[name    |   7]", "007 12345", "3.14 2 []"]
+output = ["[name    |   7]", "007 12345", "3.14 2"]
 diagnostics = []
 
 

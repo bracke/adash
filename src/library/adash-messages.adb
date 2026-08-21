@@ -54,6 +54,10 @@ package body Adash.Messages is
             return "error.machine.too_many_allowed";
          when Msg_Machine_Queue_Too_Long =>
             return "error.machine.queue_too_long";
+         when Msg_Machine_Text_Too_Long =>
+            return "error.machine.text_too_long";
+         when Msg_Machine_Places_Refused =>
+            return "error.machine.places_refused";
          when Msg_Machine_Too_Many_Alternatives =>
             return "error.machine.too_many_alternatives";
          when Msg_Machine_Task_Ran_Out =>
@@ -1421,6 +1425,12 @@ package body Adash.Messages is
          when Msg_Machine_Position_Outside | Msg_Machine_Outside_Bounds
             | Msg_Machine_Outside_Array =>
             return [N ("position"), N ("type")];
+
+         when Msg_Machine_Text_Too_Long =>
+            return [N ("width"), N ("limit")];
+
+         when Msg_Machine_Places_Refused =>
+            return [1 => N ("places")];
 
          when Msg_Subtype_Not_Discrete =>
             return [1 => N ("found")];

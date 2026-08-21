@@ -1012,6 +1012,33 @@ package body Adash.Machine is
           and then (for some Index in 1 .. Strands (Whom).Open_Count =>
                       Strands (Whom).Open_At (Index) = Wanted));
 
+      --  Whether one more caller at this entry would be more than the program
+      --  allowed. Asked before the caller joins, which is the only moment the
+      --  answer can still change anything.
+      function Queue_Is_Full (Whom : Positive; Wanted : Natural)
+                             return Boolean;
+
+      function Queue_Is_Full (Whom : Positive; Wanted : Natural)
+                             return Boolean
+      is
+         Waiting_There : Natural := 0;
+      begin
+         if not Item.Queue_Bound then
+            return False;
+         end if;
+
+         for Which in Strands'Range loop
+            if Strands (Which).State = Calling
+              and then Strands (Which).Calls_Task = Whom
+              and then Strands (Which).Calls_Entry = Wanted
+            then
+               Waiting_There := Waiting_There + 1;
+            end if;
+         end loop;
+
+         return Waiting_There >= Item.Queue_Limit;
+      end Queue_Is_Full;
+
       --  Whether a caller is still there to be taken.
       --
       --  A call given a deadline is cancelled when the deadline passes, and
@@ -2657,14 +2684,36 @@ package body Adash.Machine is
 
                      Fill : constant Character :=
                        (if Here.Code = Text_Zero_Padded then '0' else ' ');
-
-                     Padding : constant String (1 .. Room) := [others => Fill];
                   begin
-                     Push ((Cell_Text,
-                            To_Unbounded_String
-                              (if Here.Code = Text_Left_Aligned
-                               then Item & Padding
-                               else Padding & Item)));
+                     --  Refused by name rather than built. The padding is a
+                     --  String on the stack, so a width nobody could mean --
+                     --  `Right_Aligned ("x", 10_000_000)` -- ended the session
+                     --  with a GNAT traceback and no message, which is the one
+                     --  answer a shell must never give.
+                     --  No `return` after a Fail: this case stands in the
+                     --  machine's own loop, so returning would end the run
+                     --  rather than continue at the handler Fail just jumped
+                     --  to -- which is silence, with a handler waiting and a
+                     --  status of nought.
+                     if Room > Max_Text then
+                        Fail (Raised, "Storage_Error",
+                              M.Msg_Machine_Text_Too_Long,
+                              [Counted (Width), Counted (Natural'(Max_Text)),
+                               Null_Unbounded_String],
+                              2);
+
+                     else
+                        declare
+                           Padding : constant String (1 .. Room) :=
+                             [others => Fill];
+                        begin
+                           Push ((Cell_Text,
+                                  To_Unbounded_String
+                                    (if Here.Code = Text_Left_Aligned
+                                     then Item & Padding
+                                     else Padding & Item)));
+                        end;
+                     end if;
                   end;
                end;
 
@@ -2691,7 +2740,17 @@ package body Adash.Machine is
                      --  Clamping would print something that looked like what
                      --  was asked for and was not.
                      if Places < 0 or else Places > 20 then
-                        Push ((Cell_Text, Null_Unbounded_String));
+                        --  Said rather than answered emptily. Clamping would
+                        --  print something that looked like what was asked for
+                        --  and was not -- and so, quietly, did the empty text
+                        --  this used to push: a script that worked out the
+                        --  places and got it wrong printed nothing at all and
+                        --  carried on.
+                        Fail (Raised, "Constraint_Error",
+                              M.Msg_Machine_Places_Refused,
+                              [Counted (Places), Null_Unbounded_String,
+                               Null_Unbounded_String],
+                              1);
 
                      elsif Places = 0 then
                         --  None means none. Ada's own output always keeps one
@@ -3790,31 +3849,17 @@ package body Adash.Machine is
                      --  else part is what the program said to do instead.
                      Strands (Me).Call_Met := False;
 
+                  elsif Queue_Is_Full (Target, Wanted) then
+                     --  More callers at this entry than the program allowed.
+                     --  Asked here because here is where one joins -- and
+                     --  answered in the chain rather than inside the joining,
+                     --  because a `return` after a Fail leaves the machine's
+                     --  own loop: the run ended, the handler waiting for this
+                     --  never ran, and the status said nought.
+                     Fail (Raised, "Program_Error",
+                           M.Msg_Machine_Queue_Too_Long);
+
                   else
-                     --  How many are already waiting there, against what the
-                     --  program allowed. Counted here because here is where
-                     --  one joins.
-                     if Item.Queue_Bound then
-                        declare
-                           Waiting_There : Natural := 0;
-                        begin
-                           for Which in Strands'Range loop
-                              if Strands (Which).State = Calling
-                                and then Strands (Which).Calls_Task = Target
-                                and then Strands (Which).Calls_Entry = Wanted
-                              then
-                                 Waiting_There := Waiting_There + 1;
-                              end if;
-                           end loop;
-
-                           if Waiting_There >= Item.Queue_Limit then
-                              Fail (Raised, "Program_Error",
-                                    M.Msg_Machine_Queue_Too_Long);
-                              return;
-                           end if;
-                        end;
-                     end if;
-
                      Queued := Queued + 1;
 
                      Strands (Me).State       := Calling;
