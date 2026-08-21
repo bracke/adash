@@ -618,9 +618,16 @@ package body Adash.Commands.Builtins is
                end if;
 
                declare
+                  Asked  : constant String := Argument (Arguments, 1);
                   Target : constant String :=
-                    Adash.Filesystem.Expanded (Argument (Arguments, 1));
+                    Adash.Filesystem.Expanded (Asked);
                begin
+                  if Asked = "" then
+                     return Failed
+                       (Adash.Errors.Error_Command_Name_Is_Empty,
+                        [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+                  end if;
+
                   if Target = "" then
                      return Failed (Adash.Errors.Error_Directory_Not_Found,
                                     [1 => M.Named ("path", Target)]);
@@ -1758,9 +1765,18 @@ package body Adash.Commands.Builtins is
                Name    : constant String := Argument (Arguments, 2);
             begin
                if Program = "" or else Name = "" then
-                  return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
-                                 [M.Named ("name", "complete_with"),
-                                  M.Named ("found", Trim (Given))]);
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
+               --  What Tab will call. A handler is a name here as it is
+               --  everywhere else a command takes one, and this was the one
+               --  place that took whatever it was given: `complete_with
+               --  ("ls", "not a name")` was accepted and could never run.
+               if not Is_A_Name (Name) then
+                  return Failed (Adash.Errors.Error_Handler_Not_A_Name,
+                                 [1 => M.Named ("text", Name)]);
                end if;
 
                --  Prepended as a pair, so the most recent registration for a
@@ -1797,6 +1813,15 @@ package body Adash.Commands.Builtins is
                   --  Octal, because that is how a mask is written everywhere
                   --  and a shell that read 22 as twenty-two would set
                   --  something nobody asked for.
+                  if Text = "" then
+                     --  ` is not a mask` begins with the hole where the mask
+                     --  should be, which is the one sentence a reader cannot
+                     --  parse at all.
+                     return Failed
+                       (Adash.Errors.Error_Command_Name_Is_Empty,
+                        [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+                  end if;
+
                   if not Octal_Value (Text, Wanted) then
                      return Failed (Adash.Errors.Error_Mask_Not_Octal,
                                     [1 => M.Named ("text", Text)]);
@@ -1881,6 +1906,12 @@ package body Adash.Commands.Builtins is
                declare
                   Named : constant String := Argument (Arguments, 1);
                begin
+                  if Named = "" then
+                     return Failed
+                       (Adash.Errors.Error_Command_Name_Is_Empty,
+                        [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+                  end if;
+
                   if not Resource_Named (Named, Wanted) then
                      return Failed (Adash.Errors.Error_Unknown_Resource,
                                     [1 => M.Named ("resource", Named)]);
@@ -2256,8 +2287,14 @@ package body Adash.Commands.Builtins is
                Name : constant String := Argument (Arguments, 1);
             begin
                if Name = "" then
-                  return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
-                                 [1 => M.Named ("name", "on_interrupt")]);
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
+               if not Is_A_Name (Name) then
+                  return Failed (Adash.Errors.Error_Handler_Not_A_Name,
+                                 [1 => M.Named ("text", Name)]);
                end if;
 
                --  Most recent first, as cleanups are, and for the same
@@ -2302,8 +2339,9 @@ package body Adash.Commands.Builtins is
                   begin
                      if Handler = "" then
                         return Failed
-                          (Adash.Errors.Error_Command_Wrong_Arguments,
-                           [1 => M.Named ("name", "on_signal")]);
+                          (Adash.Errors.Error_Command_Name_Is_Empty,
+                           [1 => M.Named
+                                   ("name", M.Value (Describe (Id).Name))]);
                      end if;
 
                      if not Is_A_Name (Handler) then
@@ -2410,6 +2448,12 @@ package body Adash.Commands.Builtins is
                --  a word that names no stream is a mistake on every host, and
                --  telling somebody their platform is the problem when their
                --  argument is would send them looking in the wrong place.
+               if Named_As = "" then
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
+               end if;
+
                if not Wants_Output and then not Wants_Errors then
                   return Failed (Adash.Errors.Error_Unknown_Stream,
                                  [1 => M.Named ("stream", Named_As)]);
@@ -2553,8 +2597,9 @@ package body Adash.Commands.Builtins is
                Name : constant String := Argument (Arguments, 1);
             begin
                if Name = "" then
-                  return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
-                                 [1 => M.Named ("name", "on_failure")]);
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
                end if;
 
                if not Is_A_Name (Name) then
@@ -2573,8 +2618,9 @@ package body Adash.Commands.Builtins is
                Name : constant String := Argument (Arguments, 1);
             begin
                if Name = "" then
-                  return Failed (Adash.Errors.Error_Command_Wrong_Arguments,
-                                 [1 => M.Named ("name", "on_exit")]);
+                  return Failed
+                    (Adash.Errors.Error_Command_Name_Is_Empty,
+                     [1 => M.Named ("name", M.Value (Describe (Id).Name))]);
                end if;
 
                if not Is_A_Name (Name) then
