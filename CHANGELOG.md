@@ -11,6 +11,18 @@ what changed.
 
 ### Added
 
+- **Four more cases for features in combination.** The creation mask reaches
+  both kinds of write — the file this shell creates itself and the one a child
+  creates through a descriptor the shell opened, which would otherwise be a
+  `umask` meaning different things depending on which command you used next.
+  `stop.on-failure` ends a submission on a failing *pipeline* as it does on a
+  failing `run`. A placement that cannot be made under `stop.on-failure`
+  produces **one** complaint rather than two, because the script stops at the
+  file it could not open and never reaches the `pipe_run` that would have said
+  the pipeline was given up. And a program that takes over with `run_instead`
+  leaves a running job behind: the job is a different process, and nothing
+  waits for it any more because what was waiting was the shell.
+
 - **Seven files the suite wrote had been committed, and two rules that nothing
   enforced now do.** A check for what the suite leaves behind found
   `adash-test-store-large.lock` in the repository root *and* in the test crate

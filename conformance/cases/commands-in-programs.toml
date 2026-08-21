@@ -1013,6 +1013,41 @@ output = ["src/lib", "src/test"]
 diagnostics = []
 
 [[case]]
+id = "failure.stop-on-failure-ends-a-pipeline-too"
+requirement = """
+A pipeline is a way of running programs, so `stop.on-failure` has to mean the
+same thing about one as it does about `run`: the submission stops where the
+failure was, and what follows does not run.
+
+Its *last* stage decides, which is the rule a pipeline's status already follows
+-- a first stage that fails while the last one succeeds is a pipeline that
+worked, and a script that stopped there would stop on `grep` finding nothing in
+the middle of a chain that then reported success.
+"""
+script = "settings (\"stop.on-failure\", \"true\"); pipe (\"{emit}\", \"--exit=3\"); pipe_run; put_line (To_Upper (\"never\"));"
+exit_status = 3
+output = ["!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!"]
+diagnostics = []
+
+[[case]]
+id = "failure.a-placement-that-fails-stops-a-stopping-script"
+requirement = """
+Two of this shell's answers meeting: a placement that cannot be made throws the
+pipeline's stages away, and `stop.on-failure` ends the submission at the first
+failure. Together they mean the *second* complaint never arrives -- the script
+stops at the file it could not open, so nothing reaches the `pipe_run` that
+would have said the pipeline was given up.
+
+One mistake, one complaint, which is what a reader is owed. Written down because
+it is the combination rather than either half: without the setting, both
+diagnostics appear, and the case beside this one asserts that.
+"""
+script = "cd (\"{store}\"); settings (\"stop.on-failure\", \"true\"); make_directory (\"in_the_way\"); pipe (\"{emit}\", \"said\"); pipe_into (\"in_the_way\"); pipe_run; put_line (To_Upper (\"never\"));"
+exit_status = 1
+output = ["!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!"]
+diagnostics = ["!error.redirection_open_failed{path=in_the_way}!"]
+
+[[case]]
 id = "failure.stop-on-failure-ends-the-submission"
 requirement = """
 `stop.on-failure` is what `set -e` is elsewhere: a submission stops at the first
@@ -1411,6 +1446,26 @@ diagnostics = ["!error.mask_not_octal{text=9}!"]
 platforms = ["linux", "macos"]
 
 [[case]]
+id = "permissions.the-mask-reaches-both-kinds-of-write"
+requirement = """
+The reason a shell has a creation mask at all is that it reaches what gets
+written afterwards -- and two different things do the writing. `write_file` is
+this shell creating a file itself; `run_into` is a child creating one through a
+descriptor the shell opened for it. A mask that reached one and not the other
+would be a shell whose `umask` means something different depending on which
+command you used next, which is the sort of difference nobody discovers until a
+file is readable that should not have been.
+
+Read back through `ls`, because nothing in the language reports a mode: this
+case is about the host's own bits, and it is gated to the hosts that have them.
+"""
+script = "cd (\"{store}\"); umask (\"077\"); write_file (\"mine\", \"by_shell.txt\"); run_into (\"by_child.txt\", \"{emit}\", \"theirs\"); put_line (Output_Of (\"sh\", \"-c\", \"ls -l by_shell.txt | cut -c1-10\")); put_line (Output_Of (\"sh\", \"-c\", \"ls -l by_child.txt | cut -c1-10\"));\nquit (0);"
+exit_status = 0
+output = ["-rw-------", "-rw-------"]
+diagnostics = []
+platforms = ["linux", "macos"]
+
+[[case]]
 id = "permissions.a-host-without-a-creation-mask-says-so"
 requirement = """
 Windows has no per-process creation mask: permissions come from the ACL a
@@ -1539,6 +1594,31 @@ output = [
   "!line.setting{key=stop.on-failure,value=true,summary=!setting.stop-on-failure!}!",
 ]
 diagnostics = ["!error.no_matching_files{pattern=nothing*here}!"]
+
+[[case]]
+id = "combinations.a-program-that-takes-over-leaves-a-job-behind"
+requirement = """
+`run_instead` keeps the process and replaces what is running in it, and a job
+is a *different* process -- so a job this session started is still running when
+the program that took over is the only thing left of the shell. Nothing waits
+for it any more: what was waiting was the shell, and the shell is gone.
+
+Asserted because a reader could reasonably expect either answer. A shell that
+refused to replace itself while a job was running would be defensible, and some
+shells warn before letting you; this one does what `exec` does, and the way to
+know which is to have a case say so.
+
+The job outlives the case as well, which is why it is one that ends on its own:
+a case cannot clean up after a shell that no longer exists. It says nothing
+while it runs, for the same reason -- two programs writing to one stream at
+once is a case whose output depends on which of them the host scheduled first,
+and that is not a thing to assert.
+"""
+script = "start (\"{emit}\", \"--sleep=0.2\"); run_instead (\"{emit}\", \"took over\"); put_line (\"never\");"
+exit_status = 0
+output = ["!line.job_started{id=1,what={emit} --sleep=0.2}!", "took over"]
+diagnostics = []
+platforms = ["linux", "macos"]
 
 [[case]]
 id = "combinations.a-program-that-takes-over-writes-where-the-shell-was-sent"
