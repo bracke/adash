@@ -197,6 +197,13 @@ package Adash.Errors is
       --  program, arriving at the moment of some *other* failure.
       Error_Handler_Not_A_Name,
 
+      --  A package whose elaboration starts a task, met where declarations are
+      --  carried to the next submission. Replaying it would start the task
+      --  again, once per line typed afterwards, so it is not replayed -- and
+      --  saying so is the difference between a package that is gone and a
+      --  package that silently runs its task for ever.
+      Error_Package_Starts_A_Task,
+
       --  Source acquisition.
       Error_Source_Unreadable,
 

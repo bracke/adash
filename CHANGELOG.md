@@ -485,6 +485,19 @@ what changed.
   makes a directory with no permissions on purpose, and `Delete_Tree` stopped
   there, leaving 697 of 841 stores behind and swallowing the reason.
 
+- **A package that starts a task no longer starts it on every line.**
+  Declarations are carried to the next submission by replaying them, and a task
+  body on its own is already not carried for exactly that reason — "carrying
+  the body would start the task again on every line typed after it", says the
+  code. A package body was carried whole, task and all: `package P is task T;
+  end P;` with a body ran its task **once per submission** for the rest of the
+  session — four lines typed, four tasks started, the same output four times,
+  and nothing said why. Such a package is not carried now and the shell says
+  so, which is the difference between a package a reader can declare again and
+  one that quietly runs its task for ever. A package declaring a task *type* is
+  still carried: a type nobody has made an object of starts nothing, and a rule
+  that got that wrong would take away every package that mentions tasking.
+
 - **A capture no longer reports a failure the script did not have.** Under
   `stop.on-failure`, `Output_Of` on a program that exits 3 did not stop the
   submission — a capture is a value, and inspecting a program that may fail is

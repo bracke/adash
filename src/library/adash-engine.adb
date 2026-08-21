@@ -1109,6 +1109,91 @@ package body Adash.Engine is
          end if;
       end Keep_As_Text;
 
+      function Starts_A_Task (Body_Node : S.Node_Id) return Boolean is
+         Held : constant S.Node_Id := S.Second (Tree, Body_Node);
+      begin
+         if not S.Is_Present (Held) then
+            return False;
+         end if;
+
+         --  Asked of the package's own declarations, not of the submission's:
+         --  `task type W;` inside the package is a type declared *there*, and
+         --  a search of the top level does not see it. Refusing to carry a
+         --  package because it declares a task type would take away exactly
+         --  the packages a session most wants to keep -- a type nobody has
+         --  made an object of starts nothing at all.
+         for Index in 1 .. S.Child_Count (Tree, Held) loop
+            declare
+               Inner : constant S.Node_Id := S.Child (Tree, Held, Index);
+            begin
+               if S.Kind (Tree, Inner) = S.Node_Task_Body then
+                  declare
+                     Named : constant String :=
+                       Adash.Language.Symbols.Fold
+                         (S.Text (Tree, S.First (Tree, Inner)));
+
+                     Is_A_Type : Boolean := False;
+
+                     --  The declaration is in the package's *specification*,
+                     --  which is a different node from the body -- `package S
+                     --  is task type W; end S;` beside `package body S is task
+                     --  body W is ... end S;`. Looked for wherever it stands
+                     --  in this submission, which includes the declarations
+                     --  carried into it: the spec may have been typed on an
+                     --  earlier line, and it is replayed in front of this one.
+                     procedure Look_In (Where : S.Node_Id);
+
+                     procedure Look_In (Where : S.Node_Id) is
+                     begin
+                        if not S.Is_Present (Where) then
+                           return;
+                        end if;
+
+                        for Position in 1 .. S.Child_Count (Tree, Where) loop
+                           declare
+                              Other : constant S.Node_Id :=
+                                S.Child (Tree, Where, Position);
+                           begin
+                              if S.Kind (Tree, Other)
+                                   = S.Node_Task_Declaration
+                                and then S.Text (Tree, Other) = "type"
+                                and then Adash.Language.Symbols.Fold
+                                           (S.Text
+                                              (Tree, S.First (Tree, Other)))
+                                         = Named
+                              then
+                                 Is_A_Type := True;
+                              end if;
+                           end;
+                        end loop;
+                     end Look_In;
+                  begin
+                     Look_In (Held);
+
+                     for Beside in 1 .. S.Child_Count (Tree, Root) loop
+                        declare
+                           Other : constant S.Node_Id :=
+                             S.Child (Tree, Root, Beside);
+                        begin
+                           if S.Kind (Tree, Other)
+                                = S.Node_Package_Declaration
+                           then
+                              Look_In (S.Second (Tree, Other));
+                           end if;
+                        end;
+                     end loop;
+
+                     if not Is_A_Type then
+                        return True;
+                     end if;
+                  end;
+               end if;
+            end;
+         end loop;
+
+         return False;
+      end Starts_A_Task;
+
       function Declares_Guarded_Type (Name : String) return Boolean is
       begin
          for Index in 1 .. S.Child_Count (Tree, Root) loop
@@ -1128,6 +1213,18 @@ package body Adash.Engine is
 
          return False;
       end Declares_Guarded_Type;
+
+      --  Whether a package body starts a task when it is elaborated.
+      --
+      --  The rule below says a task *body* is not carried, because "a task
+      --  cannot outlive its master... so carrying the body would start the
+      --  task again on every line typed after it". A package body was carried
+      --  whole, task body and all -- so `package P is task T; end P;` with a
+      --  body ran its task once per submission for the rest of the session:
+      --  four lines typed, four tasks started, the same output four times.
+      --
+      --  A task *type* inside a package is not this: a type starts nothing.
+      --  What this looks for is the body of a task object.
 
       function Declares_Task_Type (Name : String) return Boolean is
       begin
@@ -1205,6 +1302,27 @@ package body Adash.Engine is
                      Not_Remembered (Named);
                   end if;
                end;
+
+            elsif S.Kind (Tree, Node) = S.Node_Package_Body
+              and then Starts_A_Task (Node)
+            then
+               --  Not carried, and said. The rule below keeps a package body
+               --  so the next submission can call what it declares; a package
+               --  that starts a task cannot be replayed that way, because
+               --  replaying it starts the task again.
+               Report.Emit
+                 (D.Make
+                    (Message   =>
+                       Adash.Errors.Message
+                         (Adash.Errors.Error_Package_Starts_A_Task),
+                     Level     => D.Severity_Warning,
+                     Of_Kind   => D.Category_Semantic,
+                     Raised_By => D.Owner_Language,
+                     Origin    => Adash.Source.From (Buffer),
+                     Extent    => S.Extent (Tree, Node),
+                     Arguments =>
+                       [1 => Adash.Messages.Named
+                               ("name", S.Text (Tree, S.First (Tree, Node)))]));
 
             elsif S.Kind (Tree, Node) in S.Node_Type_Declaration
                                        | S.Node_Subtype_Declaration

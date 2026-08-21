@@ -325,6 +325,8 @@ package body Adash.Messages is
          when Msg_Not_A_Directory            => return "error.not_a_directory";
          when Msg_Handler_Not_A_Name         =>
             return "error.handler_not_a_name";
+         when Msg_Package_Starts_A_Task      =>
+            return "error.package_starts_a_task";
          when Msg_Source_Unreadable          => return "error.source_unreadable";
          when Msg_Source_Too_Large           => return "error.source_too_large";
          when Msg_Module_Not_Found          => return "error.module_not_found";
@@ -928,6 +930,9 @@ package body Adash.Messages is
 
          when Msg_Handler_Not_A_Name =>
             return [1 => N ("text")];
+
+         when Msg_Package_Starts_A_Task =>
+            return [1 => N ("name")];
 
          when Msg_Module_Not_Found =>
             return [N ("name"), N ("where")];

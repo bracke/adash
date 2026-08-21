@@ -49,6 +49,7 @@ package body Adash.Errors is
             | Error_Directory_Denied
             | Error_Not_A_Directory
             | Error_Handler_Not_A_Name
+            | Error_Package_Starts_A_Task
             | Error_Command_Wrong_Arguments
             | Error_Command_Unavailable
             | Error_No_History_Here
@@ -246,6 +247,8 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Not_A_Directory;
          when Error_Handler_Not_A_Name     =>
             return Adash.Messages.Msg_Handler_Not_A_Name;
+         when Error_Package_Starts_A_Task  =>
+            return Adash.Messages.Msg_Package_Starts_A_Task;
          when Error_Source_Unreadable      => return Adash.Messages.Msg_Source_Unreadable;
          when Error_Source_Too_Large       => return Adash.Messages.Msg_Source_Too_Large;
          when Error_Module_Not_Found       =>

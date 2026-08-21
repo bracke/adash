@@ -199,6 +199,7 @@ en.error.directory_not_found = no such directory: {path}
 en.error.directory_denied = permission denied for directory: {path}
 en.error.not_a_directory = {path} is not a directory
 en.error.handler_not_a_name = a handler is the name of a subprogram to run, and {text} is not a name
+en.error.package_starts_a_task = {name} starts a task when it is elaborated, so it is not carried to the next submission: carrying it would start the task again
 en.error.module_not_found = no script called {name}: {where}
 en.module.looked.as_written = it names a path, and there is nothing there
 en.module.looked.beside = nothing of that name beside the script that asked for it

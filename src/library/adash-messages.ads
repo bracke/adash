@@ -244,6 +244,7 @@ package Adash.Messages is
       Msg_Directory_Denied,
       Msg_Not_A_Directory,
       Msg_Handler_Not_A_Name,
+      Msg_Package_Starts_A_Task,
       Msg_Source_Unreadable,
    Msg_Source_Too_Large,
       Msg_Module_Not_Found,

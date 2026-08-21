@@ -16,6 +16,46 @@
 suite = "tasking"
 
 [[case]]
+id = "tasking.a-package-that-starts-a-task-is-not-carried"
+requirement = """
+Declarations are carried to the next submission by replaying them, and
+replaying something that starts a task starts the task again. A task body on
+its own is already not carried for that reason -- "a task cannot outlive its
+master, a submission is that master" -- but a package body was carried whole,
+task and all: `package P is task T; end P;` with a body ran its task **once per
+line typed afterwards**, for the rest of the session. Four lines, four tasks,
+the same output four times, and nothing said why.
+
+Not carried now, and said: a package that is gone is a mistake a reader can
+correct, and a package that quietly runs its task for ever is one they cannot
+even see. What is lost is the package, which the session can declare again in
+the submission that uses it.
+
+A task *type* in a package is a different thing and is still carried, because a
+type nobody has made an object of starts nothing. The case below asserts that.
+"""
+script = "package P is task T; end P;\npackage body P is task body T is begin put_line (To_Upper (\"ran\")); end T; end P;\nput_line (\"one\");\nput_line (\"two\");\nquit (0);"
+exit_status = 0
+output = ["RAN", "one", "two"]
+diagnostics = ["!error.package_starts_a_task{name=P}!"]
+
+[[case]]
+id = "tasking.a-package-with-a-task-type-is-carried"
+requirement = """
+The other half. A task *type* declares no task: nothing runs until somebody
+makes an object of it, so replaying the package that declares one starts
+nothing and the package is carried like any other.
+
+Asserted beside the case above because the difference between them is one word
+in the source, and a rule that got it wrong would take away every package that
+mentions tasking at all.
+"""
+script = "package S is task type W; end S;\npackage body S is task body W is begin null; end W; end S;\nput_line (\"carried on\");\nquit (0);"
+exit_status = 0
+output = ["carried on"]
+diagnostics = []
+
+[[case]]
 id = "tasks.a-task-runs-beside-what-declared-it"
 requirement = """
 `task T; task body T is ... end T;` starts a task where its body is elaborated,

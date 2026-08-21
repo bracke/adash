@@ -32,6 +32,12 @@ subtypes, subprograms, packages, generics, task types, protected objects with
 their state, and exception names. Not carried: a task object or an identity of
 one — a task does not outlive its master, and a submission is one.
 
+**Nor a package that starts one.** Declarations are carried by replaying them,
+so a package whose elaboration starts a task would start it again on every line
+typed afterwards. Such a package is not carried and the shell says so; declare
+it in the submission that uses it. A package declaring a task *type* is carried
+like any other, because a type nobody has made an object of starts nothing.
+
 A variable that was never given a value is carried as the declaration alone,
 and one whose parts were filled in part is carried with the parts it has. What
 holds nothing here holds nothing there: **reading a variable before it has a
