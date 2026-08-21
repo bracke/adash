@@ -395,6 +395,9 @@ Everything below parses in Ada and is refused here, by name, on purpose.
 - **No child packages**, no `private` part, no renaming of a package.
 - **No `goto`, no labels, no `renames`, no loop names, no user-defined
   operators, no `for … of`.**
+- **An aggregate is written `(1, 2, 3)`**, the form Ada has always had. Ada
+  2022's `[1, 2, 3]` is not read here, and a bracket says so where it stands
+  rather than being called a character that begins nothing.
 - **No message on a raise.** `raise X with "text"` is Ada's; nothing here can
   read one back.
 - **Dynamic bounds.** An array's, a subtype's and a case choice's are known

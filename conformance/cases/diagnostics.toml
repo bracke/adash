@@ -694,3 +694,19 @@ output = [
   "0",
 ]
 diagnostics = ["!error.file_too_large{path=big.txt}!"]
+
+[[case]]
+id = "lexical.a-bracket-is-named-for-what-it-opens"
+requirement = """
+Ada 2022 writes an aggregate `[1, 2, 3]` and this language writes the
+parenthesised form. A reader who typed the other one is not making a stray
+mark, and being told the bracket begins nothing leaves them to work out which
+of the two forms the language wants.
+"""
+script = "A : array (1 .. 3) of Integer := [1, 2, 3];"
+exit_status = 2
+output = []
+diagnostics = [
+  "!error.lexical.bracket_aggregate{character=[}!",
+  "!error.lexical.bracket_aggregate{character=]}!",
+]

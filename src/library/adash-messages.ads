@@ -256,6 +256,7 @@ package Adash.Messages is
       Msg_Name_Undeclared,
       Msg_Name_Already_Declared,
       Msg_Lexical_Stray_Character,
+      Msg_Lexical_Bracket_Aggregate,
       Msg_Lexical_Unterminated_String,
       Msg_Lexical_Unterminated_Character,
       Msg_Lexical_Malformed_Number,

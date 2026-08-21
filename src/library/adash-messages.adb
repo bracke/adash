@@ -340,6 +340,7 @@ package body Adash.Messages is
          when Msg_Name_Undeclared            => return "error.name_undeclared";
          when Msg_Name_Already_Declared      => return "error.name_already_declared";
          when Msg_Lexical_Stray_Character    => return "error.lexical.stray_character";
+         when Msg_Lexical_Bracket_Aggregate  => return "error.lexical.bracket_aggregate";
          when Msg_Lexical_Unterminated_String =>
             return "error.lexical.unterminated_string";
          when Msg_Lexical_Unterminated_Character =>
@@ -953,6 +954,9 @@ package body Adash.Messages is
             return [1 => N ("name")];
 
          when Msg_Lexical_Stray_Character =>
+            return [1 => N ("character")];
+
+         when Msg_Lexical_Bracket_Aggregate =>
             return [1 => N ("character")];
 
          when Msg_Lexical_Unterminated_String

@@ -211,6 +211,7 @@ en.error.type_mismatch = expected {expected}, found {found}
 en.error.name_undeclared = {name} is not declared here
 en.error.name_already_declared = {name} is already declared in this scope
 en.error.lexical.stray_character = {character} does not begin anything the language recognises
+en.error.lexical.bracket_aggregate = an aggregate is written with parentheses here, not {character}
 en.error.lexical.unterminated_string = this string literal is not closed before the end of the line
 en.error.lexical.unterminated_character = this character literal is not closed
 en.error.lexical.malformed_number = {text} is not a well formed numeric literal

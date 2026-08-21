@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 639 messages in 23 groups.
+There are 640 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -150,6 +150,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `error.name_undeclared` | {name} is not declared here |
 | `error.name_already_declared` | {name} is already declared in this scope |
 | `error.lexical.stray_character` | {character} does not begin anything the language recognises |
+| `error.lexical.bracket_aggregate` | an aggregate is written with parentheses here, not {character} |
 | `error.lexical.unterminated_string` | this string literal is not closed before the end of the line |
 | `error.lexical.unterminated_character` | this character literal is not closed |
 | `error.lexical.malformed_number` | {text} is not a well formed numeric literal |

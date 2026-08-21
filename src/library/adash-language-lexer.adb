@@ -733,7 +733,19 @@ package body Adash.Language.Lexer is
                   --  their editor; the character itself renders as nothing at
                   --  all, and the sentence then reads as if a word were
                   --  missing from it.
-                  if Code < 16#20# or else Code >= 16#7F# then
+                  --  Ada 2022 writes an aggregate `[1, 2, 3]`; this language
+                  --  writes the parenthesised form Ada has always had. Saying
+                  --  only that `[` begins nothing leaves a reader who wrote
+                  --  correct Ada 2022 to guess which of the two forms is
+                  --  missing, so the bracket is named for what it was meant
+                  --  to open.
+                  if Code = Character'Pos ('[')
+                    or else Code = Character'Pos (']')
+                  then
+                     Complain (Adash.Errors.Error_Lexical_Bracket_Aggregate,
+                               First, Stop);
+
+                  elsif Code < 16#20# or else Code >= 16#7F# then
                      Complain (Adash.Errors.Error_Lexical_Stray_Character,
                                First, Stop, Detail => Codepoint (Code));
                   else

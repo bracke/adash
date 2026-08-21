@@ -226,6 +226,7 @@ package Adash.Errors is
 
       --  Language: lexical.
       Error_Lexical_Stray_Character,
+      Error_Lexical_Bracket_Aggregate,
       Error_Lexical_Unterminated_String,
       Error_Lexical_Unterminated_Character,
       Error_Lexical_Malformed_Number,

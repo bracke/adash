@@ -69,6 +69,7 @@ package body Adash.Errors is
             | Error_Name_Undeclared
             | Error_Name_Already_Declared
             | Error_Lexical_Stray_Character
+            | Error_Lexical_Bracket_Aggregate
             | Error_Lexical_Unterminated_String
             | Error_Lexical_Unterminated_Character
             | Error_Lexical_Malformed_Number
@@ -259,6 +260,8 @@ package body Adash.Errors is
          when Error_Name_Already_Declared  => return Adash.Messages.Msg_Name_Already_Declared;
          when Error_Lexical_Stray_Character =>
             return Adash.Messages.Msg_Lexical_Stray_Character;
+         when Error_Lexical_Bracket_Aggregate =>
+            return Adash.Messages.Msg_Lexical_Bracket_Aggregate;
          when Error_Lexical_Unterminated_String =>
             return Adash.Messages.Msg_Lexical_Unterminated_String;
          when Error_Lexical_Unterminated_Character =>
