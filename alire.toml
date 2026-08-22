@@ -32,6 +32,17 @@ jsonlib = "*"
 [[depends-on]]
 tomllib = "*"
 
+# The Alire toolchain, never the system one.
+#
+# `i18n` and `messages` depend on the virtual `gnat` crate rather than on a
+# toolchain, and Alire may satisfy that with `gnat_external` -- the compiler on
+# PATH, which here is GNAT 13.3 while this crate pins 15.2.1. A solution mixing
+# the two builds each half with a different compiler and the link then fails on
+# every one of their units: "compiled with different GNAT versions, v13 and
+# v15". Deleting object directories clears it until the next solve.
+[[forbids]]
+gnat_external = "*"
+
 [[pins]]
 terminal_styles = { path = "../terminal_styles" }
 
