@@ -184,6 +184,20 @@ package Adash.Language.Symbols is
    --  @return The body's name, or "" when the name is not kept.
    function Kept_By (Item : Symbol) return String;
 
+   --  Say what a constant's value is, worked out where it was declared.
+   --
+   --  @param Item The symbol.
+   --  @param Value The value.
+   procedure Fix_At (Item : in out Symbol; Value : Long_Long_Integer);
+
+   --  @param Item The symbol.
+   --  @return Whether a value was worked out for it.
+   function Is_Fixed (Item : Symbol) return Boolean;
+
+   --  @param Item The symbol.
+   --  @return The value, meaningful only when Is_Fixed says so.
+   function Fixed_Value (Item : Symbol) return Long_Long_Integer;
+
    --  Keep this name for a package body.
    --
    --  @param Item Symbol to change.
@@ -435,6 +449,22 @@ private
 
       --  The package body that keeps this name, or empty.
       Kept : Ada.Strings.Unbounded.Unbounded_String;
+
+      --  What a constant is, when that was worked out where it was declared.
+      --
+      --  Ada calls a constant static when its subtype is static and the
+      --  expression that gave it a value is -- and a *static expression* is
+      --  what a case choice, an array bound and a subtype's ends have to be.
+      --  Without this, `Max : constant := 3;` could not be written where 3
+      --  could, so a program that named the number it meant was refused for
+      --  naming it.
+      --
+      --  Held on the symbol rather than looked up from the declaration
+      --  because a name is resolved to a symbol and nothing else: the
+      --  alternative is finding the declaration's node again from every place
+      --  a static value is wanted.
+      Fixed_At    : Long_Long_Integer := 0;
+      Is_Fixed_At : Boolean := False;
 
       --  Meaningful only for a function or a procedure. Zero elsewhere, which
       --  is also the right answer there: nothing else can be called, so

@@ -418,7 +418,13 @@ Everything below parses in Ada and is refused here, by name, on purpose.
 - **No message on a raise.** `raise X with "text"` is Ada's; nothing here can
   read one back.
 - **Dynamic bounds.** An array's, a subtype's and a case choice's are known
-  before the program runs.
+  before the program runs. What counts as known is Ada's *static expression*: a
+  literal, an attribute such as `Integer'Last`, an enumeration literal, a
+  constant whose own value is static, and arithmetic on any of those — so
+  `1 .. Max`, `1 .. 2 + 1` and `1 .. Integer'Size / 8` are all bounds. A
+  variable is not, nor is a constant given its value by something that runs.
+  Comparisons are not folded: they answer a Boolean, and nothing here wants one
+  where a discrete value goes.
 - **Tasking's edges**: a protected entry takes no parameters, an entry parameter
   is a simple value, an accept repeats the profile its entry was declared with, a
   requeue names an entry of its own unit and its target takes nothing, at most

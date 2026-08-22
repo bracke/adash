@@ -44,6 +44,8 @@ package body Adash.Language.Symbols is
       return (Name    => To_Unbounded_String (Name),
               Within  => <>,
               Kept    => <>,
+              Fixed_At    => <>,
+              Is_Fixed_At => <>,
               Key     => To_Unbounded_String (Fold (Name)),
               Kind    => Kind,
               Of_Type => Of_Type,
@@ -82,6 +84,17 @@ package body Adash.Language.Symbols is
    begin
       return To_String (Item.Kept);
    end Kept_By;
+
+   procedure Fix_At (Item : in out Symbol; Value : Long_Long_Integer) is
+   begin
+      Item.Fixed_At := Value;
+      Item.Is_Fixed_At := True;
+   end Fix_At;
+
+   function Is_Fixed (Item : Symbol) return Boolean is (Item.Is_Fixed_At);
+
+   function Fixed_Value (Item : Symbol) return Long_Long_Integer
+   is (Item.Fixed_At);
 
    ----------------
    -- Keep_For --
@@ -135,6 +148,8 @@ package body Adash.Language.Symbols is
         (Name       => To_Unbounded_String (Name),
          Within     => <>,
          Kept       => <>,
+         Fixed_At    => <>,
+         Is_Fixed_At => <>,
          Key        => To_Unbounded_String (Fold (Name)),
          Kind       => Kind,
          Of_Type    => Of_Type,

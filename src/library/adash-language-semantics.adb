@@ -8646,17 +8646,34 @@ package body Adash.Language.Semantics is
                   --  Declared after its own initial value is analysed, so
                   --  `X : Integer := X;` reports X as undeclared rather than
                   --  quietly reading the variable being declared.
-                  if not Chain.Declare_Symbol
-                    (Symbols.Make
-                       (Full_Name (S.Text (Tree, Name_Node)),
-                        (if Is_Const then Symbols.Symbol_Constant
-                         else Symbols.Symbol_Variable),
-                        Declared, Origin, S.Extent (Tree, Name_Node)),
-                     Error)
-                  then
-                     Legal := False;
-                     Refuse_Declaration (Error, Name_Node);
-                  end if;
+                  declare
+                     Made : Symbols.Symbol :=
+                       Symbols.Make
+                         (Full_Name (S.Text (Tree, Name_Node)),
+                          (if Is_Const then Symbols.Symbol_Constant
+                           else Symbols.Symbol_Variable),
+                          Declared, Origin, S.Extent (Tree, Name_Node));
+
+                     Fixed : Long_Long_Integer := 0;
+                  begin
+                     --  What a constant is, worked out here and carried on the
+                     --  symbol, so that `Max : constant := 3;` may stand
+                     --  where 3 may: in a case choice, an array bound, and a
+                     --  subtype's ends. Only a constant, and only where the
+                     --  value folds -- `N : constant Integer := F (1);` has no
+                     --  value until it runs and says so by not folding.
+                     if Is_Const
+                       and then S.Is_Present (Value)
+                       and then Static_Choice (Into, Tree, Value, Fixed)
+                     then
+                        Symbols.Fix_At (Made, Fixed);
+                     end if;
+
+                     if not Chain.Declare_Symbol (Made, Error) then
+                        Legal := False;
+                        Refuse_Declaration (Error, Name_Node);
+                     end if;
+                  end;
 
                   Note (Name_Node, Declared,
                         Chain.Lookup (Full_Name (S.Text (Tree, Name_Node))));
@@ -10138,6 +10155,17 @@ package body Adash.Language.Semantics is
                   return True;
                end if;
 
+               --  A constant whose value was worked out where it was
+               --  declared. `Max : constant := 3;` and then `1 .. Max`, which
+               --  is what Ada means by a static constant: a subtype that is
+               --  static and an expression that is. One whose value is not
+               --  known until it runs -- `N : constant Integer := F (1);` --
+               --  carries nothing here and is refused as before.
+               if Symbols.Is_Fixed (Found) then
+                  Value := Symbols.Fixed_Value (Found);
+                  return True;
+               end if;
+
                if not Symbols.Is_Provided (Found) then
                   return False;
                end if;
@@ -10172,15 +10200,74 @@ package body Adash.Language.Semantics is
                return True;
             end;
 
+         when S.Node_Binary_Operation =>
+            --  `2 + 1`, `Max * 2`, `Integer'Size / 8`. Ada folds an operation
+            --  on static operands where a static expression is wanted, and so
+            --  does this: what such an expression answers is fixed by its
+            --  operands, and those are static or this returns False for them.
+            --
+            --  Without it, a bound, a case choice and a subtype's ends each
+            --  had to be written as a single literal or attribute -- so a
+            --  program that said `1 .. Max` or `1 .. Integer'Size / 8` was
+            --  refused for saying what it meant.
+            --
+            --  Arithmetic only. A comparison is static in Ada too and answers
+            --  a Boolean; nothing here wants a Boolean where a discrete value
+            --  goes, because a case choice of a Boolean type is written
+            --  `True`. Concatenation is not arithmetic and `and`/`or` are not
+            --  either.
+            declare
+               Left  : Long_Long_Integer := 0;
+               Right : Long_Long_Integer := 0;
+            begin
+               if not Static_Choice (Item, Tree, S.First (Tree, Node), Left)
+                 or else not Static_Choice
+                               (Item, Tree, S.Second (Tree, Node), Right)
+               then
+                  return False;
+               end if;
+
+               --  Zero is not a divisor. Refused as *not static* rather than
+               --  folded: an expression that cannot be evaluated is not one
+               --  whose value is known before the program runs, and the
+               --  alternative is raising here, in the analyser, over text a
+               --  user is still being told about.
+               if S.Operator (Tree, Node) in S.Op_Divide | S.Op_Mod | S.Op_Rem
+                 and then Right = 0
+               then
+                  return False;
+               end if;
+
+               --  A negative exponent has no integer answer, and Ada refuses
+               --  one for that reason rather than for being dynamic.
+               if S.Operator (Tree, Node) = S.Op_Power and then Right < 0 then
+                  return False;
+               end if;
+
+               case S.Operator (Tree, Node) is
+                  when S.Op_Add      => Value := Left + Right;
+                  when S.Op_Subtract => Value := Left - Right;
+                  when S.Op_Multiply => Value := Left * Right;
+                  when S.Op_Divide   => Value := Left / Right;
+                  when S.Op_Mod      => Value := Left mod Right;
+                  when S.Op_Rem      => Value := Left rem Right;
+                  when S.Op_Power    => Value := Left ** Natural (Right);
+                  when others        => return False;
+               end case;
+
+               return True;
+            end;
+
          when others =>
             return False;
       end case;
 
    exception
       when Constraint_Error =>
-         --  A literal too large for the machine. Not static in any useful
-         --  sense: refusing it here reports it as a choice rather than letting
-         --  the emitter raise while building the program.
+         --  A literal too large for the machine, or an operation whose answer
+         --  is. Not static in any useful sense: refusing it here reports it as
+         --  a choice rather than letting the emitter raise while building the
+         --  program.
          return False;
    end Static_Choice;
 

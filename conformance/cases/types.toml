@@ -1193,13 +1193,19 @@ output = ["ello", "6"]
 diagnostics = []
 
 [[case]]
-id = "types.a-constant-is-not-a-written-out-value"
+id = "types.a-value-not-known-before-it-runs-is-refused-by-place"
 requirement = """
 Each of the three places says which one it is refusing, rather than one message
 about staticness in general: a bound, a choice, and a subtype's range are
 different things to have got wrong.
+
+Written with a *variable*, which is what "not known before it runs" now means.
+This case used to use a constant and `1 + 1`, and both are folded now -- see
+`types.a-static-expression-is-folded-where-one-is-wanted`. What it was really
+pinning is the three messages, and a variable pins them without also claiming
+that a program naming the number it means is wrong.
 """
-script = "C : constant Integer := 3;\nA : array (1 .. C) of Integer := (1, 2, 3);\nsubtype Small is Integer range 1 .. C;\nN : Integer := 2;\ncase N is when 1 + 1 => put_line (\"computed\"); when others => put_line (\"other\"); end case;"
+script = "V : Integer := 3;\nA : array (1 .. V) of Integer := (1, 2, 3);\nsubtype Small is Integer range 1 .. V;\ncase V is when V => put_line (\"x\"); when others => put_line (\"y\"); end case;"
 exit_status = 2
 output = []
 diagnostics = [
@@ -1216,6 +1222,10 @@ one nobody can write: the object's, with an apostrophe in it. That name is for
 the analyser to look things up by and was reaching diagnostics -- a reader was
 told `A'array` is empty, and went looking for something they never typed.
 
+`B` in the script below is declared with a constant bound and is *not* refused
+any more -- a static constant folds now -- so what is left here is the pair of
+empty arrays, which is what this case is about.
+
 A bound that is not written out used to cost three complaints for one mistake:
 the refusal, then the internal name reported as undeclared because the refused
 declaration never declared it, then an aggregate said to stand where `` is
@@ -1226,7 +1236,6 @@ exit_status = 2
 output = []
 diagnostics = [
   "!error.array_is_empty{name=A}!",
-  "!error.array_bound_not_static!",
   "!error.array_is_empty{name=Counts}!",
 ]
 
@@ -1283,3 +1292,38 @@ script = "T : String := \"{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b
 exit_status = 0
 output = ["0 []", "4 bc", "1 plain"]
 diagnostics = []
+
+[[case]]
+id = "types.a-static-expression-is-folded-where-one-is-wanted"
+requirement = """
+Ada says a *static expression* may stand wherever a bound, a case choice or a
+subtype's ends are wanted, and a static expression is more than a literal: an
+operation on static operands is one, and so is a constant whose own value is.
+This build read only a literal or an attribute, so a program that named the
+number it meant -- `1 .. Max` -- was refused for naming it, and `1 .. 2 + 1`
+was refused for adding.
+
+Folded now, at analysis, in all three places. A constant carries what it was
+worked out to be on its symbol, which is what a name resolves to; one whose
+value is not known until it runs carries nothing and is refused as before --
+see `types.a-value-not-known-before-it-runs-is-refused-by-place`.
+
+Arithmetic only. A comparison is static in Ada too and answers a Boolean, and
+nothing here wants a Boolean where a discrete value goes.
+"""
+script = "Max : constant := 3;\nLim : constant Integer := 2;\ntype Wide is array (1 .. Max) of Integer;\nW : Wide := (1, 2, 9);\nput_line (Integer'Image (W (Max)));\ntype Pair is array (1 .. Lim * 2) of Integer;\nP : Pair := (1, 2, 3, 8);\nput_line (Integer'Image (P (2 + 2)));\nsubtype Small is Integer range 1 .. Max;\nS : Small := 3;\nput_line (Integer'Image (S));\ncase S is when Max => put_line (\"named\"); when others => put_line (\"other\"); end case;\nquit (0);"
+exit_status = 0
+output = [" 9", " 8", " 3", "named"]
+
+[[case]]
+id = "types.a-static-expression-that-cannot-be-worked-out-is-not-static"
+requirement = """
+Folding is not evaluation. Division by zero has no value, so an expression
+containing it is not one whose value is known before the program runs, and it
+is refused as not static rather than raised in the analyser over text the user
+is still being told about. The same for a bound too large for the machine to
+hold.
+"""
+script = "type Bad is array (1 .. 6 / 0) of Integer;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.array_bound_not_static!"]

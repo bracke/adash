@@ -9,6 +9,17 @@ what changed.
 
 ## [Unreleased]
 
+### Added
+
+- **A static expression may stand where a literal could.** Ada lets a bound, a
+  case choice and a subtype's ends be any *static expression*, and this build
+  read only a literal or an attribute — so `1 .. Max` was refused for naming
+  the number it meant and `1 .. 2 + 1` for adding. Arithmetic on static
+  operands is folded now, and a constant carries what it was worked out to be
+  at its declaration. A constant whose value is not known until it runs still
+  is not static, and each of the three places still says which one it is
+  refusing.
+
 ### Changed
 
 - **A trace arrives as it happens.** `trace.commands` announces each command
