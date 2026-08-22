@@ -78,6 +78,26 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**The address map does not need `Place_Of` changed, 2026-08-22.** The obvious
+first move is to stop keying a slot on `Declared_At` -- a byte offset, which
+moves for a carried variable every time the session puts something new in front
+of it, so the same variable never matches itself twice. Tried, and it is wrong:
+a `declare` block's variables live at level one as well, so two slots there can
+share a name and the offset is what tells the block-local one from the outer
+one it hides. `block.hides-and-then-restores` is the case that says so, and it
+was the only family left failing once the change was written correctly.
+
+The map should stamp instead. It holds a name and an address; at seeding time
+each entry takes the offset the *current* tree gives that name, and `Place_Of`
+matches unchanged. Shadowing keeps working because nothing about matching
+changed.
+
+Two wrong readings of the same failure are recorded here because each was
+stated confidently before being checked: that level-one slots are shared by
+compiler temporaries (they are not -- they are shared by blocks), and before
+that, that a first version failing 99 cases proved the keying wrong (it proved
+the *condition* wrong: it also stopped a global resolving from inside a body).
+
 **Corrected 2026-08-22: `Install_Predefined` was never the blocker.** An
 earlier note here said the eighty-seven provided names could not be installed
 once because the call mixed scope population with per-analysis state, and
