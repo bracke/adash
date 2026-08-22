@@ -11,6 +11,15 @@ what changed.
 
 ### Fixed
 
+- **One token, one complaint.** A rule that wanted a semicolon reported the
+  token it found and left it there -- deliberately, so the caller's recovery
+  decides where to resume -- and the loop that reads the next statement then
+  met the same token and said a second thing about it. `A, B := 1;` was told
+  "expected ;" and then "expected a statement", both naming the one comma. The
+  second complaint about a token is dropped now. Not the second of a
+  submission: two statements each missing a semicolon are two mistakes at two
+  tokens and are both still reported.
+
 - **A text setting says which of its two rules refused a value.** A length and
   a ban on control characters shared one answer -- `Set_Text` returned `False`
   for both -- so a prompt format holding an escape was refused with a sentence

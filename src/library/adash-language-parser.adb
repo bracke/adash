@@ -50,6 +50,22 @@ package body Adash.Language.Parser is
       --  other side, because this refusal is the parser's own.
       Refused_Outright : Boolean := False;
 
+      --  The token a complaint was last made about, or zero.
+      --
+      --  A rule that wanted a semicolon reports the token it found instead and
+      --  leaves it where it is, on purpose -- the caller's recovery decides
+      --  where to resume, and swallowing it would take away the evidence. But
+      --  the loop that reads the next statement then meets that same token and
+      --  says the *second* thing about it: `A, B := 1;` was told "expected ;"
+      --  and then "expected a statement", both naming the one comma, and both
+      --  from the same character of input.
+      --
+      --  So the second complaint about one token is dropped. Not the second
+      --  complaint of a submission, and not a skip: two statements each
+      --  missing a semicolon are two mistakes at two tokens and are both still
+      --  reported, which is what a rule that recovered instead would have lost.
+      Complained_At : Natural := 0;
+
       --  Objects a declaration made beyond the one a rule returned.
       --
       --  `A, B : Integer;` is one declaration in Ada and two objects, and a
@@ -283,6 +299,13 @@ package body Adash.Language.Parser is
          if State.Refused_Outright then
             return;
          end if;
+
+         --  Said once about this token. See Complained_At.
+         if State.Complained_At = State.Position then
+            return;
+         end if;
+
+         State.Complained_At := State.Position;
 
          if Ended then
             State.Ran_Out := True;

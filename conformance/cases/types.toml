@@ -1032,6 +1032,12 @@ Ada lets a conditional expression go bare when it is a call's only argument,
 and only then. A second argument after one is a syntax error in Ada, and the
 error here says the same thing: what may follow is the parenthesis that closes
 the call.
+
+The first line is the one that says it; what follows is the parse unwinding.
+There were three, and the third named the same token as the second -- one
+mistake said twice about one character -- which is dropped now. The remaining
+"missing )" is at its own token and stays, because a rule that dropped it would
+be guessing about which unwinding is worth reporting rather than counting.
 """
 script = "put_line (if 1 < 2 then \"yes\" else \"no\");\nput_line (if 1 < 2 then \"a\" else \"b\", \"c\");"
 exit_status = 2
@@ -1039,7 +1045,6 @@ output = ["yes"]
 diagnostics = [
   "!error.syntax.unexpected{found=,,expected=)}!",
   "!error.syntax.missing{expected=)}!",
-  "!error.syntax.missing{expected=;}!",
 ]
 
 [[case]]
