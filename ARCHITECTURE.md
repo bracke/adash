@@ -49,6 +49,37 @@ The foundations know nothing about the shell. `Adash.Source`,
 `Adash.Diagnostics` and `Adash.Errors` are usable by every layer above and
 depend on none of them.
 
+### Beside is not unordered
+
+The four subsystems on the middle row are drawn side by side, and for a long
+time nothing said which of a pair may name the other. The code had always
+said it, so the rule is read off what is there rather than invented:
+
+- **Language is below Predefined.** `Adash.Predefined` is written in the
+  language's own vocabulary — scopes, types, symbols — and its specification
+  names them.
+- **Execution is below Commands.** A command is invoked, and invoking one runs
+  through execution.
+- **Commands may name Language**, because a command takes the language's
+  values as its arguments.
+
+Everything else across those four is upward, **in a specification**. The
+reverse edges exist and are bodies: `Adash.Language.Semantics` and
+`Adash.Language.Evaluation` name `Adash.Predefined` fifty-nine times between
+them — resolving the names a program starts with, and mapping them to machine
+operations — and `Adash.Predefined`'s body names `Adash.Commands`.
+
+That is Ada's own division rather than a loophole. A specification's `with` is
+published to every client of the unit and is an architectural commitment; a
+body's is confined to the unit that made it, which is exactly how a lower layer
+reaches an upper one without exposing it. It is also what makes the rule
+enforceable: Ada already forbids cycles among specifications.
+
+One specification is excepted, by name: `Adash.Execution.Internal_Commands`,
+which asks the single question execution has about commands — is this name the
+shell's own, or a program to start — and says so in its own header. An
+exception a check can see is one a reader can argue with.
+
 ## Subsystems and their owners
 
 Every package has exactly one owning subsystem. `repository.toml` records the
@@ -220,13 +251,11 @@ These hold at every commit, not only at a release:
 
 - One Alire binary crate, one child `adash_tests` crate. Runtime code is Ada 2022.
 - Package dependencies are acyclic and point downward. Acyclic is Ada's own
-  rule for specs; `adash_check` enforces four edges of the downward half —
-  nothing outside a frontend names a frontend, nothing below the engine names
-  the engine, a foundation names nothing above it, and an `internal` package is
-  named only inside its own subsystem. Sideways edges are not judged: the
-  diagram above puts Commands beside Execution and Predefined beside Language
-  without saying which of a pair may name the other, and a check that guessed
-  would either pass on everything or condemn what the code already does.
+  rule for specs; `adash_check` enforces five edges — nothing outside a
+  frontend names a frontend, nothing below the engine names the engine, a
+  foundation names nothing above it, an `internal` package is named only inside
+  its own subsystem, and a **specification** among the four subsystems drawn
+  side by side points only the way they are ordered (below).
 - Every package has one subsystem owner, recorded in `repository.toml`.
 - Internal packages are not cross-subsystem APIs.
 - Interactive and scripting modes share one language implementation and one engine.

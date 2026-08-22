@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 659 messages in 23 groups.
+There are 660 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -764,6 +764,7 @@ quoted into `config.syntax`, which supplies the file and the position.
 | `tooling.check.layer.foundation` | {path} is a foundation and names {unit}, which is above it |
 | `tooling.check.layer.internal` | {path} names {unit}, which is another subsystem's internal package |
 | `tooling.check.layer.rendering` | {path} renders messages, and only a frontend may: below the presentation boundary a message is named rather than rendered |
+| `tooling.check.layer.sideways` | {path} names {unit} from a specification, which points against the order of the subsystems it stands beside; a body may name it, and a specification publishes it to every client |
 | `tooling.check.result_pass` | PASS |
 | `tooling.check.result_fail` | FAIL |
 

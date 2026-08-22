@@ -735,5 +735,6 @@ en.tooling.check.layer.engine = {path} names {unit}, and only a frontend may nam
 en.tooling.check.layer.foundation = {path} is a foundation and names {unit}, which is above it
 en.tooling.check.layer.internal = {path} names {unit}, which is another subsystem's internal package
 en.tooling.check.layer.rendering = {path} renders messages, and only a frontend may: below the presentation boundary a message is named rather than rendered
+en.tooling.check.layer.sideways = {path} names {unit} from a specification, which points against the order of the subsystems it stands beside; a body may name it, and a specification publishes it to every client
 en.tooling.check.result_pass = PASS
 en.tooling.check.result_fail = FAIL

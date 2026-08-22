@@ -9,7 +9,20 @@ what changed.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **The sideways layer edges are judged, and `adash_check` has a fifth rule.**
+  Four subsystems are drawn side by side and nothing said which of a pair may
+  name the other, so nothing could be checked. The order was read off the code
+  rather than invented: language is below predefined (predefined is written in
+  the language's vocabulary), execution is below commands (a command is
+  invoked, and invoking one runs through execution), and commands may name
+  language (a command takes the language's values). Everything else across
+  those four is upward **in a specification** — the reverse edges are all
+  bodies, which is Ada's own division: a spec's `with` is published to every
+  client, a body's is confined to the unit that made it. One spec is excepted
+  by name, `Adash.Execution.Internal_Commands`, which asks execution's single
+  question about commands and says so in its header.
 
 ## [0.1.0] - 2026-08-22
 

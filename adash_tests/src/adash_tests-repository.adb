@@ -65,6 +65,7 @@ package body Adash_Tests.Repository is
    Key_Layer_Foundation : constant String := "tooling.check.layer.foundation";
    Key_Layer_Internal   : constant String := "tooling.check.layer.internal";
    Key_Layer_Rendering  : constant String := "tooling.check.layer.rendering";
+   Key_Layer_Sideways   : constant String := "tooling.check.layer.sideways";
    Key_Inventory_Missing    : constant String := "tooling.check.inventory_missing";
    Key_Inventory_Unlisted   : constant String := "tooling.check.inventory_unlisted";
    Key_Grammar_Missing      : constant String :=
@@ -2227,6 +2228,34 @@ package body Adash_Tests.Repository is
           or else Subsystem = "terminal" or else Subsystem = "platform"
           or else Is_A_Frontend (Subsystem));
 
+      --  The four subsystems the diagram draws side by side, and which of
+      --  them a *specification* may name.
+      --
+      --  Beside is not the same as unordered, and the code has always said so.
+      --  `Adash.Predefined` is written in the language's own vocabulary --
+      --  scopes, types, symbols -- so language is below it. A command is
+      --  invoked, and invoking one runs through execution, so execution is
+      --  below commands. And a command takes the language's values, so
+      --  commands may name language.
+      --
+      --  The reverse edges exist and are *bodies*: the analyser and the
+      --  evaluator name `Adash.Predefined` (fifty-nine times, resolving the
+      --  names a program starts with and mapping them to machine operations),
+      --  and `Adash.Predefined`'s body names `Adash.Commands`. That is Ada's
+      --  own division rather than a loophole -- a spec edge is published to
+      --  every client of the unit and is an architectural commitment, and a
+      --  body edge is confined to the unit that made it. Ada's rule for spec
+      --  cycles is what makes the distinction enforceable at all.
+      function Is_One_Of_The_Four (Subsystem : String) return Boolean
+      is (Subsystem = "commands" or else Subsystem = "execution"
+          or else Subsystem = "language" or else Subsystem = "predefined");
+
+      function Sideways_Is_Allowed (Mine : String; Theirs : String)
+        return Boolean
+      is ((Mine = "commands" and then Theirs = "execution")
+          or else (Mine = "commands" and then Theirs = "language")
+          or else (Mine = "predefined" and then Theirs = "language"));
+
       procedure Judge (Path : String; Mine : String; Named : String);
 
       procedure Judge (Path : String; Mine : String; Named : String) is
@@ -2269,6 +2298,25 @@ package body Adash_Tests.Repository is
            and then not Is_A_Frontend (Mine)
          then
             Refuse (Key_Layer_Rendering);
+
+         --  A specification may only point the way the pairs are ordered.
+         --
+         --  One exception, and it is named rather than derived:
+         --  `Adash.Execution.Internal_Commands` is the single place execution
+         --  asks whether a name is the shell's own -- "that question lives
+         --  here rather than in Adash.Commands because it is execution's
+         --  question", which its own header says. An exception a check can
+         --  see is one a reader can argue with; a rule bent to fit it
+         --  silently would cover the next one too.
+         elsif Ada.Directories.Extension (Path) = "ads"
+           and then Is_One_Of_The_Four (Mine)
+           and then Is_One_Of_The_Four (Theirs)
+           and then not Sideways_Is_Allowed (Mine, Theirs)
+           and then Ada.Directories.Base_Name
+                      (Ada.Directories.Simple_Name (Path))
+                    /= "adash-execution-internal_commands"
+         then
+            Refuse (Key_Layer_Sideways);
          end if;
       end Judge;
 
