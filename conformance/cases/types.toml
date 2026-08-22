@@ -1327,3 +1327,42 @@ hold.
 script = "type Bad is array (1 .. 6 / 0) of Integer;\nquit (0);"
 exit_status = 0
 diagnostics = ["!error.array_bound_not_static!"]
+
+[[case]]
+id = "text.a-width-or-a-count-outside-a-machine-number-is-refused-not-raised"
+requirement = """
+A width and a decimal count are numbers a *program* chose, so every value one
+can hold has to have an answer -- and the answer for an impossible one is a
+refusal that names it.
+
+Both were narrowed to an Integer before the guard that refuses them could run,
+so a value outside Integer's range raised a range check naming a line of the
+shell's own source and ended the session: `Right_Aligned ("x", 99999999999)`
+and `Decimals (1.0, 99999999999)`. `Decimals (1.0, -1)` did the same one step
+later -- the guard caught it, and then *saying which number was refused* raised
+on the way to saying it, because the count of a thing cannot be negative.
+
+The guard for the width was written for exactly this and was one conversion too
+far in. Both values stay the machine's own number until they are known to fit.
+
+Two submissions, because each ends its own.
+"""
+script = "put_line (Right_Aligned (\"x\", 99999999999));\nput_line (Decimals (1.0, -1));"
+exit_status = 1
+output = []
+diagnostics = [
+  "!error.program_raised_detail{exception=Storage_Error,detail=!error.machine.text_too_long{width=99999999999,limit=1000000}!}!",
+  "!error.program_raised_detail{exception=Constraint_Error,detail=!error.machine.places_refused{places=-1}!}!",
+]
+
+[[case]]
+id = "text.a-refusal-a-program-can-catch"
+requirement = """
+A refused width or count raises, and raising is something a program can handle
+-- which is the difference between refusing and dying. The empty text this used
+to push for a bad count could not be caught, because nothing had gone wrong as
+far as the machine was concerned.
+"""
+script = "begin put_line (Decimals (1.0, -1)); exception when others => put_line (\"caught\"); end;\nquit (0);"
+exit_status = 0
+output = ["caught"]

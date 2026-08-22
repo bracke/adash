@@ -2673,14 +2673,23 @@ package body Adash.Machine is
 
                   declare
                      Item  : constant String := To_String (Left.Text);
-                     Width : constant Integer := Integer (Discrete (Right));
+                     --  Held as the machine's own number rather than
+                     --  narrowed to an Integer here. Narrowing is a range
+                     --  check on a number a user chose, and it raised *before*
+                     --  the guard below could refuse it:
+                     --  `Right_Aligned ("x", 99999999999)` ended the session
+                     --  with a traceback naming a line of this file. The
+                     --  guard was added for exactly this and was one
+                     --  conversion too far in.
+                     Width : constant Whole_Number := Discrete (Right);
 
                      --  A column somebody asked for, not a promise to fit in
                      --  it: text longer than the width comes back whole. A
                      --  formatter that cut a name in half to keep a column
                      --  straight would lose the one thing the line was for.
-                     Room : constant Natural :=
-                       (if Width > Item'Length then Width - Item'Length else 0);
+                     Room : constant Whole_Number :=
+                       (if Width > Whole_Number (Item'Length)
+                        then Width - Whole_Number (Item'Length) else 0);
 
                      Fill : constant Character :=
                        (if Here.Code = Text_Zero_Padded then '0' else ' ');
@@ -2695,7 +2704,7 @@ package body Adash.Machine is
                      --  rather than continue at the handler Fail just jumped
                      --  to -- which is silence, with a handler waiting and a
                      --  status of nought.
-                     if Room > Max_Text then
+                     if Room > Whole_Number (Max_Text) then
                         Fail (Raised, "Storage_Error",
                               M.Msg_Machine_Text_Too_Long,
                               [Counted (Width), Counted (Natural'(Max_Text)),
@@ -2704,7 +2713,8 @@ package body Adash.Machine is
 
                      else
                         declare
-                           Padding : constant String (1 .. Room) :=
+                           --  Known to fit, because the guard above said so.
+                           Padding : constant String (1 .. Natural (Room)) :=
                              [others => Fill];
                         begin
                            Push ((Cell_Text,
@@ -2730,7 +2740,11 @@ package body Adash.Machine is
                        (if Left.Kind = Cell_Real then Float (Left.Number)
                         else Float (Discrete (Left)));
 
-                     Places : constant Integer := Integer (Discrete (Right));
+                     --  The machine's own number, for the reason the width
+                     --  above gives: a number outside Integer's range is one
+                     --  this must *refuse*, and narrowing it first raises
+                     --  instead.
+                     Places : constant Whole_Number := Discrete (Right);
 
                      --  Wide enough for any Float this shell can hold, plus
                      --  the places asked for.
@@ -2746,6 +2760,14 @@ package body Adash.Machine is
                         --  this used to push: a script that worked out the
                         --  places and got it wrong printed nothing at all and
                         --  carried on.
+                        --  `Whole_Number`, not the count overload: `Places`
+                        --  is an Integer and may be negative, and the guard
+                        --  above is what catches that -- so saying *which*
+                        --  number was refused must not itself refuse the
+                        --  number. `Decimals (1.0, -1)` reached this line and
+                        --  the shell died with a range check naming a line of
+                        --  its own source, which is the one thing a refusal
+                        --  must never do.
                         Fail (Raised, "Constraint_Error",
                               M.Msg_Machine_Places_Refused,
                               [Counted (Places), Null_Unbounded_String,
@@ -2768,7 +2790,10 @@ package body Adash.Machine is
                         end;
 
                      else
-                        Reals.Put (Written, Value, Aft => Places, Exp => 0);
+                        --  Between none and twenty, because the guard above
+                        --  said so.
+                        Reals.Put (Written, Value,
+                                   Aft => Natural (Places), Exp => 0);
                         Push ((Cell_Text,
                                Trim (To_Unbounded_String (Written),
                                      Ada.Strings.Both)));

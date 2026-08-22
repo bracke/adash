@@ -9,6 +9,18 @@ what changed.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A width or a decimal count outside a machine number is refused, not
+  raised.** `Right_Aligned ("x", 99999999999)` and `Decimals (1.0,
+  99999999999)` ended the session with a range check naming a line of the
+  shell's own source: both values were narrowed to an `Integer` before the
+  guard that refuses them could run. `Decimals (1.0, -1)` did the same one step
+  later — the guard caught it, and then saying *which* number was refused
+  raised on the way, because a count cannot be negative. Both stay the
+  machine's own number until they are known to fit, and every value a program
+  can pass now gets an answer it can catch.
+
 ### Added
 
 - **A static expression may stand where a literal could.** Ada lets a bound, a
