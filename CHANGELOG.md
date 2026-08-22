@@ -50,6 +50,15 @@ what changed.
 
 ### Fixed
 
+- **A record of one component and an array of one element survive the line that
+  made them.** A variable is carried to the next submission by being written
+  back as the expression that rebuilds it, and a composite is written back as
+  an aggregate of its parts — but `(7)` is not an aggregate in Ada, it is seven
+  in brackets. So a one-part composite came back as a parenthesised value and
+  the next line was told `expected R1, found Integer` about a variable it had
+  only declared. One part is named now: a record by its component, an array by
+  `others`. Two parts upward were always right, which is why this lasted.
+
 - **One token, one complaint.** A rule that wanted a semicolon reported the
   token it found and left it there -- deliberately, so the caller's recovery
   decides where to resume -- and the loop that reads the next statement then

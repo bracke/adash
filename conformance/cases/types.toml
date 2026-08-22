@@ -1375,3 +1375,24 @@ far as the machine was concerned.
 script = "begin put_line (Decimals (1.0, -1)); exception when others => put_line (\"caught\"); end;\nquit (0);"
 exit_status = 0
 output = ["caught"]
+
+[[case]]
+id = "session.a-composite-of-one-part-survives-the-line-that-made-it"
+requirement = """
+A variable is carried to the next submission by being written back as the
+expression that rebuilds it, and a composite is written back as the aggregate
+of its parts. `(7)` is not an aggregate in Ada -- it is seven in brackets -- so
+a record of one component and an array of one element came back as a
+parenthesised value, and the next line was told `expected R1, found Integer`
+about a variable it had only declared.
+
+Two parts upward were always fine, which is why this lasted: `(1, 2)` says what
+it is. One part says what it is by being named -- a record by its component, an
+array by `others`, which needs no index and is right whatever the bounds are.
+
+Each line is its own submission here, which is the whole point: within one
+submission nothing is written back and all of this worked.
+"""
+script = "type R1 is record F : Integer; end record;\nW : R1 := (F => 7);\nW.F := 8;\nput_line (Integer'Image (W.F));\ntype A1 is array (1 .. 1) of Integer;\nV : A1 := (1 => 5);\nV (1) := 9;\nput_line (Integer'Image (V (1)));\nquit (0);"
+exit_status = 0
+output = [" 8", " 9"]

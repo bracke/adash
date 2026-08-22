@@ -5497,6 +5497,25 @@ package body Adash.Language.Evaluation is
                         Emit (VM.Join_Text);
                      end if;
 
+                     --  One part, named. `(7)` is not an aggregate in Ada, it
+                     --  is seven in brackets -- so a record of one component
+                     --  and an array of one element were handed back as a
+                     --  parenthesised value and the next submission was told
+                     --  "expected R, found Integer" about a variable it had
+                     --  only declared. Two parts upward were always fine,
+                     --  which is why this survived: `(1, 2)` says what it is.
+                     if Sem.Part_Count (Analysis, Item.Of_Type) = 1 then
+                        --  An array says `others`, which needs no index and
+                        --  is right whatever the bounds are; a record names
+                        --  its component, which is the only thing it can say.
+                        Emit_Text
+                          ((if Ty.Shape (Item.Of_Type) = Ty.Shape_Array
+                            then "others"
+                            else Sem.Part_Name (Analysis, Item.Of_Type, 1))
+                           & " => ");
+                        Emit (VM.Join_Text);
+                     end if;
+
                      declare
                         Holds : constant Ty.Type_Kind :=
                           Sem.Part_Type (Analysis, Item.Of_Type, Part);
