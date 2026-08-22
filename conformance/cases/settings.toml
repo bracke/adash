@@ -123,3 +123,34 @@ script = "make_directory (\"{store}/adash\");\nmake_directory (\"{store}/Library
 exit_status = 0
 output = ["lines=[one", "two] status=3"]
 diagnostics = []
+
+[[case]]
+id = "settings.the-history-settings-take-effect-at-once"
+requirement = """
+A change applies in the session it was typed in -- which the configuration
+reference has claimed since colour was fixed, and which was true of five
+settings and false of four.
+
+`history.enabled`, `editing.enabled`, `history.limit` and
+`history.ignore-space` were read once at startup and never again, so turning
+`history.ignore-space` off left the next spaced line out of the history anyway.
+Colour had exactly this shape and was fixed on its own; the rest were not
+looked for, which is how one hole becomes four.
+
+Watched here on the one of the four a script can see: `history` lists what the
+session is holding, and the spaced line is in it.
+
+`history.per-session` is deliberately still read once. It chooses *which file*
+the log is, and that file was opened and read at startup -- changing it in the
+middle would write what this session typed into a file it never read, which is
+a different decision from these.
+"""
+script = "settings (\"history.ignore-space\", \"false\");\n put_line (\"kept\");\nhistory (3);\nquit (0);"
+exit_status = 0
+output = [
+  "!line.setting{key=history.ignore-space,value=false,summary=!setting.history-ignore-space!}!",
+  "kept",
+  "!line.history_entry{number=1,line=settings (\"history.ignore-space\", \"false\");}!",
+  "!line.history_entry{number=2,line= put_line (\"kept\");}!",
+  "!line.history_entry{number=3,line=history (3);}!",
+]

@@ -9,6 +9,18 @@ what changed.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Four more settings take effect in the session they were typed in.**
+  `history.enabled`, `editing.enabled`, `history.limit` and
+  `history.ignore-space` were read once at startup and never again, so turning
+  `history.ignore-space` off left the next spaced line out of the history
+  anyway, and turning `history.enabled` off went on writing every line to the
+  log. `color` had exactly this shape, was fixed on its own, and the rest were
+  not looked for. `history.per-session` and `startup.session` are still read
+  once and say why: each chooses a file that was opened before the first
+  prompt.
+
 ### Changed
 
 - **The sideways layer edges are judged, and `adash_check` has a fifth rule.**

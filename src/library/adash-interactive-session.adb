@@ -279,6 +279,20 @@ package body Adash.Interactive.Session is
       --  changes while the session runs.
       procedure Follow_The_Colour_Setting;
 
+      --  And the settings the history keeps, for the same reason.
+      --
+      --  Four were read once at startup and never again -- so
+      --  `settings ("history.enabled", "false")` went on recording every line
+      --  after it, and turning `history.ignore-space` off left the next spaced
+      --  line out anyway. Colour was fixed on its own and the rest were not
+      --  looked for, which is how one hole becomes four.
+      --
+      --  `history.per-session` is deliberately not here: it chooses *which
+      --  file* the log is, and that was opened and read at startup. Changing
+      --  it mid-session would mean writing what this session typed into a file
+      --  it never read, and that is a different decision from the ones above.
+      procedure Follow_The_History_Settings;
+
       procedure Follow_The_Colour_Setting is
          Word : constant String :=
            Adash.Configuration.Choice_Value
@@ -293,6 +307,21 @@ package body Adash.Interactive.Session is
             Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Auto);
          end if;
       end Follow_The_Colour_Setting;
+
+      procedure Follow_The_History_Settings is
+         Now : constant Adash.Configuration.Settings :=
+           Adash.Engine.Settings (Shell);
+      begin
+         Recording := Adash.Configuration.Boolean_Value
+           (Now, Adash.Configuration.History_Enabled_Setting);
+         Editing_Allowed := Adash.Configuration.Boolean_Value
+           (Now, Adash.Configuration.Editing_Setting);
+         Recall_Limit := Positive
+           (Adash.Configuration.Integer_Value
+              (Now, Adash.Configuration.History_Limit_Setting));
+         Honouring_The_Mark := Adash.Configuration.Boolean_Value
+           (Now, Adash.Configuration.History_Ignore_Space_Setting);
+      end Follow_The_History_Settings;
 
       procedure Render_Diagnostics;
       procedure Deliver_Notices;
@@ -1182,6 +1211,7 @@ package body Adash.Interactive.Session is
          --  both, and every path that changes a setting reaches this line
          --  before the next thing is drawn.
          Follow_The_Colour_Setting;
+         Follow_The_History_Settings;
 
          declare
             --  What has been typed so far of a construct that is not finished.

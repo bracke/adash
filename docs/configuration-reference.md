@@ -13,9 +13,24 @@ the setting keeps what it had.
 
 **A change takes effect in the session it was typed in**, not at the next
 start: the next command is traced, the next prompt is the new one, the next
-failure stops the script, and the next thing written is coloured or not as the
+failure stops the script, the next line is recorded or not as the history
+settings now say, and the next thing written is coloured or not as the colour
 setting now says. `save_settings` is a separate act, and what it writes is what
 the next session begins with.
+
+Two are read once and cannot be otherwise, because each chooses a **file** that
+was opened before the first prompt: `history.per-session`, which decides which
+log this session keeps, and `startup.session`, which names what was sourced at
+startup. Changing either mid-session would write what this session typed into a
+file it never read.
+
+This paragraph was wrong when it was first written, and in a way worth
+recording: it was added when `color` was found to be applied once at startup
+and fixed, and four more had exactly that shape and had not been looked for --
+`history.enabled`, `editing.enabled`, `history.limit` and
+`history.ignore-space`, all read once into variables beside each other. Finding
+one instance of a shape is a reason to enumerate the rest, not to write the
+general claim.
 
 ## The settings
 
