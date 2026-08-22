@@ -708,6 +708,7 @@ en.tooling.check.prose_as_text = {path} writes a sentence in Ada source: {text}
 en.tooling.check.identifier_as_text = {path} passes an identifier where a message argument must be text: {text}
 en.tooling.check.pin_not_cloned = the CI workflow does not check out {name}, which the manifests pin; a pin Alire cannot follow stops the build before anything is checked
 en.tooling.check.silent_truncation = {path} stops collecting at the end of a fixed-size list without saying so; a construct that does not fit is refused where it is written
+en.tooling.check.surplus_left_behind = {path} refuses a list for being too long and then leaves the loop, so what is left of it is read by the next rule and reported as a mistake that is not there; the surplus is parsed and thrown away instead
 en.tooling.check.escape_sequence = {path} contains a literal terminal escape sequence; styling belongs to terminal_styles by way of Adash.Terminal
 en.tooling.check.grammar_missing = the grammar reference has no production naming {name}, which the parser can build
 en.tooling.check.grammar_unknown = the grammar reference names {name}, which the syntax has no such node for

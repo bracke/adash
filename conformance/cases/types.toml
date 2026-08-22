@@ -492,13 +492,9 @@ name, which is what let these three hide.
 script = "X : Integer := 1; case X is when 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 | 60 | 61 | 62 | 63 | 64 | 65 => null; when others => null; end case;\nbegin null; exception when E1 => null; when E2 => null; when E3 => null; when E4 => null; when E5 => null; when E6 => null; when E7 => null; when E8 => null; when E9 => null; when E10 => null; when E11 => null; when E12 => null; when E13 => null; when E14 => null; when E15 => null; when E16 => null; when E17 => null; when E18 => null; when E19 => null; when E20 => null; when E21 => null; when E22 => null; when E23 => null; when E24 => null; when E25 => null; when E26 => null; when E27 => null; when E28 => null; when E29 => null; when E30 => null; when E31 => null; when E32 => null; when E33 => null; when E34 => null; when E35 => null; when E36 => null; when E37 => null; when E38 => null; when E39 => null; when E40 => null; when E41 => null; when E42 => null; when E43 => null; when E44 => null; when E45 => null; when E46 => null; when E47 => null; when E48 => null; when E49 => null; when E50 => null; when E51 => null; when E52 => null; when E53 => null; when E54 => null; when E55 => null; when E56 => null; when E57 => null; when E58 => null; when E59 => null; when E60 => null; when E61 => null; when E62 => null; when E63 => null; when E64 => null; when E65 => null; end;\nprocedure P (N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17 : Integer) is begin null; end P;\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.syntax.unexpected{found=65,expected==>}!",
   "!error.too_many_at_once{limit=64,what=!list.choices!}!",
-  "!error.syntax.unexpected{found=when,expected=end}!",
   "!error.too_many_at_once{limit=64,what=!list.handlers!}!",
-  "!error.syntax.unexpected{found=N17,expected=:}!",
   "!error.too_many_at_once{limit=16,what=!list.names!}!",
-  "!error.syntax.unexpected{found=begin,expected=is}!",
 ]
 
 [[case]]
@@ -524,10 +520,31 @@ refused for a reason nothing said.
 script = "type Wide is record F1 : Integer; F2 : Integer; F3 : Integer; F4 : Integer; F5 : Integer; F6 : Integer; F7 : Integer; F8 : Integer; F9 : Integer; F10 : Integer; F11 : Integer; F12 : Integer; F13 : Integer; F14 : Integer; F15 : Integer; F16 : Integer; F17 : Integer; F18 : Integer; F19 : Integer; F20 : Integer; F21 : Integer; F22 : Integer; F23 : Integer; F24 : Integer; F25 : Integer; F26 : Integer; F27 : Integer; F28 : Integer; F29 : Integer; F30 : Integer; F31 : Integer; F32 : Integer; F33 : Integer; F34 : Integer; F35 : Integer; F36 : Integer; F37 : Integer; F38 : Integer; F39 : Integer; F40 : Integer; F41 : Integer; F42 : Integer; F43 : Integer; F44 : Integer; F45 : Integer; F46 : Integer; F47 : Integer; F48 : Integer; F49 : Integer; F50 : Integer; F51 : Integer; F52 : Integer; F53 : Integer; F54 : Integer; F55 : Integer; F56 : Integer; F57 : Integer; F58 : Integer; F59 : Integer; F60 : Integer; F61 : Integer; F62 : Integer; F63 : Integer; F64 : Integer; F65 : Integer; end record;\nprocedure Many (P1 : Integer; P2 : Integer; P3 : Integer; P4 : Integer; P5 : Integer; P6 : Integer; P7 : Integer; P8 : Integer; P9 : Integer; P10 : Integer; P11 : Integer; P12 : Integer; P13 : Integer; P14 : Integer; P15 : Integer; P16 : Integer; P17 : Integer) is begin null; end Many;\nquit (0);"
 exit_status = 0
 diagnostics = [
-  "!error.syntax.unexpected{found=F65,expected=end}!",
   "!error.too_many_at_once{limit=64,what=!list.components!}!",
   "!error.too_many_parameters{name=Many,limit=16}!",
 ]
+
+[[case]]
+id = "limits.a-list-that-does-not-fit-costs-one-diagnostic"
+requirement = """
+What a refusal costs the reader, not just what it says.
+
+A list too long for this build was refused and the loop collecting it was then
+left -- which put the surplus elements back in front of the cursor, where the
+next rule read them and complained about a syntax mistake that was not there.
+The record above used to be told `expected end, found F65` **first** and `at
+most 64 components` second; sixty-five choices in one alternative cost four
+diagnostics for one cause. The first line is the one a reader acts on, and it
+sent them to look for a missing semicolon.
+
+The surplus is parsed and thrown away now, so the parse reaches the real end of
+the construct in step and the count is refused once. Nine arguments to a pragma
+is the shortest way to write it: eight fit, and the ninth used to cost
+`expected ), found 9` as well.
+"""
+script = "pragma Priority (1, 2, 3, 4, 5, 6, 7, 8, 9);\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.too_many_at_once{limit=8,what=!list.arguments!}!"]
 
 [[case]]
 id = "types.an-array-bound-must-be-known-before-it-runs"

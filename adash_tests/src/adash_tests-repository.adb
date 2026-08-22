@@ -43,6 +43,8 @@ package body Adash_Tests.Repository is
    Key_Escape_Sequence      : constant String := "tooling.check.escape_sequence";
    Key_Silent_Truncation    : constant String :=
      "tooling.check.silent_truncation";
+   Key_Surplus_Left_Behind  : constant String :=
+     "tooling.check.surplus_left_behind";
    Key_Pin_Not_Cloned       : constant String :=
      "tooling.check.pin_not_cloned";
    Key_Identifier_As_Text   : constant String :=
@@ -686,6 +688,91 @@ package body Adash_Tests.Repository is
          end;
       end loop;
    end Check_No_Silent_Truncation;
+
+   ------------------------------------
+   -- Check_Surplus_Is_Not_Left_Behind --
+   ------------------------------------
+
+   --  Refusing a list for being too long is only half of it. The loop that
+   --  was collecting it must go on parsing the surplus and throwing it away,
+   --  because elements left in front of the cursor are read by whatever rule
+   --  comes next -- which then reports a syntax mistake that is not there. A
+   --  record of sixty-five components was told `expected end, found F65`
+   --  first and the truth second; sixty-five choices cost four diagnostics
+   --  for one cause. `Refuse_Surplus` is the shape that does not, and this
+   --  refuses the shape that did: `Too_Many` followed by leaving the loop.
+   --
+   --  Except where the loop is copying nodes that are already parsed -- one
+   --  running over an integer range of children. Nothing is left in the token
+   --  stream there, so there is nothing for the next rule to trip over.
+   procedure Check_Surplus_Is_Not_Left_Behind
+     (Root : String; Into : in out Report);
+
+   procedure Check_Surplus_Is_Not_Left_Behind
+     (Root : String; Into : in out Report)
+   is
+      Where : constant String :=
+        Join (Root, "src/library/adash-language-parser.adb");
+
+      Content : constant String := Read_If_Present (Where);
+
+      --  Read forwards, holding two things: what kind of loop we are in, and
+      --  whether a `Too_Many` was called in the last few lines.
+      Copying : Boolean := False;
+      Ahead   : Natural := 0;
+      Told_In : Boolean := False;
+
+      From : Positive := Content'First;
+   begin
+      Into.Checks_Run := Into.Checks_Run + 1;
+
+      while From <= Content'Last loop
+         declare
+            Ends : Natural := From;
+         begin
+            while Ends <= Content'Last
+              and then Content (Ends) /= Ada.Characters.Latin_1.LF
+            loop
+               Ends := Ends + 1;
+            end loop;
+
+            declare
+               One  : constant String := Content (From .. Ends - 1);
+               Bare : constant String :=
+                 Ada.Strings.Fixed.Trim (One, Ada.Strings.Both);
+            begin
+               if Project_Tools.Text.Contains (One, "loop") then
+                  --  A loop over an integer range is one copying nodes that
+                  --  are already parsed. Spelt in two pieces because a
+                  --  repository check may not hold a sentence.
+                  Copying :=
+                    Project_Tools.Text.Contains (One, "for")
+                    and then Project_Tools.Text.Contains (One, "1 ..");
+               end if;
+
+               if Project_Tools.Text.Contains (One, "Too_Many (")
+                 and then not Project_Tools.Text.Contains (One, "procedure ")
+               then
+                  --  A wrapped call takes up to three lines before its exit.
+                  Ahead   := 3;
+                  Told_In := Copying;
+               elsif Ahead > 0 then
+                  Ahead := Ahead - 1;
+               end if;
+
+               if Bare = "exit;" and then Ahead > 0 and then not Told_In then
+                  Add (Into, Key_Surplus_Left_Behind,
+                       [1 => Msg.Named
+                               ("path",
+                                Ada.Directories.Simple_Name (Where))]);
+                  Ahead := 0;
+               end if;
+            end;
+
+            From := Ends + 1;
+         end;
+      end loop;
+   end Check_Surplus_Is_Not_Left_Behind;
 
    -------------------------------
    -- Check_No_Terminal_Escapes --
@@ -2323,6 +2410,7 @@ package body Adash_Tests.Repository is
       Check_Message_Catalog (Root, Into);
       Check_No_Terminal_Escapes (Root, Into);
       Check_No_Silent_Truncation (Root, Into);
+      Check_Surplus_Is_Not_Left_Behind (Root, Into);
       Check_CI_Clones_Pins (Root, Into);
       Check_No_Identifiers_As_Text (Root, Into);
       Check_No_Prose_As_Text (Root, Into);

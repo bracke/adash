@@ -293,6 +293,17 @@ package body Adash.Language.Parser is
       procedure Too_Many
         (What : Adash.Messages.Message_Id; Limit : Natural);
 
+      --  Refuse a list longer than this build carries -- once. The caller
+      --  goes on parsing the surplus and throwing it away, rather than
+      --  leaving the loop: elements left in front of the cursor are read by
+      --  whatever rule comes next, which then names a syntax mistake that is
+      --  not there. A record with sixty-five components used to be told
+      --  "expected end, found F65" first and the truth second.
+      procedure Refuse_Surplus
+        (What  : Adash.Messages.Message_Id;
+         Limit : Natural;
+         Told  : in out Boolean);
+
       procedure Too_Many
         (What : Adash.Messages.Message_Id; Limit : Natural) is
       begin
@@ -324,6 +335,17 @@ package body Adash.Language.Parser is
             null;
          end;
       end Too_Many;
+
+      procedure Refuse_Surplus
+        (What  : Adash.Messages.Message_Id;
+         Limit : Natural;
+         Told  : in out Boolean) is
+      begin
+         if not Told then
+            Too_Many (What, Limit);
+            Told := True;
+         end if;
+      end Refuse_Surplus;
 
       --  Skip to something that reliably starts a new construct. Reporting one
       --  problem per construct rather than one per token is what keeps a
@@ -527,12 +549,14 @@ package body Adash.Language.Parser is
                            Arguments : S.Node_Id;
                            Collected : S.Node_List (1 .. 64);
                            Count     : Natural := 0;
+                           Told_Of_Arguments : Boolean := False;
                         begin
                            if not Is_Symbol (T.Delim_Right_Paren) then
                               loop
                                  if Count = Collected'Last then
-                                    Too_Many (Adash.Messages.Msg_List_Arguments, Collected'Last);
-                                    exit;
+                                    Refuse_Surplus
+                                      (Adash.Messages.Msg_List_Arguments, Collected'Last, Told_Of_Arguments);
+                                    Count := Count - 1;
                                  end if;
 
                                  Count := Count + 1;
@@ -672,6 +696,7 @@ package body Adash.Language.Parser is
                   declare
                      Collected : S.Node_List (1 .. 256);
                      Count     : Natural := 0;
+                     Told_Of_Values : Boolean := False;
                      Aggregate : Boolean := False;
                   begin
                      --  `(X)` groups; `(X, Y)` and `(A => X)` build a value.
@@ -694,8 +719,10 @@ package body Adash.Language.Parser is
 
                      loop
                         if Count = Collected'Last then
-                           Too_Many (Adash.Messages.Msg_List_Values, Collected'Last);
-                           exit;
+                           Refuse_Surplus
+                             (Adash.Messages.Msg_List_Values, Collected'Last,
+                              Told_Of_Values);
+                           Count := Count - 1;
                         end if;
 
                         Count := Count + 1;
@@ -1400,6 +1427,7 @@ package body Adash.Language.Parser is
                Subject      : constant S.Node_Id := Parse_Expression_Rule;
                Alternatives : S.Node_List (1 .. 256);
                Count        : Natural := 0;
+               Told_Of_Alternatives : Boolean := False;
             begin
                if not Expect_Word (T.Word_Is) then
                   Recover;
@@ -1408,9 +1436,9 @@ package body Adash.Language.Parser is
 
                while Is_Word (T.Word_When) loop
                   if Count = Alternatives'Last then
-                     Too_Many (Adash.Messages.Msg_List_Alternatives,
-                               Alternatives'Last);
-                     exit;
+                     Refuse_Surplus
+                       (Adash.Messages.Msg_List_Alternatives, Alternatives'Last, Told_Of_Alternatives);
+                     Count := Count - 1;
                   end if;
 
                   Advance;
@@ -1419,12 +1447,13 @@ package body Adash.Language.Parser is
                      Opened  : constant Adash.Source.Span := Just_Consumed;
                      Choices : S.Node_List (1 .. 64);
                      Chosen  : Natural := 0;
+                     Told_Of_Choices : Boolean := False;
                   begin
                      loop
                         if Chosen = Choices'Last then
-                           Too_Many (Adash.Messages.Msg_List_Choices,
-                                     Choices'Last);
-                           exit;
+                           Refuse_Surplus
+                             (Adash.Messages.Msg_List_Choices, Choices'Last, Told_Of_Choices);
+                           Chosen := Chosen - 1;
                         end if;
 
                         Chosen := Chosen + 1;
@@ -1996,11 +2025,13 @@ package body Adash.Language.Parser is
             declare
                Names : S.Node_List (1 .. 16);
                Count : Natural := 0;
+               Told_Of_Names : Boolean := False;
             begin
                loop
                   if Count = Names'Last then
-                     Too_Many (Adash.Messages.Msg_List_Names, Names'Last);
-                     exit;
+                     Refuse_Surplus
+                       (Adash.Messages.Msg_List_Names, Names'Last, Told_Of_Names);
+                     Count := Count - 1;
                   end if;
 
                   Count := Count + 1;
@@ -2048,6 +2079,7 @@ package body Adash.Language.Parser is
                Named     : S.Node_Id;
                Collected : S.Node_List (1 .. 8);
                Count     : Natural := 0;
+               Told_Of_Arguments : Boolean := False;
             begin
                if T.Kind (Current) /= T.Token_Identifier then
                   Complain (Adash.Messages.Msg_Expected_Subprogram_Name);
@@ -2068,8 +2100,9 @@ package body Adash.Language.Parser is
                   --  language already writes one.
                   loop
                      if Count = Collected'Last then
-                        Too_Many (Adash.Messages.Msg_List_Arguments, Collected'Last);
-                        exit;
+                        Refuse_Surplus
+                          (Adash.Messages.Msg_List_Arguments, Collected'Last, Told_Of_Arguments);
+                        Count := Count - 1;
                      end if;
 
                      Count := Count + 1;
@@ -2194,6 +2227,7 @@ package body Adash.Language.Parser is
                declare
                   Alternatives : S.Node_List (1 .. 32);
                   Count        : Natural := 0;
+                  Told_Of_Alternatives : Boolean := False;
                   Otherwise    : S.Node_Id := S.No_Node;
                begin
                   loop
@@ -2223,8 +2257,9 @@ package body Adash.Language.Parser is
                         Rest  := Parse_Sequence (T.Word_End);
 
                         if Count = Alternatives'Last then
-                           Too_Many (Adash.Messages.Msg_List_Alternatives, Alternatives'Last);
-                           exit;
+                           Refuse_Surplus
+                             (Adash.Messages.Msg_List_Alternatives, Alternatives'Last, Told_Of_Alternatives);
+                           Count := Count - 1;
                         end if;
 
                         Count := Count + 1;
@@ -2810,6 +2845,7 @@ package body Adash.Language.Parser is
             declare
                Formals : S.Node_List (1 .. 16);
                Count   : Natural := 0;
+               Told_Of_Parameters : Boolean := False;
             begin
                --  `type T is private;` and nothing else. A formal value or a
                --  formal subprogram would each need a rule of its own about
@@ -2850,8 +2886,9 @@ package body Adash.Language.Parser is
                      end if;
 
                      if Count = Formals'Last then
-                        Too_Many (Adash.Messages.Msg_List_Parameters, Formals'Last);
-                        exit;
+                        Refuse_Surplus
+                          (Adash.Messages.Msg_List_Parameters, Formals'Last, Told_Of_Parameters);
+                        Count := Count - 1;
                      end if;
 
                      Count := Count + 1;
@@ -3001,6 +3038,7 @@ package body Adash.Language.Parser is
                Name     : S.Node_Id;
                Literals : S.Node_List (1 .. 256);
                Count    : Natural := 0;
+               Told_Of_Values : Boolean := False;
             begin
                if T.Kind (Current) /= T.Token_Identifier then
                   Complain (Adash.Messages.Msg_Expected_Type_Name);
@@ -3025,11 +3063,13 @@ package body Adash.Language.Parser is
                   declare
                      Fields : S.Node_List (1 .. 64);
                      Count  : Natural := 0;
+                     Told_Of_Components : Boolean := False;
                   begin
                      while not Is_Word (T.Word_End) and then not At_End loop
                         if Count = Fields'Last then
-                           Too_Many (Adash.Messages.Msg_List_Components, Fields'Last);
-                           exit;
+                           Refuse_Surplus
+                             (Adash.Messages.Msg_List_Components, Fields'Last, Told_Of_Components);
+                           Count := Count - 1;
                         end if;
 
                         if T.Kind (Current) /= T.Token_Identifier then
@@ -3152,8 +3192,10 @@ package body Adash.Language.Parser is
                   end if;
 
                   if Count = Literals'Last then
-                     Too_Many (Adash.Messages.Msg_List_Values, Literals'Last);
-                     exit;
+                     Refuse_Surplus
+                       (Adash.Messages.Msg_List_Values, Literals'Last,
+                        Told_Of_Values);
+                     Count := Count - 1;
                   end if;
 
                   Count := Count + 1;
@@ -3274,12 +3316,14 @@ package body Adash.Language.Parser is
                   declare
                      Collected : S.Node_List (1 .. 64);
                      Count     : Natural := 0;
+                     Told_Of_Arguments : Boolean := False;
                   begin
                      if not Is_Symbol (T.Delim_Right_Paren) then
                         loop
                            if Count = Collected'Last then
-                              Too_Many (Adash.Messages.Msg_List_Arguments, Collected'Last);
-                              exit;
+                              Refuse_Surplus
+                                (Adash.Messages.Msg_List_Arguments, Collected'Last, Told_Of_Arguments);
+                              Count := Count - 1;
                            end if;
 
                            Count := Count + 1;
@@ -3529,11 +3573,13 @@ package body Adash.Language.Parser is
          Start     : constant Adash.Source.Span := Here;
          Collected : S.Node_List (1 .. 64);
          Count     : Natural := 0;
+         Told_Of_Handlers : Boolean := False;
       begin
          while Is_Word (T.Word_When) loop
             if Count = Collected'Last then
-               Too_Many (Adash.Messages.Msg_List_Handlers, Collected'Last);
-               exit;
+               Refuse_Surplus
+                 (Adash.Messages.Msg_List_Handlers, Collected'Last, Told_Of_Handlers);
+               Count := Count - 1;
             end if;
 
             Advance;
@@ -3542,11 +3588,13 @@ package body Adash.Language.Parser is
                Opened  : constant Adash.Source.Span := Just_Consumed;
                Named   : S.Node_List (1 .. 32);
                Chosen  : Natural := 0;
+               Told_Of_Names : Boolean := False;
             begin
                loop
                   if Chosen = Named'Last then
-                     Too_Many (Adash.Messages.Msg_List_Names, Named'Last);
-                     exit;
+                     Refuse_Surplus
+                       (Adash.Messages.Msg_List_Names, Named'Last, Told_Of_Names);
+                     Chosen := Chosen - 1;
                   end if;
 
                   Chosen := Chosen + 1;
@@ -3711,6 +3759,7 @@ package body Adash.Language.Parser is
                   --  nodes are built afterwards.
                   Names  : S.Node_List (1 .. 16);
                   Named  : Natural := 0;
+                  Told_Of_Names : Boolean := False;
                   Of_Type : S.Node_Id;
 
                   --  What the parameters default to, when one was written.
@@ -3732,8 +3781,9 @@ package body Adash.Language.Parser is
                      end if;
 
                      if Named = Names'Last then
-                        Too_Many (Adash.Messages.Msg_List_Names, Names'Last);
-                        exit;
+                        Refuse_Surplus
+                          (Adash.Messages.Msg_List_Names, Names'Last, Told_Of_Names);
+                        Named := Named - 1;
                      end if;
 
                      Named := Named + 1;
@@ -3985,6 +4035,7 @@ package body Adash.Language.Parser is
                Subject      : constant S.Node_Id := Parse_Expression_Rule;
                Alternatives : S.Node_List (1 .. 256);
                Count        : Natural := 0;
+               Told_Of_Alternatives : Boolean := False;
             begin
                if not Expect_Word (T.Word_Is) then
                   Recover;
@@ -3993,9 +4044,9 @@ package body Adash.Language.Parser is
 
                while Is_Word (T.Word_When) loop
                   if Count = Alternatives'Last then
-                     Too_Many (Adash.Messages.Msg_List_Alternatives,
-                               Alternatives'Last);
-                     exit;
+                     Refuse_Surplus
+                       (Adash.Messages.Msg_List_Alternatives, Alternatives'Last, Told_Of_Alternatives);
+                     Count := Count - 1;
                   end if;
 
                   Advance;
@@ -4004,12 +4055,13 @@ package body Adash.Language.Parser is
                      Opened  : constant Adash.Source.Span := Just_Consumed;
                      Choices : S.Node_List (1 .. 64);
                      Chosen  : Natural := 0;
+                     Told_Of_Choices : Boolean := False;
                   begin
                      loop
                         if Chosen = Choices'Last then
-                           Too_Many (Adash.Messages.Msg_List_Choices,
-                                     Choices'Last);
-                           exit;
+                           Refuse_Surplus
+                             (Adash.Messages.Msg_List_Choices, Choices'Last, Told_Of_Choices);
+                           Chosen := Chosen - 1;
                         end if;
 
                         Chosen := Chosen + 1;
@@ -4134,6 +4186,7 @@ package body Adash.Language.Parser is
          From  : S.Node_Id;
          Given : S.Node_List (1 .. 16);
          Count : Natural := 0;
+         Told_Of_Arguments : Boolean := False;
       begin
          Advance;  --  procedure or function
 
@@ -4171,8 +4224,9 @@ package body Adash.Language.Parser is
 
             loop
                if Count = Given'Last then
-                  Too_Many (Adash.Messages.Msg_List_Arguments, Given'Last);
-                  exit;
+                  Refuse_Surplus
+                    (Adash.Messages.Msg_List_Arguments, Given'Last, Told_Of_Arguments);
+                  Count := Count - 1;
                end if;
 
                Count := Count + 1;
@@ -4252,6 +4306,7 @@ package body Adash.Language.Parser is
          Start     : constant Adash.Source.Span := Here;
          Collected : S.Node_List (1 .. 512);
          Count     : Natural := 0;
+         Told_Of_Statements : Boolean := False;
       begin
          while not At_End loop
             exit when Is_Word (Stop_Words)
@@ -4278,8 +4333,9 @@ package body Adash.Language.Parser is
               or else Is_Word (T.Word_When)
               or else Is_Word (T.Word_Exception);
             if Count = Collected'Last then
-               Too_Many (Adash.Messages.Msg_List_Statements, Collected'Last);
-               exit;
+               Refuse_Surplus
+                 (Adash.Messages.Msg_List_Statements, Collected'Last, Told_Of_Statements);
+               Count := Count - 1;
             end if;
 
             declare

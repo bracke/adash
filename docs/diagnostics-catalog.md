@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 644 messages in 23 groups.
+There are 645 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -737,6 +737,7 @@ quoted into `config.syntax`, which supplies the file and the position.
 | `tooling.check.identifier_as_text` | {path} passes an identifier where a message argument must be text: {text} |
 | `tooling.check.pin_not_cloned` | the CI workflow does not check out {name}, which the manifests pin; a pin Alire cannot follow stops the build before anything is checked |
 | `tooling.check.silent_truncation` | {path} stops collecting at the end of a fixed-size list without saying so; a construct that does not fit is refused where it is written |
+| `tooling.check.surplus_left_behind` | {path} refuses a list for being too long and then leaves the loop, so what is left of it is read by the next rule and reported as a mistake that is not there; the surplus is parsed and thrown away instead |
 | `tooling.check.escape_sequence` | {path} contains a literal terminal escape sequence; styling belongs to terminal_styles by way of Adash.Terminal |
 | `tooling.check.grammar_missing` | the grammar reference has no production naming {name}, which the parser can build |
 | `tooling.check.grammar_unknown` | the grammar reference names {name}, which the syntax has no such node for |
