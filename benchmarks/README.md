@@ -78,6 +78,25 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**What a session actually pays for carrying, measured 2026-08-22 — and it is
+not mostly analysis.** `analyse a line beside 128 declarations` is 14.5 ms, and
+the *submission* it belongs to costs **35 ms**: measured by differencing two
+sessions, one with 128 declarations and one further line, one with 128 and
+twenty-one, so the figure is the marginal cost of a submission with 128 already
+carried rather than a whole session's.
+
+The other 20 ms is the carried text being lexed, parsed, lowered and run again,
+because a session replays what it holds in front of every submission. Which
+means the redesign this benchmark was written for — keeping an analysed symbol
+table across submissions — removes **14.5 of 35 ms**, not all of it. Removing
+the rest means not replaying the text at all, and that needs the machine's
+variables to persist too, not only the analyser's names.
+
+One thing the replay does *not* do, worth knowing before touching it: a
+declaration's initial value does not run again. `Z : Integer := Noisy;` prints
+once however many submissions follow it — what is replayed is a declaration and
+an assignment of the value it ended with.
+
 **Where the rest of carrying a session goes, and three things that did not
 help (2026-08-22).** After the scope-lookup fix below, a line beside 128
 carried declarations costs about 14.5 ms, and the next attempt should start
