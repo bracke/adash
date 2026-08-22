@@ -78,6 +78,43 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**Where the rest of carrying a session goes, and three things that did not
+help (2026-08-22).** After the scope-lookup fix below, a line beside 128
+carried declarations costs about 14.5 ms, and the next attempt should start
+from these rather than from where the last one ended:
+
+  * **It is the declaring, not the analysing.** 128 declarations cost 13.9 ms;
+    128 *assignments* to an already-declared variable, which resolve a name and
+    analyse an expression exactly as a declaration does, cost 2.7 ms.
+  * **Declaring the name is about 4 ms of that** -- `Chain.Declare_Symbol`,
+    timed with clocks put in by hand. The other 10 ms is the rest of the
+    declaration branch: the type, the value, and the name-building around them.
+
+Three targeted changes were tried against those numbers and **none of them
+moved the total**, measured back to back on one machine under one load:
+
+  * noting the symbol just built instead of looking it up again in the chain
+    (a full scope walk and a whole-symbol copy per declaration);
+  * growing the annotation table in one step instead of appending to it;
+  * asking whether a scope already holds a name before fetching what it holds,
+    so the duplicate check does not copy a symbol it will not use.
+
+The second and third *look* like the fix that worked before, which is why they
+were tried and why they are recorded: the vector was already growing
+geometrically, and the copy the third removes is real but does not show. The
+first is a plain redundancy and is worth doing for clarity, not for time.
+
+Between them they say the remaining cost is **distributed rather than
+concentrated**, which is the argument for the redesign this has been waiting
+for -- keeping an analysed symbol table across submissions rather than
+re-analysing carried text -- because that removes all 14.5 ms rather than a
+piece of it.
+
+A caution for whoever measures next: timers put inside the region they measure
+inflate it. `Declare_Symbol` appeared to drop from 31 us to 15 us per call with
+the third change, and the end-to-end figure did not move at all, which is what
+says the isolated reading was measuring its own clock calls.
+
 **Carrying a session got about three times cheaper (2026-08-22).** Analysing a
 line beside 128 carried declarations measured 51.6 ms and now measures 14.9 ms
 (medians, back to back on one machine under one load, which is the only way to
