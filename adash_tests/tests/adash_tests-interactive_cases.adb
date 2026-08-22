@@ -2696,6 +2696,93 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Ended, "the shell did not end");
    end The_Default_Colours_At_A_Terminal;
 
+   ------------------------------------------
+   -- A_Trace_Arrives_Before_Its_Command --
+   ------------------------------------------
+
+   --  `trace.commands` announces a command *before* it runs.
+   --
+   --  Which is what it always claimed, and for a script it did the opposite: a
+   --  note belonged to its submission's report, a report is written when the
+   --  submission ends, and a script file is one submission -- so the whole
+   --  trace arrived after everything the script had printed, and a script that
+   --  never finished printed none of it.
+   --
+   --  At a terminal, because that is the only place this can be asked. The two
+   --  streams are one there, so their order is a fact; the conformance runner
+   --  captures standard output and standard error separately and can say what
+   --  is in each but never which came first. Nothing pinned the ordering when
+   --  it was fixed, and this is that.
+   --
+   --  Two `settings` commands rather than a program: what they print is the
+   --  shell's own and needs no `/bin` on any host. The first turns tracing on
+   --  and is not traced, because it was not on when it ran.
+   procedure A_Trace_Arrives_Before_Its_Command
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Trace_Arrives_Before_Its_Command
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Room : constant String :=
+        Hostkit.Fs.Create_Temporary_Directory ("adash-trace-test");
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+      Told    : Hostkit.String_Vectors.Vector;
+   begin
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String
+           ("XDG_CONFIG_HOME=" & Room));
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String ("APPDATA=" & Room));
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String ("HOME=" & Room));
+
+      declare
+         Script : constant String := Hostkit.Fs.Join (Room, "probe.adash");
+         File   : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Script);
+         Ada.Text_IO.Put_Line
+           (File, "settings (""trace.commands"", ""true"");");
+         Ada.Text_IO.Put_Line
+           (File, "settings (""history.enabled"", ""true"");");
+         Ada.Text_IO.Close (File);
+
+         if not Start_On_A_Terminal (Session, Script => Script, Told => Told)
+         then
+            return;
+         end if;
+      end;
+
+      --  The answer of the second command, which is the last thing written.
+      Assert (Waited_For (Session, "history.enabled = true"),
+              "the script never ran the second command: " & Shown (Session));
+
+      declare
+         Whole : constant String :=
+           Ada.Strings.Unbounded.To_String (Session.Seen);
+
+         Traced : constant Natural :=
+           Ada.Strings.Fixed.Index (Whole, "+ settings");
+         Answered : constant Natural :=
+           Ada.Strings.Fixed.Index (Whole, "history.enabled = true");
+      begin
+         Assert (Traced > 0,
+                 "no command was announced although tracing was on: "
+                 & Shown (Session));
+
+         Assert (Traced < Answered,
+                 "the command was announced after it had answered, which is "
+                 & "the whole of what a trace is for: " & Shown (Session));
+      end;
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end");
+   end A_Trace_Arrives_Before_Its_Command;
+
    procedure Colour_Reaches_A_Script_At_A_Terminal
      (T : in out AUnit.Test_Cases.Test_Case'Class)
    is
@@ -4330,6 +4417,9 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine
         (T, Backspace_Removes_A_Character_Through_A_Terminal'Access,
          "backspace removes a character through a terminal");
+      Register_Routine
+        (T, A_Trace_Arrives_Before_Its_Command'Access,
+         "a trace announces a command before it runs");
       Register_Routine
         (T, The_Default_Colours_At_A_Terminal'Access,
          "the default colour policy colours at a terminal");
