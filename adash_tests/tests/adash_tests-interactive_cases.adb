@@ -1301,6 +1301,24 @@ package body Adash_Tests.Interactive_Cases is
 
    function Times_Seen (Item : Terminal_Session; Marker : String) return Natural;
 
+   --  How many times a diagnostic started being red.
+   --
+   --  In both forms a host may deliver it in. The shell writes one sequence --
+   --  `Role_Error` is "31;1" in a single place with no host in it -- and that
+   --  is what arrives through a Linux or macOS pseudo-terminal. Windows has no
+   --  such thing: ConPTY renders what it is given onto a screen and re-emits
+   --  it, so the same write arrives as `ESC[31m ESC[1m`. Counting only the
+   --  combined form measured the console rather than the shell.
+   function Reds (Item : Terminal_Session) return Natural;
+
+   --  What arrived, with the escapes made visible, for a failure message.
+   --
+   --  An assertion that says only "not coloured" cannot say whether the shell
+   --  wrote no escape, wrote a different one, or never ran the line that was
+   --  meant to turn colour on. Reading that difference off a host nobody here
+   --  can reach is what these cases have needed twice.
+   function Shown (Item : Terminal_Session) return String;
+
    --  End the session: ask the shell to quit, wait for it, and close the
    --  terminal. A child still running when a test ends is a test that leaves
    --  work behind, so this asks the host to end one that would not go.
@@ -1667,6 +1685,36 @@ package body Adash_Tests.Interactive_Cases is
 
       return Count;
    end Times_Seen;
+
+   function Reds (Item : Terminal_Session) return Natural is
+      Escape : constant String := [1 => Character'Val (27)];
+   begin
+      return Times_Seen (Item, Escape & "[31;1m")
+        + Times_Seen (Item, Escape & "[31m");
+   end Reds;
+
+   function Shown (Item : Terminal_Session) return String is
+      Text  : constant String :=
+        Ada.Strings.Unbounded.To_String (Item.Seen);
+      From  : constant Positive :=
+        (if Text'Length > 400 then Text'Last - 399 else Text'First);
+      Built : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      for Index in From .. Text'Last loop
+         case Text (Index) is
+            when Character'Val (27) =>
+               Ada.Strings.Unbounded.Append (Built, "<ESC>");
+            when Character'Val (13) =>
+               Ada.Strings.Unbounded.Append (Built, "<CR>");
+            when Character'Val (10) =>
+               Ada.Strings.Unbounded.Append (Built, "<LF>");
+            when others =>
+               Ada.Strings.Unbounded.Append (Built, Text (Index));
+         end case;
+      end loop;
+
+      return Ada.Strings.Unbounded.To_String (Built);
+   end Shown;
 
    procedure Finish (Item : in out Terminal_Session; Ended : out Boolean) is
       use type Hostkit.Spawn.Wait_State;
@@ -2508,56 +2556,8 @@ package body Adash_Tests.Interactive_Cases is
    is
       pragma Unreferenced (T);
 
-      Escape : constant String := [1 => Character'Val (27)];
-
-      --  Red, in both the forms a host may deliver it in.
-      --
-      --  The shell writes one sequence -- `Role_Error` is "31;1" in a single
-      --  place with no host in it -- and that is what arrives through a
-      --  Linux or macOS pseudo-terminal. Windows has no such thing: ConPTY
-      --  renders what it is given onto a screen and re-emits it, so the same
-      --  write arrives as `ESC[31m ESC[1m`, reset with `ESC[m`. Counting only
-      --  the combined form measured the console, not the shell.
-      Red      : constant String := Escape & "[31;1m";
-      Red_Apart : constant String := Escape & "[31m";
-
       Session : Terminal_Session;
       Ended   : Boolean;
-
-      --  Both forms, never both at once, so this is a count of red starts.
-      function Reds (Item : Terminal_Session) return Natural is
-        (Times_Seen (Item, Red) + Times_Seen (Item, Red_Apart));
-
-      --  What arrived, with the escapes made visible.
-      --
-      --  This failed on macOS and Windows and passes on Linux, and no reading
-      --  of the three platform bodies explains it: an assertion that says only
-      --  "not coloured" cannot say whether the shell wrote no escape, wrote a
-      --  different one, or never ran the line that turned colour on.
-      function Shown (Item : Terminal_Session) return String;
-
-      function Shown (Item : Terminal_Session) return String is
-         Text  : constant String :=
-           Ada.Strings.Unbounded.To_String (Item.Seen);
-         From  : constant Positive :=
-           (if Text'Length > 400 then Text'Last - 399 else Text'First);
-         Built : Ada.Strings.Unbounded.Unbounded_String;
-      begin
-         for Index in From .. Text'Last loop
-            case Text (Index) is
-               when Character'Val (27) =>
-                  Ada.Strings.Unbounded.Append (Built, "<ESC>");
-               when Character'Val (13) =>
-                  Ada.Strings.Unbounded.Append (Built, "<CR>");
-               when Character'Val (10) =>
-                  Ada.Strings.Unbounded.Append (Built, "<LF>");
-               when others =>
-                  Ada.Strings.Unbounded.Append (Built, Text (Index));
-            end case;
-         end loop;
-
-         return Ada.Strings.Unbounded.To_String (Built);
-      end Shown;
    begin
       if not Start_On_A_Terminal (Session) then
          return;
@@ -2633,6 +2633,68 @@ package body Adash_Tests.Interactive_Cases is
       Finish (Session, Ended);
       Assert (Ended, "the shell did not end");
    end The_Colour_Setting_Takes_Effect_At_Once;
+
+   ------------------------------------------
+   -- The_Default_Colours_At_A_Terminal --
+   ------------------------------------------
+
+   --  `color = auto`, which is the default, colours at a terminal.
+   --
+   --  Nothing had ever asserted it. One case says what `always` does and
+   --  another what `never` does, and the default -- the one nearly every
+   --  session runs under -- was covered by neither. `auto` is the only policy
+   --  with a question in it: it asks the host whether the destination is a
+   --  terminal, and that answer comes from a body per host.
+   --
+   --  The gap hid behind a wrong answer for two commits. A test of the
+   --  *setting* failed on macOS and Windows, and I read that as evidence that
+   --  `auto` does not colour there; it was the test waiting for the echo of
+   --  what it had typed and asking its question before the shell had
+   --  answered. Fixing that took the assertion away and left nothing in its
+   --  place, so the honest state of the question was "nobody knows" -- which
+   --  is what this is for.
+   procedure The_Default_Colours_At_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure The_Default_Colours_At_A_Terminal
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+   begin
+      --  Nothing is typed to set a policy: the session runs on whatever the
+      --  default is, which is the whole subject.
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      Type_Into (Session, "run (""/nonesuch-by-default"");"
+                 & String'(1 => Character'Val (13)));
+
+      --  Waiting for the escape, not for the name: a terminal echoes what is
+      --  typed, so the name is in the stream before the shell has read it.
+      for Attempt in 1 .. 600 loop
+         exit when Reds (Session) > 0;
+
+         declare
+            Ignored : constant Boolean := Drained (Session);
+            pragma Unreferenced (Ignored);
+         begin
+            delay 0.05;
+         end;
+      end loop;
+
+      Assert (Reds (Session) > 0,
+              "a diagnostic was not coloured at a terminal under the default "
+              & "policy, which is `auto` -- so either this host cannot tell a "
+              & "terminal from a pipe, or the default is not what it says. "
+              & "What arrived was: " & Shown (Session));
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end");
+   end The_Default_Colours_At_A_Terminal;
 
    procedure Colour_Reaches_A_Script_At_A_Terminal
      (T : in out AUnit.Test_Cases.Test_Case'Class)
@@ -4268,6 +4330,9 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine
         (T, Backspace_Removes_A_Character_Through_A_Terminal'Access,
          "backspace removes a character through a terminal");
+      Register_Routine
+        (T, The_Default_Colours_At_A_Terminal'Access,
+         "the default colour policy colours at a terminal");
       Register_Routine
         (T, A_Redraw_Does_Not_Walk_The_Cursor'Access,
          "a redraw moves the cursor by a distance, not a cell at a time");
