@@ -2491,6 +2491,37 @@ package body Adash_Tests.Interactive_Cases is
 
       Session : Terminal_Session;
       Ended   : Boolean;
+
+      --  What arrived, with the escapes made visible.
+      --
+      --  This failed on macOS and Windows and passes on Linux, and no reading
+      --  of the three platform bodies explains it: an assertion that says only
+      --  "not coloured" cannot say whether the shell wrote no escape, wrote a
+      --  different one, or never ran the line that turned colour on.
+      function Shown (Item : Terminal_Session) return String;
+
+      function Shown (Item : Terminal_Session) return String is
+         Text  : constant String :=
+           Ada.Strings.Unbounded.To_String (Item.Seen);
+         From  : constant Positive :=
+           (if Text'Length > 400 then Text'Last - 399 else Text'First);
+         Built : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         for Index in From .. Text'Last loop
+            case Text (Index) is
+               when Character'Val (27) =>
+                  Ada.Strings.Unbounded.Append (Built, "<ESC>");
+               when Character'Val (13) =>
+                  Ada.Strings.Unbounded.Append (Built, "<CR>");
+               when Character'Val (10) =>
+                  Ada.Strings.Unbounded.Append (Built, "<LF>");
+               when others =>
+                  Ada.Strings.Unbounded.Append (Built, Text (Index));
+            end case;
+         end loop;
+
+         return Ada.Strings.Unbounded.To_String (Built);
+      end Shown;
    begin
       if not Start_On_A_Terminal (Session) then
          return;
@@ -2510,8 +2541,8 @@ package body Adash_Tests.Interactive_Cases is
       Assert (Waited_For (Session, "nonesuch-before"),
               "the shell never reported the first missing command");
       Assert (Times_Seen (Session, Red) > 0,
-              "a diagnostic was not coloured after being told always, so this "
-              & "test cannot say anything about turning colour off");
+              "a diagnostic was not coloured after being told always. What "
+              & "arrived was: " & Shown (Session));
 
       declare
          Before : constant Natural := Times_Seen (Session, Red);
