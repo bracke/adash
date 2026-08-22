@@ -2496,15 +2496,22 @@ package body Adash_Tests.Interactive_Cases is
          return;
       end if;
 
-      --  Coloured to begin with, so that what follows is about the setting
-      --  rather than about a terminal that was never going to be styled.
+      --  Coloured to begin with, and said so rather than assumed: the first
+      --  version of this test let the default decide, which is `auto` -- and
+      --  `auto` asks the host whether the destination is a terminal. That
+      --  answer was True on Linux and False on macOS and Windows, so the test
+      --  failed there on a question it was not asking. What it is asking is
+      --  whether a change is obeyed by the session that typed it, and saying
+      --  `always` first asks exactly that and nothing else.
+      Type_Into (Session, "settings (""color"", ""always"");"
+                 & String'(1 => Character'Val (13)));
       Type_Into (Session, "run (""/nonesuch-before"");"
                  & String'(1 => Character'Val (13)));
       Assert (Waited_For (Session, "nonesuch-before"),
               "the shell never reported the first missing command");
       Assert (Times_Seen (Session, Red) > 0,
-              "a diagnostic at a terminal was not coloured to begin with, so "
-              & "this test cannot say anything about turning colour off");
+              "a diagnostic was not coloured after being told always, so this "
+              & "test cannot say anything about turning colour off");
 
       declare
          Before : constant Natural := Times_Seen (Session, Red);
