@@ -1,7 +1,7 @@
 # Configuration
 
-Nine settings, held in one TOML file, changed with `settings` and written with
-`save_settings`.
+Thirteen settings, held in one TOML file, changed with `settings` and written
+with `save_settings`.
 
     settings;                              -- list them all
     settings ("color", "never");           -- change one
@@ -10,6 +10,12 @@ Nine settings, held in one TOML file, changed with `settings` and written with
 `settings` takes nothing or two arguments; a query form taking one is not
 written. A value a setting does not accept is refused rather than clamped, and
 the setting keeps what it had.
+
+**A change takes effect in the session it was typed in**, not at the next
+start: the next command is traced, the next prompt is the new one, the next
+failure stops the script, and the next thing written is coloured or not as the
+setting now says. `save_settings` is a separate act, and what it writes is what
+the next session begins with.
 
 ## The settings
 
@@ -26,6 +32,8 @@ the setting keeps what it had.
 | `prompt.failure` | true or false | `true` | `Adash.Interactive.Prompt` |
 | `editing.enabled` | true or false | `true` | `Adash.Interactive.Editing` |
 | `startup.session` | true or false | `true` | `Adash.Scripting.Startup` |
+| `prompt.format` | text of at most 200 characters | *(empty)* | `Adash.Interactive.Prompt` |
+| `stop.on-failure` | true or false | `false` | `Adash.Engine` |
 
 `trace.commands` announces each internal command it runs — what `set -x` is for
 elsewhere. On **standard error** and as a note, so what a script writes is still
