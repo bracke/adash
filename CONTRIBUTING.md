@@ -98,8 +98,8 @@ test that now covers it.
 
 ## Releases
 
-No release has been cut: the version is `0.1.0-dev` and everything a release
-would describe is under *Unreleased* in `CHANGELOG.md`. What a release takes is
+`0.1.0` was released on 2026-08-22; what it contains is under that heading in
+`CHANGELOG.md`, and work since then goes under *Unreleased*. What a release takes is
 in `docs/RELEASE.md` — the gates, in order, and what is deliberately not
 claimed about reproducibility. The version lives in `alire.toml` and is mirrored
 in `repository.toml`; `adash_check` verifies they agree, and no Ada source

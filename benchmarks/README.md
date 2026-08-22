@@ -78,6 +78,27 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**Checked again for 0.1.0 (2026-08-22), and the table stands.** The figures
+above could not be re-taken: this machine was under the `powersave` governor at
+1.40 GHz of 5.13 and carrying a load average of about 4.5 from a virtual
+machine and somebody else's proofs, which is the condition this file already
+says makes rows about 3.4 times larger and comparisons meaningless.
+
+What *can* be measured under those conditions is a comparison, so the build
+before this release's language work was built and measured back to back with
+it, same machine, same load: `parse` 41.3 against 41.1 us, `lex` 52.4 against
+53.4, `analyse` 2273 against 2218 (the mean of three runs). Nothing moved --
+which is the question the release had to answer, because a lookahead was added
+that runs at the start of every statement.
+
+Two readings worth keeping from that. Repeated runs of one binary gave `lex`
+41.0, 53.4 and 54.8 us and `parse` 31.3, 42.8 and 42.5 -- **a third of the
+value, run to run**, on the small rows; `analyse` held to 3%. And a single
+first reading of `analyse` came out at 1242 us, half of what the next three
+runs of the same binary said. One reading on a loaded machine is not a
+measurement, and this one would have been reported as a doubling in speed.
+
+
 **Analysis had nearly doubled, and the cause was not where it looked.** Three
 rows moved together -- analysis 910 to 1620 us, highlighting 12.8 to 18.5,
 completing a command prefix 24.3 to 34.4 -- while lexing, parsing, lowering and

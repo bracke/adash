@@ -1,6 +1,6 @@
 name = "adash"
 description = "A shell whose command language is a defined subset of Ada"
-version = "0.1.0-dev"
+version = "0.1.0"
 
 authors = ["Bent Bracke"]
 maintainers = ["Bent Bracke <bent@bracke.dk>"]

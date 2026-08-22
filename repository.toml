@@ -11,7 +11,7 @@
 # answer different questions, and a release that ships them disagreeing is a
 # release nobody can identify afterwards.
 
-version = "0.1.0-dev"
+version = "0.1.0"
 schema = 1
 
 [project]

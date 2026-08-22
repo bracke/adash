@@ -832,6 +832,31 @@ package body Adash_Tests.Conformance is
 
       On_This_Arch : constant String :=
         Filled (On_This_Os, "{arch}", Adash.Version.Host_Architecture);
+
+      --  `{version}` for the reason `{arch}` exists, one release later: ten
+      --  cases spelt `0.1.0-dev` out, and cutting 0.1.0 failed every one of
+      --  them -- a suite that has to be edited to bump a version is a suite
+      --  that says nothing about the bump.
+      --
+      --  From this program's own library rather than from the shell, which is
+      --  the difference between this and `{profile}`: Alire builds a path
+      --  dependency in whatever profile it likes, so the profile here is not
+      --  the shell's -- but the version is the crate's, and both are built
+      --  from the same crate. A stale binary reporting an older one fails
+      --  here, which is what should happen.
+      At_This_Version : constant String :=
+        Filled (On_This_Arch, "{version}", Adash.Version.Number);
+
+      --  `{prerelease}` is a line rather than a field: the shell prints a
+      --  notice after its version when the number says pre-release, and
+      --  prints nothing there when it does not. Expanded to the notice or to
+      --  nothing, and an expectation that expands to nothing is dropped
+      --  rather than compared -- see `Rooted`. So one case covers both, and
+      --  cutting a release does not edit the suite.
+      Told_If_Early : constant String :=
+        Filled (At_This_Version, "{prerelease}",
+                (if Adash.Version.Is_Prerelease
+                 then "!version.prerelease_notice!" else ""));
    begin
       --  `{profile}` for the same reason, and it was missing for a reason
       --  worth writing down: three cases spelled `profile=development` out,
@@ -858,10 +883,10 @@ package body Adash_Tests.Conformance is
          --  a case asserting something odd rather than as a harness that could
          --  not do its job; `{profile}` in a failure message says which it is.
          if Named = "" then
-            return On_This_Arch;
+            return Told_If_Early;
          end if;
 
-         return Filled (On_This_Arch, "{profile}", Named);
+         return Filled (Told_If_Early, "{profile}", Named);
       end;
    end Expanded;
 
@@ -873,9 +898,19 @@ package body Adash_Tests.Conformance is
       Result : Hostkit.String_Vectors.Vector;
    begin
       for Index in 1 .. Natural (Items.Length) loop
-         Result.Append
-           (To_Unbounded_String
-              (Expanded (To_String (Items.Element (Index)), Root, Files)));
+         declare
+            Raw  : constant String := To_String (Items.Element (Index));
+            Line : constant String := Expanded (Raw, Root, Files);
+         begin
+            --  A marker standing for a whole line -- `{prerelease}` -- is
+            --  empty on a build that does not print it, and an empty
+            --  expectation would be compared against the next real line and
+            --  fail. Dropped instead. A case that means an empty line writes
+            --  one, and an empty raw entry is left alone.
+            if Line /= "" or else Raw = "" then
+               Result.Append (To_Unbounded_String (Line));
+            end if;
+         end;
       end loop;
 
       return Result;
@@ -1501,7 +1536,17 @@ package body Adash_Tests.Conformance is
                               Because ("tooling.conformance.no_binary"));
                         else
                            Split (To_String (Ran.Output), Actual_Output);
-                           Split (To_String (Wanted), Wanted_Output);
+
+                           --  Expanded, for the reason a case's expectation
+                           --  is: four examples run `version;`, and spelling
+                           --  the number into a file that a release has to
+                           --  edit makes the release the thing that proves
+                           --  the file, rather than the file proving the
+                           --  release. Only the markers this harness knows
+                           --  are replaced, so an example demonstrating
+                           --  interpolation keeps its own braces.
+                           Split (Expanded (To_String (Wanted), Root, Room),
+                                  Wanted_Output);
 
                            declare
                               Problem : constant String :=

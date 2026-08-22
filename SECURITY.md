@@ -11,8 +11,12 @@ data does not.
 
 ## Supported versions
 
-None yet. Adash is at `0.1.0-dev` and has made no release, so there is nothing
-in anyone's hands to support. This section is filled in at the first release.
+`0.1.0`, the first release, made on 2026-08-22. It is the only version there
+is, so it is the one that gets fixes; when there is a second, this section says
+how long the first keeps getting them.
+
+A release of Adash is reproducible together with the sibling commits it was
+built against -- every dependency is a path pin -- and the tag records them.
 
 ## A shell's risk model
 

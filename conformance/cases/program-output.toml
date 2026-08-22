@@ -130,7 +130,7 @@ script = "put_line (\"first\"); version; put_line (\"third\");"
 exit_status = 0
 output = [
   "first",
-  "!line.version{name=adash,version=0.1.0-dev}!",
+  "!line.version{name=adash,version={version}}!",
   "third",
 ]
 diagnostics = []
@@ -142,7 +142,7 @@ script = "put_line (\"kept\"); version; quit (3); put_line (\"never\");"
 exit_status = 3
 output = [
   "kept",
-  "!line.version{name=adash,version=0.1.0-dev}!",
+  "!line.version{name=adash,version={version}}!",
 ]
 diagnostics = []
 
@@ -801,9 +801,9 @@ output rather than something only a terminal sees.
 script = "run (\"{shell}\", \"--version\");\nquit (Status);"
 exit_status = 0
 output = [
-  "!version.line{version=0.1.0-dev}!",
+  "!version.line{version={version}}!",
   "!version.build{profile={profile},os={os},arch={arch}}!",
-  "!version.prerelease_notice!",
+  "{prerelease}",
 ]
 diagnostics = []
 

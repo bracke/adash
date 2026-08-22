@@ -9,6 +9,67 @@ what changed.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-08-22
+
+The first release. Everything below was made before it, so this section is the
+whole of what Adash does rather than a list of what changed: the sixteen
+planned phases and the language and shell work that followed them.
+
+Reproducible together with the sibling commits it was built against -- every
+dependency is a path pin, and the tag names each one.
+
+### Added
+
+- **One clause may declare several names.** `A, B : Integer := 1;` is ordinary
+  Ada and was refused with "expected ;, found ," — a message that names the
+  comma and says nothing about why it is wrong. It was not in the reference's
+  list of what the subset leaves out either, so it was neither read nor
+  documented as absent, and a *parameter* list had always accepted the same
+  spelling. Objects, constants, exception clauses and a record's components all
+  take several names now. Two things Ada says that a simpler reading gets
+  wrong, and both are conformance cases: a value is evaluated once **for each**
+  object, so `J, K : Integer := Bump;` calls `Bump` twice; and an anonymous
+  array type belongs to one object, so `A, B : array (1 .. 3) of Integer;` is
+  two arrays rather than two names for one.
+
+### Changed
+
+- **Everything the subset leaves out is refused by name.** The language
+  reference promised it — "refused here, **by name**, on purpose" — and two of
+  thirteen were. The rest fell out of the parse somewhere to the right and were
+  reported as whatever token stood there: `type P is access Integer;` was told
+  "expected (", which reads as advice to write an enumeration, and both
+  `X : Integer renames Y;` and `raise X with "text"` were told "expected ;",
+  which reads as a missing semicolon, so a reader adds one and is told the same
+  thing again. Access and derived types, representation clauses, generic and
+  child packages, private parts, both kinds of renaming, `goto` and labels,
+  loop and block names, user-defined operators, `for … of`, and a message on a
+  raise each say what they are and where they stand.
+
+- **A construct too large for this build costs one diagnostic, not four.** A
+  record of sixty-five components was told `expected end, found F65` **first**
+  and `at most 64 components` second; sixty-five choices in one `when` cost
+  four complaints for one cause. The refusal left the surplus in front of the
+  cursor, where the next rule read it and named a syntax mistake that was not
+  there — and the first line is the one a reader acts on. The surplus is parsed
+  and discarded now, so the parse reaches the construct's real end in step.
+
+- **A colour setting takes effect in the session it was typed in.**
+  `settings ("color", "never")` was accepted, stored and saved, and changed
+  nothing until the next session, because the policy was read once at startup.
+  Every other live setting — `trace.commands`, `stop.on-failure`,
+  `prompt.format`, `prompt.directory` — already applied at once; colour was the
+  one hole.
+
+### Fixed
+
+- **A carried declaration is replayed once, not once per name it declared.**
+  What a session carries for a text-carried declaration is the source that made
+  it, and for `E1, E2 : exception;` that is the whole clause — carried for `E1`
+  and again for `E2`. The next submission declared both twice and said so.
+
 ### Added
 
 - **Four more cases for features in combination.** The creation mask reaches

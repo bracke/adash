@@ -22,7 +22,7 @@ tally to 4 is 10
 even
 odd
 == this shell is
-!line.version{name=adash,version=0.1.0-dev}!
+!line.version{name=adash,version={version}}!
 plain
 SHOUT
 named

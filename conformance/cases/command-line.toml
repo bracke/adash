@@ -17,9 +17,9 @@ requirement = "--version reports the version, the build, and -- for a pre-releas
 arguments = ["--version"]
 exit_status = 0
 output = [
-  "!version.line{version=0.1.0-dev}!",
+  "!version.line{version={version}}!",
   "!version.build{profile={profile},os={os},arch={arch}}!",
-  "!version.prerelease_notice!",
+  "{prerelease}",
 ]
 diagnostics = []
 
@@ -29,9 +29,9 @@ requirement = "-V is --version, not an abbreviation that behaves slightly differ
 arguments = ["-V"]
 exit_status = 0
 output = [
-  "!version.line{version=0.1.0-dev}!",
+  "!version.line{version={version}}!",
   "!version.build{profile={profile},os={os},arch={arch}}!",
-  "!version.prerelease_notice!",
+  "{prerelease}",
 ]
 diagnostics = []
 

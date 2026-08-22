@@ -48,7 +48,7 @@ and not a count of everything the suite has run.
 script = "version;\nhistory;"
 exit_status = 0
 output = [
-  "!line.version{name=adash,version=0.1.0-dev}!",
+  "!line.version{name=adash,version={version}}!",
   "!line.history_entry{number=1,line=version;}!",
   "!line.history_entry{number=2,line=history;}!",
 ]

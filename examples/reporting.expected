@@ -12,5 +12,5 @@ drift, ignoring direction:
 first power of two past fifty:
 64
 this shell is:
-!line.version{name=adash,version=0.1.0-dev}!
+!line.version{name=adash,version={version}}!
 done here
