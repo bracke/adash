@@ -2487,10 +2487,24 @@ package body Adash_Tests.Interactive_Cases is
       pragma Unreferenced (T);
 
       Escape : constant String := [1 => Character'Val (27)];
-      Red    : constant String := Escape & "[31;1m";
+
+      --  Red, in both the forms a host may deliver it in.
+      --
+      --  The shell writes one sequence -- `Role_Error` is "31;1" in a single
+      --  place with no host in it -- and that is what arrives through a
+      --  Linux or macOS pseudo-terminal. Windows has no such thing: ConPTY
+      --  renders what it is given onto a screen and re-emits it, so the same
+      --  write arrives as `ESC[31m ESC[1m`, reset with `ESC[m`. Counting only
+      --  the combined form measured the console, not the shell.
+      Red      : constant String := Escape & "[31;1m";
+      Red_Apart : constant String := Escape & "[31m";
 
       Session : Terminal_Session;
       Ended   : Boolean;
+
+      --  Both forms, never both at once, so this is a count of red starts.
+      function Reds (Item : Terminal_Session) return Natural is
+        (Times_Seen (Item, Red) + Times_Seen (Item, Red_Apart));
 
       --  What arrived, with the escapes made visible.
       --
@@ -2549,7 +2563,7 @@ package body Adash_Tests.Interactive_Cases is
       --  test reported a shell that would not colour. The escape appears in
       --  no echo, which is what makes it the thing to wait for.
       for Attempt in 1 .. 600 loop
-         exit when Times_Seen (Session, Red) > 0;
+         exit when Reds (Session) > 0;
 
          declare
             Ignored : constant Boolean := Drained (Session);
@@ -2559,12 +2573,12 @@ package body Adash_Tests.Interactive_Cases is
          end;
       end loop;
 
-      Assert (Times_Seen (Session, Red) > 0,
+      Assert (Reds (Session) > 0,
               "a diagnostic was not coloured after being told always. What "
               & "arrived was: " & Shown (Session));
 
       declare
-         Before : constant Natural := Times_Seen (Session, Red);
+         Before : constant Natural := Reds (Session);
       begin
          Type_Into (Session, "settings (""color"", ""never"");"
                     & String'(1 => Character'Val (13)));
@@ -2589,7 +2603,7 @@ package body Adash_Tests.Interactive_Cases is
                  "the shell never reported the second missing command: "
                  & Shown (Session));
 
-         Assert (Times_Seen (Session, Red) = Before,
+         Assert (Reds (Session) = Before,
                  "the session went on colouring after being told never: "
                  & Shown (Session));
       end;
@@ -2665,13 +2679,24 @@ package body Adash_Tests.Interactive_Cases is
          end if;
       end;
 
+      --  Once, not twice: this shell is running a *script* at a terminal, so
+      --  nothing was typed and nothing is echoed back. The one sighting is
+      --  the answer. (Waiting for two here is what the interactive test does,
+      --  and doing it in both places made this one wait for a second copy
+      --  that never comes.)
       Assert (Waited_For (Session, "nonesuch-for-colour"),
               "the shell never reported the missing command");
 
       --  The whole introducer, not `ESC [ 3 1`: that also begins "move the
       --  cursor right thirty-one columns", which a redraw writes all the time
       --  and which cost an hour of reading a passing shell as a failing one.
-      Assert (Times_Seen (Session, Escape & "[31;1m") = 0,
+      --
+      --  And both forms it can arrive in. The shell writes `ESC[31;1m`;
+      --  Windows has no pseudo-terminal, so ConPTY re-renders and re-emits it
+      --  as `ESC[31m ESC[1m`. Counting one form would have let colour leak
+      --  past this on the one host where the sequence is not the shell's own.
+      Assert (Times_Seen (Session, Escape & "[31;1m")
+                + Times_Seen (Session, Escape & "[31m") = 0,
               "a diagnostic at a terminal was coloured although the "
               & "configuration said never");
 
