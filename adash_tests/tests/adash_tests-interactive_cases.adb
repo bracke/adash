@@ -2470,6 +2470,61 @@ package body Adash_Tests.Interactive_Cases is
    --  `always`, which says the setting arrives but not that `never` is
    --  obeyed. Here the shell is on a pseudo-terminal, where the default would
    --  colour, and the file says not to.
+   ----------------------------------------------------
+   -- The_Colour_Setting_Takes_Effect_At_Once --
+   ----------------------------------------------------
+
+   --  A setting a user can watch not working is worse than one that is not
+   --  there. `settings ("color", "never")` was accepted, stored, and saved to
+   --  the file -- and changed nothing until the next session, because the
+   --  policy was read once at startup and never looked at again.
+   --
+   --  Only a terminal can say this: down a pipe nothing is coloured whatever
+   --  the setting says.
+   procedure The_Colour_Setting_Takes_Effect_At_Once
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      Escape : constant String := [1 => Character'Val (27)];
+      Red    : constant String := Escape & "[31;1m";
+
+      Session : Terminal_Session;
+      Ended   : Boolean;
+   begin
+      if not Start_On_A_Terminal (Session) then
+         return;
+      end if;
+
+      --  Coloured to begin with, so that what follows is about the setting
+      --  rather than about a terminal that was never going to be styled.
+      Type_Into (Session, "run (""/nonesuch-before"");"
+                 & String'(1 => Character'Val (13)));
+      Assert (Waited_For (Session, "nonesuch-before"),
+              "the shell never reported the first missing command");
+      Assert (Times_Seen (Session, Red) > 0,
+              "a diagnostic at a terminal was not coloured to begin with, so "
+              & "this test cannot say anything about turning colour off");
+
+      declare
+         Before : constant Natural := Times_Seen (Session, Red);
+      begin
+         Type_Into (Session, "settings (""color"", ""never"");"
+                    & String'(1 => Character'Val (13)));
+         Type_Into (Session, "run (""/nonesuch-after"");"
+                    & String'(1 => Character'Val (13)));
+
+         Assert (Waited_For (Session, "nonesuch-after"),
+                 "the shell never reported the second missing command");
+
+         Assert (Times_Seen (Session, Red) = Before,
+                 "the session went on colouring after being told never");
+      end;
+
+      Finish (Session, Ended);
+      Assert (Ended, "the shell did not end");
+   end The_Colour_Setting_Takes_Effect_At_Once;
+
    procedure Colour_Reaches_A_Script_At_A_Terminal
      (T : in out AUnit.Test_Cases.Test_Case'Class)
    is
@@ -4099,6 +4154,9 @@ package body Adash_Tests.Interactive_Cases is
       Register_Routine
         (T, Colour_Reaches_A_Script_At_A_Terminal'Access,
          "the colour setting reaches a shell running at a terminal");
+      Register_Routine
+        (T, The_Colour_Setting_Takes_Effect_At_Once'Access,
+         "changing the colour setting changes the session it was typed in");
       Register_Routine (T, A_Terminal_Says_What_Reaches_A_Program'Access,
                         "a terminal says what reaches a program on it");
       Register_Routine (T, An_Interrupt_At_The_Prompt_Abandons_The_Line'Access,

@@ -273,6 +273,27 @@ package body Adash.Interactive.Session is
                             return String;
       function Prompt_Width (Kind : Adash.Interactive.Prompt.Prompt_Kind)
                              return Natural;
+      --  Put the session's colour policy where the settings say.
+      --
+      --  Asked again before every prompt, because a setting is a thing a user
+      --  changes while the session runs.
+      procedure Follow_The_Colour_Setting;
+
+      procedure Follow_The_Colour_Setting is
+         Word : constant String :=
+           Adash.Configuration.Choice_Value
+             (Adash.Engine.Settings (Shell),
+              Adash.Configuration.Color_Setting);
+      begin
+         if Word = "always" then
+            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Always);
+         elsif Word = "never" then
+            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Never);
+         else
+            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Auto);
+         end if;
+      end Follow_The_Colour_Setting;
+
       procedure Render_Diagnostics;
       procedure Deliver_Notices;
 
@@ -1077,19 +1098,7 @@ package body Adash.Interactive.Session is
       --  unrecognised one cannot reach here -- and the fallback is Auto rather
       --  than an exception, because refusing to start over a colour setting
       --  would be absurd.
-      declare
-         Word : constant String :=
-           Adash.Configuration.Choice_Value
-             (Chosen, Adash.Configuration.Color_Setting);
-      begin
-         if Word = "always" then
-            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Always);
-         elsif Word = "never" then
-            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Never);
-         else
-            Adash.Terminal.Set_Color_Policy (Adash.Terminal.Color_Auto);
-         end if;
-      end;
+      Follow_The_Colour_Setting;
 
       --  Then what was typed in earlier sessions. A shell whose history began
       --  when it started would be one where recall is useful only after you
@@ -1158,6 +1167,22 @@ package body Adash.Interactive.Session is
       end if;
 
       loop
+         --  What the session was last told about colour, before the prompt is
+         --  drawn and before anything is written to the terminal.
+         --
+         --  `settings ("color", "never")` was accepted, stored, saved to the
+         --  file -- and changed nothing until the next session, because the
+         --  policy was applied once at startup and never looked at again. A
+         --  setting a user can watch not working is worse than one that is not
+         --  there.
+         --
+         --  Here rather than where `settings` runs: the command layer does not
+         --  name the terminal, and having it do so would add an edge to the
+         --  layering that nothing has settled. This is a frontend, which names
+         --  both, and every path that changes a setting reaches this line
+         --  before the next thing is drawn.
+         Follow_The_Colour_Setting;
+
          declare
             --  What has been typed so far of a construct that is not finished.
             --  A user writes `if C then` and means to go on; the shell reads a
