@@ -255,10 +255,11 @@ package body Adash.Configuration is
    ----------------
 
    function Set_Text
-     (Item : in out Settings; Which : Setting_Id; To : String) return Boolean is
+     (Item : in out Settings; Which : Setting_Id; To : String)
+      return Text_Verdict is
    begin
       if To'Length > Maximum_Text then
-         return False;
+         return Text_Too_Long;
       end if;
 
       --  A control character is an instruction to a terminal, and a prompt is
@@ -270,12 +271,12 @@ package body Adash.Configuration is
          if Character'Pos (To (Index)) < 32
            or else Character'Pos (To (Index)) = 127
          then
-            return False;
+            return Text_Holds_A_Control;
          end if;
       end loop;
 
       Item.Values (Which).Text := To_Unbounded_String (To);
-      return True;
+      return Text_Taken;
    end Set_Text;
 
    -----------------

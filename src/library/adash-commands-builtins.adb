@@ -2254,16 +2254,30 @@ package body Adash.Commands.Builtins is
                         end if;
 
                      when Config.Text_Setting =>
-                        if not Shell.Chosen.Set_Text (Which, Wanted) then
-                           --  Too long, or holding something a terminal would
-                           --  read as an instruction rather than as text.
-                           return Refused
-                             (M.Msg_Config_Wrong_Type,
-                              [1 => M.Named ("key", Named_As)],
-                              M.Msg_Config_Wants_Text,
-                              [1 => M.Named
-                                      ("limit", Trim (Config.Maximum_Text))]);
-                        end if;
+                        --  Two rules, and each says which it was: a length,
+                        --  and a character a terminal would read as an
+                        --  instruction rather than as text. One answer for
+                        --  both sent a reader to count characters when what
+                        --  they had typed was an escape.
+                        case Shell.Chosen.Set_Text (Which, Wanted) is
+                           when Config.Text_Taken =>
+                              null;
+
+                           when Config.Text_Too_Long =>
+                              return Refused
+                                (M.Msg_Config_Wrong_Type,
+                                 [1 => M.Named ("key", Named_As)],
+                                 M.Msg_Config_Wants_Text,
+                                 [1 => M.Named
+                                         ("limit",
+                                          Trim (Config.Maximum_Text))]);
+
+                           when Config.Text_Holds_A_Control =>
+                              return Refused
+                                (M.Msg_Config_Wrong_Type,
+                                 [1 => M.Named ("key", Named_As)],
+                                 M.Msg_Config_Wants_No_Control);
+                        end case;
                   end case;
 
                   --  Said back, so a user sees what the shell now holds rather

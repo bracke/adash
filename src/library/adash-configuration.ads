@@ -202,15 +202,26 @@ package Adash.Configuration is
    --
    --  @param Item The settings.
    --  @param Which A Text_Setting.
+   --  Why a text setting was not taken, or that it was.
+   --
+   --  Two rules, and they used to share one answer: `False`, which the
+   --  callers rendered as "wants text, limit 200" whichever rule was broken --
+   --  so a value holding a control character was refused with a sentence
+   --  about a length. Both reasons are their own now, because a diagnostic
+   --  that names the wrong rule sends a reader to fix the wrong thing.
+   type Text_Verdict is (Text_Taken, Text_Too_Long, Text_Holds_A_Control);
+
+   --  @param Item The settings.
+   --  @param Which A Text_Setting.
    --  @param To The new text.
-   --  @return False when the text is too long or holds a control character,
-   --          in which case nothing changed. A prompt is written to a terminal
-   --          before anything else on the line, so text that moves a cursor or
-   --          sets a colour would be a setting that breaks the display it
-   --          appears in -- and the styling a prompt does have is the style
-   --          package's to decide.
+   --  @return Text_Taken, or why not -- and nothing changed unless it was
+   --          taken. A prompt is written to a terminal before anything else
+   --          on the line, so text that moves a cursor or sets a colour would
+   --          be a setting that breaks the display it appears in, and the
+   --          styling a prompt does have is the style package's to decide.
    function Set_Text
-     (Item : in out Settings; Which : Setting_Id; To : String) return Boolean;
+     (Item : in out Settings; Which : Setting_Id; To : String)
+      return Text_Verdict;
 
    --  Longest a text setting may be.
    Maximum_Text : constant := 200;

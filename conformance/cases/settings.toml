@@ -154,3 +154,24 @@ output = [
   "!line.history_entry{number=2,line= put_line (\"kept\");}!",
   "!line.history_entry{number=3,line=history (3);}!",
 ]
+
+[[case]]
+id = "settings.a-text-setting-says-which-rule-refused-it"
+requirement = """
+A text setting has two rules -- a length, and no control characters -- and they
+used to share one answer. `Set_Text` returned `False` for both, and both
+callers rendered "wants text, limit 200", so a value holding an escape was
+refused with a sentence about a length and a reader was sent to count
+characters.
+
+Each rule says which it was now. The reason a prompt may not hold a control
+character is its own: a prompt is written before everything else on the line,
+so text that moved the cursor or set a colour would break the display it
+appears in.
+"""
+script = "settings (\"prompt.format\", \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\");\nsettings (\"prompt.format\", \"a\" & Character'Val (7) & \"b\");\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!config.wrong-type{key=prompt.format,detail=!config.wants.text{limit=200}!}!",
+  "!config.wrong-type{key=prompt.format,detail=!config.wants.no-control!}!",
+]

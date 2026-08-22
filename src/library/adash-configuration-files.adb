@@ -386,19 +386,33 @@ package body Adash.Configuration.Files is
                                  Expected_Type (Which),
                                  Expected_Type_Given (Which));
 
-                           elsif not Set_Text
-                                       (Into, Which,
-                                        Doc.As_String (Document, Item))
-                           then
-                              --  Too long, or holding something a terminal
-                              --  would read as an instruction. The default
-                              --  stands rather than a truncation nobody asked
-                              --  for.
-                              Complain
-                                (Msg.Msg_Config_Out_Of_Range,
-                                 Adash.Diagnostics.Severity_Error,
-                                 [1 => Msg.Named ("key", Full)],
-                                 Expected (Which), Expected_Given (Which));
+                           else
+                              --  The default stands rather than a truncation
+                              --  nobody asked for -- and which rule refused it
+                              --  is said, because a file holding an escape
+                              --  used to be told about a length.
+                              case Set_Text
+                                     (Into, Which,
+                                      Doc.As_String (Document, Item))
+                              is
+                                 when Text_Taken =>
+                                    null;
+
+                                 when Text_Too_Long =>
+                                    Complain
+                                      (Msg.Msg_Config_Out_Of_Range,
+                                       Adash.Diagnostics.Severity_Error,
+                                       [1 => Msg.Named ("key", Full)],
+                                       Expected (Which),
+                                       Expected_Given (Which));
+
+                                 when Text_Holds_A_Control =>
+                                    Complain
+                                      (Msg.Msg_Config_Out_Of_Range,
+                                       Adash.Diagnostics.Severity_Error,
+                                       [1 => Msg.Named ("key", Full)],
+                                       Msg.Msg_Config_Wants_No_Control);
+                              end case;
                            end if;
                      end case;
 

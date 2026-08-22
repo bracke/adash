@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 660 messages in 23 groups.
+There are 661 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -489,6 +489,7 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `config.wants.range` | between {low} and {high} |
 | `config.wants.choice` | one of {choices} |
 | `config.wants.text` | text of at most {limit} characters, with nothing in it a terminal would read as an instruction |
+| `config.wants.no-control` | text with no control character in it: a prompt is written before everything else on the line, so text that moved the cursor or set a colour would break the display it appears in |
 | `config.unknown-key` | {path}: no setting is called {key}; it was ignored. |
 | `config.wrong-type` | {key} expects {detail}. |
 | `config.out-of-range` | {key} must be {detail}. |

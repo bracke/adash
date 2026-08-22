@@ -298,6 +298,8 @@ package body Adash.Messages is
             return "config.wants.choice";
          when Msg_Config_Wants_Text =>
             return "config.wants.text";
+         when Msg_Config_Wants_No_Control  =>
+            return "config.wants.no-control";
          when Msg_File_Write_Failed          => return "error.file_write_failed";
          when Msg_File_Too_Large             => return "error.file_too_large";
          when Msg_Output_Too_Large           => return "error.output_too_large";
@@ -890,6 +892,7 @@ package body Adash.Messages is
             | Msg_List_Choices
             | Msg_List_Handlers
             | Msg_List_Nesting
+            | Msg_Config_Wants_No_Control
             | Msg_Subset_Access_Types
             | Msg_Subset_Derived_Types
             | Msg_Subset_Representation_Clauses

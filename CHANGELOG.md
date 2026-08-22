@@ -11,6 +11,15 @@ what changed.
 
 ### Fixed
 
+- **A text setting says which of its two rules refused a value.** A length and
+  a ban on control characters shared one answer -- `Set_Text` returned `False`
+  for both -- so a prompt format holding an escape was refused with a sentence
+  about a limit of 200, and a reader was sent to count characters. Both callers
+  now say which rule it was, and the reason a prompt may hold no control
+  character is given as its own: a prompt is written before everything else on
+  the line, so text that moved the cursor or set a colour would break the
+  display it appears in.
+
 - **Four more settings take effect in the session they were typed in.**
   `history.enabled`, `editing.enabled`, `history.limit` and
   `history.ignore-space` were read once at startup and never again, so turning

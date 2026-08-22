@@ -171,6 +171,7 @@ en.config.wants.whole = a whole number
 en.config.wants.range = between {low} and {high}
 en.config.wants.choice = one of {choices}
 en.config.wants.text = text of at most {limit} characters, with nothing in it a terminal would read as an instruction
+en.config.wants.no-control = text with no control character in it: a prompt is written before everything else on the line, so text that moved the cursor or set a colour would break the display it appears in
 en.error.file_not_writable = nothing can be written at {path}
 en.error.file_write_failed = writing to {path} did not finish
 en.error.file_too_large = {path} holds more than this shell will read at once

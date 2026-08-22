@@ -219,6 +219,7 @@ package Adash.Messages is
       Msg_Config_Wants_Range,
       Msg_Config_Wants_Choice,
       Msg_Config_Wants_Text,
+      Msg_Config_Wants_No_Control,
       Msg_File_Write_Failed,
    Msg_File_Too_Large,
    Msg_Output_Too_Large,
