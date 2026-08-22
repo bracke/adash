@@ -78,6 +78,40 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**The redesign was attempted on 2026-08-22 and taken back out, and what it
+found is the design.** A session's names live in *two* places that do not agree,
+and persisting one of them makes the disagreement visible.
+
+`Adash.Engine`'s `Kept` decides what a session carries: it holds source text,
+it is keyed by **name and profile together** so that redefining `LL` replaces
+it and a second `LL` of another profile is an overload, and it deliberately
+drops things -- a task object, a name a package body keeps to itself, anything
+a submission declared before it failed. `Adash.Language.Scopes.Chain` is what
+the analyser resolves against, and today it is rebuilt from the replayed text
+every submission, so it inherits those rules for free.
+
+Persist the chain and it stops inheriting them. The attempt reached: a chain
+kept on the session; `Mark`, `Rewind` and `Settle` on it; replace-on-redeclare
+for a name settled by an earlier submission; rewind on a refused submission.
+The suite then failed **eleven** cases in three families, and every one is the
+chain holding what `Kept` would have dropped:
+
+  * a variable from a submission that failed was still in scope -- the analyser
+    resolved it and the machine had no slot, so `Lost` raised `Program_Error`
+    where it should have said "not declared";
+  * a name a package body keeps to itself answered from a later line;
+  * an overload from an earlier submission made an ambiguous call resolve.
+
+Pruning the chain to match `Kept` after each submission is the obvious repair
+and it does not work as stated: `Kept` is keyed by name *and profile*, so it
+cannot be matched against a chain of names without taking that key apart.
+
+So the redesign is not "keep the analysed chain". It is **make the two one
+thing** -- one structure that answers what a session holds, that the analyser
+resolves against and that the engine's carrying rules are written on. That is a
+bigger change than this item has ever been described as, and it is the reason
+to do it once rather than in pieces.
+
 **What a session actually pays for carrying, measured 2026-08-22 — and it is
 not mostly analysis.** `analyse a line beside 128 declarations` is 14.5 ms, and
 the *submission* it belongs to costs **35 ms**: measured by differencing two
