@@ -2538,8 +2538,27 @@ package body Adash_Tests.Interactive_Cases is
                  & String'(1 => Character'Val (13)));
       Type_Into (Session, "run (""/nonesuch-before"");"
                  & String'(1 => Character'Val (13)));
-      Assert (Waited_For (Session, "nonesuch-before"),
-              "the shell never reported the first missing command");
+
+      --  Wait for the colour itself, not for the text.
+      --
+      --  A terminal echoes what is typed, so `run ("/nonesuch-before");` puts
+      --  that name in the stream before the shell has read it, let alone
+      --  answered -- and waiting for the *first* sight of it waits for the
+      --  echo. On Linux the answer had arrived by then anyway and the test
+      --  passed for two commits; on macOS and Windows it had not, and the
+      --  test reported a shell that would not colour. The escape appears in
+      --  no echo, which is what makes it the thing to wait for.
+      for Attempt in 1 .. 600 loop
+         exit when Times_Seen (Session, Red) > 0;
+
+         declare
+            Ignored : constant Boolean := Drained (Session);
+            pragma Unreferenced (Ignored);
+         begin
+            delay 0.05;
+         end;
+      end loop;
+
       Assert (Times_Seen (Session, Red) > 0,
               "a diagnostic was not coloured after being told always. What "
               & "arrived was: " & Shown (Session));
@@ -2552,11 +2571,27 @@ package body Adash_Tests.Interactive_Cases is
          Type_Into (Session, "run (""/nonesuch-after"");"
                     & String'(1 => Character'Val (13)));
 
-         Assert (Waited_For (Session, "nonesuch-after"),
-                 "the shell never reported the second missing command");
+         --  Twice: once echoed as it was typed, once in the answer. Checking
+         --  that nothing new was coloured before the answer arrives would
+         --  pass against a shell that had not yet said anything.
+         for Attempt in 1 .. 600 loop
+            exit when Times_Seen (Session, "nonesuch-after") >= 2;
+
+            declare
+               Ignored : constant Boolean := Drained (Session);
+               pragma Unreferenced (Ignored);
+            begin
+               delay 0.05;
+            end;
+         end loop;
+
+         Assert (Times_Seen (Session, "nonesuch-after") >= 2,
+                 "the shell never reported the second missing command: "
+                 & Shown (Session));
 
          Assert (Times_Seen (Session, Red) = Before,
-                 "the session went on colouring after being told never");
+                 "the session went on colouring after being told never: "
+                 & Shown (Session));
       end;
 
       Finish (Session, Ended);
