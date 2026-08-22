@@ -78,8 +78,29 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
-**The redesign was attempted on 2026-08-22 and taken back out, and what it
-found is the design.** A session's names live in *two* places that do not agree,
+**Attempted twice on 2026-08-22, and the second attempt was worse than the
+first, which is the finding.** Making the two structures one was tried by
+keying the chain the way `Kept` is keyed. `Kept`'s key is a name *and a
+profile*, so redefining `LL` replaces it while a second `LL` of another profile
+is an overload.
+
+Keying replacement by **name alone** left 11 cases failing, all of them the
+chain holding what `Kept` drops. Keying it by **name and profile** -- which is
+what unification means -- left **17**, adding nine overloading cases and
+`sub.overloads-accumulate`: the predefined names are installed into the chain
+at the start of every analysis, so with a chain that persists they meet
+entries from the previous submission and the two keying schemes disagree about
+which entry an install replaces.
+
+That is the same disagreement one level down. `Kept` is keyed for *what a
+session carries between submissions*; a scope chain is keyed for *what a name
+means while a program is analysed*, and the predefined names are in the second
+and not the first. Unifying them is not a matter of picking one key: it needs a
+decision about what the predefined names are in a session that holds its own
+scope, and that decision has to be made before any code, because each guess
+costs a full suite run to disprove.
+
+**The first attempt, and what it found:** A session's names live in *two* places that do not agree,
 and persisting one of them makes the disagreement visible.
 
 `Adash.Engine`'s `Kept` decides what a session carries: it holds source text,
