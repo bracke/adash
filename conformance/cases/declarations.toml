@@ -1,0 +1,94 @@
+# One declaration, several names -- what Ada writes and this shell reads.
+#
+# `A, B : Integer := 1;` is ordinary Ada and was refused here with "expected ;,
+# found ,", which names the comma and says nothing about why it is wrong. It
+# was not in the reference's list of what the subset leaves out either, so it
+# was neither implemented nor documented as absent -- and a *parameter* list
+# accepted the same spelling, so the shell disagreed with itself about whether
+# a comma may separate names.
+#
+# Read now, everywhere a name is declared: objects, constants, exceptions,
+# record components, and the anonymous array type an object can carry.
+
+suite = "declarations"
+
+[[case]]
+id = "declarations.one-clause-declares-every-name-in-it"
+requirement = """
+Two names, one type, one value, and two objects that can be told apart
+afterwards.
+"""
+script = "A, B : Integer := 4;\nB := 10;\nput_line (Integer'Image (A) & Integer'Image (B));\nquit (0);"
+exit_status = 0
+output = [" 4 10"]
+
+[[case]]
+id = "declarations.a-value-is-evaluated-once-for-each-object"
+requirement = """
+Ada evaluates a declaration's initial value **for each object it declares**,
+not once for the clause -- so two names and a function that counts its calls
+give two different answers, and this shell gives the same two.
+
+That is the whole reason each object past the first gets a copy of the value
+rather than a share in one: a shared subtree would be evaluated once, and would
+also leave two declarations holding one child between them, which the analyser
+reads as ancestry.
+"""
+script = "Counter : Integer := 0;\nfunction Bump return Integer is begin Counter := Counter + 1; return Counter; end Bump;\nJ, K : Integer := Bump;\nput_line (Integer'Image (J) & Integer'Image (K));\nquit (0);"
+exit_status = 0
+output = [" 1 2"]
+
+[[case]]
+id = "declarations.each-object-gets-its-own-anonymous-array"
+requirement = """
+`A, B : array (1 .. 3) of Integer;` gives two arrays, not one under two names.
+
+An anonymous array type belongs to the single object that declared it, and is
+held here under a name nobody can write -- the object's own, with an
+apostrophe in it. So the copy each further object gets is made with that name
+changed to its own; sharing it would have made the second object an alias of
+the first.
+"""
+script = "A, B : array (1 .. 3) of Integer;\nA (1) := 7;\nB (1) := 9;\nput_line (Integer'Image (A (1)) & Integer'Image (B (1)));\nquit (0);"
+exit_status = 0
+output = [" 7 9"]
+
+[[case]]
+id = "declarations.a-record-clause-declares-every-component-in-it"
+requirement = """
+The same for components, which are read by a rule of their own -- and were
+still refused after objects were read, which is how a second rule for one idea
+shows itself. A default belongs to each component separately, for the reason a
+value belongs to each object.
+"""
+script = "type R is record F1, F2 : Integer := 5; end record;\nV : R;\nput_line (Integer'Image (V.F1 + V.F2));\nquit (0);"
+exit_status = 0
+output = [" 10"]
+
+[[case]]
+id = "declarations.several-exceptions-in-one-clause"
+requirement = "An exception is declared by name and nothing else, and a clause may name several."
+script = "E1, E2 : exception;\nbegin raise E2; exception when E2 => put_line (\"caught\"); end;\nquit (0);"
+exit_status = 0
+output = ["caught"]
+
+[[case]]
+id = "declarations.more-names-than-this-build-holds-is-refused"
+requirement = """
+Sixteen names fit and a seventeenth is refused where it is written, by name,
+costing one diagnostic -- the rule every other list in the parser follows.
+"""
+script = "N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17 : Integer;\nquit (0);"
+exit_status = 0
+diagnostics = ["!error.too_many_at_once{limit=16,what=!list.names!}!"]
+
+[[case]]
+id = "declarations.a-comma-that-begins-no-declaration-is-left-alone"
+requirement = """
+Reading `name , name : type` as a declaration must not take a comma that
+belongs to somebody else: a call's arguments and an aggregate's parts are both
+names separated by commas, and neither has a colon after them.
+"""
+script = "type R2 is record A : Integer; B : Integer; end record;\nprocedure F (X : Integer; Y : Integer) is begin put_line (Integer'Image (X + Y)); end F;\nV : R2;\nV := (3, 4);\nF (V.A, V.B);\nquit (0);"
+exit_status = 0
+output = [" 7"]

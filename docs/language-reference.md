@@ -27,6 +27,13 @@ and what a submission declares is carried to the next one in the session:
     pwd;
     put_line (Integer'Image (X + 1));
 
+One clause may declare several names — `A, B : Integer := 1;`, and the same in
+a record's components and an exception clause. Each name is a declaration of
+its own, which is what Ada means by it: the value is evaluated once **for each**
+object, so `J, K : Integer := Bump;` calls `Bump` twice, and two objects
+declared `array (1 .. 3) of Integer` in one clause are two arrays rather than
+one under two names.
+
 Carried across submissions: variables with the values they ended with, types,
 subtypes, subprograms, packages, generics, task types, protected objects with
 their state, and exception names. Not carried: a task object or an identity of

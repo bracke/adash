@@ -1226,7 +1226,17 @@ package body Adash_Tests.Interactive_Cases is
         Hostkit.String_Vectors.Empty_Vector) return Boolean;
 
    --  Type into the terminal, as a user would.
-   procedure Type_Into (Item : in out Terminal_Session; Text : String);
+   --  Type into the shell's terminal.
+   --
+   --  @param Insisting False where the shell may already have ended of its
+   --         own accord, and a refused write is that rather than a fault. A
+   --         script at a terminal ends when the script does, so `quit` typed
+   --         after it races the exit -- and on a host where a write to a
+   --         terminal nothing holds fails, that race is a failed test on the
+   --         days it is lost.
+   procedure Type_Into
+     (Item : in out Terminal_Session; Text : String;
+      Insisting : Boolean := True);
 
    --  End a session without typing at it.
    --
@@ -1424,7 +1434,9 @@ package body Adash_Tests.Interactive_Cases is
       Type_Into (Item, String'(1 => Character'Val (3)));
    end Type_Interrupt;
 
-   procedure Type_Into (Item : in out Terminal_Session; Text : String) is
+   procedure Type_Into
+     (Item : in out Terminal_Session; Text : String;
+      Insisting : Boolean := True) is
       use type Hostkit.Descriptors.Transfer_Outcome;
 
       Data : Ada.Streams.Stream_Element_Array (1 .. Text'Length);
@@ -1444,6 +1456,15 @@ package body Adash_Tests.Interactive_Cases is
          Whole : constant Boolean := Ada.Streams."=" (Last, Data'Last);
       begin
          if Sent /= Hostkit.Descriptors.Transfer_Ok or else not Whole then
+            --  Not asking whether it has gone: it may be going, and a check
+            --  either side of the write has the same race the write had.
+            --  Where nothing insists, the wait that follows decides -- a
+            --  shell that ended before it could be told to is a shell that
+            --  ended, which is what the caller is about to assert.
+            if not Insisting then
+               return;
+            end if;
+
             --  The transcript and the shell's state, not just the refusal.
             --  A write to a pty fails for one interesting reason -- nothing
             --  holds the far end -- and a message that says only "could not
@@ -1653,7 +1674,8 @@ package body Adash_Tests.Interactive_Cases is
       Result : Hostkit.Spawn.Status;
    begin
       Ended := False;
-      Type_Into (Item, "quit (0);" & String'(1 => Character'Val (13)));
+      Type_Into (Item, "quit (0);" & String'(1 => Character'Val (13)),
+                 Insisting => False);
 
       --  Kept drained while it ends. A terminal holds what a program wrote
       --  until somebody reads it, and a program writing into a full one waits

@@ -16,12 +16,18 @@ package body Adash.Language.Parser is
    use type T.Reserved_Word;
    use type T.Delimiter;
    use type S.Node_Id;
+   use type S.Node_Kind;
    use type S.Operation;
 
    package Token_Vectors is new Ada.Containers.Vectors
      (Index_Type   => Positive,
       Element_Type => T.Token,
       "="          => T."=");
+
+   --  Names one declaration may introduce. Ada does not bound this; a build
+   --  that collects into fixed-size lists does, and sixteen is what a formal
+   --  list here already holds.
+   Max_Names_Per_Declaration : constant := 16;
 
    --  One parse. A record rather than package state, so two parses cannot
    --  interfere and a test can run them in any order.
@@ -43,6 +49,15 @@ package body Adash.Language.Parser is
       --  complaints get -- see `Adash.Engine.Wants_More` -- reached from the
       --  other side, because this refusal is the parser's own.
       Refused_Outright : Boolean := False;
+
+      --  Objects a declaration made beyond the one a rule returned.
+      --
+      --  `A, B : Integer;` is one declaration in Ada and two objects, and a
+      --  rule here hands back one node. The rest wait here until the loop
+      --  collecting the sequence takes them, which it does before it parses
+      --  anything else -- so they keep the order they were written in.
+      Waiting       : S.Node_List (1 .. Max_Names_Per_Declaration);
+      Waiting_Count : Natural := 0;
 
       --  How deep the expression rules have recursed.
       --
@@ -157,6 +172,52 @@ package body Adash.Language.Parser is
 
       function At_End return Boolean
       is (T.Kind (Current) = T.Token_End_Of_Input);
+
+      --  Whether what stands here begins a declaration: a name, then either
+      --  the colon or a comma and another name. `A : T` and `A, B : T` and
+      --  nothing else -- a comma with no name after it belongs to somebody's
+      --  argument list, and is left to the rules that read one.
+      function Begins_A_Declaration return Boolean is
+         Step : Natural := 0;
+      begin
+         if T.Kind (Current) /= T.Token_Identifier then
+            return False;
+         end if;
+
+         loop
+            Step := Step + 1;
+
+            declare
+               Next : constant T.Token := Ahead (Step);
+            begin
+               if T.Kind (Next) /= T.Token_Delimiter then
+                  return False;
+               end if;
+
+               if T.Symbol (Next) = T.Delim_Colon then
+                  return True;
+               end if;
+
+               if T.Symbol (Next) /= T.Delim_Comma then
+                  return False;
+               end if;
+            end;
+
+            Step := Step + 1;
+
+            if T.Kind (Ahead (Step)) /= T.Token_Identifier then
+               return False;
+            end if;
+
+            --  Past what this build holds, leave it to the rules below: the
+            --  declaration counts the names it takes and refuses a list too
+            --  long by name, which is a better answer than "not a
+            --  declaration at all".
+            exit when Step > 2 * Max_Names_Per_Declaration + 2;
+         end loop;
+
+         return True;
+      end Begins_A_Declaration;
 
       procedure Advance is
       begin
@@ -303,6 +364,9 @@ package body Adash.Language.Parser is
       --  promised these were refused by name; eleven of thirteen were not.
       procedure Not_In_Subset (What : Adash.Messages.Message_Id);
 
+      --  Keep an object a declaration made beyond the one being returned.
+      procedure Wait_For_The_Sequence (Node : S.Node_Id);
+
       --  Refuse a list longer than this build carries -- once. The caller
       --  goes on parsing the surplus and throwing it away, rather than
       --  leaving the loop: elements left in front of the cursor are read by
@@ -368,6 +432,14 @@ package body Adash.Language.Parser is
          --  asking for another line -- no line completes a `goto`.
          State.Refused_Outright := True;
       end Not_In_Subset;
+
+      procedure Wait_For_The_Sequence (Node : S.Node_Id) is
+      begin
+         if State.Waiting_Count < State.Waiting'Last then
+            State.Waiting_Count := State.Waiting_Count + 1;
+            State.Waiting (State.Waiting_Count) := Node;
+         end if;
+      end Wait_For_The_Sequence;
 
       procedure Refuse_Surplus
         (What  : Adash.Messages.Message_Id;
@@ -3175,13 +3247,40 @@ package body Adash.Language.Parser is
                         end if;
 
                         declare
-                           Field : constant S.Node_Id :=
-                             S.Add_Leaf (Into, S.Node_Name, Here,
-                                         T.Text (Current));
+                           Named_Here : S.Node_List
+                             (1 .. Max_Names_Per_Declaration);
+                           Names_Here : Natural := 0;
+                           Told_Here  : Boolean := False;
                            Of_Type : S.Node_Id;
                            Given   : S.Node_Id := S.No_Node;
                         begin
-                           Advance;
+                           --  `F1, F2 : Integer;` -- one component clause and
+                           --  two components, the same as a declaration.
+                           loop
+                              if Names_Here = Named_Here'Last then
+                                 Refuse_Surplus
+                                   (Adash.Messages.Msg_List_Names,
+                                    Named_Here'Last, Told_Here);
+                                 Names_Here := Names_Here - 1;
+                              end if;
+
+                              Names_Here := Names_Here + 1;
+                              Named_Here (Names_Here) :=
+                                S.Add_Leaf (Into, S.Node_Name, Here,
+                                            T.Text (Current));
+                              Advance;
+
+                              exit when not Is_Symbol (T.Delim_Comma);
+                              Advance;
+
+                              if T.Kind (Current) /= T.Token_Identifier then
+                                 Complain
+                                   (Adash.Messages.Msg_Expected_Component_Name);
+                                 Recover;
+                                 return Error_Node
+                                   (Adash.Source.Join (Start, Just_Consumed));
+                              end if;
+                           end loop;
 
                            if not Expect_Symbol (T.Delim_Colon) then
                               Recover;
@@ -3219,19 +3318,46 @@ package body Adash.Language.Parser is
                                 (Adash.Source.Join (Start, Just_Consumed));
                            end if;
 
-                           Count := Count + 1;
-                           --  The same shape a formal parameter has, and it
-                           --  means the same thing: a name, a type, and what
-                           --  it holds where nothing else says. The mode goes
-                           --  in the text, and a component has none.
-                           Fields (Count) :=
-                             (if Given = S.No_Node
-                              then S.Add_Node
-                                     (Into, S.Node_Parameter, Here,
-                                      [Field, Of_Type], Text => "in")
-                              else S.Add_Node
-                                     (Into, S.Node_Parameter, Here,
-                                      [Field, Of_Type, Given], Text => "in"));
+                           --  One component per name. The same shape a
+                           --  formal parameter has, and it means the same
+                           --  thing: a name, a type, and what it holds where
+                           --  nothing else says. The mode goes in the text,
+                           --  and a component has none.
+                           --
+                           --  Past the first, the type and the default are
+                           --  copied rather than shared, for the reason a
+                           --  declaration copies them.
+                           for Which in 1 .. Names_Here loop
+                              if Count = Fields'Last then
+                                 Refuse_Surplus
+                                   (Adash.Messages.Msg_List_Components,
+                                    Fields'Last, Told_Of_Components);
+                                 Count := Count - 1;
+                              end if;
+
+                              Count := Count + 1;
+
+                              declare
+                                 Mine_Type : constant S.Node_Id :=
+                                   (if Which = 1 then Of_Type
+                                    else S.Graft (Into, Of_Type));
+                                 Mine_Given : constant S.Node_Id :=
+                                   (if Which = 1 then Given
+                                    else S.Graft (Into, Given));
+                              begin
+                                 Fields (Count) :=
+                                   (if Mine_Given = S.No_Node
+                                    then S.Add_Node
+                                           (Into, S.Node_Parameter, Here,
+                                            [Named_Here (Which), Mine_Type],
+                                            Text => "in")
+                                    else S.Add_Node
+                                           (Into, S.Node_Parameter, Here,
+                                            [Named_Here (Which), Mine_Type,
+                                             Mine_Given],
+                                            Text => "in"));
+                              end;
+                           end loop;
                         end;
                      end loop;
 
@@ -3326,20 +3452,97 @@ package body Adash.Language.Parser is
             end;
          end if;
 
-         --  A declaration: name : [constant] type [:= value];
-         if T.Kind (Current) = T.Token_Identifier
-           and then T.Kind (Ahead) = T.Token_Delimiter
-           and then T.Symbol (Ahead) = T.Delim_Colon
-         then
+         --  A declaration: name {, name} : [constant] type [:= value];
+         if Begins_A_Declaration then
             declare
-               Name     : constant S.Node_Id :=
-                 S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
+               Names    : S.Node_List (1 .. Max_Names_Per_Declaration);
+               Named    : Natural := 0;
+               Told_Of_Names : Boolean := False;
                Type_Ref : S.Node_Id;
                Value    : S.Node_Id := S.No_Node;
                Actuals  : S.Node_Id := S.No_Node;
                Is_Const : Boolean := False;
+
+               --  One declaration per name, in the order they were written.
+               --  The first is returned and the rest wait for the sequence.
+               --
+               --  Ada evaluates a declaration's value once *for each* object
+               --  it declares, so every object past the first gets its own
+               --  copy rather than a share in one subtree -- which would also
+               --  give two declarations one child between them, and ancestry
+               --  is something the analyser reads. An anonymous array type
+               --  belongs to a single object and carries that object's name,
+               --  so the copy is made with that name changed to its own.
+               function Each_Name_Declared
+                 (Kind : S.Node_Kind; Where : Adash.Source.Span)
+                  return S.Node_Id;
+
+               function Each_Name_Declared
+                 (Kind : S.Node_Kind; Where : Adash.Source.Span)
+                  return S.Node_Id
+               is
+                  Kept  : constant String :=
+                    (if Is_Const then "constant" else "");
+                  First : S.Node_Id := S.No_Node;
+               begin
+                  for Index in 1 .. Named loop
+                     declare
+                        Bindings : constant S.Renamings :=
+                          [1 =>
+                             (From =>
+                                Ada.Strings.Unbounded.To_Unbounded_String
+                                  (S.Text (Into, Names (1)) & "'array"),
+                              To   =>
+                                Ada.Strings.Unbounded.To_Unbounded_String
+                                  (S.Text (Into, Names (Index)) & "'array"))];
+
+                        Made : constant S.Node_Id :=
+                          (if Kind = S.Node_Exception_Declaration
+                           then S.Add_Node
+                                  (Into, Kind, Where, [1 => Names (Index)])
+                           else S.Add_Node
+                                  (Into, Kind, Where,
+                                   [Names (Index),
+                                    (if Index = 1 then Type_Ref
+                                     else S.Graft (Into, Type_Ref, Bindings)),
+                                    (if Index = 1 then Value
+                                     else S.Graft (Into, Value)),
+                                    (if Index = 1 then Actuals
+                                     else S.Graft (Into, Actuals))],
+                                   Text => Kept));
+                     begin
+                        if Index = 1 then
+                           First := Made;
+                        else
+                           Wait_For_The_Sequence (Made);
+                        end if;
+                     end;
+                  end loop;
+
+                  return First;
+               end Each_Name_Declared;
             begin
-               Advance;  --  the name
+               --  Every name before the colon. Ada declares one object per
+               --  name and this build makes one declaration per name, so
+               --  nothing below has to know that a declaration can have more
+               --  than one.
+               loop
+                  if Named = Names'Last then
+                     Refuse_Surplus
+                       (Adash.Messages.Msg_List_Names, Names'Last,
+                        Told_Of_Names);
+                     Named := Named - 1;
+                  end if;
+
+                  Named := Named + 1;
+                  Names (Named) :=
+                    S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
+                  Advance;  --  the name
+
+                  exit when not Is_Symbol (T.Delim_Comma);
+                  Advance;  --  the comma
+               end loop;
+
                Advance;  --  the colon
 
                --  `Wrong_Kind : exception;` -- a declaration with the shape of
@@ -3354,10 +3557,9 @@ package body Adash.Language.Parser is
                        Expect_Symbol (T.Delim_Semicolon);
                      pragma Unreferenced (Ignored);
                   begin
-                     return S.Add_Node
-                       (Into, S.Node_Exception_Declaration,
-                        Adash.Source.Join (Start, Just_Consumed),
-                        [1 => Name]);
+                     return Each_Name_Declared
+                       (S.Node_Exception_Declaration,
+                        Adash.Source.Join (Start, Just_Consumed));
                   end;
                end if;
 
@@ -3392,8 +3594,8 @@ package body Adash.Language.Parser is
                   --  made from the object it belongs to is exactly that.
                   Type_Ref := Parse_Array_Definition
                     (S.Add_Leaf
-                       (Into, S.Node_Name, S.Extent (Into, Name),
-                        S.Text (Into, Name) & "'array"),
+                       (Into, S.Node_Name, S.Extent (Into, Names (1)),
+                        S.Text (Into, Names (1)) & "'array"),
                      Start, Closing => False);
 
                else
@@ -3474,11 +3676,9 @@ package body Adash.Language.Parser is
                --  `constant` is recorded as the node's text rather than as a
                --  separate kind: it is a property of one declaration, and two
                --  kinds would double every place that handles declarations.
-               return S.Add_Node
-                 (Into, S.Node_Object_Declaration,
-                  Adash.Source.Join (Start, Just_Consumed),
-                  [Name, Type_Ref, Value, Actuals],
-                  Text => (if Is_Const then "constant" else ""));
+               return Each_Name_Declared
+                 (S.Node_Object_Declaration,
+                  Adash.Source.Join (Start, Just_Consumed));
             end;
          end if;
 
@@ -4487,6 +4687,23 @@ package body Adash.Language.Parser is
             begin
                Count := Count + 1;
                Collected (Count) := Item;
+
+               --  `A, B : Integer;` is one declaration and two objects. The
+               --  rest arrive here rather than being parsed again, and they
+               --  are taken before anything else is read, which is what keeps
+               --  them in the order they were written.
+               for Index in 1 .. State.Waiting_Count loop
+                  if Count = Collected'Last then
+                     Refuse_Surplus
+                       (Adash.Messages.Msg_List_Statements, Collected'Last,
+                        Told_Of_Statements);
+                  else
+                     Count := Count + 1;
+                     Collected (Count) := State.Waiting (Index);
+                  end if;
+               end loop;
+
+               State.Waiting_Count := 0;
 
                --  A statement that consumed nothing would loop for ever. This
                --  cannot happen while every path either advances or recovers,

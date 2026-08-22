@@ -871,6 +871,21 @@ package body Adash.Engine is
    is
       use type Ada.Strings.Unbounded.Unbounded_String;
       Text : Ada.Strings.Unbounded.Unbounded_String;
+
+      --  Whether this exact line is already among the ones being replayed.
+      --  Compared whole and between line feeds, so a declaration is never
+      --  matched by part of a longer one.
+      function Already
+        (Built : Ada.Strings.Unbounded.Unbounded_String;
+         Line  : Ada.Strings.Unbounded.Unbounded_String) return Boolean
+      is
+         Whole : constant String :=
+           ASCII.LF & Ada.Strings.Unbounded.To_String (Built);
+         One   : constant String :=
+           ASCII.LF & Ada.Strings.Unbounded.To_String (Line) & ASCII.LF;
+      begin
+         return Ada.Strings.Fixed.Index (Whole & ASCII.LF, One) > 0;
+      end Already;
    begin
       for Held of Item.Kept loop
          declare
@@ -882,8 +897,17 @@ package body Adash.Engine is
                end if;
             end loop;
 
+            --  Once per declaration, not once per name it declared.
+            --
+            --  `E1, E2 : exception;` is one clause and two declarations, and
+            --  what is carried for each is the text that made it -- the whole
+            --  clause, because that is the span it was written in and there
+            --  is no way to cut a valid declaration out of the middle of it.
+            --  Replaying it for E1 and again for E2 declared both twice, and
+            --  the next submission said so.
             if not Superseded
               and then Held.Text /= Ada.Strings.Unbounded.Null_Unbounded_String
+              and then not Already (Text, Held.Text)
             then
                Ada.Strings.Unbounded.Append (Text, Held.Text);
                Ada.Strings.Unbounded.Append (Text, ASCII.LF);
