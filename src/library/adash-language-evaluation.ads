@@ -1,3 +1,5 @@
+with Ada.Strings.Unbounded;
+with Ada.Containers.Vectors;
 with Adash.Diagnostics;
 with Adash.Language.Semantics;
 with Adash.Language.Values;
@@ -230,12 +232,36 @@ package Adash.Language.Evaluation is
    --         not call one, and a call is refused rather than ignored: a caller
    --         that did not supply a sink is one that cannot run commands, and
    --         silently skipping them would make the program mean something else.
+   --  Where a session's own variables live, kept between submissions.
+   --
+   --  A submission's variables are level one and their addresses are handed
+   --  out in the order declarations are lowered, so a name moves whenever the
+   --  session carries something new in front of it. This remembers the address
+   --  a name was given so a later lowering gives it the same one -- which is
+   --  what a value needs if it is to stay in the frame rather than be written
+   --  back out as source and parsed again.
+   type Frame_Map is private;
+
    procedure Run
      (Tree     : Adash.Language.Syntax.Tree;
       Analysis : Adash.Language.Semantics.Analysis;
       Origin   : Adash.Source.Origin;
       Result   : out Outcome;
       Report   : in out Adash.Diagnostics.List;
+      On_Command : Sink_Access := null;
+      Cancel     : Cancellation_Access := null);
+
+   --  The same, giving a name the address it had last time.
+   --
+   --  @param Places Addresses this session has handed out, added to as new
+   --         names are declared.
+   procedure Run
+     (Tree     : Adash.Language.Syntax.Tree;
+      Analysis : Adash.Language.Semantics.Analysis;
+      Origin   : Adash.Source.Origin;
+      Result   : out Outcome;
+      Report   : in out Adash.Diagnostics.List;
+      Places   : in out Frame_Map;
       On_Command : Sink_Access := null;
       Cancel     : Cancellation_Access := null);
 
@@ -246,5 +272,21 @@ package Adash.Language.Evaluation is
    --
    --  @return The instruction count of the most recent Run.
    function Last_Instruction_Count return Natural;
+
+private
+
+   --  A name and where it lives. A vector: a session holds a couple of hundred
+   --  of these at most, and a scan beats a hash over that.
+   type Placement is record
+      Named   : Ada.Strings.Unbounded.Unbounded_String;
+      Address : Natural := 0;
+   end record;
+
+   package Placement_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Placement);
+
+   type Frame_Map is record
+      Known : Placement_Vectors.Vector;
+   end record;
 
 end Adash.Language.Evaluation;

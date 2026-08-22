@@ -78,6 +78,21 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**The address map is in, 2026-08-22 (`Evaluation.Frame_Map`).** A name and an
+address the session keeps; `Place_Of` consults it where it allocates, so a
+carried variable is given the address it had last time instead of one handed
+out in lowering order. What made it work is one condition: `Block_Depth = 0`
+beside `Current_Level = 1`. A `declare` block's variables are level one too,
+and one that shadows an outer name must get storage of its own or it writes
+over what it is hiding -- which is exactly what the first version did, and
+`example.blocks` said so.
+
+It changes nothing observable yet, which is the point of what comes next: with
+addresses stable, a value can be carried in the frame rather than written back
+out as source and parsed again. That needs `Run` to accept incoming cells and
+write them in with `Machine.Set_Slot` once the frame exists, and the engine to
+stop spelling values into the replayed text.
+
 **The address map was built and it breaks shadowing, 2026-08-22.** Written as
 described below -- a name and an address, consulted where a level-one slot is
 allocated so a carried variable takes the address it had last time -- and one

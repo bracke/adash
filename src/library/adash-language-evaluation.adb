@@ -295,12 +295,28 @@ package body Adash.Language.Evaluation is
    -- Run --
    ---------
 
+   --  The old shape, over a map of its own.
    procedure Run
      (Tree     : S.Tree;
       Analysis : Sem.Analysis;
       Origin   : Adash.Source.Origin;
       Result   : out Outcome;
       Report   : in out D.List;
+      On_Command : Sink_Access := null;
+      Cancel     : Cancellation_Access := null)
+   is
+      Alone : Frame_Map;
+   begin
+      Run (Tree, Analysis, Origin, Result, Report, Alone, On_Command, Cancel);
+   end Run;
+
+   procedure Run
+     (Tree     : S.Tree;
+      Analysis : Sem.Analysis;
+      Origin   : Adash.Source.Origin;
+      Result   : out Outcome;
+      Report   : in out D.List;
+      Places   : in out Frame_Map;
       On_Command : Sink_Access := null;
       Cancel     : Cancellation_Access := null)
    is
@@ -3617,13 +3633,55 @@ package body Adash.Language.Evaluation is
          --  was not lowered first, which the walk order prevents; allocating
          --  now keeps the emitter total rather than raising inside a code
          --  generator.
-         Slots.Append
-           (Slot'(Declared_At  => Declared,
-                  Named        =>
-                    Ada.Strings.Unbounded.To_Unbounded_String (Called),
-                  Address      => Next_Address,
-                  Level        => Current_Level,
-                  By_Reference => False));
+         --  A submission's own variable takes the address this session gave
+         --  it before. Addresses are otherwise handed out in lowering order,
+         --  so a name moves whenever the session carries something new in
+         --  front of it -- and a value can only stay in the frame if the name
+         --  that reads it keeps its place.
+         --
+         --  `Block_Depth` is what says "the submission's own": a `declare`
+         --  block's variables are level one as well, and one that shadows an
+         --  outer name must have storage of its own or it writes over what it
+         --  is hiding.
+         declare
+            Session_Own : constant Boolean :=
+              Current_Level = 1 and then Block_Depth = 0;
+
+            Again : Natural := 0;
+         begin
+            if Session_Own then
+               for Held of Places.Known loop
+                  if Ada.Strings.Unbounded.To_String (Held.Named) = Called then
+                     Again := Held.Address;
+                     exit;
+                  end if;
+               end loop;
+
+               if Again = 0 then
+                  Places.Known.Append
+                    (Placement'(Named   =>
+                                  Ada.Strings.Unbounded.To_Unbounded_String
+                                    (Called),
+                                Address => Next_Address));
+               end if;
+            end if;
+
+            Slots.Append
+              (Slot'(Declared_At  => Declared,
+                     Named        =>
+                       Ada.Strings.Unbounded.To_Unbounded_String (Called),
+                     Address      => (if Again /= 0 then Again
+                                      else Next_Address),
+                     Level        => Current_Level,
+                     By_Reference => False));
+
+            if Again /= 0 then
+               --  Its room was counted when the address was first given out.
+               return (Level        => Current_Level,
+                       Address      => Again,
+                       By_Reference => False);
+            end if;
+         end;
 
          --  A composite takes as many slots as it has parts. That is the whole
          --  of how a record and an array work here: a value is a run, and
