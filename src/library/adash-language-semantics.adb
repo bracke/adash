@@ -2638,11 +2638,27 @@ package body Adash.Language.Semantics is
             return Types.Type_None;
          end if;
 
-         if not Static_Default (Into, Tree, Value, Found, Spelling) then
-            Complain (Adash.Errors.Error_Number_Not_A_Literal, Value,
-                      [1 => Adash.Messages.Named ("name", Name)]);
-            return Types.Type_None;
-         end if;
+         --  A literal, or anything else whose value is known before the
+         --  program runs. `Static_Default` asks the first question and is not
+         --  widened to ask the second: it also decides what a *parameter
+         --  default* may be, and those are stored as the text that was
+         --  written, to be re-read at each call site.
+         --
+         --  `Max : constant := 2 + 1;` and `B : constant := A + 1;` are named
+         --  numbers by Ada's rule and were refused for not being written as
+         --  one literal -- by this gate rather than by `Static_Choice`, which
+         --  is why folding expressions elsewhere did not reach them.
+         declare
+            Folded : Long_Long_Integer;
+         begin
+            if not Static_Default (Into, Tree, Value, Found, Spelling)
+              and then not Static_Choice (Into, Tree, Value, Folded)
+            then
+               Complain (Adash.Errors.Error_Number_Not_A_Literal, Value,
+                         [1 => Adash.Messages.Named ("name", Name)]);
+               return Types.Type_None;
+            end if;
+         end;
 
          return Found;
       end Number_Type;
@@ -10127,6 +10143,26 @@ package body Adash.Language.Semantics is
                return True;
             end;
 
+         when S.Node_Selected =>
+            --  `P.Max`. A name with a dot in it resolves to a symbol like any
+            --  other, and the symbol is what says whether it is static -- so
+            --  this asks the same question of it as a bare name. Left out when
+            --  constants were folded, so a constant was static where it was
+            --  declared and not static where it was reached through the
+            --  package holding it.
+            declare
+               Found : constant Symbols.Symbol := Symbol_Of (Item, Node);
+            begin
+               if Symbols.Is_Nothing (Found)
+                 or else not Symbols.Is_Fixed (Found)
+               then
+                  return False;
+               end if;
+
+               Value := Symbols.Fixed_Value (Found);
+               return True;
+            end;
+
          when S.Node_Name =>
             --  True and False, and only those: a name that resolves to
             --  something the shell provides is a literal of the language, and
@@ -10187,16 +10223,22 @@ package body Adash.Language.Semantics is
             declare
                Inner : Long_Long_Integer := 0;
             begin
-               if S.Operator (Tree, Node) not in S.Op_Plus | S.Op_Minus
+               if S.Operator (Tree, Node)
+                    not in S.Op_Plus | S.Op_Minus | S.Op_Abs
                  or else not Static_Choice
                                (Item, Tree, S.First (Tree, Node), Inner)
                then
                   return False;
                end if;
 
+               --  `abs` belongs here with the signs, and was left out when
+               --  the binary operators were folded: an operation on a static
+               --  operand is static, and `abs` is one of those.
                Value :=
-                 (if S.Operator (Tree, Node) = S.Op_Minus then -Inner
-                  else Inner);
+                 (case S.Operator (Tree, Node) is
+                     when S.Op_Minus => -Inner,
+                     when S.Op_Abs   => abs Inner,
+                     when others     => Inner);
                return True;
             end;
 

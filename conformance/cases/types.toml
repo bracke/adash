@@ -1310,10 +1310,19 @@ see `types.a-value-not-known-before-it-runs-is-refused-by-place`.
 
 Arithmetic only. A comparison is static in Ada too and answers a Boolean, and
 nothing here wants a Boolean where a discrete value goes.
+
+Three more that this missed when it was first written, each in a different
+place, and each found by probing the edges of the change rather than by the
+suite passing: `abs` was left out of the unary operators while the binary ones
+were being added; a constant reached through the package holding it
+(`P.Max`) resolves to a symbol like any other and was not asked; and a named
+number defined from another (`B : constant := A + 1;`) is refused by a gate of
+its own -- the one that says a named number is a literal -- which folding
+expressions elsewhere never reached.
 """
-script = "Max : constant := 3;\nLim : constant Integer := 2;\ntype Wide is array (1 .. Max) of Integer;\nW : Wide := (1, 2, 9);\nput_line (Integer'Image (W (Max)));\ntype Pair is array (1 .. Lim * 2) of Integer;\nP : Pair := (1, 2, 3, 8);\nput_line (Integer'Image (P (2 + 2)));\nsubtype Small is Integer range 1 .. Max;\nS : Small := 3;\nput_line (Integer'Image (S));\ncase S is when Max => put_line (\"named\"); when others => put_line (\"other\"); end case;\nquit (0);"
+script = "Max : constant := 3;\nDoubled : constant := Max + Max;\npackage Held is Inner : constant := 3; end Held;\nLim : constant Integer := 2;\ntype Wide is array (1 .. Max) of Integer;\nW : Wide := (1, 2, 9);\nput_line (Integer'Image (W (Max)));\ntype Pair is array (1 .. Lim * 2) of Integer;\nP : Pair := (1, 2, 3, 8);\nput_line (Integer'Image (P (2 + 2)));\nsubtype Small is Integer range 1 .. Max;\nS : Small := 3;\nput_line (Integer'Image (S));\ncase S is when Max => put_line (\"named\"); when others => put_line (\"other\"); end case;\ntype Both is array (1 .. Doubled) of Integer;\nB : Both := (1, 2, 3, 4, 5, 7);\nput_line (Integer'Image (B (Doubled)));\ntype Reached is array (1 .. Held.Inner) of Integer;\nR : Reached := (1, 2, 6);\nput_line (Integer'Image (R (Held.Inner)));\ntype Absolute is array (1 .. abs (-2)) of Integer;\nA : Absolute := (1, 5);\nput_line (Integer'Image (A (2)));\nquit (0);"
 exit_status = 0
-output = [" 9", " 8", " 3", "named"]
+output = [" 9", " 8", " 3", "named", " 7", " 6", " 5"]
 
 [[case]]
 id = "types.a-static-expression-that-cannot-be-worked-out-is-not-static"

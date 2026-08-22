@@ -420,9 +420,11 @@ Everything below parses in Ada and is refused here, by name, on purpose.
 - **Dynamic bounds.** An array's, a subtype's and a case choice's are known
   before the program runs. What counts as known is Ada's *static expression*: a
   literal, an attribute such as `Integer'Last`, an enumeration literal, a
-  constant whose own value is static, and arithmetic on any of those — so
-  `1 .. Max`, `1 .. 2 + 1` and `1 .. Integer'Size / 8` are all bounds. A
-  variable is not, nor is a constant given its value by something that runs.
+  constant whose own value is static — including one reached through the
+  package holding it, and one defined from another — and `+ - * / mod rem **`
+  and `abs` on any of those. So `1 .. Max`, `1 .. 2 + 1`, `1 .. P.Max` and
+  `1 .. Integer'Size / 8` are all bounds. A variable is not, nor is a constant
+  given its value by something that runs.
   Comparisons are not folded: they answer a Boolean, and nothing here wants one
   where a discrete value goes.
 - **Tasking's edges**: a protected entry takes no parameters, an entry parameter
