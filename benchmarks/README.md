@@ -78,6 +78,32 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**Corrected 2026-08-22: `Install_Predefined` was never the blocker.** An
+earlier note here said the eighty-seven provided names could not be installed
+once because the call mixed scope population with per-analysis state, and
+pointed at 171 failing cases as evidence. That was a wrong reading of my own
+change. `Adash.Predefined.Install` adopts prepared symbols into a chain and
+does nothing else; the 171 came from installing once *without* telling the
+chain where the previous submission ended, so every replayed declaration met
+itself and was refused as already declared. With `Settle` in place, installing
+once is fine.
+
+What is actually left is one thing, and it cannot be done in halves: **while
+the session replays its declarations as text, persisting the analysed chain
+buys nothing** -- the replay re-declares everything anyway, so the chain can
+only agree with it or contradict it. The eleven cases that fail with a
+persistent chain are all the second: a name the chain kept that the replay
+would have dropped, resolving to a slot the machine never made.
+
+So the order is forced. The replay has to stop first, and that needs the
+lowering to give a name the same slot in every submission -- `Slots` in
+`Adash.Language.Evaluation.Run` is built fresh each time and addressed in
+declaration order, and the machine already keeps its frame between runs
+(`Machine.Slot_Value` exists for exactly that). A session-level name-to-address
+map handed into the lowering is the piece that is missing, and everything else
+-- the chain, the mark, the rewind, installing the provided names once --
+follows it rather than precedes it.
+
 **Attempted twice on 2026-08-22, and the second attempt was worse than the
 first, which is the finding.** Making the two structures one was tried by
 keying the chain the way `Kept` is keyed. `Kept`'s key is a name *and a
