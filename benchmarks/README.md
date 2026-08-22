@@ -100,9 +100,22 @@ lowering to give a name the same slot in every submission -- `Slots` in
 `Adash.Language.Evaluation.Run` is built fresh each time and addressed in
 declaration order, and the machine already keeps its frame between runs
 (`Machine.Slot_Value` exists for exactly that). A session-level name-to-address
-map handed into the lowering is the piece that is missing, and everything else
--- the chain, the mark, the rewind, installing the provided names once --
-follows it rather than precedes it.
+map handed into the lowering is the piece that is missing for *variables*, and
+everything else -- the chain, the mark, the rewind, installing the provided
+names once -- follows it.
+
+But a map is not enough to stop the replay, and this is the constraint that
+decides the size of the whole item. `Adash.Engine`'s `Keep_As_Text` carries a
+subprogram, a type and a package as **source**, and the replay is how the
+machine gets their *code*: a call to a function declared three submissions ago
+runs instructions emitted from that text into this submission's program. A slot
+map persists where a variable lives; it does not persist a body. Stop replaying
+and the names resolve and there is nothing to call.
+
+So going all the way means the machine keeping compiled code across submissions
+-- instructions, entry points, and the frame layout they were compiled against.
+That is an image and a linker rather than a map, and it is worth knowing before
+starting rather than after.
 
 **Attempted twice on 2026-08-22, and the second attempt was worse than the
 first, which is the finding.** Making the two structures one was tried by
