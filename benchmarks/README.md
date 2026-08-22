@@ -78,6 +78,23 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**The address map was built and it breaks shadowing, 2026-08-22.** Written as
+described below -- a name and an address, consulted where a level-one slot is
+allocated so a carried variable takes the address it had last time -- and one
+case fails: `example.blocks`.
+
+The reason is the one the offset was there for all along. A `declare` block's
+variables are level one too, so a block-local `X` asks the map for "X", finds
+the session's outer `X`, and the two share storage. `Place_Of` cannot tell them
+apart: at the moment of allocation it has a name, an offset and a level, and
+the level says one for both.
+
+So the map needs something that says *this declaration is the submission's
+own*, not merely at level one. The lowering knows -- it is walking a block when
+it lowers a block's declarations -- but it does not carry that into `Place_Of`.
+That is the next piece, and it is a change to what the lowering passes down
+rather than to what the map holds.
+
 **The address map does not need `Place_Of` changed, 2026-08-22.** The obvious
 first move is to stop keying a slot on `Declared_At` -- a byte offset, which
 moves for a carried variable every time the session puts something new in front
