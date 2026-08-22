@@ -78,6 +78,25 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**Carrying a session got about three times cheaper (2026-08-22).** Analysing a
+line beside 128 carried declarations measured 51.6 ms and now measures 14.9 ms
+(medians, back to back on one machine under one load, which is the only way to
+compare anything here). The cause was not the re-analysis being inherently
+expensive: `Ada.Containers.Vectors.Element` returns by **value**, and a
+`Symbol` holds thirty-seven `Unbounded_String` components -- name, key, within,
+kept, origin, and sixteen parameter names beside sixteen defaults. Every scan
+of a scope copied all of that for each entry it looked at, to read one field
+and throw the rest away. Comparing through `Constant_Reference` instead is the
+whole change.
+
+Worth keeping for the next one: the phase split said where to look. `Analyse`
+has five phases, and at 128 declarations it was 18.0 ms in `Analyse_Sequence`
+against 0.17 in `Install_Predefined` and 0.25 in the rest together. Per
+declaration the cost barely grew with how many were already declared -- 342 us
+each at 16 and 437 at 256 -- so it was a fixed cost per declaration rather than
+a scan that got longer, which is what pointed at the copy rather than at the
+lookup.
+
 **Checked again for 0.1.0 (2026-08-22), and the table stands.** The figures
 above could not be re-taken: this machine was under the `powersave` governor at
 1.40 GHz of 5.13 and carrying a load average of about 4.5 from a virtual

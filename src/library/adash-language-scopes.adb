@@ -232,7 +232,9 @@ package body Adash.Language.Scopes is
          --  one ever gets in. Declare_Symbol prevents that, but a lookup that
          --  depended on it would be relying on another package's check.
          for Index in reverse Innermost.First .. Innermost.Last loop
-            if Symbols.Key (Item.Entries.Element (Index)) = Wanted then
+            if Symbols.Key (Item.Entries.Constant_Reference (Index))
+              = Wanted
+            then
                return Item.Entries.Element (Index);
             end if;
          end loop;
@@ -270,8 +272,8 @@ package body Adash.Language.Scopes is
          begin
             for Index in reverse Current.First .. Current.Last loop
                declare
-                  Candidate : constant Symbols.Symbol :=
-                    Item.Entries.Element (Index);
+                  Candidate : Symbols.Symbol renames
+                    Item.Entries.Constant_Reference (Index);
                   Hidden : Boolean := False;
                begin
                   if Symbols.Key (Candidate) = Wanted then
@@ -328,7 +330,9 @@ package body Adash.Language.Scopes is
             Current : constant Scope := Item.Levels.Element (Level);
          begin
             for Index in reverse Current.First .. Current.Last loop
-               if Symbols.Key (Item.Entries.Element (Index)) = Wanted then
+               if Symbols.Key (Item.Entries.Constant_Reference (Index))
+                 = Wanted
+               then
                   return Item.Entries.Element (Index);
                end if;
             end loop;
@@ -366,7 +370,9 @@ package body Adash.Language.Scopes is
             Current : constant Scope := Item.Levels.Element (Level);
          begin
             for Index in Current.First .. Current.Last loop
-               if Symbols.Key (Item.Entries.Element (Index)) = Wanted then
+               if Symbols.Key (Item.Entries.Constant_Reference (Index))
+                 = Wanted
+               then
                   return True;
                end if;
             end loop;
