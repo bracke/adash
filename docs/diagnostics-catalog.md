@@ -545,7 +545,7 @@ quoted into `config.syntax`, which supplies the file and the position.
 | `setting.history-enabled` | Whether commands are recorded in the history file. |
 | `setting.history-limit` | How many history entries a session holds and can recall. |
 | `setting.read-limit` | The most one read will hold, in mebibytes. |
-| `setting.trace` | Whether each command is noted as it runs, in its submission's report. |
+| `setting.trace` | Whether each command is announced before it runs. |
 | `setting.prompt-directory` | Whether the prompt shows the working directory. |
 | `setting.prompt-failure` | Whether the prompt marks that the last command failed. |
 | `setting.editing` | Whether lines are edited in place rather than read whole. |

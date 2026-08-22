@@ -56,13 +56,17 @@ what a script writes: tracing that wrote into a pipeline's data is a thing every
 shell user has been bitten by once. The command that turns it on is not traced,
 because it was not on when it ran.
 
-**A note is part of its submission's report, and a report is written when the
-submission ends.** At a prompt that is every line, so the trace arrives beside
-the work it describes. A script file is *one* submission, so its whole trace
-arrives at the end, after everything the script printed — and a script that
-never finishes prints no trace at all, which is the one case `set -x` is most
-often reached for. Feeding the script in on standard input instead makes each
-line its own submission and the trace arrives with it.
+**A trace arrives as it happens, not with the report.** Every other diagnostic
+is part of its submission's report, which is sorted by position and written
+when the submission ends — that is what a reader wants for an error, and the
+opposite of what they want for a trace. So a frontend watches the list and
+shows a *note* as it is emitted.
+
+That was not always so, and the difference is worth knowing if you have used an
+older build: a script file is **one** submission, so the whole trace used to
+arrive after everything the script printed, and a script that never finished
+printed none of it — the one case `set -x` is most often reached for. Feeding
+the script in on standard input was the workaround, and is no longer needed.
 
 `color` decides when styling is written, and what it decides against is where
 the output is going, not what kind of run this is: a script and a session

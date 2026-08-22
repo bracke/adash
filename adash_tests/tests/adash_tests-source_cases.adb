@@ -433,6 +433,103 @@ package body Adash_Tests.Source_Cases is
    -- Register_Tests --
    --------------------
 
+   ------------------------------------------
+   -- A_Watcher_Sees_A_Diagnostic_As_It_Is_Emitted --
+   ------------------------------------------
+
+   --  A list is a report, and a frontend may also watch it.
+   --
+   --  `trace.commands` is why. A note belongs to its submission's report and a
+   --  report is read when the submission ends, so a script file -- one
+   --  submission -- announced every command after it had finished printing,
+   --  and a script that never finished announced nothing at all. A frontend
+   --  that is told as each diagnostic arrives can show a note where it
+   --  happened.
+   --
+   --  Two halves, and the second is the one worth pinning: being watched must
+   --  not take the diagnostic out of the report. A watcher renders; the report
+   --  is still whole, and it is the frontend's business not to show a note
+   --  twice.
+   procedure A_Watcher_Sees_A_Diagnostic_As_It_Is_Emitted
+     (T : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Watcher_Sees_A_Diagnostic_As_It_Is_Emitted
+     (T : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (T);
+
+      type Counting_Watcher is limited new Adash.Diagnostics.Watcher with
+         record
+            Seen  : Natural := 0;
+            Notes : Natural := 0;
+         end record;
+
+      overriding procedure Saw
+        (Item : in out Counting_Watcher;
+         Note : Adash.Diagnostics.Diagnostic);
+
+      overriding procedure Saw
+        (Item : in out Counting_Watcher;
+         Note : Adash.Diagnostics.Diagnostic) is
+      begin
+         Item.Seen := Item.Seen + 1;
+
+         if Adash.Diagnostics."=" (Adash.Diagnostics.Level (Note),
+                                   Adash.Diagnostics.Severity_Note)
+         then
+            Item.Notes := Item.Notes + 1;
+         end if;
+      end Saw;
+
+      Watching : aliased Counting_Watcher;
+      Report   : Adash.Diagnostics.List;
+   begin
+      --  Nobody watching yet: what is emitted is recorded and no more.
+      Report.Emit
+        (Adash.Diagnostics.Make
+           (Message   => Adash.Messages.Msg_Error_None,
+            Level     => Adash.Diagnostics.Severity_Error,
+            Of_Kind   => Adash.Diagnostics.Category_Syntax,
+            Raised_By => Adash.Diagnostics.Owner_Language));
+
+      Assert (Watching.Seen = 0,
+              "a watcher that was never attached was told about a diagnostic");
+
+      Report.Watch (Watching'Unchecked_Access);
+
+      Report.Emit
+        (Adash.Diagnostics.Make
+           (Message   => Adash.Messages.Msg_Line_Traced,
+            Level     => Adash.Diagnostics.Severity_Note,
+            Of_Kind   => Adash.Diagnostics.Category_Execution,
+            Raised_By => Adash.Diagnostics.Owner_Commands));
+
+      Assert (Watching.Seen = 1,
+              "the watcher was not told as the diagnostic was emitted");
+      Assert (Watching.Notes = 1,
+              "the watcher was told, but not what severity it was");
+
+      --  Still in the report. A frontend that shows a note as it arrives is
+      --  the one that must not show it again; the list does not forget it.
+      Assert (Report.Count = 2,
+              "being watched took the diagnostic out of the report");
+
+      --  And watching stops.
+      Report.Watch (null);
+
+      Report.Emit
+        (Adash.Diagnostics.Make
+           (Message   => Adash.Messages.Msg_Line_Traced,
+            Level     => Adash.Diagnostics.Severity_Note,
+            Of_Kind   => Adash.Diagnostics.Category_Execution,
+            Raised_By => Adash.Diagnostics.Owner_Commands));
+
+      Assert (Watching.Seen = 1,
+              "a watcher that was taken off was still being told");
+      Assert (Report.Count = 3,
+              "a diagnostic emitted with nobody watching was not recorded");
+   end A_Watcher_Sees_A_Diagnostic_As_It_Is_Emitted;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -466,6 +563,9 @@ package body Adash_Tests.Source_Cases is
       Register_Routine
         (T, Diagnostic_Order_Is_Deterministic'Access,
          "diagnostics : ordering is deterministic and stable");
+      Register_Routine
+        (T, A_Watcher_Sees_A_Diagnostic_As_It_Is_Emitted'Access,
+         "diagnostics : a watcher is told as a diagnostic is emitted");
       Register_Routine
         (T, Warnings_Alone_Do_Not_Block'Access,
          "diagnostics : warnings alone do not block evaluation");

@@ -290,12 +290,23 @@ package body Adash.Diagnostics is
    -- Emit --
    ----------
 
+   procedure Watch (Item : in out List; By : access Watcher'Class) is
+   begin
+      Item.Watching := By;
+   end Watch;
+
    procedure Emit (Item : in out List; Entry_To_Add : Diagnostic) is
       Recorded : Diagnostic := Entry_To_Add;
    begin
       Item.Emitted := Item.Emitted + 1;
       Recorded.Sequence := Item.Emitted;
       Item.Entries.Append (Recorded);
+
+      --  Recorded first, then told: a watcher that raised would otherwise
+      --  leave the report missing what it was told about.
+      if Item.Watching /= null then
+         Item.Watching.Saw (Recorded);
+      end if;
    end Emit;
 
    -----------

@@ -9,6 +9,19 @@ what changed.
 
 ## [Unreleased]
 
+### Changed
+
+- **A trace arrives as it happens.** `trace.commands` announces each command
+  before it runs, which is what it always claimed and was not true for a
+  script: a note belonged to its submission's report, a report is written when
+  the submission ends, and a script file is **one** submission — so the whole
+  trace arrived after everything the script printed, and a script that never
+  finished printed none of it, the case `set -x` is most often reached for.
+  `Adash.Diagnostics.List` can now be watched, and both frontends show a note
+  as it is emitted. Errors are unchanged: they stay in the report, sorted by
+  position, which is what a reader wants for an error and the opposite of what
+  they want for a trace.
+
 ### Fixed
 
 - **One token, one complaint.** A rule that wanted a semicolon reported the

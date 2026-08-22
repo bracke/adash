@@ -218,8 +218,123 @@ procedure Adash_Main is
 
       procedure Render_Diagnostics;
 
+      --  True once notes are being shown as they arrive, so the report does
+      --  not show them a second time.
+      Streaming_Notes : Boolean := False;
+
       --  Diagnostics are data until here. This is the presentation boundary:
       --  the identifier becomes a sentence, and the severity becomes a style.
+      --  One diagnostic, rendered where it stands.
+      --
+      --  Lifted out of the loop below so that a note can be shown as it
+      --  arrives as well as when the report is read -- the same text either
+      --  way, because two renderers of one thing drift.
+      procedure Render_One (Item : Adash.Diagnostics.Diagnostic);
+
+      procedure Render_One (Item : Adash.Diagnostics.Diagnostic) is
+            Role : constant Adash.Terminal.Style_Role :=
+              (case Adash.Diagnostics.Level (Item) is
+                  when Adash.Diagnostics.Severity_Note    => Adash.Terminal.Role_Muted,
+                  when Adash.Diagnostics.Severity_Warning => Adash.Terminal.Role_Warning,
+                  when others                             => Adash.Terminal.Role_Error);
+            Said : constant String :=
+              (if Adash.Diagnostics.Detail_Key (Item) = ""
+               then Catalog.Text
+                      (Adash.Diagnostics.Message (Item),
+                       Adash.Diagnostics.Arguments (Item),
+                       Adash.Diagnostics.Detail (Item),
+                       Adash.Diagnostics.Detail_Placeholder (Item),
+                       Adash.Diagnostics.Detail_Arguments (Item))
+
+               --  A quoted message that is not one of Adash's own, named
+               --  by key because the library that answered with it is
+               --  below the boundary that renders.
+               else Catalog.Text
+                      (Adash.Diagnostics.Message (Item),
+                       Adash.Diagnostics.Arguments (Item),
+                       Adash.Diagnostics.Detail_Key (Item),
+                       Adash.Diagnostics.Detail_Placeholder (Item),
+                       Adash.Diagnostics.Detail_Arguments (Item)));
+
+            --  Where to find it, in front of what it says -- but only for a
+            --  file. A line typed at a prompt is on the screen already, and
+            --  a position in front of it is noise pointing at itself.
+            Origin : constant Adash.Source.Origin :=
+              Adash.Diagnostics.Origin (Item);
+
+            Place : constant Adash.Source.Location :=
+              Adash.Diagnostics.Position (Item);
+
+            --  Only where there is a position to give. A file that
+            --  could not be read at all, or a failure with no place in the
+            --  text, has none -- and `path:1:1:` in front of it would be a
+            --  position pointing at nothing.
+            Known : constant Boolean :=
+              Adash.Source."=" (Adash.Source.Kind (Origin),
+                                Adash.Source.Origin_File)
+              and then Adash.Source.Name (Origin) /= ""
+              and then not Adash.Source.Is_Empty
+                             (Adash.Diagnostics.Extent (Item));
+      begin
+            Put_Line_Styled
+              (IO.Standard_Error,
+               (if Known
+                then Catalog.Text
+                       (Msg.Msg_Line_Diagnostic_At,
+                        [Msg.Named ("path", Adash.Source.Name (Origin)),
+                         Msg.Named ("line", Trimmed (Place.Line)),
+                         Msg.Named ("column", Trimmed (Place.Column)),
+                         Msg.Named ("text", Said)])
+                else Said),
+               Role, Stderr_Is_Terminal);
+
+            --  The line itself, and a caret under what it is about. Dimmed:
+            --  what a reader is looking for is the message, and the quote
+            --  is there to save them opening the file.
+            if Known
+              and then Adash.Diagnostics.Quoted_Line (Item) /= ""
+            then
+               Put_Line_Styled
+                 (IO.Standard_Error,
+                  Adash.Diagnostics.Quoted_Line (Item),
+                  Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
+               Put_Line_Styled
+                 (IO.Standard_Error,
+                  Adash.Diagnostics.Caret (Item),
+                  Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
+            end if;
+
+            --  What else this is about: the earlier declaration behind
+            --  "already declared", and anything else a subsystem thought a
+            --  reader would want to be sent to. Each says where it is and
+            --  what it is, in the same form as the diagnostic itself.
+            for Which in 1 .. Adash.Diagnostics.Related_Count (Item) loop
+               declare
+                  Beside : constant Adash.Diagnostics.Related_Location :=
+                    Adash.Diagnostics.Related (Item, Which);
+               begin
+                  if Adash.Source."=" (Adash.Source.Kind (Beside.Origin),
+                                       Adash.Source.Origin_File)
+                    and then Adash.Source.Name (Beside.Origin) /= ""
+                    and then not Adash.Source.Is_Empty (Beside.Extent)
+                  then
+                     Put_Line_Styled
+                       (IO.Standard_Error,
+                        Catalog.Text
+                          (Msg.Msg_Line_Diagnostic_At,
+                           [Msg.Named
+                              ("path", Adash.Source.Name (Beside.Origin)),
+                            Msg.Named ("line", Trimmed (Beside.Place.Line)),
+                            Msg.Named
+                              ("column", Trimmed (Beside.Place.Column)),
+                            Msg.Named
+                              ("text", Catalog.Text (Beside.Message))]),
+                        Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
+                  end if;
+               end;
+            end loop;
+      end Render_One;
+
       procedure Render_Diagnostics is
       begin
          Report.Sort;
@@ -228,110 +343,47 @@ procedure Adash_Main is
             declare
                Item : constant Adash.Diagnostics.Diagnostic :=
                  Report.Element (Index);
-               Role : constant Adash.Terminal.Style_Role :=
-                 (case Adash.Diagnostics.Level (Item) is
-                     when Adash.Diagnostics.Severity_Note    => Adash.Terminal.Role_Muted,
-                     when Adash.Diagnostics.Severity_Warning => Adash.Terminal.Role_Warning,
-                     when others                             => Adash.Terminal.Role_Error);
-               Said : constant String :=
-                 (if Adash.Diagnostics.Detail_Key (Item) = ""
-                  then Catalog.Text
-                         (Adash.Diagnostics.Message (Item),
-                          Adash.Diagnostics.Arguments (Item),
-                          Adash.Diagnostics.Detail (Item),
-                          Adash.Diagnostics.Detail_Placeholder (Item),
-                          Adash.Diagnostics.Detail_Arguments (Item))
-
-                  --  A quoted message that is not one of Adash's own, named
-                  --  by key because the library that answered with it is
-                  --  below the boundary that renders.
-                  else Catalog.Text
-                         (Adash.Diagnostics.Message (Item),
-                          Adash.Diagnostics.Arguments (Item),
-                          Adash.Diagnostics.Detail_Key (Item),
-                          Adash.Diagnostics.Detail_Placeholder (Item),
-                          Adash.Diagnostics.Detail_Arguments (Item)));
-
-               --  Where to find it, in front of what it says -- but only for a
-               --  file. A line typed at a prompt is on the screen already, and
-               --  a position in front of it is noise pointing at itself.
-               Origin : constant Adash.Source.Origin :=
-                 Adash.Diagnostics.Origin (Item);
-
-               Place : constant Adash.Source.Location :=
-                 Adash.Diagnostics.Position (Item);
-
-               --  Only where there is a position to give. A file that
-               --  could not be read at all, or a failure with no place in the
-               --  text, has none -- and `path:1:1:` in front of it would be a
-               --  position pointing at nothing.
-               Known : constant Boolean :=
-                 Adash.Source."=" (Adash.Source.Kind (Origin),
-                                   Adash.Source.Origin_File)
-                 and then Adash.Source.Name (Origin) /= ""
-                 and then not Adash.Source.Is_Empty
-                                (Adash.Diagnostics.Extent (Item));
             begin
-               Put_Line_Styled
-                 (IO.Standard_Error,
-                  (if Known
-                   then Catalog.Text
-                          (Msg.Msg_Line_Diagnostic_At,
-                           [Msg.Named ("path", Adash.Source.Name (Origin)),
-                            Msg.Named ("line", Trimmed (Place.Line)),
-                            Msg.Named ("column", Trimmed (Place.Column)),
-                            Msg.Named ("text", Said)])
-                   else Said),
-                  Role, Stderr_Is_Terminal);
-
-               --  The line itself, and a caret under what it is about. Dimmed:
-               --  what a reader is looking for is the message, and the quote
-               --  is there to save them opening the file.
-               if Known
-                 and then Adash.Diagnostics.Quoted_Line (Item) /= ""
+               --  A note already shown as it happened is not shown again.
+               if not (Streaming_Notes
+                       and then Adash.Diagnostics."="
+                                  (Adash.Diagnostics.Level (Item),
+                                   Adash.Diagnostics.Severity_Note))
                then
-                  Put_Line_Styled
-                    (IO.Standard_Error,
-                     Adash.Diagnostics.Quoted_Line (Item),
-                     Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
-                  Put_Line_Styled
-                    (IO.Standard_Error,
-                     Adash.Diagnostics.Caret (Item),
-                     Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
+                  Render_One (Item);
                end if;
-
-               --  What else this is about: the earlier declaration behind
-               --  "already declared", and anything else a subsystem thought a
-               --  reader would want to be sent to. Each says where it is and
-               --  what it is, in the same form as the diagnostic itself.
-               for Which in 1 .. Adash.Diagnostics.Related_Count (Item) loop
-                  declare
-                     Beside : constant Adash.Diagnostics.Related_Location :=
-                       Adash.Diagnostics.Related (Item, Which);
-                  begin
-                     if Adash.Source."=" (Adash.Source.Kind (Beside.Origin),
-                                          Adash.Source.Origin_File)
-                       and then Adash.Source.Name (Beside.Origin) /= ""
-                       and then not Adash.Source.Is_Empty (Beside.Extent)
-                     then
-                        Put_Line_Styled
-                          (IO.Standard_Error,
-                           Catalog.Text
-                             (Msg.Msg_Line_Diagnostic_At,
-                              [Msg.Named
-                                 ("path", Adash.Source.Name (Beside.Origin)),
-                               Msg.Named ("line", Trimmed (Beside.Place.Line)),
-                               Msg.Named
-                                 ("column", Trimmed (Beside.Place.Column)),
-                               Msg.Named
-                                 ("text", Catalog.Text (Beside.Message))]),
-                           Adash.Terminal.Role_Muted, Stderr_Is_Terminal);
-                     end if;
-                  end;
-               end loop;
             end;
          end loop;
       end Render_Diagnostics;
+
+      --  A note, shown as it happens rather than when the report is read.
+      --
+      --  The same argument as the output sink below, one line further in: a
+      --  script file is *one* submission, so `trace.commands` announced every
+      --  command after the script had finished printing -- and a script that
+      --  never finished announced nothing at all, which is the case a trace is
+      --  most often turned on for. Notes only: an error belongs to the sorted
+      --  report, where a reader wants it in the order of the source rather
+      --  than the order the analyser reached it.
+      type Note_Stream is limited new Adash.Diagnostics.Watcher with
+        null record;
+
+      overriding procedure Saw
+        (Item : in out Note_Stream; Note : Adash.Diagnostics.Diagnostic);
+
+      overriding procedure Saw
+        (Item : in out Note_Stream; Note : Adash.Diagnostics.Diagnostic)
+      is
+         pragma Unreferenced (Item);
+      begin
+         if Adash.Diagnostics."=" (Adash.Diagnostics.Level (Note),
+                                   Adash.Diagnostics.Severity_Note)
+         then
+            Render_One (Note);
+         end if;
+      end Saw;
+
+      Notes_As_They_Happen : aliased Note_Stream;
 
       --  Command output is data too, and rendered the same way -- but *as the
       --  command produces it*, not once the submission has finished. A program
@@ -440,6 +492,13 @@ procedure Adash_Main is
       --  Startup runs for a script too: a script that behaved differently from
       --  an interactive session would be one nobody could debug by hand. The
       --  session file is the exception and knows it.
+      --  From here a note is shown as it is emitted rather than kept for the
+      --  report. `Unchecked_Access` for the reason the output sink below gives
+      --  in full: the watcher is a local of this subprogram and so is the
+      --  report that holds it, and neither outlives the call.
+      Report.Watch (Notes_As_They_Happen'Unchecked_Access);
+      Streaming_Notes := True;
+
       Adash.Scripting.Startup.Run_All
         (Session, Interactive => False, Summary => Startup, Report => Report,
          On_Output => Output_To'Unchecked_Access);

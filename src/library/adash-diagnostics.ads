@@ -295,6 +295,34 @@ package Adash.Diagnostics is
    --  would be a second run's worth of findings nobody merges back.
    type List is tagged limited private;
 
+   --  Told about a diagnostic at the moment it is emitted.
+   --
+   --  A list is a *report*: it accumulates, it is sorted by position, and it
+   --  is read when the work that filled it is over. That is right for an error
+   --  -- a reader wants them in the order of the source, not the order the
+   --  analyser happened to reach them -- and wrong for a note that describes
+   --  something as it happens. `trace.commands` is the case: a script file is
+   --  one submission, so its whole trace arrived after everything the script
+   --  printed, and a script that never finished printed none of it.
+   --
+   --  So a frontend may watch. What it does with what it sees is its own --
+   --  this package still holds data and renders nothing, which is the boundary
+   --  that lets a diagnostic be a message identifier rather than a sentence.
+   --  A watcher does not stop the diagnostic being recorded: the report is
+   --  still whole, and a frontend that shows a note as it arrives is the one
+   --  that must not show it twice.
+   type Watcher is limited interface;
+
+   --  @param Item The watcher.
+   --  @param Note The diagnostic just emitted.
+   procedure Saw (Item : in out Watcher; Note : Diagnostic) is abstract;
+
+   --  Watch a list, or stop watching it with null.
+   --
+   --  @param Item List to watch.
+   --  @param By The watcher, which must outlive the list.
+   procedure Watch (Item : in out List; By : access Watcher'Class);
+
    --  Record a diagnostic.
    --
    --  @param Item List to add to.
@@ -434,6 +462,9 @@ private
    type List is tagged limited record
       Entries : Diagnostic_Vectors.Vector;
       Emitted : Natural := 0;
+
+      --  Whoever is being told as diagnostics arrive, or nobody.
+      Watching : access Watcher'Class := null;
    end record;
 
 end Adash.Diagnostics;

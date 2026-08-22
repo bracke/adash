@@ -40,14 +40,14 @@ package Adash.Configuration is
       --  How many entries are kept. Read by Adash.Interactive.History.
       History_Limit_Setting,
 
-      --  Whether each internal command is noted as it runs.
+      --  Whether each internal command is announced before it runs.
       --
-      --  "Before it runs" is what this said, and a script proved it wrong: a
-      --  note belongs to its submission's report and a report is written when
-      --  the submission ends, so a script file -- one submission -- prints its
-      --  whole trace after everything it printed. Streaming the notes instead
-      --  is a decision about what `Adash.Diagnostics.List` is, not a fix to
-      --  make in passing.
+      --  True again, and it was not for a while: a note belonged to its
+      --  submission's report, a report is written when the submission ends,
+      --  and a script file is one submission -- so the whole trace arrived
+      --  after everything the script printed, and a script that never
+      --  finished printed none of it. A frontend now watches the diagnostics
+      --  list and shows a note as it is emitted.
       --
       --  What `set -x` is for elsewhere: a script that does not do what its
       --  author expected is usually a script whose author cannot see what it
