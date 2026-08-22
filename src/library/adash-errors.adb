@@ -93,6 +93,7 @@ package body Adash.Errors is
             | Error_Open_By_Element
             | Error_Too_Many_At_Once
             | Error_Too_Many_Parameters
+            | Error_Not_In_This_Subset
             | Error_Case_Not_Discrete
             | Error_Case_Choice_Not_Static
             | Error_Case_Choice_Covered_Twice
@@ -301,6 +302,8 @@ package body Adash.Errors is
             return Adash.Messages.Msg_Too_Many_At_Once;
          when Error_Too_Many_Parameters    =>
             return Adash.Messages.Msg_Too_Many_Parameters;
+         when Error_Not_In_This_Subset     =>
+            return Adash.Messages.Msg_Not_In_This_Subset;
          when Error_Case_Not_Discrete      =>
             return Adash.Messages.Msg_Case_Not_Discrete;
          when Error_Case_Choice_Not_Static =>

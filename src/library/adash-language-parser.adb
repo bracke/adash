@@ -293,6 +293,16 @@ package body Adash.Language.Parser is
       procedure Too_Many
         (What : Adash.Messages.Message_Id; Limit : Natural);
 
+      --  Something Ada has and this subset does not.
+      --
+      --  Refused where it stands, by name. Without this the parse simply ran
+      --  out of expectations somewhere to the right and said so: `type P is
+      --  access Integer;` was told "expected (", which reads as advice to
+      --  write an enumeration, and `X : Integer renames Y;` was told
+      --  "expected ;", which reads as a missing semicolon. The reference
+      --  promised these were refused by name; eleven of thirteen were not.
+      procedure Not_In_Subset (What : Adash.Messages.Message_Id);
+
       --  Refuse a list longer than this build carries -- once. The caller
       --  goes on parsing the surplus and throwing it away, rather than
       --  leaving the loop: elements left in front of the cursor are read by
@@ -335,6 +345,29 @@ package body Adash.Language.Parser is
             null;
          end;
       end Too_Many;
+
+      procedure Not_In_Subset (What : Adash.Messages.Message_Id) is
+      begin
+         Report.Emit
+           (D.Make
+              (Message   =>
+                 Adash.Errors.Message (Adash.Errors.Error_Not_In_This_Subset),
+               Level     => D.Severity_Error,
+               Of_Kind   => D.Category_Syntax,
+               Raised_By => D.Owner_Language,
+               Origin    => State.Origin,
+               Extent    => Here,
+               Quoted    => What,
+               Fills     => "what"));
+
+         --  Nothing more about this submission. What follows an Ada spelling
+         --  this subset does not read cannot be parsed into anything, and the
+         --  complaints are about tokens the user did not get wrong: refusing
+         --  `function "+"` left four behind it. The depth refusal above sets
+         --  the same flag for the same reason, and it also stops the frontend
+         --  asking for another line -- no line completes a `goto`.
+         State.Refused_Outright := True;
+      end Not_In_Subset;
 
       procedure Refuse_Surplus
         (What  : Adash.Messages.Message_Id;
@@ -1281,6 +1314,14 @@ package body Adash.Language.Parser is
                   end if;
                end;
 
+               if Is_Word (T.Word_With) then
+                  Not_In_Subset
+                    (Adash.Messages.Msg_Subset_Raise_With_A_Message);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
                declare
                   Ignored : constant Boolean :=
                     Expect_Symbol (T.Delim_Semicolon);
@@ -1723,6 +1764,24 @@ package body Adash.Language.Parser is
 
                Variable := S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
                Advance;
+
+               if Is_Word (T.Word_Of) then
+                  Not_In_Subset (Adash.Messages.Msg_Subset_Array_Iteration);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
+               --  `for X use ...;` and `for X'Size use 32;` both begin the
+               --  way a loop does and are neither.
+               if Is_Word (T.Word_Use)
+                 or else Is_Symbol (T.Delim_Apostrophe)
+               then
+                  Not_In_Subset (Adash.Messages.Msg_Subset_Representation_Clauses);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
 
                if not Expect_Word (T.Word_In) then
                   Recover;
@@ -2797,6 +2856,20 @@ package body Adash.Language.Parser is
                Named := S.Add_Leaf (Into, S.Node_Name, Here, T.Text (Current));
                Advance;
 
+               if Is_Symbol (T.Delim_Dot) then
+                  Not_In_Subset (Adash.Messages.Msg_Subset_Child_Packages);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
+               if Is_Word (T.Word_Renames) then
+                  Not_In_Subset (Adash.Messages.Msg_Subset_Package_Renaming);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
                if not Expect_Word (T.Word_Is) then
                   Recover;
                   return Error_Node
@@ -2841,6 +2914,13 @@ package body Adash.Language.Parser is
          --  `generic <formals> procedure P ... end P;`
          if Is_Word (T.Word_Generic) then
             Advance;
+
+            if Is_Word (T.Word_Package) then
+               Not_In_Subset (Adash.Messages.Msg_Subset_Generic_Packages);
+               Recover;
+               return Error_Node
+                 (Adash.Source.Join (Start, Just_Consumed));
+            end if;
 
             declare
                Formals : S.Node_List (1 .. 16);
@@ -3051,6 +3131,20 @@ package body Adash.Language.Parser is
                Advance;
 
                if not Expect_Word (T.Word_Is) then
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
+               if Is_Word (T.Word_Access) then
+                  Not_In_Subset (Adash.Messages.Msg_Subset_Access_Types);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
+               if Is_Word (T.Word_New) then
+                  Not_In_Subset (Adash.Messages.Msg_Subset_Derived_Types);
                   Recover;
                   return Error_Node
                     (Adash.Source.Join (Start, Just_Consumed));
@@ -3267,6 +3361,18 @@ package body Adash.Language.Parser is
                   end;
                end if;
 
+               --  `Outer : loop ... end loop Outer;` -- a name on a loop or
+               --  a block starts the way a declaration does and is neither.
+               if Is_Word (T.Word_Loop) or else Is_Word (T.Word_While)
+                 or else Is_Word (T.Word_For) or else Is_Word (T.Word_Declare)
+                 or else Is_Word (T.Word_Begin)
+               then
+                  Not_In_Subset (Adash.Messages.Msg_Subset_Loop_Names);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
+               end if;
+
                if Is_Word (T.Word_Constant) then
                   Is_Const := True;
                   Advance;
@@ -3303,6 +3409,13 @@ package body Adash.Language.Parser is
                           (Adash.Source.Join (Start, Just_Consumed));
                      end if;
                   end;
+               end if;
+
+               if Is_Word (T.Word_Renames) then
+                  Not_In_Subset (Adash.Messages.Msg_Subset_Renaming);
+                  Recover;
+                  return Error_Node
+                    (Adash.Source.Join (Start, Just_Consumed));
                end if;
 
                --  `A : Worker (1);` -- what the object gives its type. A
@@ -3401,6 +3514,20 @@ package body Adash.Language.Parser is
             end;
          end if;
 
+         --  Ada spellings this subset leaves out, named where they stand
+         --  rather than counted as "not a statement".
+         if Is_Word (T.Word_Goto) or else Is_Symbol (T.Delim_Left_Label) then
+            Not_In_Subset (Adash.Messages.Msg_Subset_Goto_And_Labels);
+            Recover;
+            return Error_Node (Start);
+         end if;
+
+         if Is_Word (T.Word_Private) then
+            Not_In_Subset (Adash.Messages.Msg_Subset_Private_Parts);
+            Recover;
+            return Error_Node (Start);
+         end if;
+
          Complain (Adash.Messages.Msg_Expected_Statement);
          Recover;
          return Error_Node (Start);
@@ -3430,6 +3557,14 @@ package body Adash.Language.Parser is
          Handled    : S.Node_Id;
       begin
          Advance;  --  procedure or function
+
+         --  `function "+" (...)` -- an operator's name is written as a string,
+         --  which is how this tells one from a subprogram with no name at all.
+         if T.Kind (Current) = T.Token_String_Literal then
+            Not_In_Subset (Adash.Messages.Msg_Subset_User_Defined_Operators);
+            Recover;
+            return Error_Node (Adash.Source.Join (Start, Just_Consumed));
+         end if;
 
          if T.Kind (Current) /= T.Token_Identifier then
             Complain (Adash.Messages.Msg_Expected_Subprogram_Name);
@@ -4189,6 +4324,14 @@ package body Adash.Language.Parser is
          Told_Of_Arguments : Boolean := False;
       begin
          Advance;  --  procedure or function
+
+         --  `function "+" (...)` -- an operator's name is written as a string,
+         --  which is how this tells one from a subprogram with no name at all.
+         if T.Kind (Current) = T.Token_String_Literal then
+            Not_In_Subset (Adash.Messages.Msg_Subset_User_Defined_Operators);
+            Recover;
+            return Error_Node (Adash.Source.Join (Start, Just_Consumed));
+         end if;
 
          if T.Kind (Current) /= T.Token_Identifier then
             Complain (Adash.Messages.Msg_Expected_Subprogram_Name);

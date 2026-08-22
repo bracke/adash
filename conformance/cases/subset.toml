@@ -1,0 +1,88 @@
+# Where the subset ends, and what a reader is told when they walk over the edge.
+#
+# `docs/language-reference.md` opens its list of what Adash leaves out with a
+# promise: "Everything below parses in Ada and is refused here, **by name**, on
+# purpose." Probed one construct per bullet, eleven of thirteen were not: they
+# fell out of the parse somewhere to the right and were reported as whatever
+# token happened to be sitting there. `type P is access Integer;` was told
+# "expected (", which reads as advice to write an enumeration. `X : Integer
+# renames Y;` and `raise X with "t"` were both told "expected ;", which reads
+# as a missing semicolon -- so the reader adds one, and is told the same thing
+# again.
+#
+# Each is refused by name now, where it stands. These cases are what stops the
+# promise drifting again: the suite had no case for any of the thirteen, which
+# is exactly why nobody noticed.
+
+suite = "subset"
+
+[[case]]
+id = "subset.a-type-outside-the-subset-is-named"
+requirement = """
+An access type and a derived type both begin `type X is` and are told apart by
+the word after it, which is where the refusal belongs. Reported at the word,
+not at the parenthesis that an enumeration would have started.
+"""
+script = "type P is access Integer;\ntype T is new Integer;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_in_this_subset{what=!subset.access_types!}!",
+  "!error.not_in_this_subset{what=!subset.derived_types!}!",
+]
+
+[[case]]
+id = "subset.a-package-outside-the-subset-is-named"
+requirement = """
+Four shapes a package can take that this one does not read. A child package is
+told from an ordinary one by the dot, a renaming by the word, and a private
+part by where it stands.
+"""
+script = "generic package G is end G;\npackage P.C is end P.C;\npackage Q renames P;\npackage R is private X : Integer := 1; end R;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_in_this_subset{what=!subset.generic_packages!}!",
+  "!error.not_in_this_subset{what=!subset.child_packages!}!",
+  "!error.not_in_this_subset{what=!subset.package_renaming!}!",
+  "!error.not_in_this_subset{what=!subset.private_parts!}!",
+]
+
+[[case]]
+id = "subset.a-statement-outside-the-subset-is-named"
+requirement = """
+`goto`, a label, a name on a loop, iterating an array's elements, a renaming
+and a message on a raise. Three of these begin exactly the way something in
+the subset does -- a name and a colon is a declaration until the word `loop`
+arrives -- so each is refused at the word that settles it.
+
+A representation clause is the same trick from the other side: `for X use ...`
+begins the way a loop does and is not one.
+"""
+script = "goto Done;\n<<Here>> null;\nOuter : loop null; end loop Outer;\nY : Integer := 1;\nX : Integer renames Y;\nZ : exception;\nraise Z with \"t\";\nW : Integer := 1;\nfor W use at 0;\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_in_this_subset{what=!subset.goto_and_labels!}!",
+  "!error.not_in_this_subset{what=!subset.goto_and_labels!}!",
+  "!error.not_in_this_subset{what=!subset.loop_names!}!",
+  "!error.not_in_this_subset{what=!subset.renaming!}!",
+  "!error.not_in_this_subset{what=!subset.raise_with_a_message!}!",
+  "!error.not_in_this_subset{what=!subset.representation_clauses!}!",
+]
+
+[[case]]
+id = "subset.an-operator-is-named-and-costs-one-diagnostic"
+requirement = """
+An operator's name is written as a string, which is how this is told from a
+subprogram whose name is missing altogether.
+
+And it is where the cost of these refusals shows. What follows a construct the
+parser cannot read is not text a reader got wrong, so reporting it is noise:
+this one arrived with four complaints behind it -- `expected ;` at a bracket,
+`expected a statement` at the same bracket, then both again at the closing
+`"+"`. One refusal ends the submission's syntax report, which is the rule the
+nesting-depth refusal has always used.
+"""
+script = "function \"+\" (A : Integer; B : Integer) return Integer is begin return 1; end \"+\";\nquit (0);"
+exit_status = 0
+diagnostics = [
+  "!error.not_in_this_subset{what=!subset.user_defined_operators!}!",
+]

@@ -418,6 +418,34 @@ package body Adash.Messages is
             return "list.handlers";
          when Msg_List_Nesting                 =>
             return "list.nesting";
+         when Msg_Not_In_This_Subset           =>
+            return "error.not_in_this_subset";
+         when Msg_Subset_Access_Types           =>
+            return "subset.access_types";
+         when Msg_Subset_Derived_Types          =>
+            return "subset.derived_types";
+         when Msg_Subset_Representation_Clauses =>
+            return "subset.representation_clauses";
+         when Msg_Subset_Generic_Packages       =>
+            return "subset.generic_packages";
+         when Msg_Subset_Child_Packages         =>
+            return "subset.child_packages";
+         when Msg_Subset_Private_Parts          =>
+            return "subset.private_parts";
+         when Msg_Subset_Package_Renaming       =>
+            return "subset.package_renaming";
+         when Msg_Subset_Renaming               =>
+            return "subset.renaming";
+         when Msg_Subset_Goto_And_Labels        =>
+            return "subset.goto_and_labels";
+         when Msg_Subset_Loop_Names             =>
+            return "subset.loop_names";
+         when Msg_Subset_User_Defined_Operators =>
+            return "subset.user_defined_operators";
+         when Msg_Subset_Array_Iteration        =>
+            return "subset.array_iteration";
+         when Msg_Subset_Raise_With_A_Message   =>
+            return "subset.raise_with_a_message";
          when Msg_Case_Not_Discrete        =>
             return "error.case.not_discrete";
          when Msg_Case_Choice_Not_Static   =>
@@ -862,6 +890,19 @@ package body Adash.Messages is
             | Msg_List_Choices
             | Msg_List_Handlers
             | Msg_List_Nesting
+            | Msg_Subset_Access_Types
+            | Msg_Subset_Derived_Types
+            | Msg_Subset_Representation_Clauses
+            | Msg_Subset_Generic_Packages
+            | Msg_Subset_Child_Packages
+            | Msg_Subset_Private_Parts
+            | Msg_Subset_Package_Renaming
+            | Msg_Subset_Renaming
+            | Msg_Subset_Goto_And_Labels
+            | Msg_Subset_Loop_Names
+            | Msg_Subset_User_Defined_Operators
+            | Msg_Subset_Array_Iteration
+            | Msg_Subset_Raise_With_A_Message
             | Msg_Application_Name
             | Msg_Application_Summary
             | Msg_Version_Prerelease_Notice
@@ -1419,6 +1460,9 @@ package body Adash.Messages is
 
          when Msg_Too_Many_At_Once =>
             return [N ("what"), N ("limit")];
+
+         when Msg_Not_In_This_Subset =>
+            return [1 => N ("what")];
 
          when Msg_Too_Many_Parameters =>
             return [N ("name"), N ("limit")];

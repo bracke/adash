@@ -25,7 +25,7 @@ This document is the catalog, grouped. The catalog file
 `resources/messages/catalog.txt` is the source; if the two disagree, the file is
 right and this is stale.
 
-There are 645 messages in 23 groups.
+There are 659 messages in 23 groups.
 
 Two of them are defensive and no program reaches them in this build:
 `error.machine.too_many_alternatives`, because the parser refuses a
@@ -220,6 +220,20 @@ a registry that can name something it cannot yet run needs a way to say so.
 | `list.choices` | choices |
 | `list.handlers` | handlers |
 | `list.nesting` | levels of nesting in one expression |
+| `error.not_in_this_subset` | {what} parses in Ada and is not in this subset, so it is refused where it is written rather than read as something else |
+| `subset.access_types` | an access type |
+| `subset.derived_types` | a derived type |
+| `subset.representation_clauses` | a representation clause |
+| `subset.generic_packages` | a generic package |
+| `subset.child_packages` | a child package |
+| `subset.private_parts` | a private part |
+| `subset.package_renaming` | renaming a package |
+| `subset.renaming` | a renaming |
+| `subset.goto_and_labels` | a goto or a label |
+| `subset.loop_names` | a name on a loop or a block |
+| `subset.user_defined_operators` | a user-defined operator |
+| `subset.array_iteration` | iterating over an array's elements |
+| `subset.raise_with_a_message` | a message on a raise |
 | `error.open_by_element` | {name} is as long as what was passed to it, so the whole of it is not replaced: assign a slice of it, or one element at a time |
 | `error.needs_bounds` | a variable of {name} says how long it is, as {name} (1 .. 4), and its first index is one |
 | `error.no_such_slice` | {name} has no elements {first} .. {last} |

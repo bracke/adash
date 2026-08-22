@@ -273,6 +273,7 @@ package Adash.Errors is
       Error_Open_By_Element,
       Error_Too_Many_At_Once,
       Error_Too_Many_Parameters,
+      Error_Not_In_This_Subset,
 
       Error_Case_Not_Discrete,
       Error_Case_Choice_Not_Static,
