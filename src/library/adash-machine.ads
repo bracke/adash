@@ -1131,6 +1131,24 @@ package Adash.Machine is
    --  @return What is in it.
    function Slot_Value (Item : Program; Slot : Natural) return Cell;
 
+   --  Put a value into a slot before the program runs.
+   --
+   --  The write beside that read, and what a session needs to carry a variable
+   --  as a *value*. Today one survives to the next submission by being written
+   --  back as the expression that rebuilds it and read again -- which works
+   --  only for values that can be spelled, and a record of one component could
+   --  not be until the aggregate it was spelled as stopped being `(7)`.
+   --
+   --  Does nothing when the slot is outside the frame, for the reason
+   --  `Slot_Value` answers `Cell_None` there: a caller asking about storage a
+   --  program does not have is asking something with no answer, and raising
+   --  would make every caller check first.
+   --
+   --  @param Item The program to write into.
+   --  @param Slot Which slot.
+   --  @param Value What to put in it.
+   procedure Set_Slot (Item : in out Program; Slot : Natural; Value : Cell);
+
 private
 
    type Instruction_Array is array (Positive range <>) of Instruction;

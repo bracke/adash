@@ -416,6 +416,19 @@ package body Adash.Machine is
       return Item.Kept (Slot + 1);
    end Slot_Value;
 
+   --------------
+   -- Set_Slot --
+   --------------
+
+   procedure Set_Slot (Item : in out Program; Slot : Natural; Value : Cell) is
+   begin
+      if Item.Kept = null or else Slot + 1 not in Item.Kept'Range then
+         return;
+      end if;
+
+      Item.Kept (Slot + 1) := Value;
+   end Set_Slot;
+
    ---------
    -- Run --
    ---------

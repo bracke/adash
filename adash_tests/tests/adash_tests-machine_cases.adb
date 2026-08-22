@@ -611,6 +611,57 @@ package body Adash_Tests.Machine_Cases is
    -- Register_Tests --
    --------------------
 
+   ---------------------------------
+   -- A_Slot_Can_Be_Written_Into --
+   ---------------------------------
+
+   --  A value can be put into a frame, not only taken out of it.
+   --
+   --  `Slot_Value` exists so a session can read what a submission left in a
+   --  variable. It had no opposite, so a value reached the *next* submission
+   --  by being written out as the expression that rebuilds it and parsed
+   --  again -- which works only for what can be spelled, and a record of one
+   --  component could not be until the aggregate it was spelled as stopped
+   --  being `(7)`.
+   --
+   --  What this does *not* yet do, found by trying it here first: a slot
+   --  cannot be written before the program runs. The frame is allocated by the
+   --  run, so there is nothing to write into until then, and carrying a value
+   --  into a fresh program needs the run to accept one rather than the caller
+   --  to place it. That is the next piece, and this is the half that works.
+   procedure A_Slot_Can_Be_Written_Into
+     (Test : in out AUnit.Test_Cases.Test_Case'Class);
+
+   procedure A_Slot_Can_Be_Written_Into
+     (Test : in out AUnit.Test_Cases.Test_Case'Class)
+   is
+      pragma Unreferenced (Test);
+      Program : M.Program;
+      Answer  : M.Result;
+   begin
+      Program.Set_Frame (1);
+      Program.Add (M.Address, 0, M.Whole_Number (0));
+      Program.Add (M.Push_Whole, 0, M.Whole_Number (1));
+      Program.Add (M.Store);
+      Program.Add (M.Halt);
+      Program.Run (null, Answer);
+
+      Assert (Answer.What = M.Ran, "the program did not run");
+      Assert (Program.Slot_Value (0).Whole = 1, "the program did not store");
+
+      --  Written over, and read back.
+      Program.Set_Slot (0, (Kind => M.Cell_Whole, Whole => 42));
+      Assert (Program.Slot_Value (0).Kind = M.Cell_Whole
+                and then Program.Slot_Value (0).Whole = 42,
+              "a slot written into did not read back");
+
+      --  Outside the frame: ignored, exactly as reading one is. A pair that
+      --  disagreed about that would be a trap for whoever used them together.
+      Program.Set_Slot (99, (Kind => M.Cell_Whole, Whole => 7));
+      Assert (Program.Slot_Value (99).Kind = M.Cell_None,
+              "a slot outside the frame took a value");
+   end A_Slot_Can_Be_Written_Into;
+
    overriding procedure Register_Tests (T : in out Case_Type) is
       use AUnit.Test_Cases.Registration;
    begin
@@ -637,6 +688,9 @@ package body Adash_Tests.Machine_Cases is
       Register_Routine
         (T, A_Handler_Catches_And_Unwinds'Access,
          "machine : a handler catches what a call raised, and unwinds to it");
+      Register_Routine
+        (T, A_Slot_Can_Be_Written_Into'Access,
+         "machine : a slot can be written into, and one outside is ignored");
       Register_Routine
         (T, The_Shell_Is_Called_And_Can_Stop_It'Access,
          "machine : the shell is called, answers, and can end the program");
