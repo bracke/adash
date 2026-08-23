@@ -78,6 +78,26 @@ row-to-row *shape* from this and not the last digit.
 | parse a configuration file | 11.6 us | 11.5 us |
 | open an engine session | 109.8 us | 105.2 us |
 
+**Seeding a frame breaks the run, and the machine says so itself.** With the
+address map in, the next step is a value carried in the frame rather than
+written back as source. Two things were wrong with the first attempt and both
+are now known:
+
+  * `Set_Slot` wrote where `Slot_Value` reads, and that is made only when a run
+    *ends* -- so writing before a program had ever run did nothing at all.
+    Allocating it on demand from `Frame` fixes that, and a probe confirms the
+    value sticks.
+  * The run blanks its whole frame just after `Slots_Used := Item.Frame`, so a
+    copy placed before that blanking is wiped by it. Seeding belongs after.
+
+With both fixed the value is in the frame and the run comes back **BROKEN** --
+the machine's own verdict, not an exception in the test. The same instruction
+sequence runs correctly when the program stores the value itself, so it is the
+seeding rather than the instructions: copying cells into `Slots` between the
+blanking loop and the first instruction leaves the machine in a state it
+rejects. What check calls it broken is the next thing to find, and it is a
+narrow question -- one loop of assignments is the whole of the change.
+
 **The address map is in, 2026-08-22 (`Evaluation.Frame_Map`).** A name and an
 address the session keeps; `Place_Of` consults it where it allocates, so a
 carried variable is given the address it had last time instead of one handed
