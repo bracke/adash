@@ -1,4 +1,4 @@
-with Hostkit.Host;
+with Hostkit.Descriptors;
 with Terminal_Styles;
 
 package body Adash.Terminal is
@@ -104,11 +104,14 @@ package body Adash.Terminal is
    begin
       case Stream is
          when Standard_Input =>
-            return Hostkit.Host.Is_Terminal (Hostkit.Host.Standard_Input);
+            return Hostkit.Descriptors.Is_Terminal
+              (Hostkit.Descriptors.Standard_Input);
          when Standard_Output =>
-            return Hostkit.Host.Is_Terminal (Hostkit.Host.Standard_Output);
+            return Hostkit.Descriptors.Is_Terminal
+              (Hostkit.Descriptors.Standard_Output);
          when Standard_Error =>
-            return Hostkit.Host.Is_Terminal (Hostkit.Host.Standard_Error);
+            return Hostkit.Descriptors.Is_Terminal
+              (Hostkit.Descriptors.Standard_Error);
       end case;
    end Is_Terminal;
 

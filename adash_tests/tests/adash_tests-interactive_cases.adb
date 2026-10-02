@@ -2661,12 +2661,27 @@ package body Adash_Tests.Interactive_Cases is
    is
       pragma Unreferenced (T);
 
+      Room : constant String :=
+        Hostkit.Fs.Create_Temporary_Directory ("adash-default-colour-test");
+
       Session : Terminal_Session;
       Ended   : Boolean;
+      Told    : Hostkit.String_Vectors.Vector;
    begin
+      --  The runner may itself be under NO_COLOR, and a user's config may say
+      --  `never`. This case is about Adash's default in a clean session, so
+      --  the child gets a small environment of its own and no NO_COLOR entry.
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String
+           ("XDG_CONFIG_HOME=" & Room));
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String ("APPDATA=" & Room));
+      Told.Append
+        (Ada.Strings.Unbounded.To_Unbounded_String ("HOME=" & Room));
+
       --  Nothing is typed to set a policy: the session runs on whatever the
       --  default is, which is the whole subject.
-      if not Start_On_A_Terminal (Session) then
+      if not Start_On_A_Terminal (Session, Told => Told) then
          return;
       end if;
 

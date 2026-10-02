@@ -124,10 +124,10 @@ package Adash.Terminal is
 
    --  Whether one of the standard streams is a terminal.
    --
-   --  Asked of hostkit, which has a body per host. This is here rather than
-   --  left to each caller so that "is this a terminal" has one answer inside
-   --  Adash, and so that the interactive frontend and the diagnostic printer
-   --  cannot come to different conclusions about the same stream.
+   --  Asked of hostkit's descriptor layer. This is here rather than left to
+   --  each caller so that "is this a terminal" has one answer inside Adash,
+   --  and so that the interactive frontend and the diagnostic printer cannot
+   --  come to different conclusions about the same stream.
    type Stream_Kind is (Standard_Input, Standard_Output, Standard_Error);
 
    --  @param Stream Stream to test.
