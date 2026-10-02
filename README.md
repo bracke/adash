@@ -247,6 +247,17 @@ alr build
 ./bin/adash_conformance       # the conformance cases, against the built binary
 ```
 
+To make the shell available outside the checkout, install it into a prefix whose
+`bin` directory is on your `PATH`:
+
+```
+alr install --prefix="$HOME/.local"
+export PATH="$HOME/.local/bin:$PATH"
+
+adash                         # start it from any directory
+adash script.adash            # run a script
+```
+
 ## Design rules
 
 Seven capabilities are owned by other crates, and Adash may not reimplement any

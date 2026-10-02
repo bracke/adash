@@ -3,6 +3,16 @@
 Adash is a shell whose command language is a defined subset of Ada 2022. What
 you type is a **program**, not a command line with words in it.
 
+Build it from the repository with `alr build`, then run `./bin/adash` from the
+checkout. To install it for use from any directory, put it in a prefix whose
+`bin` directory is on your path:
+
+    alr install --prefix="$HOME/.local"
+    export PATH="$HOME/.local/bin:$PATH"
+
+Once installed, or when another package manager has put it on `PATH`, start it
+as `adash`:
+
     adash                      -- start a session
     adash script.adash         -- run a script
     adash script.adash a b     -- with arguments
