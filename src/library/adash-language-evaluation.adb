@@ -1,7 +1,4 @@
-with Ada.Containers.Vectors;
-
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;
 
 with Adash.Errors;
 with Adash.Machine;
