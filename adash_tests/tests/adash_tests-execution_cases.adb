@@ -67,7 +67,7 @@ package body Adash_Tests.Execution_Cases is
       File   : Ada.Text_IO.File_Type;
       Result : Unbounded_String;
    begin
-      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path, Form => "shared=no");
 
       while not Ada.Text_IO.End_Of_File (File) loop
          Append (Result, Ada.Text_IO.Get_Line (File));

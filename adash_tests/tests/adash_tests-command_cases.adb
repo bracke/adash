@@ -463,7 +463,7 @@ package body Adash_Tests.Command_Cases is
          File : Ada.Text_IO.File_Type;
          Text : Ada.Strings.Unbounded.Unbounded_String;
       begin
-         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path, Form => "shared=no");
 
          while not Ada.Text_IO.End_Of_File (File) loop
             Ada.Strings.Unbounded.Append
@@ -506,7 +506,7 @@ package body Adash_Tests.Command_Cases is
       declare
          File : Ada.Text_IO.File_Type;
       begin
-         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Source);
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Source, Form => "shared=no");
          Ada.Text_IO.Put_Line (File, "one");
          Ada.Text_IO.Put_Line (File, "two");
          Ada.Text_IO.Close (File);
@@ -605,7 +605,7 @@ package body Adash_Tests.Command_Cases is
       declare
          File : Ada.Text_IO.File_Type;
       begin
-         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Source);
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Source, Form => "shared=no");
          Ada.Text_IO.Put_Line (File, "beta");
          Ada.Text_IO.Put_Line (File, "alpha");
          Ada.Text_IO.Close (File);

@@ -138,7 +138,7 @@ begin
       return;
    end if;
 
-   Ada.Text_IO.Create (Report, Ada.Text_IO.Out_File, Where);
+   Ada.Text_IO.Create (Report, Ada.Text_IO.Out_File, Where, Form => "shared=no");
 
    declare
       Armed : constant Adash.Errors.Error_Info :=

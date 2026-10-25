@@ -337,7 +337,7 @@ package body Adash.Source is
       end if;
 
       begin
-         Stream_IO.Open (File, Stream_IO.In_File, Path);
+         Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       exception
          when Ada.IO_Exceptions.Name_Error
             | Ada.IO_Exceptions.Use_Error

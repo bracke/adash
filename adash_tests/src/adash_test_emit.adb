@@ -156,7 +156,7 @@ begin
                Source : Ada.Text_IO.File_Type;
             begin
                Ada.Text_IO.Open
-                 (Source, Ada.Text_IO.In_File, After (Value, "--file="));
+                 (Source, Ada.Text_IO.In_File, After (Value, "--file="), Form => "shared=no");
                while not Ada.Text_IO.End_Of_File (Source) loop
                   Say (Ada.Text_IO.Get_Line (Source));
                end loop;

@@ -794,7 +794,7 @@ package body Adash_Tests.Interactive_Cases is
          File : Ada.Text_IO.File_Type;
       begin
          Ada.Text_IO.Create
-           (File, Ada.Text_IO.Out_File, Hostkit.Fs.Join (Room, Plain));
+           (File, Ada.Text_IO.Out_File, Hostkit.Fs.Join (Room, Plain), Form => "shared=no");
          Ada.Text_IO.Put_Line (File, "not a program");
          Ada.Text_IO.Close (File);
       end;
@@ -2759,7 +2759,7 @@ package body Adash_Tests.Interactive_Cases is
          Script : constant String := Hostkit.Fs.Join (Room, "probe.adash");
          File   : Ada.Text_IO.File_Type;
       begin
-         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Script);
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Script, Form => "shared=no");
          Ada.Text_IO.Put_Line
            (File, "settings (""trace.commands"", ""true"");");
          Ada.Text_IO.Put_Line
@@ -2834,7 +2834,7 @@ package body Adash_Tests.Interactive_Cases is
          begin
             Ada.Text_IO.Create
               (File, Ada.Text_IO.Out_File,
-               Ada.Strings.Unbounded.To_String (Where));
+               Ada.Strings.Unbounded.To_String (Where), Form => "shared=no");
             Ada.Text_IO.Put_Line (File, "color = ""never""");
             Ada.Text_IO.Close (File);
          end;
@@ -2855,7 +2855,7 @@ package body Adash_Tests.Interactive_Cases is
          Script : constant String := Hostkit.Fs.Join (Room, "probe.adash");
          File   : Ada.Text_IO.File_Type;
       begin
-         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Script);
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Script, Form => "shared=no");
          Ada.Text_IO.Put_Line (File, "run (""/nonesuch-for-colour"");");
          Ada.Text_IO.Close (File);
 
@@ -3163,7 +3163,7 @@ package body Adash_Tests.Interactive_Cases is
          declare
             File : Ada.Text_IO.File_Type;
          begin
-            Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Room);
+            Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Room, Form => "shared=no");
 
             while not Ada.Text_IO.End_Of_File (File) loop
                Ada.Strings.Unbounded.Append
@@ -3322,7 +3322,7 @@ package body Adash_Tests.Interactive_Cases is
                declare
                   Kept : Ada.Text_IO.File_Type;
                begin
-                  Ada.Text_IO.Open (Kept, Ada.Text_IO.In_File, Elsewhere);
+                  Ada.Text_IO.Open (Kept, Ada.Text_IO.In_File, Elsewhere, Form => "shared=no");
 
                   while not Ada.Text_IO.End_Of_File (Kept) loop
                      Ada.Strings.Unbounded.Append

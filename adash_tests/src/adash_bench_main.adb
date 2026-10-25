@@ -685,7 +685,7 @@ begin
    begin
       --  Eight thousand lines with a limit of a thousand: seven thousand to
       --  drop, which is what the quadratic loop charged for.
-      Ada.Text_IO.Create (Sample, Ada.Text_IO.Out_File, Sample_Path);
+      Ada.Text_IO.Create (Sample, Ada.Text_IO.Out_File, Sample_Path, Form => "shared=no");
 
       for Line in 1 .. 8_000 loop
          Ada.Text_IO.Put_Line

@@ -172,7 +172,7 @@ package body Adash.Filesystem is
 
       begin
          Ada.Streams.Stream_IO.Open
-           (File, Ada.Streams.Stream_IO.In_File, Real_Path);
+           (File, Ada.Streams.Stream_IO.In_File, Real_Path, Form => "shared=no");
       exception
          when Ada.IO_Exceptions.Name_Error =>
             Result := Read_Missing;
@@ -962,7 +962,7 @@ package body Adash.Filesystem is
 
       begin
          Ada.Streams.Stream_IO.Create
-           (File, Ada.Streams.Stream_IO.Out_File, Real_Path);
+           (File, Ada.Streams.Stream_IO.Out_File, Real_Path, Form => "shared=no");
       exception
          when Ada.IO_Exceptions.Name_Error =>
             --  Nowhere to put it: a directory in the path that is not there.
@@ -1010,12 +1010,12 @@ package body Adash.Filesystem is
       begin
          if Exists (Real_Path) then
             Ada.Streams.Stream_IO.Open
-              (File, Ada.Streams.Stream_IO.Append_File, Real_Path);
+              (File, Ada.Streams.Stream_IO.Append_File, Real_Path, Form => "shared=no");
          else
             --  Made rather than refused: appending to a file that is not there
             --  yet is what a script collecting output does on its first turn.
             Ada.Streams.Stream_IO.Create
-              (File, Ada.Streams.Stream_IO.Out_File, Real_Path);
+              (File, Ada.Streams.Stream_IO.Out_File, Real_Path, Form => "shared=no");
          end if;
       exception
          when Ada.IO_Exceptions.Name_Error =>

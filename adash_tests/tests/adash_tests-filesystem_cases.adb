@@ -24,7 +24,7 @@ package body Adash_Tests.Filesystem_Cases is
         Ada.Directories.Compose (Ada.Directories.Current_Directory, Name);
       File : Ada.Text_IO.File_Type;
    begin
-      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path, Form => "shared=no");
       Ada.Text_IO.Put_Line (File, "something");
       Ada.Text_IO.Close (File);
       return Path;
@@ -53,7 +53,7 @@ package body Adash_Tests.Filesystem_Cases is
       Text : String (1 .. 1_024);
       Last : Natural := 0;
    begin
-      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path, Form => "shared=no");
 
       while not Ada.Text_IO.End_Of_File (File) and then Last < Text'Last loop
          Ada.Text_IO.Get (File, Text (Last + 1));

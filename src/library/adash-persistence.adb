@@ -158,7 +158,7 @@ package body Adash.Persistence is
          return;
       end if;
 
-      Open (File, In_File, Path);
+      Open (File, In_File, Path, Form => "shared=no");
 
       declare
          Buffer : Stream_Element_Array (1 .. 8_192);
@@ -278,7 +278,7 @@ package body Adash.Persistence is
       File    : File_Type;
    begin
       begin
-         Create (File, Out_File, Staging);
+         Create (File, Out_File, Staging, Form => "shared=no");
 
          declare
             Buffer : Stream_Element_Array
@@ -421,9 +421,9 @@ package body Adash.Persistence is
          Newline : constant Character := Character'Val (16#0A#);
       begin
          if Ada.Directories.Exists (Path) then
-            Open (File, Append_File, Path);
+            Open (File, Append_File, Path, Form => "shared=no");
          else
-            Create (File, Out_File, Path);
+            Create (File, Out_File, Path, Form => "shared=no");
             Restrict (Path);
          end if;
 

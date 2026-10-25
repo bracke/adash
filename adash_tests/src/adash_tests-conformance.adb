@@ -1307,7 +1307,7 @@ package body Adash_Tests.Conformance is
       end if;
 
       begin
-         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Said_Path);
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Said_Path, Form => "shared=no");
 
          while not Ada.Text_IO.End_Of_File (File) loop
             Take (Ada.Text_IO.Get_Line (File));

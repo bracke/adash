@@ -407,7 +407,7 @@ package body Adash.Scripting is
          Result : Unbounded_String;
       begin
          Ada.Streams.Stream_IO.Open
-           (File, Ada.Streams.Stream_IO.In_File, Path);
+           (File, Ada.Streams.Stream_IO.In_File, Path, Form => "shared=no");
 
          declare
             use Ada.Streams;
@@ -814,7 +814,7 @@ package body Adash.Scripting is
       begin
          begin
             Ada.Streams.Stream_IO.Open
-              (File, Ada.Streams.Stream_IO.In_File, Path);
+              (File, Ada.Streams.Stream_IO.In_File, Path, Form => "shared=no");
          exception
             when Ada.IO_Exceptions.Name_Error
                | Ada.IO_Exceptions.Use_Error

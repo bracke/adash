@@ -34,7 +34,7 @@ package body Adash_Tests.Scripting_Cases is
         Ada.Directories.Compose (Ada.Directories.Current_Directory, Name);
       File : Ada.Text_IO.File_Type;
    begin
-      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path, Form => "shared=no");
       Ada.Text_IO.Put_Line (File, Text);
       Ada.Text_IO.Close (File);
       return Path;

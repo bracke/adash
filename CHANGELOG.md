@@ -11,6 +11,10 @@ what changed.
 
 ### Fixed
 
+- A file another task of the program has open is read and written all the same: GNAT's default
+  open form refuses a file the program already has open (`Use_Error: reopening shared file`);
+  every Open and Create of a file now says `shared=no`.
+
 - **A width or a decimal count outside a machine number is refused, not
   raised.** `Right_Aligned ("x", 99999999999)` and `Decimals (1.0,
   99999999999)` ended the session with a range check naming a line of the

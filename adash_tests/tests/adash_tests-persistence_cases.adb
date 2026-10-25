@@ -435,7 +435,7 @@ package body Adash_Tests.Persistence_Cases is
       Total : constant := 4_000;
       Kept  : constant := 100;
    begin
-      Ada.Text_IO.Create (Written, Ada.Text_IO.Out_File, File);
+      Ada.Text_IO.Create (Written, Ada.Text_IO.Out_File, File, Form => "shared=no");
 
       for Line in 1 .. Total loop
          Ada.Text_IO.Put_Line
@@ -483,7 +483,7 @@ package body Adash_Tests.Persistence_Cases is
          Held : Natural := 0;
          Text : Ada.Text_IO.File_Type;
       begin
-         Ada.Text_IO.Open (Text, Ada.Text_IO.In_File, File);
+         Ada.Text_IO.Open (Text, Ada.Text_IO.In_File, File, Form => "shared=no");
 
          while not Ada.Text_IO.End_Of_File (Text) loop
             declare
